@@ -20,6 +20,12 @@ data-processing lanes) is per-tenant configuration.
 
 Product spec: [`docs/spec.txt`](docs/spec.txt). Engineering contract for contributors: [`AGENTS.md`](AGENTS.md).
 
+**Status (31 Oct 2026):** all seven modules are built (pages, `/api/v1/*` routes, jobs, migrations). 348 tests in
+40 files pass, 50 of them security/tenant-isolation tests. Production `next build` passes. Of the spec's 72
+requirements, 55 are built, 16 partial and 1 planned; see [docs/traceability.md](docs/traceability.md). Not deployed
+yet: runs locally with mock AI and mock connectors until the items in
+[docs/launch-dependencies.md](docs/launch-dependencies.md) are done.
+
 ---
 
 ## Documentation
@@ -30,8 +36,9 @@ Product spec: [`docs/spec.txt`](docs/spec.txt). Engineering contract for contrib
 | [docs/admin-runbook.md](docs/admin-runbook.md) | Agency / tenant admin | Onboarding, members & roles, kill switch, AI budget, reconnects, failed jobs, backups & restore, incidents, retention, deletion, admin recovery |
 | [docs/deploy.md](docs/deploy.md) | Agency owner + developer | Supabase cloud (Mumbai) + Vercel (bom1) step by step, cron, domain, rollback, go-live checklist |
 | [docs/security-model.md](docs/security-model.md) | Developer / security reviewer | Threat & access model: tenancy, RLS helpers, classifications, service-role rules, approval hashing, no-send, prompt injection, token encryption, scopes, DPDP note, known gaps |
+| [docs/security-review.md](docs/security-review.md) | Developer / security reviewer | Findings (C/H/M ids referenced in module READMEs) and their fixes |
 | [docs/costs.md](docs/costs.md) | Agency owner | Monthly cost model, per-tenant marginal cost, pricing worksheet |
-| [docs/launch-dependencies.md](docs/launch-dependencies.md) | Agency owner | Launch dependency register (platform + per tenant) with fallbacks |
+| [docs/launch-dependencies.md](docs/launch-dependencies.md) | Agency owner | Launch dependency register (platform + per tenant) with fallbacks, and known gaps per module |
 | [docs/traceability.md](docs/traceability.md) | Everyone | Spec's 72 requirements → module/route/table, with build status |
 | [docs/setup-oauth.md](docs/setup-oauth.md) | Developer | Microsoft Entra & Google OAuth app setup (integrations module) |
 | [docs/demo-data.md](docs/demo-data.md) | Developer / sales | Opt-in synthetic `demo-pune` workspace for demos and UI testing (local only) |
@@ -104,11 +111,13 @@ src/
   modules/<name>/      Feature modules — services, jobs.ts, README.md
   components/ui/       Shared UI primitives
 supabase/
-  migrations/          2026103100{0100,0200,0300}_core_* then one file per module (001000–001699)
+  migrations/          2026103100{0100,0200,0300}_core_*, module files 001000–001699 (integrations has two: 001400, 001410),
+                       then core security fixes 001900_core_hardening, 001910_storage_record_acl
   seed.sql             LOCAL ONLY: 3 users, 2 empty tenants
   config.toml          LOCAL ONLY Supabase config
-scripts/               worker.ts (local scheduler loop), smoke.mjs (Playwright route smoke test)
-tests/                 helpers.ts (seeded users, WS1/WS2), rls.test.ts
+scripts/               worker.ts (local scheduler loop), demo-seed.ts / demo-reset.ts (synthetic demo workspace),
+                       smoke.mjs (Playwright route smoke test)
+tests/                 helpers.ts (seeded users, WS1/WS2), rls.test.ts, security/*.test.ts (isolation, RPC, storage, tamper)
 docs/                  spec + handover docs
 ```
 
@@ -120,11 +129,11 @@ job types, routes, env vars, known gaps).
 | Module | What it covers | Routes | Migration | README |
 |---|---|---|---|---|
 | **imports** | File intake (xlsx/csv), adapters, hashing, staging, reconciliation, quarantine, identity candidates, lease-event derivation | `/imports`, `/api/v1/imports/**` | `20261031001000_imports.sql` | [src/modules/imports/README.md](src/modules/imports/README.md) |
-| **capture** (+ changes) | Voice/text/photo capture, transcription, extraction, ambiguity questions, change proposals, approvals, apply/reverse | `/capture`, `/approvals`, `/api/v1/captures/**`, `/api/v1/changes/**` | `20261031001100_changes_apply_reverse.sql` | [src/modules/capture/README.md](src/modules/capture/README.md) |
+| **capture** (+ changes) | Voice/text/photo capture, transcription, extraction, ambiguity questions, change proposals, approvals, apply/reverse | `/capture`, `/capture/[id]`, `/approvals`, `/api/v1/captures/**`, `/api/v1/changes/**` | `20261031001100_changes_apply_reverse.sql` | [src/modules/capture/README.md](src/modules/capture/README.md) |
 | **brief** | 08:00 brief, pre-meeting briefs, health check & fallback, lead scoring, priority/daily plan, lease radar, tasks, urgent alerts | `/today`, `/tasks`, `/leases`, `/api/v1/briefs/**`, `/api/v1/tasks/**` | `20261031001200_brief.sql` | [src/modules/brief/README.md](src/modules/brief/README.md) |
 | **deals** | Requirements, opportunities/pipeline, property matching & shortlist, finance engine (TCO/NPV), documents, quotes, fees, CRM export | `/requirements`, `/deals`, `/finance`, `/documents`, `/fees`, `/api/v1/requirements/**`, `/api/v1/finance/**`, `/api/v1/documents/**`, `/api/v1/opportunities/**` | `20261031001300_deals.sql` | [src/modules/deals/README.md](src/modules/deals/README.md) |
-| **integrations** | Microsoft 365 & Google read-only connectors, inbox triage, calendar & visits, drafts & manual send, outreach sequences, touch calendar, suppression | `/drafts`, `/calendar`, `/settings/connections`, `/api/v1/drafts/**`, `/api/v1/calendar/**`, `/api/oauth/**` | `20261031001400_integrations.sql` | [src/modules/integrations/README.md](src/modules/integrations/README.md) |
-| **intelligence** | Research dossiers & evidence patrol, network/intro paths, market, legal desk, content queue, insights/experiments | `/research`, `/network`, `/market`, `/legal`, `/content`, `/insights`, `/api/v1/research/**` | `20261031001500_intelligence.sql` | [src/modules/intelligence/README.md](src/modules/intelligence/README.md) |
+| **integrations** | Microsoft 365 & Google read-only connectors, inbox triage, calendar & visits, drafts & manual send, outreach sequences, touch calendar, suppression | `/drafts`, `/calendar`, `/settings/connections`, `/api/v1/drafts/**`, `/api/v1/calendar/**`, `/api/oauth/**` | `20261031001400_integrations.sql`, `…001410_integrations_draft_security.sql` | [src/modules/integrations/README.md](src/modules/integrations/README.md) |
+| **intelligence** | Research dossiers & evidence patrol, network/intro paths, market, legal desk, content queue, insights/experiments | `/research`, `/network`, `/market`, `/legal`, `/content`, `/insights`, `/api/v1/{research,legal,market,content,insights}/**` | `20261031001500_intelligence.sql` | [src/modules/intelligence/README.md](src/modules/intelligence/README.md) |
 | **admin** | Search, company/person/building pages, settings, members, retention, health, kill switch, backups, platform (tenants) | `/search`, `/companies`, `/people`, `/buildings`, `/settings/**`, `/admin/**`, `/platform/**`, `/api/v1/search`, `/api/v1/admin/**` | `20261031001600_admin.sql` | [src/modules/admin/README.md](src/modules/admin/README.md) |
 
 ## API conventions
@@ -163,6 +172,22 @@ npm run dev                         # http://localhost:3000
 npm run worker                      # second terminal: calls /api/cron/tick every 60 s (scheduler + job queue)
 ```
 
+### npm scripts
+
+| Script | Runs | What |
+|---|---|---|
+| `dev` / `build` / `start` | `next dev` / `next build` / `next start` | Dev server, production build (passes), production server |
+| `lint` | `eslint` | Lint |
+| `typecheck` | `tsc --noEmit` | Type check |
+| `test` | `vitest run` | All tests (needs local Supabase + seed) |
+| `db:start` | `supabase start -x …` | Local Supabase stack (slim: no studio/realtime/edge runtime) |
+| `db:reset` | `supabase db reset` | **Destructive**: recreate local DB, run migrations + seed |
+| `worker` | `tsx scripts/worker.ts` | Local scheduler loop (calls `/api/cron/tick`) |
+| `demo:seed` | `tsx scripts/demo-seed.ts` | Create/top up the synthetic `demo-pune` workspace (local only; idempotent) — [docs/demo-data.md](docs/demo-data.md) |
+| `demo:reset` | `tsx scripts/demo-reset.ts` | Delete the demo workspace and everything in it (`npm run demo:reset -- --yes`); touches no other workspace |
+
+`worker`, `demo:seed` and `demo:reset` load `.env.local`.
+
 Minimal `.env.local` for local work (everything else can stay empty → mock mode):
 
 ```dotenv
@@ -194,9 +219,12 @@ explains what to do. For a populated synthetic workspace, see [docs/demo-data.md
 
 ### Tests and checks
 
+Current state: **348 tests in 40 files, all passing**; 50 of them are security/isolation tests (`tests/rls.test.ts`,
+`tests/security/*`). `next build` (production) passes.
+
 ```bash
 npm test                            # vitest: all src/**/*.test.ts and tests/**/*.test.ts (needs local Supabase + seed)
-npx vitest run tests/rls.test.ts    # tenancy / RLS isolation
+npx vitest run tests/rls.test.ts tests/security   # tenancy / RLS / RPC / storage isolation
 npx vitest run src/modules/deals    # one module
 npm run typecheck                   # tsc --noEmit
 npm run lint

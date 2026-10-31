@@ -99,9 +99,11 @@ async function selectAll<T>(db: Db, ws: string, table: string, columns: string, 
 
 export async function loadImportSettings(db: Db, ws: string): Promise<{ sizeRules: SizeRules; thresholds: IdentityThresholds }> {
   const { data } = await db.from("workspace_setting").select("key, value").eq("workspace_id", ws)
-    .in("key", ["imports.size_rules", "imports.identity_thresholds"]);
+    .in("key", ["size_rules", "imports.size_rules", "imports.identity_thresholds"]);
   const get = (k: string) => (data ?? []).find((r: { key: string }) => r.key === k)?.value as Record<string, unknown> | undefined;
-  const sr = get("imports.size_rules") ?? {};
+  // Settings page saves { min_sf, max_sf } under "size_rules"; "imports.size_rules" (exclusive bounds) overrides it.
+  const general = get("size_rules") ?? {};
+  const sr: Record<string, unknown> = { min_exclusive_sf: general.min_sf, max_exclusive_sf: general.max_sf, ...(get("imports.size_rules") ?? {}) };
   const th = get("imports.identity_thresholds") ?? {};
   const n = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
   return {

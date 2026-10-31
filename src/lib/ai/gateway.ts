@@ -52,6 +52,10 @@ export interface StructuredCall<S extends ZodType> {
   /** Deterministic result used when no API key is configured (dev/test). If omitted, throws AiUnavailableError. */
   mock?: () => z.infer<S>;
   redact?: (s: string) => string;
+  /** Classification of the data being sent (default corporate_confidential). Checked against the tenant's data lanes. */
+  classification?: "public" | "permitted_personal" | "corporate_confidential" | "licensed_restricted";
+  /** Licensed sources the evidence came from; each must permit AI processing. */
+  licensedSourceIds?: string[];
 }
 
 export interface StructuredResult<T> {
@@ -65,6 +69,7 @@ export async function callStructured<S extends ZodType>(call: StructuredCall<S>)
   const tier = call.tier ?? "luna";
   const model = MODELS[tier];
   await guard(call.workspaceId);
+  await assertProcessingAllowed(call.workspaceId, call.classification ?? "corporate_confidential", call.licensedSourceIds ?? []);
 
   const api = openai();
   if (!api) {
@@ -142,6 +147,34 @@ async function guard(workspaceId: string | null) {
   const spent = await monthSpendUsd(workspaceId);
   const budgetUsd = Number(ws?.monthly_ai_budget_inr ?? 0) / PRICING.fxInrPerUsd;
   if (budgetUsd > 0 && spent >= budgetUsd) throw new AiUnavailableError("budget_exceeded", `AI budget reached (${spent.toFixed(2)} USD)`);
+}
+
+/**
+ * Data-lane + licence enforcement (spec Part I §4, §14). Rules:
+ *  - licensed sources used as evidence must have permits_ai_processing = true;
+ *  - if the tenant has configured any data lane, the data's classification must be covered by a lane whose
+ *    approved_processors include "openai" (a lane with no approval evidence/date does not count).
+ *  - a tenant with no lanes configured yet may send public/permitted_personal/corporate_confidential data,
+ *    but never licensed_restricted data.
+ */
+export async function assertProcessingAllowed(workspaceId: string | null, classification: string, licensedSourceIds: string[]) {
+  if (!workspaceId) return;
+  const db = createAdminClient();
+  if (licensedSourceIds.length) {
+    const { data: src } = await db.from("licensed_source").select("id, name, permits_ai_processing").eq("workspace_id", workspaceId).in("id", licensedSourceIds);
+    const blocked = (src ?? []).filter((r) => !r.permits_ai_processing);
+    if (blocked.length || (src ?? []).length < licensedSourceIds.length) {
+      throw new AiUnavailableError("paused", `licence does not permit AI processing: ${blocked.map((b) => b.name).join(", ") || "unknown source"}`);
+    }
+  }
+  const { data: lanes } = await db.from("data_lane").select("allowed_classifications, approved_processors, approved_at")
+    .eq("workspace_id", workspaceId).is("archived_at", null);
+  if (!lanes || lanes.length === 0) {
+    if (classification === "licensed_restricted") throw new AiUnavailableError("paused", "licensed-restricted data needs an approved data lane before AI processing");
+    return;
+  }
+  const ok = lanes.some((l) => l.approved_at && (l.allowed_classifications ?? []).includes(classification) && (l.approved_processors ?? []).map((p: string) => p.toLowerCase()).includes("openai"));
+  if (!ok) throw new AiUnavailableError("paused", `no approved data lane allows OpenAI processing of ${classification} data`);
 }
 
 export async function monthSpendUsd(workspaceId: string): Promise<number> {

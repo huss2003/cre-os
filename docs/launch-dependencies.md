@@ -9,7 +9,8 @@ as a completed integration.*
 The register has two parts: **platform** items (the agency, once) and **per-tenant** items (copy section B for every
 new tenant). Status values: `not started` · `in progress` · `blocked` · `done` · `n/a`.
 
-Last reviewed: 31 Oct 2026 (repo state: local only, mock AI, mock connectors).
+Last reviewed: 31 Oct 2026 (repo state: all modules built, local only, mock AI, mock connectors). Code gaps per
+module: [section D](#d-known-gaps-after-build).
 
 ---
 
@@ -77,5 +78,65 @@ When a dependency is open, the product must say so (rule S10, spec "do not claim
 
 - Brief source-status line shows "Outlook not connected — manual import only" rather than an empty inbox section.
 - Documents generated without approved templates carry "Neutral template — not employer-approved".
-- Licensed data imported without AI permission is excluded from AI calls (classification + `permits_ai_processing`).
+- Licensed data imported without AI permission must be excluded from AI calls (classification + `permits_ai_processing`).
+  Not yet enforced by the AI gateway (see D, cross-cutting): until it is, import such data as `licensed_restricted`
+  and do not run research/drafting on it.
 - Mock AI outputs are marked `mock:` in `model_usage` and shown as placeholders in the UI.
+
+---
+
+## D. Known gaps after build
+
+Collected from each module README ("Known gaps") on 31 Oct 2026, after all modules were finished. These are code
+gaps, not launch dependencies; requirement-level status is in [traceability.md](traceability.md).
+
+**imports**
+- No person masters from "representative name" columns (no verified identifiers; names stay in staged rows).
+- Developer names kept raw, not linked as landlord/developer organisations.
+- Transactions link to buildings only on an exact building + locality key; no building masters from tracker labels.
+- Fractional-tenure leases get a dateless `needs_review` event; no in-app "confirm intended tenure" editor.
+- `import_entity_key` is re-pointed to a merge winner lazily (on the next import that touches it).
+- Uploads only: no watched-folder or connector intake.
+
+**capture / changes**
+- Mock-mode speech-to-text can't transcribe audio; a voice note without typed text waits in review.
+- No OCR for photos: the caption is the content.
+- Approvals' documents tab only lists `document_version` rows; approval flow is in deals.
+- Extractor covers requirement fields only (area, seats, budget, dates, locality); no stakeholder-role extraction.
+
+**brief**
+- No holiday calendar: business-day notice maths skips weekends only.
+- Briefs/plans are readable by workspace owners/admins (RLS `can_read`), not only their user.
+- Hot-reply detection is "meaningful inbound since previous brief"; no model-based hotness.
+- Cohort count is derived from logged interactions (first outbound per org in the month, last 2 years).
+- Light/weekend mode is a flag only; weekly/reconciliation briefs are deterministic (no AI).
+- Outbox notifications are in-app only; no push/email delivery.
+
+**deals**
+- Template `brand_json` is applied, but uploaded master .pptx/.docx files are not merged.
+- Direct-URL access to `<ws>/documents/` objects relies on the core storage policy.
+- Concession steps / decision log have tables but no UI; no occupied-seat scenarios or XNPV for irregular dates.
+
+**integrations**
+- No push webhooks (Graph subscriptions / Gmail watch); polling every 10–15 min.
+- Live Graph/Gmail adapters not yet exercised against real tenants; attachments are metadata only.
+- Urgent alerts are written to `outbox`; push/email delivery belongs to a notification worker that doesn't exist yet.
+- Route clustering is by locality, not travel time.
+- No LinkedIn automation (by design): caretaker/compliance relies on individual, manually sent drafts.
+
+**intelligence**
+- Patrol/research jobs use the service role; patrol from the UI covers only the caller's visible rows.
+- No manual market-observation entry form (observations come from imports).
+- Experiments: no subject-assignment UI/API (rows inserted into `experiment_subject` directly).
+- Deal strategist links to `/deals/[id]` (owned by deals).
+- No cross-tenant FK triggers (security review M4) on intelligence tables; relies on the core generic fix.
+
+**admin**
+- Employment, contact methods, spaces and availability can't be added from entity pages (they arrive via imports/captures).
+- Quarterly `restore_drill` is logged manually; no automation.
+- Production also needs Supabase managed daily backups/PITR and replication of `<ws>/backups/` to a separate store (P1, P10).
+- Deleting a workspace with business rows fails (audit trigger during cascade); platform offers suspend/archive only.
+
+**Cross-cutting (found in the traceability re-audit, not in a module README)**
+- AI gateway does not check `data_lane.approved_processors` or a licensed source's `permits_ai_processing` before a call (Q11, Q13, Q27).
+- Not built at all: Teams, PDF/OCR intake, interaction full-text search, geography mapping screen, time-saved measurement, 50-case model benchmark, infrastructure registry/map (Q40).
