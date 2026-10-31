@@ -1,4 +1,5 @@
 import type { JobHandler } from "@/lib/jobs/queue";
+import * as jobsB from "./jobs-b";
 import { enqueue } from "@/lib/jobs/queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
@@ -48,7 +49,7 @@ export async function runResearchRefresh(workspaceId: string, now: Date, opts: {
   return { ...out, ai_stopped: latch.tripped() };
 }
 
-export const handlers: Record<string, JobHandler> = {
+const ownHandlers: Record<string, JobHandler> = {
   "intelligence.patrol": async (job) => {
     if (!job.workspace_id) throw new Error("intelligence.patrol requires workspace_id");
     return runPatrol(createAdminClient(), job.workspace_id, new Date());
@@ -59,11 +60,15 @@ export const handlers: Record<string, JobHandler> = {
   },
 };
 
+/** intel-B half (legal, market, content) registers in ./jobs-b.ts and is merged here. */
+export const handlers: Record<string, JobHandler> = { ...ownHandlers, ...jobsB.handlers };
+
 export const PATROL_LOCAL_TIME = "05:30";
 export const RESEARCH_LOCAL_TIME = "05:45";
 
 /** Called by /api/cron/tick. Dedupe keys make repeated ticks no-ops (one run per workspace per local day). */
 export async function schedule(now: Date): Promise<void> {
+  await jobsB.schedule(now);
   const admin = createAdminClient();
   const { data: list } = await admin.from("workspace").select("id, timezone, status").eq("status", "active");
   for (const ws of list ?? []) {
