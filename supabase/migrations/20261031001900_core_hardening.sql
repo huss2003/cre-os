@@ -121,3 +121,9 @@ revoke execute on function app.audit_row() from public, anon, authenticated;
 revoke execute on function app.touch_row() from public, anon, authenticated;
 revoke execute on function app.storage_can(text, text) from anon;
 revoke usage on schema app from anon;
+
+-- Trigger/helper functions added above are not API-callable by anon.
+revoke execute on function app.record_share_check() from public, anon, authenticated;
+revoke execute on function app.workspace_guard() from public, anon, authenticated;
+revoke execute on function app.storage_can(text, text) from public, anon;
+grant execute on function app.storage_can(text, text) to authenticated;

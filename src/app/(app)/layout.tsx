@@ -6,7 +6,7 @@ import { NavLinks } from "./nav-links";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requirePageContext();
-  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => !i.minRole || hasRole(ctx, i.minRole)) }));
+  const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => (i.platformOnly ? ctx.isPlatformAdmin : !i.minRole || hasRole(ctx, i.minRole))) }));
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
       <aside className="hidden border-r border-line bg-ink text-white lg:block">

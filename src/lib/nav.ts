@@ -1,5 +1,5 @@
 /** Primary navigation. Each route is owned by one module (see AGENTS.md). */
-export const NAV: { group: string; items: { href: string; label: string; minRole?: "viewer" | "editor" | "admin" | "owner" }[] }[] = [
+export const NAV: { group: string; items: { href: string; label: string; minRole?: "viewer" | "editor" | "admin" | "owner"; platformOnly?: boolean }[] }[] = [
   { group: "Daily", items: [
     { href: "/today", label: "Today" },
     { href: "/capture", label: "Capture" },
@@ -34,5 +34,6 @@ export const NAV: { group: string; items: { href: string; label: string; minRole
     { href: "/imports", label: "Imports", minRole: "editor" },
     { href: "/settings", label: "Settings", minRole: "admin" },
     { href: "/admin", label: "Health", minRole: "admin" },
+    { href: "/platform", label: "Tenants (agency)", platformOnly: true },
   ]},
 ];

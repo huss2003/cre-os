@@ -11,4 +11,4 @@ import * as admin from "@/modules/admin/jobs";
 const modules = [imports, capture, brief, deals, integrations, intelligence, admin];
 
 export const handlers: Record<string, JobHandler> = Object.assign({}, ...modules.map((m) => m.handlers));
-export const schedulers: ((now: Date) => Promise<void>)[] = modules.map((m) => m.schedule);
+export const schedulers: ((now: Date) => Promise<unknown>)[] = modules.map((m) => (now: Date) => m.schedule(now));

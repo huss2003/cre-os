@@ -1,10 +1,275 @@
-import type { JobHandler } from "@/lib/jobs/queue";
-
-/** Job handlers owned by the "brief" module. Key = job_type (prefix with "brief."). */
-export const handlers: Record<string, JobHandler> = {};
-
+import "server-only";
 /**
- * Called by /api/cron/tick (every ~5 min). Enqueue any jobs that are due at `now`,
- * using dedupe keys like "brief.<job>:<workspace>:<local-date>" so repeated ticks are no-ops.
+ * brief module jobs. Scheduler (`schedule`, called on every /api/cron/tick) enqueues tz-aware jobs with dedupe keys
+ * (scheduler.ts#planSchedule) and cancels queued T-60 jobs whose meeting was cancelled/deleted/rescheduled.
+ * Handlers run with the service-role client: every query filters workspace_id, and per-user content is filtered with
+ * the member's access (visibility.ts) so a brief never shows what RLS would hide from that user (S1/S2).
  */
-export async function schedule(_now: Date): Promise<void> {}
+import type { Job, JobHandler } from "@/lib/jobs/queue";
+import { enqueue } from "@/lib/jobs/queue";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { Db } from "@/lib/supabase/server";
+import { atLocal, localDate } from "@/lib/util/time";
+import { componentRows, effectiveTaskState } from "./builder";
+import { deliverBrief, generateDailyBrief, latestBrief, noAiCaller, saveBriefVersion } from "./brief-service";
+import { stableHash } from "@/lib/util/crypto";
+import { addDays, isoWeekKey } from "./dates";
+import { loadMemberAccess, loadSettings, loadWorkspace, notify } from "./db";
+import { loadApproaches, loadMeetings, loadOpenTasks, loadPipeline, loadSources, toTaskLite, type LoadCtx } from "./data";
+import { buildPreMeetingBrief, buildReconciliation, buildWeekly } from "./other-briefs";
+import { buildDailyPlan } from "./plan";
+import { loadRadar, raiseRadarTasks } from "./radar-data";
+import { meetingVersionKey, planSchedule, staleMeetingJobs, type MeetingCtx, type WorkspaceCtx } from "./scheduler";
+import { computeScores, persistScores } from "./scoring-data";
+import { explain } from "./scoring";
+import { resolveSettings, type BriefSettings } from "./settings";
+import { canRead } from "./visibility";
+import { housekeepTasks } from "./tasks-service";
+
+function chunk<T>(a: T[], n = 200): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < a.length; i += n) out.push(a.slice(i, i + n));
+  return out;
+}
+
+// ------------------------------------------------------------------ scheduler
+
+export async function schedule(now: Date, admin: Db = createAdminClient()): Promise<{ enqueued: number; cancelled: number }> {
+  const { data: wss, error } = await admin.from("workspace").select("id, timezone, status").eq("status", "active");
+  if (error) throw error;
+  if (!wss?.length) return { enqueued: 0, cancelled: 0 };
+  const ids = wss.map((w: { id: string }) => w.id);
+  const [{ data: members }, { data: settingRows }, { data: prefs }, { data: meetings }] = await Promise.all([
+    admin.from("membership").select("workspace_id, user_id, role").in("workspace_id", ids),
+    admin.from("workspace_setting").select("workspace_id, key, value").in("workspace_id", ids).in("key", ["brief", "brief_time", "cohort_targets", "size_rules"]),
+    admin.from("user_preference").select("workspace_id, user_id, prefs").in("workspace_id", ids),
+    admin.from("meeting_visit").select("id, workspace_id, owner_user_id, external_calendar_id, start_at, status, archived_at")
+      .in("workspace_id", ids).is("archived_at", null).gt("start_at", now.toISOString()).lte("start_at", new Date(now.getTime() + 26 * 3_600_000).toISOString()).limit(5000),
+  ]);
+  const wsCtx: WorkspaceCtx[] = wss.map((w: { id: string; timezone: string; status: string }) => {
+    const map = Object.fromEntries((settingRows ?? []).filter((r: any) => r.workspace_id === w.id).map((r: any) => [r.key, r.value]));
+    const base = resolveSettings(map.brief, null, map);
+    return {
+      id: w.id, timezone: w.timezone, status: w.status, settings: base,
+      members: (members ?? []).filter((m: any) => m.workspace_id === w.id).map((m: any) => ({
+        userId: m.user_id, role: m.role,
+        settings: resolveSettings(map.brief, (prefs ?? []).find((p: any) => p.workspace_id === w.id && p.user_id === m.user_id)?.prefs, map),
+      })),
+    };
+  });
+  const mts: MeetingCtx[] = (meetings ?? []).map((m: any) => ({ id: m.id, workspaceId: m.workspace_id, ownerUserId: m.owner_user_id, externalId: m.external_calendar_id, startAt: m.start_at, status: m.status, archivedAt: m.archived_at }));
+  const specs = planSchedule(now, wsCtx, mts);
+
+  // skip keys that already exist in ANY state (a dead/cancelled job is not silently re-created every tick)
+  const existing = new Set<string>();
+  for (const part of chunk(specs.map((s) => s.dedupeKey))) {
+    const { data } = await admin.from("job").select("dedupe_key").in("workspace_id", ids).in("dedupe_key", part);
+    for (const r of data ?? []) existing.add(r.dedupe_key);
+  }
+  let enqueued = 0;
+  for (const s of specs) {
+    if (existing.has(s.dedupeKey)) continue;
+    await enqueue({ workspaceId: s.workspaceId, type: s.type, payload: s.payload, dueAt: s.dueAt, dedupeKey: s.dedupeKey, maxAttempts: s.type === "brief.recalc" ? 3 : 4 });
+    enqueued++;
+  }
+  const cancelled = await cancelStalePreMeetingJobs(admin, ids);
+  return { enqueued, cancelled };
+}
+
+/** Calendar reschedule test: queued T-60 jobs for cancelled/deleted/rescheduled meetings are cancelled. */
+export async function cancelStalePreMeetingJobs(admin: Db, workspaceIds: string[]): Promise<number> {
+  const { data: jobs } = await admin.from("job").select("id, workspace_id, payload").in("workspace_id", workspaceIds)
+    .eq("job_type", "brief.pre_meeting").eq("state", "queued").limit(2000);
+  if (!jobs?.length) return 0;
+  const meetingIds = [...new Set(jobs.map((j: any) => j.payload?.meetingId).filter(Boolean))] as string[];
+  const ms: MeetingCtx[] = [];
+  for (const part of chunk(meetingIds)) {
+    const { data } = await admin.from("meeting_visit").select("id, workspace_id, owner_user_id, external_calendar_id, start_at, status, archived_at").in("workspace_id", workspaceIds).in("id", part);
+    for (const m of data ?? []) ms.push({ id: m.id, workspaceId: m.workspace_id, ownerUserId: m.owner_user_id, externalId: m.external_calendar_id, startAt: m.start_at, status: m.status, archivedAt: m.archived_at });
+  }
+  const stale = staleMeetingJobs(jobs.map((j: any) => ({ id: j.id, workspaceId: j.workspace_id, payload: j.payload ?? {} })), ms);
+  for (const s of stale) {
+    await admin.from("job").update({ state: "cancelled", last_error: `cancelled: ${s.reason}`, updated_at: new Date().toISOString() }).eq("id", s.id).eq("state", "queued");
+  }
+  return stale.length;
+}
+
+// ------------------------------------------------------------------ handler context
+
+interface MemberJobCtx { admin: Db; c: LoadCtx; settings: BriefSettings; date: string }
+
+async function memberCtx(job: Job, admin: Db): Promise<MemberJobCtx | { skipped: string }> {
+  const workspaceId = job.workspace_id;
+  const p = job.payload as { userId?: string; date?: string };
+  if (!workspaceId || !p.userId) return { skipped: "missing workspace/user" };
+  const ws = await loadWorkspace(admin, workspaceId);
+  if (ws.status !== "active") return { skipped: `workspace ${ws.status}` };
+  const access = await loadMemberAccess(admin, workspaceId, p.userId);
+  if (!access) return { skipped: "user is no longer a member" };
+  const settings = await loadSettings(admin, workspaceId, p.userId);
+  const date = p.date ?? localDate(new Date(), ws.timezone);
+  return { admin, settings, date, c: { db: admin, workspaceId, userId: p.userId, tz: ws.timezone || "Asia/Kolkata", access } };
+}
+
+function withMember(fn: (m: MemberJobCtx, job: Job) => Promise<unknown>, adminFactory: () => Db = createAdminClient): JobHandler {
+  return async (job) => {
+    const admin = adminFactory();
+    const m = await memberCtx(job, admin);
+    if ("skipped" in m) return m;
+    return fn(m, job);
+  };
+}
+
+// ------------------------------------------------------------------ handlers
+
+export async function runRecalc(admin: Db, workspaceId: string, date: string) {
+  const ws = await loadWorkspace(admin, workspaceId);
+  if (ws.status !== "active") return { skipped: `workspace ${ws.status}` };
+  const settings = await loadSettings(admin, workspaceId, null);
+  const radar = await loadRadar(admin, workspaceId, date, settings);
+  const { data: owner } = await admin.from("membership").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").limit(1).maybeSingle();
+  const tasks = await raiseRadarTasks(admin, workspaceId, radar, date, owner?.user_id ?? null);
+  const scores = await computeScores(admin, workspaceId, date, settings, radar.items);
+  const persisted = await persistScores(admin, workspaceId, scores);
+  return { leases: radar.items.length, tasks, scored: scores.length, ...persisted };
+}
+
+export async function runReconcile(m: MemberJobCtx, now = new Date()) {
+  const { admin, c, settings, date } = m;
+  const hk = await housekeepTasks(admin, c.workspaceId, c.userId, now, settings.staleTaskAfterDays);
+  const tasks = await loadOpenTasks(c);
+  const dayStart = atLocal(date, "00:00", c.tz).toISOString();
+  const { data: done } = await admin.from("task").select("id, title, due_at, priority, status, snoozed_until, linked_entity_type, linked_entity_id, source, completed_at, updated_at, classification, owner_user_id, archived_at, assigned_user_id")
+    .eq("workspace_id", c.workspaceId).eq("status", "done").gte("completed_at", dayStart)
+    .or(`assigned_user_id.eq.${c.userId},and(assigned_user_id.is.null,owner_user_id.eq.${c.userId})`).limit(200);
+  const tomorrow = addDays(date, 1);
+  const [tMeetings, tPlan] = await Promise.all([loadMeetings(c, tomorrow), buildDailyPlan(c, settings, tomorrow)]);
+  const content = buildReconciliation({
+    date, now: now.toISOString(), tasks, doneToday: (done ?? []).filter((t: any) => !c.access || canRead(c.access, t, "task")).map(toTaskLite), housekeeping: hk,
+    tomorrowMeetings: tMeetings, tomorrowTargets: tPlan.targets.map((t) => ({ name: t.name, total: t.total })), staleAfterDays: settings.staleTaskAfterDays,
+  });
+  const res = await saveBriefVersion(admin, c, { date, kind: "reconciliation", content: { ...content, content_hash: stableHash(content) }, synthesisStatus: "fallback_no_ai", sourceHealth: {} });
+  return { briefId: res.brief.id, created: res.created, ...hk };
+}
+
+export async function runWeekly(m: MemberJobCtx, week: string, now = new Date()) {
+  const { admin, c, settings, date } = m;
+  const [approaches, pipeline, tasks, sources] = await Promise.all([loadApproaches(c, date), loadPipeline(c, date), loadOpenTasks(c), loadSources(c, settings, now)]);
+  const weekStart = addDays(date, -6);
+  const { count: doneThisWeek } = await admin.from("task").select("id", { count: "exact", head: true }).eq("workspace_id", c.workspaceId).eq("status", "done")
+    .gte("completed_at", atLocal(weekStart, "00:00", c.tz).toISOString()).or(`assigned_user_id.eq.${c.userId},and(assigned_user_id.is.null,owner_user_id.eq.${c.userId})`);
+  const { data: scores } = await admin.from("lead_score").select("tier").eq("workspace_id", c.workspaceId).eq("is_current", true).limit(20000);
+  const nowIso = now.toISOString();
+  const content = buildWeekly({
+    week, date, approachesThisMonth: approaches.thisMonth, cohortTarget: settings.cohortTarget, doneThisWeek: doneThisWeek ?? 0,
+    overdue: tasks.filter((t) => effectiveTaskState(t, nowIso, settings.staleTaskAfterDays) === "overdue").length,
+    stale: tasks.filter((t) => effectiveTaskState(t, nowIso, settings.staleTaskAfterDays) === "stale").length,
+    pipeline, sources, scoredAccounts: scores?.length ?? 0, actThisWeek: (scores ?? []).filter((s: any) => s.tier === "act_this_week").length,
+  });
+  const res = await saveBriefVersion(admin, c, { date, kind: "weekly", subjectKey: week, content: { ...content, content_hash: stableHash(content) }, synthesisStatus: "fallback_no_ai", sourceHealth: {} });
+  return { briefId: res.brief.id, created: res.created };
+}
+
+/** T-60 brief. Re-validates the meeting at run time: cancelled / deleted / rescheduled => no (stale) brief. */
+export async function runPreMeeting(admin: Db, job: Pick<Job, "workspace_id" | "payload">) {
+  const p = job.payload as { meetingId?: string; versionKey?: string; userId?: string };
+  const workspaceId = job.workspace_id;
+  if (!workspaceId || !p.meetingId || !p.userId) return { skipped: "bad payload" };
+  const { data: mt } = await admin.from("meeting_visit").select("id, title, start_at, end_at, kind, status, location, route_group, external_calendar_id, opportunity_id, linked_entity_type, linked_entity_id, classification, owner_user_id, archived_at")
+    .eq("workspace_id", workspaceId).eq("id", p.meetingId).maybeSingle();
+  if (!mt || mt.archived_at) return { skipped: "meeting deleted" };
+  if (mt.status === "cancelled") return { skipped: "meeting cancelled" };
+  const version = meetingVersionKey({ id: mt.id, externalId: mt.external_calendar_id, startAt: mt.start_at });
+  if (version !== p.versionKey) return { skipped: "meeting rescheduled (stale job)" };
+  const ws = await loadWorkspace(admin, workspaceId);
+  if (ws.status !== "active") return { skipped: `workspace ${ws.status}` };
+  const access = await loadMemberAccess(admin, workspaceId, p.userId);
+  if (!access || !canRead(access, mt, "meeting_visit")) return { skipped: "user cannot read meeting" };
+  const tz = ws.timezone || "Asia/Kolkata";
+  const date = localDate(new Date(mt.start_at), tz);
+  const settings = await loadSettings(admin, workspaceId, p.userId);
+  const c: LoadCtx = { db: admin, workspaceId, userId: p.userId, tz, access };
+
+  let opportunity: any = null;
+  if (mt.opportunity_id) {
+    const { data } = await admin.from("opportunity").select("id, name, stage, next_action, next_action_due, org_id, classification, owner_user_id, archived_at").eq("workspace_id", workspaceId).eq("id", mt.opportunity_id).maybeSingle();
+    if (data && canRead(access, data, "opportunity")) opportunity = data;
+  }
+  const orgId: string | null = mt.linked_entity_type === "organisation" ? mt.linked_entity_id : opportunity?.org_id ?? null;
+  let org: { id: string; name: string } | null = null;
+  if (orgId) {
+    const { data } = await admin.from("organisation").select("id, display_name, classification, owner_user_id, archived_at").eq("workspace_id", workspaceId).eq("id", orgId).maybeSingle();
+    if (data && canRead(access, data, "organisation")) org = { id: data.id, name: data.display_name };
+  }
+  let score = null;
+  let openTasks: ReturnType<typeof toTaskLite>[] = [];
+  let recent: any[] = [];
+  let radarItems: Awaited<ReturnType<typeof loadRadar>>["items"] = [];
+  if (org) {
+    const { data: s } = await admin.from("lead_score").select("total, tier, overrides, components, evidence_confidence, warmth").eq("workspace_id", workspaceId)
+      .eq("subject_type", "organisation").eq("subject_id", org.id).eq("is_current", true).limit(1).maybeSingle();
+    if (s) {
+      const rows = componentRows(s.components);
+      score = { total: Number(s.total), tier: s.tier, why: explain({ total: Number(s.total), components: s.components, overrides: s.overrides ?? [] } as never), components: rows.map(({ label, points, max, band }) => ({ label, points, max, band })) };
+    }
+    const { data: ts } = await admin.from("task").select("id, title, due_at, priority, status, snoozed_until, linked_entity_type, linked_entity_id, source, completed_at, updated_at, classification, owner_user_id, archived_at")
+      .eq("workspace_id", workspaceId).eq("linked_entity_type", "organisation").eq("linked_entity_id", org.id).in("status", ["open", "snoozed", "stale"]).is("archived_at", null).limit(50);
+    openTasks = (ts ?? []).filter((t: any) => canRead(access, t, "task")).map(toTaskLite);
+    const { data: links } = await admin.from("interaction_link").select("interaction_id").eq("workspace_id", workspaceId).eq("entity_type", "organisation").eq("entity_id", org.id).limit(200);
+    const iids = (links ?? []).map((l: any) => l.interaction_id);
+    if (iids.length) {
+      const { data: its } = await admin.from("interaction").select("id, occurred_at, channel, direction, subject, summary, classification, owner_user_id, archived_at")
+        .eq("workspace_id", workspaceId).in("id", iids.slice(0, 200)).order("occurred_at", { ascending: false }).limit(20);
+      recent = (its ?? []).filter((i: any) => canRead(access, i, "interaction")).map((i: any) => ({ occurredAt: i.occurred_at, channel: i.channel, direction: i.direction, subject: i.subject, summary: i.summary }));
+    }
+    radarItems = (await loadRadar(admin, workspaceId, date, settings, access)).items.filter((r) => r.tenantOrgId === org!.id);
+  }
+  const content = buildPreMeetingBrief({
+    meeting: { id: mt.id, title: mt.title, startAt: mt.start_at, endAt: mt.end_at, kind: mt.kind, status: mt.status, location: mt.location, routeGroup: mt.route_group, versionKey: version },
+    org, score, openTasks, recent, radar: radarItems,
+    opportunity: opportunity ? { name: opportunity.name, stage: opportunity.stage, nextAction: opportunity.next_action, nextActionDue: opportunity.next_action_due } : null,
+  });
+  const res = await saveBriefVersion(admin, c, { date, kind: "pre_meeting", subjectKey: version, content: { ...content, content_hash: stableHash(content) }, synthesisStatus: "fallback_no_ai", sourceHealth: {} });
+  if (!res.brief.delivered_at) await admin.from("brief").update({ delivered_at: new Date().toISOString() }).eq("workspace_id", workspaceId).eq("id", res.brief.id);
+  await notify(admin, workspaceId, p.userId, "pre_meeting_brief", `pre_meeting:${mt.id}:${version}`, { brief_id: res.brief.id, meeting_id: mt.id, start_at: mt.start_at, title: mt.title, href: `/today?meeting=${mt.id}` });
+  return { briefId: res.brief.id, created: res.created };
+}
+
+export async function runDeliver(m: MemberJobCtx, now = new Date()) {
+  const { admin, c, settings, date } = m;
+  let brief = await latestBrief(admin, c.workspaceId, c.userId, date, "daily");
+  let fallback = false;
+  if (!brief) { // delivery never waits on the AI job
+    brief = (await generateDailyBrief(c, settings, { date, now, caller: noAiCaller, generatedBy: "deliver_fallback" })).brief;
+    fallback = true;
+  }
+  await deliverBrief(admin, c.workspaceId, brief, now);
+  return { briefId: brief.id, version: brief.version, fallback };
+}
+
+export const handlers: Record<string, JobHandler> = {
+  "brief.recalc": async (job) => {
+    if (!job.workspace_id) return { skipped: "no workspace" };
+    const date = (job.payload as { date?: string }).date;
+    const admin = createAdminClient();
+    const ws = await loadWorkspace(admin, job.workspace_id);
+    return runRecalc(admin, job.workspace_id, date ?? localDate(new Date(), ws.timezone));
+  },
+  "brief.plan": withMember(async (m) => {
+    const hk = await housekeepTasks(m.admin, m.c.workspaceId, m.c.userId, new Date(), m.settings.staleTaskAfterDays);
+    const plan = await buildDailyPlan(m.c, m.settings, m.date);
+    return { planId: plan.id, targets: plan.targets.length, mode: plan.mode, ...hk };
+  }),
+  "brief.generate": withMember(async (m) => {
+    const r = await generateDailyBrief(m.c, m.settings, { date: m.date, generatedBy: "job" });
+    return { briefId: r.brief.id, version: r.brief.version, created: r.created, synthesis: r.brief.synthesis_status };
+  }),
+  "brief.health_check": withMember(async (m) => (await import("./watchdog")).preBriefCheck(m.admin, m.c, m.settings, m.date)),
+  "brief.deliver": withMember((m) => runDeliver(m)),
+  "brief.health_alert": withMember(async (m) => (await import("./watchdog")).postBriefCheck(m.admin, m.c, m.settings, m.date)),
+  "brief.reconcile": withMember((m) => runReconcile(m)),
+  "brief.weekly": withMember((m, job) => runWeekly(m, (job.payload as { week?: string }).week ?? isoWeekKey(m.date))),
+  "brief.pre_meeting": (job) => runPreMeeting(createAdminClient(), job),
+};
+
+export { memberCtx };

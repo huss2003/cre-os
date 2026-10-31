@@ -1,0 +1,55 @@
+"use server";
+import { redirect } from "next/navigation";
+import { refresh } from "next/cache";
+import { requireContext } from "@/lib/auth/context";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { actionError } from "@/modules/changes/http";
+import type { ActionState } from "@/modules/changes/ui/client";
+import { createCapture, processCapture, submitReview, type CaptureKind } from "./service";
+
+const KINDS: CaptureKind[] = ["text", "audio", "image", "mixed"];
+
+/** Quick capture: store once, enqueue capture.process, run it inline so the review screen is ready, open review. */
+export async function captureAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  let target: string | null = null;
+  try {
+    const ctx = await requireContext("editor");
+    const kind = String(form.get("kind") ?? "text") as CaptureKind;
+    const sourceLocal = String(form.get("source_at") ?? "");
+    const { capture, duplicate } = await createCapture(ctx.db, ctx.workspaceId, ctx.userId, {
+      kind: KINDS.includes(kind) ? kind : "text",
+      text: String(form.get("text") ?? ""),
+      sourceAt: sourceLocal ? new Date(sourceLocal).toISOString() : null,
+      languageHint: String(form.get("language_hint") ?? "") || null,
+      consentReference: String(form.get("consent_reference") ?? "") || null,
+      storagePath: String(form.get("storage_path") ?? "") || null,
+    }, String(form.get("idem") ?? "") || null);
+    if (!duplicate) {
+      try { await processCapture(createAdminClient(), ctx.workspaceId, capture.id); }
+      catch { /* status 'failed' is shown on the review screen; the queued job retries */ }
+    }
+    target = `/capture/${capture.id}`;
+  } catch (e) { return { error: actionError(e) }; }
+  redirect(target);
+}
+
+/** Review screen: confirm an entity, answer a question, choose the requirement, or mark reviewed. */
+export async function reviewAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const id = String(form.get("capture_id") ?? "");
+    const resolutions: Record<string, string> = {};
+    const answers: Record<string, string | number | null> = {};
+    for (const [k, v] of form.entries()) {
+      if (typeof v !== "string" || v === "") continue;
+      if (k.startsWith("resolve:")) resolutions[k.slice(8)] = v;
+      if (k.startsWith("answer:")) answers[k.slice(7)] = /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
+    }
+    const text = String(form.get("text") ?? "");
+    await submitReview(ctx.db, createAdminClient(), ctx.workspaceId, ctx.userId, id, {
+      resolutions, answers, text: text || null, done: form.get("done") === "1",
+    });
+    refresh();
+    return { ok: true, message: form.get("done") === "1" ? "Marked as reviewed." : "Saved. Proposals and tasks were updated." };
+  } catch (e) { return { error: actionError(e) }; }
+}

@@ -1,5 +1,6 @@
 // E2E smoke: log in as seeded owner, visit every nav route at phone + desktop width, fail on error pages/console errors.
-import { chromium } from "playwright";
+import { createRequire } from "node:module";
+const { chromium } = createRequire(import.meta.url)("playwright");
 const BASE = process.env.APP_URL ?? "http://localhost:3000";
 const routes = ["/today","/capture","/approvals","/tasks","/calendar","/drafts","/search","/companies","/people","/buildings","/leases",
   "/requirements","/deals","/finance","/documents","/fees","/research","/network","/market","/legal","/content","/insights",

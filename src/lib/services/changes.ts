@@ -1,5 +1,7 @@
 import "server-only";
 import type { Db } from "@/lib/supabase/server";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyRow = Record<string, any>;
 
 /**
  * Change-proposal contract (spec Part III "Example extraction/change contract").
@@ -26,8 +28,10 @@ export interface ProposeInput {
   classification?: string;
   /** Row owner (visibility for colleagues without see_all_accounts). Jobs should pass the originating user. */
   ownerUserId?: string | null;
-  /** Optional proposal-time snapshot of the patched fields (shown as "before" in the approval card). */
+  /** Ignored since the propose_change RPC: the server snapshots the current values of the patched fields itself. */
   before?: Record<string, unknown> | null;
+  /** Service-role (job) callers: the user on whose behalf the proposal is made (must be an editor who can write the target). */
+  actorUserId?: string | null;
 }
 
 /** Tables a proposal may never target (permissions, tenancy, system). Mirrors app.cx_allowed_tables() in SQL. */
@@ -83,46 +87,62 @@ export function isHighValueOpportunity(opp: { expected_fee?: number | string | n
 
 export class ForbiddenTargetError extends Error {}
 
+/** Error raised by the change RPCs. `code` is the prefix of the SQL message ("forbidden", "approval_invalid", "stale_version", ...). */
+export class ChangeError extends Error {
+  constructor(public code: string, message: string, public pgCode?: string) {
+    super(message);
+  }
+  get httpStatus(): number {
+    switch (this.code) {
+      case "not_found": return 404;
+      case "forbidden": case "field_not_allowed": return 403;
+      case "approval_invalid": case "approval_expired": case "approval_required": case "stale_version": case "invalid_state": case "conflict": return 409;
+      case "invalid_patch": case "invalid_parameter": return 400;
+      default: return 500;
+    }
+  }
+}
+
+export function toChangeError(e: { message?: string; code?: string } | null | undefined): ChangeError {
+  const msg = e?.message ?? "unknown error";
+  const m = /^([a-z_]+):\s*([\s\S]*)$/.exec(msg);
+  return m ? new ChangeError(m[1], m[2] || msg, e?.code) : new ChangeError("error", msg, e?.code);
+}
+
+/**
+ * Create a change proposal through app.propose_change (SECURITY DEFINER): the SQL side re-validates the
+ * target table/columns, checks the actor can write the target row, computes the risk floor (never lower than
+ * the SQL port of MATERIAL_FIELDS), snapshots the current values and dedupes on idempotency_key.
+ * User clients act as auth.uid(); service-role (job) clients should pass `actorUserId` (the originating user).
+ */
 export async function proposeChange(db: Db, workspaceId: string, input: ProposeInput) {
   const operation = input.operation ?? "update";
   if (FORBIDDEN_TARGETS.has(input.targetType)) {
     throw new ForbiddenTargetError(`proposals may not target ${input.targetType}`);
   }
-  const risk = classifyRisk(input.targetType, operation, input.patch);
-  const approvalRequired = risk !== "routine_internal" || input.proposedByKind === "model";
-  if (input.idempotencyKey) {
-    const { data: existing } = await db.from("change_proposal").select("*")
-      .eq("workspace_id", workspaceId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
-    if (existing) return existing;
-  }
-  const row: Record<string, unknown> = {
-    workspace_id: workspaceId,
-    target_type: input.targetType,
-    target_id: input.targetId ?? null,
-    operation,
-    expected_version: input.expectedVersion ?? null,
-    patch: input.patch,
-    reason: input.reason,
-    evidence_ids: input.evidenceIds ?? [],
-    risk,
-    approval_required: approvalRequired,
-    proposed_by_kind: input.proposedByKind ?? "user",
-    model: input.model ?? null,
-    idempotency_key: input.idempotencyKey ?? null,
-    capture_id: input.captureId ?? null,
-    classification: input.classification ?? "corporate_confidential",
-  };
-  if (input.ownerUserId) row.owner_user_id = input.ownerUserId;
-  if (input.before) row.before = { kind: "proposal_snapshot", fields: input.before };
-  const { data, error } = await db.from("change_proposal").insert(row).select().single();
+  const hint = classifyRisk(input.targetType, operation, input.patch);
+  const { data, error } = await db.schema("app").rpc("propose_change", {
+    p_workspace: workspaceId,
+    p_target_type: input.targetType,
+    p_target_id: input.targetId ?? null,
+    p_operation: operation,
+    p_patch: input.patch,
+    p_reason: input.reason,
+    p_expected_version: input.expectedVersion ?? null,
+    p_evidence_ids: input.evidenceIds ?? [],
+    p_proposed_by_kind: input.proposedByKind ?? "user",
+    p_model: input.model ?? null,
+    p_idempotency_key: input.idempotencyKey ?? null,
+    p_capture_id: input.captureId ?? null,
+    p_classification: input.classification ?? "corporate_confidential",
+    p_owner_user_id: input.ownerUserId ?? null,
+    p_risk_hint: hint === "external_message" ? null : hint,
+    p_actor: input.actorUserId ?? null,
+  });
   if (error) {
-    // concurrent duplicate on the idempotency key: return the winner
-    if (error.code === "23505" && input.idempotencyKey) {
-      const { data: existing } = await db.from("change_proposal").select("*")
-        .eq("workspace_id", workspaceId).eq("idempotency_key", input.idempotencyKey).maybeSingle();
-      if (existing) return existing;
-    }
-    throw error;
+    const ce = toChangeError(error);
+    if (ce.code === "forbidden" && /not changeable/.test(ce.message)) throw new ForbiddenTargetError(ce.message);
+    throw ce;
   }
-  return data;
+  return data as AnyRow;
 }

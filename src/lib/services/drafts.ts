@@ -1,6 +1,6 @@
 import "server-only";
 import type { Db } from "@/lib/supabase/server";
-import { sha256, stableHash } from "@/lib/util/crypto";
+import { sha256 } from "@/lib/util/crypto";
 
 /**
  * External message drafts. There is NO send capability anywhere in CRE OS (spec: manual send MVP).
@@ -41,13 +41,33 @@ export interface DraftRow {
   owner_user_id: string | null; row_version: number; created_at: string; updated_at: string; created_by_kind: string;
 }
 
-export function draftHash(d: { recipient_person_id?: string | null; recipient_address?: string | null; subject?: string | null; body: string; attachment_document_ids?: string[] }) {
-  return stableHash({ r: d.recipient_person_id ?? null, a: d.recipient_address ?? null, s: d.subject ?? null, b: d.body, att: [...(d.attachment_document_ids ?? [])].sort() });
+/**
+ * Canonical content hash. MUST stay byte-identical with app.draft_content_hash() in
+ * supabase/migrations/20261031001410_integrations_draft_security.sql — the DB recomputes it on every write and
+ * rejects a mismatching client hash, so approvals bind to what is really stored.
+ */
+export function draftHash(d: { recipient_person_id?: string | null; recipient_address?: string | null; subject?: string | null; body: string; attachment_document_ids?: string[] | null }) {
+  const f = (x: string | null | undefined) => (x === null || x === undefined ? "~" : `${Buffer.byteLength(x, "utf8")}:${x}`);
+  const att = [...(d.attachment_document_ids ?? [])].map((a) => a.toLowerCase()).sort().join(",");
+  return sha256(["draft.v1", f(d.recipient_person_id ?? null), f(d.recipient_address ?? null), f(d.subject ?? null), f(d.body), f(att)].join("|"));
 }
 
 export class SuppressedRecipientError extends Error {}
 export class DraftStateError extends Error {}
 export class DraftConflictError extends Error {}
+export class DraftForbiddenError extends Error {}
+
+/** Map errors raised by the app.*_draft definer functions to the service's error classes. */
+function mapRpcError(error: { code?: string; message: string }): Error {
+  switch (error.code) {
+    case "CRSUP": return new SuppressedRecipientError(error.message);
+    case "40001": return new DraftConflictError(error.message);
+    case "42501": return new DraftForbiddenError(error.message);
+    case "P0002": return new DraftStateError("draft not found");
+    case "22023": return new DraftStateError(error.message);
+    default: return Object.assign(new Error(error.message), { code: error.code });
+  }
+}
 
 /** Same normalisation as contact_method.value_hash (sha256(lower(trim(value)))). */
 export function contactValueHash(value: string): string {
@@ -156,9 +176,9 @@ export async function updateDraft(db: Db, workspaceId: string, id: string, edit:
   if (changed && (next.recipient_person_id !== cur.recipient_person_id || next.recipient_address !== cur.recipient_address)) {
     await assertRecipientAllowed(db, workspaceId, { ...next, channel: cur.channel });
   }
+  // The DB guard verifies content_hash and drops any approval when it changes (state approved/opened -> drafted).
   const patch: Record<string, unknown> = { ...next, content_hash: hash };
   const invalidated = changed && !!cur.approved_hash;
-  if (invalidated) Object.assign(patch, { approved_hash: null, approved_by: null, approved_at: null, state: cur.state === "paused" ? "paused" : "drafted" });
   const { data, error } = await db.from("draft").update(patch).eq("workspace_id", workspaceId).eq("id", id)
     .eq("row_version", opts.expectedVersion ?? cur.row_version).select().maybeSingle();
   if (error) throw error;
@@ -168,28 +188,21 @@ export async function updateDraft(db: Db, workspaceId: string, id: string, edit:
   return { draft: data as DraftRow, approvalInvalidated: invalidated };
 }
 
-/** Hash-bound approval. `reviewedHash` (what the user saw) must equal current content, else conflict. */
-export async function approveDraft(db: Db, workspaceId: string, id: string, actorUserId: string, opts: { reviewedHash?: string; note?: string } = {}) {
-  const cur = await getDraft(db, workspaceId, id);
-  if (!["drafted", "approved"].includes(cur.state)) throw new DraftStateError(`cannot approve a ${cur.state} draft`);
-  const recomputed = draftHash(cur);
-  if (recomputed !== cur.content_hash) throw new DraftConflictError("stored content hash does not match content; edit the draft to re-hash");
-  if (opts.reviewedHash && opts.reviewedHash !== cur.content_hash) throw new DraftConflictError("draft changed since you reviewed it");
-  await assertRecipientAllowed(db, workspaceId, cur);
-  const now = new Date().toISOString();
-  const { data, error } = await db.from("draft").update({ state: "approved", approved_hash: cur.content_hash, approved_by: actorUserId, approved_at: now })
-    .eq("workspace_id", workspaceId).eq("id", id).eq("row_version", cur.row_version).select().maybeSingle();
-  if (error) throw error;
-  if (!data) throw new DraftConflictError("draft changed during approval; reload and retry");
-  await db.from("approval").insert({
-    workspace_id: workspaceId, subject_type: "draft", subject_id: id, approver_user_id: actorUserId, approved_hash: cur.content_hash,
-    decision: "approved", note: opts.note ?? null, owner_user_id: actorUserId,
+/**
+ * Hash-bound approval through the SECURITY DEFINER app.approve_draft (role + suppression + hash checks, approval row,
+ * draft_event). `reviewedHash` (what the user saw) must equal the current content hash, else DraftConflictError.
+ */
+export async function approveDraft(db: Db, workspaceId: string, id: string, _actorUserId: string, opts: { reviewedHash?: string; note?: string; expectedVersion?: number } = {}) {
+  await getDraft(db, workspaceId, id); // workspace scoping + not-found
+  const { data, error } = await db.schema("app").rpc("approve_draft", {
+    p_draft: id, p_reviewed_hash: opts.reviewedHash ?? null, p_note: opts.note ?? null, p_expected_version: opts.expectedVersion ?? null,
   });
-  await recordDraftEvent(db, workspaceId, { draftId: id, event: "approved", actorUserId, contentHash: cur.content_hash, ownerUserId: cur.owner_user_id });
+  if (error) throw mapRpcError(error);
   return data as DraftRow;
 }
 
-function approvalIsLive(d: DraftRow) {
+/** UI hint only (the DB is authoritative): approval bound to the current content. */
+export function approvalIsLive(d: DraftRow) {
   return !!d.approved_hash && d.approved_hash === d.content_hash && draftHash(d) === d.content_hash;
 }
 
@@ -225,50 +238,31 @@ export function buildSendLink(d: Pick<DraftRow, "channel" | "recipient_address" 
 }
 
 /**
- * "Open to send": re-checks suppression/consent, requires a live hash-bound approval, sets state opened_for_send.
+ * "Open to send" via app.open_draft_for_send: requires a live hash-bound approval and re-checks suppression/consent
+ * (a suppressed recipient parks the draft as paused and this throws SuppressedRecipientError). Sets opened_for_send.
  * This is NOT a send: the user sends from their own mail/WhatsApp/LinkedIn and then marks it sent.
  */
-export async function openDraftForSend(db: Db, workspaceId: string, id: string, actorUserId: string) {
+export async function openDraftForSend(db: Db, workspaceId: string, id: string, _actorUserId: string) {
   const cur = await getDraft(db, workspaceId, id);
   if (!["approved", "opened_for_send"].includes(cur.state)) throw new DraftStateError("approve the draft before opening it to send");
-  if (!approvalIsLive(cur)) throw new DraftConflictError("approval no longer matches the content; re-approve");
-  try {
-    await assertRecipientAllowed(db, workspaceId, cur);
-  } catch (e) {
-    if (e instanceof SuppressedRecipientError) {
-      await db.from("draft").update({ state: "paused", pause_reason: "suppressed" }).eq("workspace_id", workspaceId).eq("id", id);
-      await recordDraftEvent(db, workspaceId, { draftId: id, event: "blocked_suppressed", actorUserId, contentHash: cur.content_hash, ownerUserId: cur.owner_user_id });
-    }
-    throw e;
-  }
-  let row = cur;
-  if (cur.state !== "opened_for_send") {
-    const { data, error } = await db.from("draft").update({ state: "opened_for_send" }).eq("workspace_id", workspaceId).eq("id", id)
-      .eq("row_version", cur.row_version).select().maybeSingle();
-    if (error) throw error;
-    if (!data) throw new DraftConflictError("draft changed; reload and retry");
-    row = data as DraftRow;
-    await recordDraftEvent(db, workspaceId, { draftId: id, event: "opened_for_send", actorUserId, contentHash: cur.content_hash, ownerUserId: cur.owner_user_id });
-  }
+  const { data, error } = await db.schema("app").rpc("open_draft_for_send", { p_draft: id });
+  if (error) throw mapRpcError(error);
+  const row = data as DraftRow;
+  if (row.state === "paused" && row.pause_reason === "suppressed") throw new SuppressedRecipientError("Recipient is suppressed or consent revoked; the draft was paused");
   return { draft: row, ...buildSendLink(row) };
 }
 
-/** User asserts they sent it manually. Recorded separately from delivery proof (sent_evidence='user_assertion'). */
-export async function markDraftSent(db: Db, workspaceId: string, id: string, actorUserId: string) {
+/** User asserts they sent it manually (app.mark_draft_sent; sent_evidence='user_assertion'). Idempotent. */
+export async function markDraftSent(db: Db, workspaceId: string, id: string, _actorUserId: string) {
   const cur = await getDraft(db, workspaceId, id);
   if (cur.state === "marked_sent" || cur.state === "reconciled_sent") return { draft: cur, already: true };
   if (!["approved", "opened_for_send"].includes(cur.state)) throw new DraftStateError("only approved drafts can be marked sent");
-  if (!approvalIsLive(cur)) throw new DraftConflictError("approval no longer matches the content; re-approve");
-  const now = new Date().toISOString();
-  const { data, error } = await db.from("draft").update({ state: "marked_sent", marked_sent_at: now, marked_sent_by: actorUserId, sent_evidence: "user_assertion" })
-    .eq("workspace_id", workspaceId).eq("id", id).eq("row_version", cur.row_version).select().maybeSingle();
-  if (error) throw error;
-  if (!data) throw new DraftConflictError("draft changed; reload and retry");
-  await recordDraftEvent(db, workspaceId, { draftId: id, event: "marked_sent", actorUserId, contentHash: cur.content_hash, evidence: "user_assertion", ownerUserId: cur.owner_user_id });
+  const { data, error } = await db.schema("app").rpc("mark_draft_sent", { p_draft: id });
+  if (error) throw mapRpcError(error);
   return { draft: data as DraftRow, already: false };
 }
 
-/** Sent Items evidence upgrades marked/opened/approved drafts to reconciled_sent. Idempotent. */
+/** Sent Items evidence upgrades marked/opened/approved drafts to reconciled_sent. Idempotent. Service-role (job) client only. */
 export async function reconcileDraftSent(db: Db, workspaceId: string, id: string, providerMessageId: string) {
   const cur = await getDraft(db, workspaceId, id);
   if (cur.state === "reconciled_sent") return cur;
@@ -285,7 +279,7 @@ export async function setDraftPaused(db: Db, workspaceId: string, id: string, pa
   const cur = await getDraft(db, workspaceId, id);
   if (["marked_sent", "reconciled_sent", "discarded"].includes(cur.state)) return cur;
   const patch = paused
-    ? { state: "paused", pause_reason: reason, approved_hash: null, approved_by: null, approved_at: null }
+    ? { state: "paused", pause_reason: reason } // the DB guard drops any approval
     : { state: "drafted", pause_reason: null };
   const { data, error } = await db.from("draft").update(patch).eq("workspace_id", workspaceId).eq("id", id).select().single();
   if (error) throw error;
