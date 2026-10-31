@@ -651,7 +651,7 @@ begin
     for fk in select cl.relname as tbl, a.attname as col from pg_constraint c
                 join pg_class cl on cl.oid = c.conrelid join pg_namespace ns on ns.oid = cl.relnamespace
                 join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
-               where c.contype = 'f' and c.confrelid = ('public.' || cp.target_type)::regclass and ns.nspname = 'public'
+               where c.contype = 'f' and c.confrelid = ('mudar.' || cp.target_type)::regclass and ns.nspname = 'mudar'
                  and cardinality(c.conkey) = 1 loop
       execute format('select count(*) from mudar.%I where %I = $1', fk.tbl, fk.col) into n using cp.target_id;
       if n > 0 then v_deps := v_deps || jsonb_build_object('table', fk.tbl, 'column', fk.col, 'count', n); end if;
