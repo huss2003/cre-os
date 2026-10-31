@@ -83,7 +83,7 @@ export async function createCapture(db: Db, workspaceId: string, userId: string,
   if (input.file) {
     const safe = input.file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(-80) || "upload";
     const path = `${workspaceId}/captures/${id}/${safe}`;
-    const { error } = await db.storage.from("workspace-files").upload(path, input.file.bytes, { contentType: input.file.type || "application/octet-stream", upsert: false });
+    const { error } = await db.storage.from("mudar-workspace-files").upload(path, input.file.bytes, { contentType: input.file.type || "application/octet-stream", upsert: false });
     if (error) throw new ChangeError("error", `upload failed: ${error.message}`);
     paths.push(path);
   }
@@ -133,7 +133,7 @@ export const defaultExtractor: Extractor = async ({ text, candidates, workspaceI
 };
 
 async function candidatesFor(admin: Db, workspaceId: string, userId: string, kind: Mention["kind"], text: string, org?: string | null) {
-  const { data, error } = await admin.schema("app").rpc("search_entity_candidates", {
+  const { data, error } = await admin.schema("mudar_app").rpc("search_entity_candidates", {
     p_workspace: workspaceId, p_entity_type: kind, p_query: text, p_user: userId, p_org: org ?? null, p_limit: 8,
   });
   if (error) throw error;
@@ -167,7 +167,7 @@ export async function processCapture(admin: Db, workspaceId: string, captureId: 
     if (!transcript) {
       if (c.kind === "audio" && c.storage_paths.length) {
         await setStatus({ status: "transcribing" });
-        const { data: blob, error: dlErr } = await admin.storage.from("workspace-files").download(c.storage_paths[0]);
+        const { data: blob, error: dlErr } = await admin.storage.from("mudar-workspace-files").download(c.storage_paths[0]);
         if (dlErr || !blob) throw new Error(`audio download failed: ${dlErr?.message ?? "missing"}`);
         const t = await transcribe({ workspaceId, audio: Buffer.from(await blob.arrayBuffer()), filename: c.storage_paths[0].split("/").pop() ?? "audio",
           languageHint: c.language_hint ?? undefined, mockText: c.raw_text ?? "" });

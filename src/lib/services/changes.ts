@@ -7,7 +7,7 @@ type AnyRow = Record<string, any>;
  * Change-proposal contract (spec Part III "Example extraction/change contract").
  * Anything that would change a canonical record from a capture, connector, job or model goes through here.
  * Apply/approve/reverse live in src/modules/changes (owned by the capture/approvals module) and are executed
- * transactionally by the SQL functions app.apply_change / app.reverse_change (which re-check risk, role and approval).
+ * transactionally by the SQL functions app.apply_change / mudar_app.reverse_change (which re-check risk, role and approval).
  */
 export type RiskLevel = "routine_internal" | "material_fact" | "identity_merge" | "external_message" | "high_value";
 
@@ -34,14 +34,14 @@ export interface ProposeInput {
   actorUserId?: string | null;
 }
 
-/** Tables a proposal may never target (permissions, tenancy, system). Mirrors app.cx_allowed_tables() in SQL. */
+/** Tables a proposal may never target (permissions, tenancy, system). Mirrors mudar_app.cx_allowed_tables() in SQL. */
 export const FORBIDDEN_TARGETS = new Set([
   "membership", "workspace", "platform_admin", "record_share", "approval", "audit_event", "change_proposal",
   "change_conflict", "job", "outbox", "connector_account", "connector_cursor", "model_usage", "user_preference",
   "workspace_setting", "data_lane", "licensed_source", "consent_permission",
 ]);
 
-/** Fields whose change is always "material" (requires approval). Determined OUTSIDE the LLM. Mirrors app.cx_material_fields(). */
+/** Fields whose change is always "material" (requires approval). Determined OUTSIDE the LLM. Mirrors mudar_app.cx_material_fields(). */
 export const MATERIAL_FIELDS: Record<string, string[]> = {
   requirement: ["area_min_sf", "area_target_sf", "area_max_sf", "budget_min", "budget_max", "budget_basis", "area_basis",
     "seats_min", "seats_target", "seats_max", "decision_date", "occupation_date", "status", "constraints", "org_id",
@@ -110,7 +110,7 @@ export function toChangeError(e: { message?: string; code?: string } | null | un
 }
 
 /**
- * Create a change proposal through app.propose_change (SECURITY DEFINER): the SQL side re-validates the
+ * Create a change proposal through mudar_app.propose_change (SECURITY DEFINER): the SQL side re-validates the
  * target table/columns, checks the actor can write the target row, computes the risk floor (never lower than
  * the SQL port of MATERIAL_FIELDS), snapshots the current values and dedupes on idempotency_key.
  * User clients act as auth.uid(); service-role (job) clients should pass `actorUserId` (the originating user).
@@ -121,7 +121,7 @@ export async function proposeChange(db: Db, workspaceId: string, input: ProposeI
     throw new ForbiddenTargetError(`proposals may not target ${input.targetType}`);
   }
   const hint = classifyRisk(input.targetType, operation, input.patch);
-  const { data, error } = await db.schema("app").rpc("propose_change", {
+  const { data, error } = await db.schema("mudar_app").rpc("propose_change", {
     p_workspace: workspaceId,
     p_target_type: input.targetType,
     p_target_id: input.targetId ?? null,

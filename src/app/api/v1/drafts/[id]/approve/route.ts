@@ -8,7 +8,7 @@ const body = z.object({ reviewedHash: z.string().min(16).max(128), note: z.strin
 
 /**
  * POST /api/v1/drafts/:id/approve { reviewedHash } — binds approval to the content hash the user reviewed.
- * Goes through the SECURITY DEFINER app.approve_draft (role, suppression and hash checks).
+ * Goes through the SECURITY DEFINER mudar_app.approve_draft (role, suppression and hash checks).
  */
 export const POST = route<{ id: string }>(async (req, { params }) => {
   const ctx = await requireContext("editor");

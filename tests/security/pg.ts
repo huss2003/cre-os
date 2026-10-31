@@ -80,12 +80,12 @@ export async function asRole<T>(who: keyof typeof USERS | "anon" | "service_role
 export async function workspaceTables(): Promise<{ table: string; business: boolean }[]> {
   const rows = await catalog<{ table_name: string; business: boolean }>(`
     select c.table_name,
-           exists (select 1 from information_schema.columns k where k.table_schema='public' and k.table_name=c.table_name and k.column_name='classification')
-       and exists (select 1 from information_schema.columns k where k.table_schema='public' and k.table_name=c.table_name and k.column_name='owner_user_id')
-       and exists (select 1 from information_schema.columns k where k.table_schema='public' and k.table_name=c.table_name and k.column_name='id') as business
+           exists (select 1 from information_schema.columns k where k.table_schema='mudar' and k.table_name=c.table_name and k.column_name='classification')
+       and exists (select 1 from information_schema.columns k where k.table_schema='mudar' and k.table_name=c.table_name and k.column_name='owner_user_id')
+       and exists (select 1 from information_schema.columns k where k.table_schema='mudar' and k.table_name=c.table_name and k.column_name='id') as business
       from information_schema.columns c
       join information_schema.tables t on t.table_schema=c.table_schema and t.table_name=c.table_name and t.table_type='BASE TABLE'
-     where c.table_schema='public' and c.column_name='workspace_id'
+     where c.table_schema='mudar' and c.column_name='workspace_id'
      order by 1`);
   return rows.map((r) => ({ table: r.table_name, business: r.business }));
 }

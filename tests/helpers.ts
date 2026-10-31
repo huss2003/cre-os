@@ -10,16 +10,16 @@ export const WS1 = "10000000-0000-4000-8000-000000000001";
 export const WS2 = "10000000-0000-4000-8000-000000000002";
 
 /** Supabase client signed in as a seeded user — RLS enforced exactly as in the app. */
-export async function userClient(who: keyof typeof USERS): Promise<SupabaseClient<any, "public", any>> {
-  const c = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+export async function userClient(who: keyof typeof USERS): Promise<SupabaseClient<any, any, any>> {
+  const c = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false }, db: { schema: "mudar" } });
   const { error } = await c.auth.signInWithPassword({ email: USERS[who].email, password: "password123" });
   if (error) throw error;
-  return c as SupabaseClient<any, "public", any>;
+  return c as SupabaseClient<any, any, any>;
 }
 
 /** Service-role client (bypasses RLS) for fixtures. */
-export function adminClient(): SupabaseClient<any, "public", any> {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } }) as SupabaseClient<any, "public", any>;
+export function adminClient(): SupabaseClient<any, any, any> {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false }, db: { schema: "mudar" } }) as SupabaseClient<any, any, any>;
 }
 
 /** Unique tag so parallel test files never collide on shared local DB. */

@@ -15,14 +15,14 @@ import { workspaceTables } from "./pg";
 let tables: { table: string; business: boolean }[] = [];
 let other: SupabaseClient;
 let colleague: SupabaseClient;
-let anon: SupabaseClient;
+let anon: SupabaseClient<any, any, any>;
 const admin = adminClient();
 
 beforeAll(async () => {
   tables = await workspaceTables();
   other = await userClient("other");
   colleague = await userClient("colleague");
-  anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+  anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false }, db: { schema: "mudar" } });
 });
 
 describe("generic tenant isolation (every workspace_id table)", () => {

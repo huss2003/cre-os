@@ -10,7 +10,7 @@ import { badRequest, forbidden } from "./errors";
  * Account creation needs the service-role client; the authorisation check is explicit (owner of that workspace,
  * or platform admin).
  */
-type Client = SupabaseClient<any, "public", any>;
+type Client = SupabaseClient<any, any, any>;
 
 export const ROLES = ["owner", "admin", "editor", "viewer"] as const;
 export const CLASSES = ["public", "permitted_personal", "corporate_confidential", "licensed_restricted"] as const;
@@ -53,7 +53,7 @@ export async function addMember(admin: Client, actorUserId: string, workspaceId:
   const v = addMemberSchema.parse(input);
   const allowed = v.role === "owner" || v.role === "admin" ? [...CLASSES] : v.allowedClassifications;
 
-  const { data: existingId, error: e0 } = await admin.schema("app").rpc("user_id_by_email", { p_email: v.email });
+  const { data: existingId, error: e0 } = await admin.schema("mudar_app").rpc("user_id_by_email", { p_email: v.email });
   if (e0) throw badRequest(e0.message);
   let userId = existingId as string | null;
   let result: AddMemberResult;

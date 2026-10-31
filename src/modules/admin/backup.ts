@@ -5,14 +5,14 @@ import { decryptSecret, encryptSecret, sha256, stableHash, stableStringify } fro
 /**
  * Logical export + monthly restore-sample check (spec §14 Backups; acceptance test "Backups").
  * This complements — does not replace — Supabase Pro managed daily backups / PITR, which must be enabled on the
- * production project. Exports go to workspace-files/<ws>/backups/<stamp>/ (encrypted with TOKEN_ENCRYPTION_KEY
+ * production project. Exports go to mudar-workspace-files/<ws>/backups/<stamp>/ (encrypted with TOKEN_ENCRYPTION_KEY
  * when set); production should replicate that prefix to a separately approved store.
  * SERVICE-ROLE ONLY (jobs). Every query filters workspace_id explicitly (rule S2).
  */
-type Admin = SupabaseClient<any, "public", any>;
+type Admin = SupabaseClient<any, any, any>;
 type Row = Record<string, any>;
 
-export const BACKUP_BUCKET = "workspace-files";
+export const BACKUP_BUCKET = "mudar-workspace-files";
 /** Tables never exported (queue internals regenerate; backup log would recurse). */
 const EXCLUDE = new Set(["job", "backup_run"]);
 
@@ -46,7 +46,7 @@ async function download(admin: Admin, path: string): Promise<string> {
 }
 
 export async function exportTables(admin: Admin): Promise<string[]> {
-  const { data, error } = await admin.schema("app").rpc("workspace_tables");
+  const { data, error } = await admin.schema("mudar_app").rpc("workspace_tables");
   if (error) throw new Error(`workspace_tables: ${error.message}`);
   return ((data ?? []) as unknown[]).map((r) => (typeof r === "string" ? r : Object.values(r as object)[0] as string)).filter((t) => !EXCLUDE.has(t));
 }
@@ -66,7 +66,7 @@ export async function exportWorkspace(admin: Admin, workspaceId: string, opts: {
     const manifest: ExportManifest = { version: 1, workspace_id: workspaceId, stamp, exported_at: now.toISOString(), encrypted, tables: {} };
     let bytes = 0;
     for (const table of tables) {
-      const { data, error } = await admin.schema("app").rpc("export_table", { p_workspace: workspaceId, p_table: table });
+      const { data, error } = await admin.schema("mudar_app").rpc("export_table", { p_workspace: workspaceId, p_table: table });
       if (error) throw new Error(`export ${table}: ${error.message}`);
       const rows = (data ?? []) as Row[];
       const plain = JSON.stringify({ table, workspace_id: workspaceId, stamp, rows });

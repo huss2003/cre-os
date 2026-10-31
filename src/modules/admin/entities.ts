@@ -8,7 +8,7 @@ import { badRequest, conflict, notFound } from "./errors";
  * Every read uses the caller's RLS client: a record the user cannot see returns null (=> 404), including via
  * direct object URL. Material field edits are routed to proposeChange() (approval queue), never written directly.
  */
-type Client = SupabaseClient<any, "public", any>;
+type Client = SupabaseClient<any, any, any>;
 type Row = Record<string, any>;
 
 export type EntityTable = "organisation" | "person" | "asset";
@@ -164,7 +164,7 @@ export async function unshareRecord(db: Client, workspaceId: string, entityType:
 }
 
 export async function memberDirectory(db: Client, workspaceId: string): Promise<{ user_id: string; display_name: string; role: string }[]> {
-  const { data } = await db.schema("app").rpc("member_directory", { p_workspace: workspaceId });
+  const { data } = await db.schema("mudar_app").rpc("member_directory", { p_workspace: workspaceId });
   return (data ?? []) as { user_id: string; display_name: string; role: string }[];
 }
 

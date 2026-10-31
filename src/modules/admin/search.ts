@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Any supabase client (user client in the app; tests pass a signed-in client). Never pass the service-role client here. */
-type Client = SupabaseClient<any, "public", any>;
+type Client = SupabaseClient<any, any, any>;
 
 export const SEARCH_TYPES = ["organisation", "person", "asset", "requirement", "opportunity"] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
@@ -77,7 +77,7 @@ export function parseSearchQuery(sp: URLSearchParams | Record<string, string | s
  */
 export async function searchEntities(db: Client, workspaceId: string, params: SearchParams): Promise<SearchHit[]> {
   const p = searchParamsSchema.parse(params);
-  const { data, error } = await db.schema("app").rpc("search_entities", {
+  const { data, error } = await db.schema("mudar_app").rpc("search_entities", {
     p_workspace: workspaceId,
     p_query: p.q,
     p_types: p.types ?? null,

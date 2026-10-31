@@ -6,7 +6,7 @@ import { approveMapping, decideMatch, processBatch, registerImport, detId } from
 import { uploadImport } from "./service";
 import { ASSET_HEADER, LEASE_COMMON, LEASE_LARGE_HEADER, largeLeaseRow, xlsxBytes, type FixtureCell } from "./testkit";
 
-type Db = SupabaseClient<any, "public", any>;
+type Db = SupabaseClient<any, any, any>;
 
 // Runs in a private throwaway workspace (deleted afterwards, cascading every row these tests create).
 describe("imports pipeline (DB)", () => {
@@ -32,10 +32,10 @@ describe("imports pipeline (DB)", () => {
   afterAll(async () => {
     if (!ws) return;
     for (const prefix of [`${ws}/imports`, `${ws}/private/imports`]) {
-      const { data: objs } = await admin.storage.from("workspace-files").list(prefix, { limit: 100 });
+      const { data: objs } = await admin.storage.from("mudar-workspace-files").list(prefix, { limit: 100 });
       for (const o of objs ?? []) {
-        const { data: files } = await admin.storage.from("workspace-files").list(`${prefix}/${o.name}`);
-        await admin.storage.from("workspace-files").remove((files ?? []).map((f) => `${prefix}/${o.name}/${f.name}`));
+        const { data: files } = await admin.storage.from("mudar-workspace-files").list(`${prefix}/${o.name}`);
+        await admin.storage.from("mudar-workspace-files").remove((files ?? []).map((f) => `${prefix}/${o.name}/${f.name}`));
       }
     }
     await admin.from("workspace").delete().eq("id", ws);

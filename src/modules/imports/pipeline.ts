@@ -28,7 +28,7 @@ import {
 } from "./types";
 
 
-export const BUCKET = "workspace-files";
+export const BUCKET = "mudar-workspace-files";
 export const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 
 export class ImportError extends Error {

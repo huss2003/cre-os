@@ -238,7 +238,7 @@ Tests create their own uniquely-tagged fixtures inside the seeded tenants and ne
 
 ```bash
 npx supabase migration new <module>_<what>     # keep inside your module's timestamp range (see AGENTS.md)
-# every business table: create table ...; select app.make_business_table('<table>');
+# every business table: create table ...; select mudar_app.make_business_table('<table>');
 npm run db:reset                                # re-run everything locally
 ```
 

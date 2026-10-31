@@ -11,7 +11,7 @@ import { PRICING } from "@/lib/ai/pricing";
  * billing. Uses the SERVICE-ROLE client; every function first checks platform_admin for the acting user (rule S2)
  * and filters by workspace id explicitly.
  */
-type Admin = SupabaseClient<any, "public", any>;
+type Admin = SupabaseClient<any, any, any>;
 
 export async function assertPlatformAdmin(admin: Admin, actorUserId: string | null | undefined) {
   if (!actorUserId || !(await isPlatformAdmin(admin, actorUserId))) throw forbidden("platform admin only");

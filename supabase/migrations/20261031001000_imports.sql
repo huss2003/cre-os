@@ -1,20 +1,21 @@
+set search_path = mudar, mudar_app, public, extensions;
 -- CRE OS imports module (spec Part I §6 "Import and identity resolution", Part III "Import adapters and reconciliation",
 -- Part V "Import acceptance rules").
 -- Pipeline: read-only source > hashed import > row-level staging > schema mapping > type checks > candidate matching >
 -- exception queue > validated upserts > reconciliation.
 -- Re-runnable during development: drops only this module's own objects.
 
-drop table if exists public.identity_match_candidate cascade;
-drop table if exists public.import_exception cascade;
-drop table if exists public.staged_row cascade;
-drop table if exists public.asset_observation cascade;
-drop table if exists public.import_entity_key cascade;
-drop table if exists public.import_batch cascade;
-drop table if exists public.adapter_mapping cascade;
+drop table if exists mudar.identity_match_candidate cascade;
+drop table if exists mudar.import_exception cascade;
+drop table if exists mudar.staged_row cascade;
+drop table if exists mudar.asset_observation cascade;
+drop table if exists mudar.import_entity_key cascade;
+drop table if exists mudar.import_batch cascade;
+drop table if exists mudar.adapter_mapping cascade;
 
 -- ---------------------------------------------------------------- per-workspace saved column maps
 -- An unknown schema signature is never silently remapped: a human approves a mapping (approved=true) first.
-create table public.adapter_mapping (
+create table mudar.adapter_mapping (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   adapter text not null,                       -- e.g. asset_list_v1
@@ -30,18 +31,18 @@ create table public.adapter_mapping (
   approved_at timestamptz,
   note text
 );
-select app.make_business_table('adapter_mapping');
-create unique index adapter_mapping_sig_uq on public.adapter_mapping(workspace_id, schema_signature, version);
+select mudar_app.make_business_table('adapter_mapping');
+create unique index adapter_mapping_sig_uq on mudar.adapter_mapping(workspace_id, schema_signature, version);
 
 -- ---------------------------------------------------------------- DB-enforced guard: only admins approve schema mappings
 -- (the API checks this too, but PostgREST is reachable directly with the user's JWT, so the database is the boundary)
-create or replace function app.imports_mapping_guard() returns trigger language plpgsql security definer set search_path = public as $$
+create or replace function mudar_app.imports_mapping_guard() returns trigger language plpgsql security definer set search_path = mudar, mudar_app, public, extensions as $$
 begin
   if auth.uid() is not null and new.approved and (
        tg_op = 'INSERT' or not old.approved or new.column_map is distinct from old.column_map
        or new.schema_signature is distinct from old.schema_signature or new.adapter is distinct from old.adapter
        or new.sheet_role is distinct from old.sheet_role or new.header_row is distinct from old.header_row) then
-    if not app.has_role(new.workspace_id, 'admin') then
+    if not mudar_app.has_role(new.workspace_id, 'admin') then
       raise exception 'only workspace admins can approve import mappings' using errcode = '42501';
     end if;
     new.approved_by := auth.uid();
@@ -49,15 +50,15 @@ begin
   end if;
   return new;
 end $$;
-revoke execute on function app.imports_mapping_guard() from public, anon, authenticated;
-create trigger adapter_mapping_guard before insert or update on public.adapter_mapping
-  for each row execute function app.imports_mapping_guard();
+revoke execute on function mudar_app.imports_mapping_guard() from public, anon, authenticated;
+create trigger adapter_mapping_guard before insert or update on mudar.adapter_mapping
+  for each row execute function mudar_app.imports_mapping_guard();
 
 -- ---------------------------------------------------------------- import batch (one processing run of one source_object version)
-create table public.import_batch (
+create table mudar.import_batch (
   id uuid primary key default gen_random_uuid(),
-  source_object_id uuid not null references public.source_object(id) on delete cascade,
-  previous_batch_id uuid references public.import_batch(id),
+  source_object_id uuid not null references mudar.source_object(id) on delete cascade,
+  previous_batch_id uuid references mudar.import_batch(id),
   file_name text not null,
   adapter text,                                -- resolved adapter(s), comma separated when sheets differ
   adapter_version text,
@@ -74,15 +75,15 @@ create table public.import_batch (
   finished_at timestamptz,
   attempt int not null default 0
 );
-select app.make_business_table('import_batch');
-create index on public.import_batch(workspace_id, created_at desc);
-create index on public.import_batch(source_object_id);
+select mudar_app.make_business_table('import_batch');
+create index on mudar.import_batch(workspace_id, created_at desc);
+create index on mudar.import_batch(source_object_id);
 
 -- ---------------------------------------------------------------- staged rows (every non-empty source row, with locator)
-create table public.staged_row (
+create table mudar.staged_row (
   id uuid primary key default gen_random_uuid(),
-  batch_id uuid not null references public.import_batch(id) on delete cascade,
-  source_object_id uuid not null references public.source_object(id) on delete cascade,
+  batch_id uuid not null references mudar.import_batch(id) on delete cascade,
+  source_object_id uuid not null references mudar.source_object(id) on delete cascade,
   sheet text not null,
   row_number int not null,                     -- 1-based source row
   locator text not null,                       -- "sheet!row"
@@ -95,14 +96,14 @@ create table public.staged_row (
   targets jsonb not null default '[]',         -- [{type, id, role, created, ...}]
   unique (batch_id, sheet, row_number)
 );
-select app.make_business_table('staged_row', false);
-create index on public.staged_row(batch_id, status);
+select mudar_app.make_business_table('staged_row', false);
+create index on mudar.staged_row(batch_id, status);
 
 -- ---------------------------------------------------------------- exception queue
-create table public.import_exception (
+create table mudar.import_exception (
   id uuid primary key default gen_random_uuid(),
-  batch_id uuid not null references public.import_batch(id) on delete cascade,
-  staged_row_id uuid references public.staged_row(id) on delete cascade,
+  batch_id uuid not null references mudar.import_batch(id) on delete cascade,
+  staged_row_id uuid references mudar.staged_row(id) on delete cascade,
   sheet text,
   locator text,
   kind text not null,                          -- unknown_schema, missing_required, type_error, fractional_tenure, size_boundary, ...
@@ -114,14 +115,14 @@ create table public.import_exception (
   resolved_by uuid references auth.users(id),
   resolved_at timestamptz
 );
-select app.make_business_table('import_exception');
-create index on public.import_exception(batch_id, status);
-create index on public.import_exception(workspace_id, status, kind);
+select mudar_app.make_business_table('import_exception');
+create index on mudar.import_exception(batch_id, status);
+create index on mudar.import_exception(workspace_id, status, kind);
 
 -- ---------------------------------------------------------------- identity match candidates (review queue)
-create table public.identity_match_candidate (
+create table mudar.identity_match_candidate (
   id uuid primary key default gen_random_uuid(),
-  batch_id uuid references public.import_batch(id) on delete set null,
+  batch_id uuid references mudar.import_batch(id) on delete set null,
   entity_type text not null check (entity_type in ('organisation','asset','person','geography')),
   left_id uuid not null,                       -- existing master
   right_id uuid,                               -- newly created master (kept separate until decided)
@@ -131,31 +132,31 @@ create table public.identity_match_candidate (
   suggested text,                              -- link | review | relate_group | separate
   decision text not null default 'pending' check (decision in
     ('pending','auto_linked','merge_proposed','related','kept_separate')),
-  change_proposal_id uuid references public.change_proposal(id),
+  change_proposal_id uuid references mudar.change_proposal(id),
   decided_by uuid references auth.users(id),
   decided_at timestamptz
 );
-select app.make_business_table('identity_match_candidate');
-create index on public.identity_match_candidate(workspace_id, decision);
-create unique index identity_match_pair_uq on public.identity_match_candidate(workspace_id, entity_type, left_id, right_id) where right_id is not null;
+select mudar_app.make_business_table('identity_match_candidate');
+create index on mudar.identity_match_candidate(workspace_id, decision);
+create unique index identity_match_pair_uq on mudar.identity_match_candidate(workspace_id, entity_type, left_id, right_id) where right_id is not null;
 
 -- ---------------------------------------------------------------- natural-key index (idempotent re-import across versions)
-create table public.import_entity_key (
+create table mudar.import_entity_key (
   id uuid primary key default gen_random_uuid(),
   entity_type text not null,
   natural_key text not null,
   entity_id uuid not null,
-  first_source_object_id uuid references public.source_object(id) on delete set null
+  first_source_object_id uuid references mudar.source_object(id) on delete set null
 );
-select app.make_business_table('import_entity_key', false);
-create unique index import_entity_key_uq on public.import_entity_key(workspace_id, entity_type, natural_key);
-create index on public.import_entity_key(entity_type, entity_id);
+select mudar_app.make_business_table('import_entity_key', false);
+create unique index import_entity_key_uq on mudar.import_entity_key(workspace_id, entity_type, natural_key);
+create index on mudar.import_entity_key(entity_type, entity_id);
 
 -- ---------------------------------------------------------------- building observations (one building master, many source observations)
-create table public.asset_observation (
+create table mudar.asset_observation (
   id uuid primary key default gen_random_uuid(),
-  asset_id uuid not null references public.asset(id) on delete cascade,
-  source_object_id uuid not null references public.source_object(id) on delete cascade,
+  asset_id uuid not null references mudar.asset(id) on delete cascade,
+  source_object_id uuid not null references mudar.source_object(id) on delete cascade,
   staged_row_id uuid,
   locator text not null,
   source_tab_label text,                       -- e.g. "existing", "upcoming_inventory_label", "ready_snapshot"
@@ -172,11 +173,11 @@ create table public.asset_observation (
   avg_rent numeric(10,2),
   rent_basis text,                             -- unknown unless the source states it
   as_of date,
-  fact_status public.fact_status not null default 'historical_observed',
+  fact_status mudar.fact_status not null default 'historical_observed',
   extras jsonb not null default '{}'
 );
-select app.make_business_table('asset_observation', false);
-create unique index asset_observation_src_uq on public.asset_observation(source_object_id, locator);
-create index on public.asset_observation(asset_id);
+select mudar_app.make_business_table('asset_observation', false);
+create unique index asset_observation_src_uq on mudar.asset_observation(source_object_id, locator);
+create index on mudar.asset_observation(asset_id);
 
 notify pgrst, 'reload schema';

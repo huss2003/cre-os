@@ -9,7 +9,7 @@ import { badRequest, conflict } from "./errors";
  * never deleted. Tenant-specific names (e.g. a fit-out finance partner, a licensed data vendor) live here as data,
  * never in code.
  */
-type Client = SupabaseClient<any, "public", any>;
+type Client = SupabaseClient<any, any, any>;
 type Row = Record<string, any>;
 
 const CLASSES = ["public", "permitted_personal", "corporate_confidential", "licensed_restricted"] as const;
@@ -147,7 +147,7 @@ export async function verifyTemplatePath(db: Client, workspaceId: string, path: 
   if (!ext) throw badRequest("template must be a .pptx, .docx or .xlsx file");
   if (ext !== kind) throw badRequest(`file is .${ext} but the template format is ${kind}`);
   const name = path.slice(prefix.length);
-  const { data, error } = await db.storage.from("workspace-files").list(prefix.slice(0, -1), { search: name, limit: 5 });
+  const { data, error } = await db.storage.from("mudar-workspace-files").list(prefix.slice(0, -1), { search: name, limit: 5 });
   if (error || !(data ?? []).some((f) => f.name === name)) throw badRequest("uploaded template file not found; upload again");
   return path;
 }

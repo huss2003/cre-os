@@ -2,7 +2,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { badRequest } from "./errors";
 
-type Client = SupabaseClient<any, "public", any>;
+type Client = SupabaseClient<any, any, any>;
 
 /**
  * Workspace kill switch (POST /v1/admin/pause). Sets workspace.ai_paused, which the AI gateway already enforces
@@ -16,7 +16,7 @@ export class IngestionPausedError extends Error {
 }
 
 export async function setAiPaused(db: Client, workspaceId: string, paused: boolean, reason?: string | null) {
-  const { data, error } = await db.schema("app").rpc("set_ai_paused", { p_workspace: workspaceId, p_paused: paused, p_reason: reason ?? null });
+  const { data, error } = await db.schema("mudar_app").rpc("set_ai_paused", { p_workspace: workspaceId, p_paused: paused, p_reason: reason ?? null });
   if (error) {
     if (error.code === "42501") throw badRequest("admin role required to toggle the kill switch");
     throw badRequest(error.message);

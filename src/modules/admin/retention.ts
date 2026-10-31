@@ -12,7 +12,7 @@ import { BACKUP_BUCKET } from "./backup";
  *  - Audit records are never hard-deleted by the app (append-only); the job reports how many are past retention so
  *    the platform operator can archive them under the corporate policy.
  */
-type Admin = SupabaseClient<any, "public", any>;
+type Admin = SupabaseClient<any, any, any>;
 type Row = Record<string, any>;
 
 const AUDIO_EXT = /\.(m4a|mp3|wav|webm|ogg|oga|aac|amr|3gp|flac|opus)$/i;

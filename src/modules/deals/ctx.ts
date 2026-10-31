@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * signed-in test client. `db` is ALWAYS a user-scoped client (RLS enforced) — deals never uses the service role.
  */
 export interface DealsCtx {
-  db: SupabaseClient<any, "public", any>;
+  db: SupabaseClient<any, any, any>;
   workspaceId: string;
   userId: string;
   role?: "owner" | "admin" | "editor" | "viewer";

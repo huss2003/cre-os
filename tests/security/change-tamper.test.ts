@@ -12,7 +12,7 @@ import { USERS, WS1 } from "../helpers";
 async function seedOrg(db: Q, name: string) {
   await db.q("reset role");
   return (await db.q<{ id: string; row_version: number }>(
-    `insert into public.organisation(workspace_id, display_name, owner_user_id, classification) values ($1,$2,$3,'corporate_confidential') returning id, row_version`,
+    `insert into mudar.organisation(workspace_id, display_name, owner_user_id, classification) values ($1,$2,$3,'corporate_confidential') returning id, row_version`,
     [WS1, name, USERS.colleague.id])).rows[0];
 }
 
@@ -20,7 +20,7 @@ async function seedOrg(db: Q, name: string) {
 async function insertProposal(db: Q, p: Record<string, unknown>) {
   const cols = Object.keys(p);
   const r = await db.q<{ id: string }>(
-    `insert into public.change_proposal (${cols.join(",")}) values (${cols.map((_, i) => `$${i + 1}`).join(",")}) returning id`,
+    `insert into mudar.change_proposal (${cols.join(",")}) values (${cols.map((_, i) => `$${i + 1}`).join(",")}) returning id`,
     cols.map((c) => (typeof p[c] === "object" && p[c] !== null && !Array.isArray(p[c]) ? JSON.stringify(p[c]) : Array.isArray(p[c]) && c === "patch" ? JSON.stringify(p[c]) : p[c])));
   if (r.error) throw r.error;
   return r.rows[0].id;
@@ -39,26 +39,26 @@ describe("approval binding (apply_change)", () => {
       const a = await mk();
       const b = await mk().catch(() => null);
       await db.become("owner");
-      const appr = await db.q(`select app.approve_change($1)`, [a]);
+      const appr = await db.q(`select mudar_app.approve_change($1)`, [a]);
       // colleague (editor) tampers with the approved patch through the API
       await db.become("colleague");
-      const tamper = await db.q(`update public.change_proposal set patch = '[{"op":"replace","path":"/legal_name","value":"Evil Ltd"}]' where id=$1 returning id`, [a]);
+      const tamper = await db.q(`update mudar.change_proposal set patch = '[{"op":"replace","path":"/legal_name","value":"Evil Ltd"}]' where id=$1 returning id`, [a]);
       await db.become("owner");
-      const applyTampered = await db.q(`select app.apply_change($1)`, [a]);
+      const applyTampered = await db.q(`select mudar_app.apply_change($1)`, [a]);
       // untampered second proposal: approve + apply works (positive control) ...
       const b2 = b ?? null;
       let applyOk: string | null = null, staleCode: string | null = null;
       if (b2) {
-        await db.q(`select app.approve_change($1)`, [b2]);
-        const ok = await db.q(`select app.apply_change($1)`, [b2]);
+        await db.q(`select mudar_app.approve_change($1)`, [b2]);
+        const ok = await db.q(`select mudar_app.apply_change($1)`, [b2]);
         applyOk = ok.error ? ok.error.message : "applied";
       }
       // ... and a third proposal with the now-stale expected_version is rejected
       await db.become("colleague");
       const c = await mk();
       await db.become("owner");
-      await db.q(`select app.approve_change($1)`, [c]);
-      const stale = await db.q(`select app.apply_change($1)`, [c]);
+      await db.q(`select mudar_app.approve_change($1)`, [c]);
+      const stale = await db.q(`select mudar_app.apply_change($1)`, [c]);
       staleCode = stale.error?.message.split(":")[0] ?? "applied";
       return { approved: !appr.error, tamperAccepted: tamper.rows.length === 1, applyTampered: applyTampered.error?.message.split(":")[0] ?? "applied", applyOk, staleCode };
     });
@@ -78,14 +78,14 @@ describe("approval binding (apply_change)", () => {
         owner_user_id: USERS.colleague.id, classification: "corporate_confidential",
       });
       // risk downgrade: colleague applies its own 'routine' proposal that touches a material field
-      const selfApply = await db.q(`select app.apply_change($1)`, [id]);
+      const selfApply = await db.q(`select mudar_app.apply_change($1)`, [id]);
       // forged approval, claiming the owner approved, with the correct hash
-      const h = (await db.q<{ h: string }>(`select app.change_hash(cp) as h from public.change_proposal cp where id=$1`, [id])).rows[0]?.h;
-      const forged = await db.q(`insert into public.approval(workspace_id, subject_type, subject_id, approver_user_id, approved_hash, decision, owner_user_id, classification)
+      const h = (await db.q<{ h: string }>(`select mudar_app.change_hash(cp) as h from mudar.change_proposal cp where id=$1`, [id])).rows[0]?.h;
+      const forged = await db.q(`insert into mudar.approval(workspace_id, subject_type, subject_id, approver_user_id, approved_hash, decision, owner_user_id, classification)
                                  values ($1,'change_proposal',$2,$3,$4,'approved',$5,'corporate_confidential') returning id`, [WS1, id, USERS.owner.id, h, USERS.colleague.id]);
-      await db.q(`update public.change_proposal set state='approved' where id=$1`, [id]);
+      await db.q(`update mudar.change_proposal set state='approved' where id=$1`, [id]);
       await db.become("owner");
-      const ownerApply = await db.q(`select app.apply_change($1)`, [id]);
+      const ownerApply = await db.q(`select mudar_app.apply_change($1)`, [id]);
       return { selfApply: selfApply.error?.message.split(":")[0] ?? "applied", forgedInserted: !forged.error, ownerApply: ownerApply.error?.message.split(":")[0] ?? "applied" };
     });
     expect(out.selfApply).toBe("forbidden");
@@ -94,13 +94,13 @@ describe("approval binding (apply_change)", () => {
 
   it("proposals can never target permission/system tables via apply_change", async () => {
     const out = await asRole("owner", async (db) => {
-      const mid = (await db.q<{ id: string }>(`select id from public.membership where workspace_id=$1 and user_id=$2`, [WS1, USERS.colleague.id])).rows[0].id;
+      const mid = (await db.q<{ id: string }>(`select id from mudar.membership where workspace_id=$1 and user_id=$2`, [WS1, USERS.colleague.id])).rows[0].id;
       const id = await insertProposal(db, {
         workspace_id: WS1, target_type: "membership", target_id: mid, operation: "update",
         patch: [{ op: "replace", path: "/role", value: "owner" }], risk: "routine_internal", approval_required: false,
         owner_user_id: USERS.owner.id, classification: "corporate_confidential",
       });
-      const r = await db.q(`select app.apply_change($1)`, [id]);
+      const r = await db.q(`select mudar_app.apply_change($1)`, [id]);
       return r.error?.message.split(":")[0] ?? "applied";
     });
     expect(out).toBe("forbidden");
@@ -110,7 +110,7 @@ describe("approval binding (apply_change)", () => {
 describe("change_proposal tampering via reversal functions", () => {
   it("CRITICAL: editor cannot escalate own membership to owner through reverse_change on a forged proposal", async () => {
     const out = await asRole("colleague", async (db) => {
-      const mem = (await db.q<{ id: string; role: string }>(`select id, role from public.membership where workspace_id=$1 and user_id=$2`, [WS1, USERS.colleague.id])).rows[0];
+      const mem = (await db.q<{ id: string; role: string }>(`select id, role from mudar.membership where workspace_id=$1 and user_id=$2`, [WS1, USERS.colleague.id])).rows[0];
       // forged "already applied" proposal pointing at the membership table, inserted directly through the API
       const id = await insertProposal(db, {
         workspace_id: WS1, target_type: "membership", target_id: mem.id, operation: "update",
@@ -118,8 +118,8 @@ describe("change_proposal tampering via reversal functions", () => {
         state: "applied", applied_audit_id: 1, owner_user_id: USERS.colleague.id, classification: "corporate_confidential",
         before: { kind: "update", fields: { role: "owner", see_all_accounts: true }, after: { role: mem.role, see_all_accounts: false }, reversed: [] },
       });
-      const rev = await db.q(`select app.reverse_change($1)`, [id]);
-      const after = (await db.q<{ role: string; see_all_accounts: boolean }>(`select role, see_all_accounts from public.membership where id=$1`, [mem.id])).rows[0];
+      const rev = await db.q(`select mudar_app.reverse_change($1)`, [id]);
+      const after = (await db.q<{ role: string; see_all_accounts: boolean }>(`select role, see_all_accounts from mudar.membership where id=$1`, [mem.id])).rows[0];
       return { before: mem.role, reverse: rev.error?.message ?? "executed", after };
     });
     expect(out.before).toBe("editor");
@@ -129,18 +129,18 @@ describe("change_proposal tampering via reversal functions", () => {
   it("CRITICAL: editor cannot read secrets/rows of arbitrary tables through preview_reverse on a forged proposal", async () => {
     const out = await asRole("owner", async (db) => {
       await db.q("reset role");
-      await db.q(`insert into public.connector_account(workspace_id, user_id, provider, status, token_ciphertext)
+      await db.q(`insert into mudar.connector_account(workspace_id, user_id, provider, status, token_ciphertext)
                   values ($1,$2,'google','mock','SEC-TOKEN-CIPHERTEXT') on conflict (workspace_id, user_id, provider) do update set token_ciphertext='SEC-TOKEN-CIPHERTEXT'`, [WS1, USERS.owner.id]);
-      const ca = (await db.q<{ id: string }>(`select id from public.connector_account where workspace_id=$1 and user_id=$2 and provider='google'`, [WS1, USERS.owner.id])).rows[0].id;
+      const ca = (await db.q<{ id: string }>(`select id from mudar.connector_account where workspace_id=$1 and user_id=$2 and provider='google'`, [WS1, USERS.owner.id])).rows[0].id;
       await db.become("colleague");
-      const direct = await db.q(`select token_ciphertext from public.connector_account where id=$1`, [ca]);
+      const direct = await db.q(`select token_ciphertext from mudar.connector_account where id=$1`, [ca]);
       const id = await insertProposal(db, {
         workspace_id: WS1, target_type: "connector_account", target_id: ca, operation: "update",
         patch: [{ op: "replace", path: "/status", value: "mock" }], risk: "routine_internal", approval_required: false,
         state: "applied", applied_audit_id: 1, owner_user_id: USERS.colleague.id, classification: "corporate_confidential",
         before: { kind: "update", fields: { token_ciphertext: null }, after: { token_ciphertext: null }, reversed: [] },
       });
-      const prev = await db.q<{ j: unknown }>(`select app.preview_reverse($1) as j`, [id]);
+      const prev = await db.q<{ j: unknown }>(`select mudar_app.preview_reverse($1) as j`, [id]);
       return { directDenied: direct.error?.code ?? "allowed", preview: JSON.stringify(prev.rows[0]?.j ?? prev.error?.message ?? null) };
     });
     expect(out.directDenied).toBe("42501");
@@ -150,8 +150,8 @@ describe("change_proposal tampering via reversal functions", () => {
   it("editor cannot reverse a high-value change by first downgrading the stored risk", async () => {
     const out = await asRole("owner", async (db) => {
       await db.q("reset role");
-      const org = (await db.q<{ id: string }>(`insert into public.organisation(workspace_id, display_name, owner_user_id) values ($1,'SecHvCo',$2) returning id`, [WS1, USERS.colleague.id])).rows[0].id;
-      const opp = (await db.q<{ id: string }>(`insert into public.opportunity(workspace_id, org_id, name, expected_fee, owner_user_id, classification)
+      const org = (await db.q<{ id: string }>(`insert into mudar.organisation(workspace_id, display_name, owner_user_id) values ($1,'SecHvCo',$2) returning id`, [WS1, USERS.colleague.id])).rows[0].id;
+      const opp = (await db.q<{ id: string }>(`insert into mudar.opportunity(workspace_id, org_id, name, expected_fee, owner_user_id, classification)
                      values ($1,$2,'SecHvOpp',5000000,$3,'corporate_confidential') returning id`, [WS1, org, USERS.colleague.id])).rows[0].id;
       await db.become("colleague");
       const id = await insertProposal(db, {
@@ -160,13 +160,13 @@ describe("change_proposal tampering via reversal functions", () => {
         owner_user_id: USERS.colleague.id, classification: "corporate_confidential",
       });
       await db.become("owner");
-      await db.q(`select app.approve_change($1)`, [id]);
-      const applied = await db.q(`select app.apply_change($1)`, [id]);
+      await db.q(`select mudar_app.approve_change($1)`, [id]);
+      const applied = await db.q(`select mudar_app.apply_change($1)`, [id]);
       await db.become("colleague");
-      const direct = await db.q(`select app.reverse_change($1)`, [id]);
-      await db.q(`update public.change_proposal set risk='routine_internal' where id=$1`, [id]);
-      const downgraded = await db.q(`select app.reverse_change($1)`, [id]);
-      const fee = (await db.q<{ expected_fee: string }>(`select expected_fee from public.opportunity where id=$1`, [opp])).rows[0]?.expected_fee;
+      const direct = await db.q(`select mudar_app.reverse_change($1)`, [id]);
+      await db.q(`update mudar.change_proposal set risk='routine_internal' where id=$1`, [id]);
+      const downgraded = await db.q(`select mudar_app.reverse_change($1)`, [id]);
+      const fee = (await db.q<{ expected_fee: string }>(`select expected_fee from mudar.opportunity where id=$1`, [opp])).rows[0]?.expected_fee;
       return { applied: applied.error?.message ?? "ok", direct: direct.error?.message.split(":")[0] ?? "reversed", downgraded: downgraded.error?.message.split(":")[0] ?? "reversed", fee };
     });
     expect(out.applied).toBe("ok");

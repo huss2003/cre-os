@@ -157,7 +157,7 @@ dedupe on its own (for example `deal_idempotency`, unique `idempotency_key` colu
   TRUNCATE on all tables, including `audit_event`, so the table is not strictly append-only at the privilege level. TRUNCATE ignores RLS, though PostgREST cannot issue it.
   Fix: `revoke all on all tables in schema public from anon; revoke truncate on all tables in schema public from anon, authenticated;`
   plus `alter default privileges … revoke …` (`catalog.test.ts`: 3 failing checks).
-- **L2. `app.make_business_table`/`make_workspace_table` are executable by `anon`/`authenticated`** (`20261031000100_core_platform.sql:175,208`).
+- **L2. `mudar_app.make_business_table`/`make_workspace_table` are executable by `anon`/`authenticated`** (`20261031000100_core_platform.sql:175,208`).
   They are not SECURITY DEFINER, so ALTER fails for non-owners, but they should be revoked. The `app` schema is listed in
   `supabase/config.toml` `[api].schemas`, so every `app.*` function with EXECUTE for PUBLIC can be called over the API. (The running stack currently
   exposes only `public`, so `adminApp().rpc(...)` and `db.schema("app").rpc(...)` will fail until the stack is restarted with the config.)

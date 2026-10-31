@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { badRequest } from "./errors";
 
-type Client = SupabaseClient<any, "public", any>;
+type Client = SupabaseClient<any, any, any>;
 
 /**
  * Tenant configuration. Workspace columns (name/timezone/currency/AI budget) live on `workspace` (owner-writable);

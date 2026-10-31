@@ -1,7 +1,7 @@
 /**
  * Requirement analyst service (spec Part I §8 "Requirement"). User-scoped (RLS) only.
  * - Estimated fields are edited directly; client-confirmed fields (or any field of a confirmed requirement) change
- *   only through proposeChange() → approval → app.apply_change (enforced again in SQL by requirement_deals_guard).
+ *   only through proposeChange() → approval → mudar_app.apply_change (enforced again in SQL by requirement_deals_guard).
  * - Every save appends an immutable requirement_version snapshot.
  */
 import { proposeChange } from "@/lib/services/changes";

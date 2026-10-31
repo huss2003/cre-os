@@ -23,7 +23,7 @@ async function loadSchema() {
            c.is_generated <> 'NEVER' as generated, c.ordinal_position as ord
       from information_schema.columns c
       join information_schema.tables t on t.table_schema=c.table_schema and t.table_name=c.table_name and t.table_type='BASE TABLE'
-     where c.table_schema='public' order by c.table_name, c.ordinal_position`);
+     where c.table_schema='mudar' order by c.table_name, c.ordinal_position`);
   const fks = await catalog<Fk>(`
     select cl.relname as "table", a.attname as col, rn.nspname as ref_schema, rc.relname as ref_table, ra.attname as ref_col
       from pg_constraint k
@@ -31,12 +31,12 @@ async function loadSchema() {
       join pg_attribute a on a.attrelid=k.conrelid and a.attnum=k.conkey[1]
       join pg_class rc on rc.oid=k.confrelid join pg_namespace rn on rn.oid=rc.relnamespace
       join pg_attribute ra on ra.attrelid=k.confrelid and ra.attnum=k.confkey[1]
-     where k.contype='f' and n.nspname='public' and cardinality(k.conkey)=1`);
+     where k.contype='f' and n.nspname='mudar' and cardinality(k.conkey)=1`);
   const chks = await catalog<Chk>(`
     select cl.relname as "table", a.attname as col, pg_get_constraintdef(k.oid) as def
       from pg_constraint k join pg_class cl on cl.oid=k.conrelid join pg_namespace n on n.oid=cl.relnamespace
       join pg_attribute a on a.attrelid=k.conrelid and a.attnum = any(k.conkey)
-     where k.contype='c' and n.nspname='public'`);
+     where k.contype='c' and n.nspname='mudar'`);
   const enums = await catalog<{ udt: string; label: string }>(`
     select t.typname as udt, (array_agg(e.enumlabel order by e.enumsortorder))[1] as label
       from pg_type t join pg_enum e on e.enumtypid=t.oid group by t.typname`);
@@ -97,14 +97,14 @@ async function seedRow(db: Q, s: Schema, table: string, memo: Map<string, string
   }
   const names = Object.keys(row);
   const sql = names.length
-    ? `insert into public.${table} (${names.map((x) => `"${x}"`).join(",")}) values (${names.map((_, i) => `$${i + 1}`).join(",")}) returning *`
-    : `insert into public.${table} default values returning *`;
+    ? `insert into mudar.${table} (${names.map((x) => `"${x}"`).join(",")}) values (${names.map((_, i) => `$${i + 1}`).join(",")}) returning *`
+    : `insert into mudar.${table} default values returning *`;
   const r = await db.q<Record<string, unknown>>(sql, names.map((k) => row[k]));
   if (r.error) {
     if (!fillAll && r.error.code === "23514") return seedRow(db, s, table, memo, depth, true);
     if (r.error.code === "23505" && s.cols.some((c) => c.table === table && c.col === "id")) {
       // unique clash with a row created earlier in this transaction / existing seed: reuse an existing WS1 row
-      const ex = await db.q<{ id: string }>(`select id from public.${table} where workspace_id = $1 limit 1`, [WS1]);
+      const ex = await db.q<{ id: string }>(`select id from mudar.${table} where workspace_id = $1 limit 1`, [WS1]);
       if (ex.rows[0]) return { id: ex.rows[0].id };
     }
     return { id: null, error: `${r.error.code} ${r.error.message}` };
@@ -134,25 +134,25 @@ describe("seeded tenant isolation (rolled-back transaction, every workspace tabl
         const where = hasId ? `id = $1::uuid` : `workspace_id = '${WS1}' and $1::text is not null`;
         // other tenant
         await db.become("other");
-        const sel = await db.q(`select 1 from public.${t} where ${where}`, [id]);
+        const sel = await db.q(`select 1 from mudar.${t} where ${where}`, [id]);
         if (sel.rows.length) leaks.push(`${t}: other can SELECT`);
-        const upd = await db.q(`update public.${t} set workspace_id = workspace_id where ${where} returning 1`, [id]);
+        const upd = await db.q(`update mudar.${t} set workspace_id = workspace_id where ${where} returning 1`, [id]);
         if (upd.rows.length) leaks.push(`${t}: other can UPDATE`);
-        const del = await db.q(`delete from public.${t} where ${where} returning 1`, [id]);
+        const del = await db.q(`delete from mudar.${t} where ${where} returning 1`, [id]);
         if (del.rows.length) leaks.push(`${t}: other can DELETE`);
         if (hasId) {
-          const ins = await db.q(`insert into public.${t} select (jsonb_populate_record(t.*, jsonb_build_object('id', gen_random_uuid()))).* from public.${t} t where false`);
+          const ins = await db.q(`insert into mudar.${t} select (jsonb_populate_record(t.*, jsonb_build_object('id', gen_random_uuid()))).* from mudar.${t} t where false`);
           void ins; // (a copy needs read access; direct insert attempt below)
-          const ins2 = await db.q(`insert into public.${t} (workspace_id) values ($1) returning 1`, [WS1]);
+          const ins2 = await db.q(`insert into mudar.${t} (workspace_id) values ($1) returning 1`, [WS1]);
           if (ins2.rows.length) leaks.push(`${t}: other can INSERT into WS1`);
         }
         // anon
         await db.become("anon");
-        const an = await db.q(`select 1 from public.${t} where ${where}`, [id]);
+        const an = await db.q(`select 1 from mudar.${t} where ${where}`, [id]);
         if (an.rows.length) leaks.push(`${t}: anon can SELECT`);
         // positive control
         await db.become("owner");
-        const ctl = await db.q(`select 1 from public.${t} where ${where}`, [id]);
+        const ctl = await db.q(`select 1 from mudar.${t} where ${where}`, [id]);
         if (!ctl.rows.length) noControl.push(t);
         await db.q("reset role");
       }

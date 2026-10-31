@@ -24,7 +24,7 @@ export interface ProposalRow {
 }
 
 async function rpc<T = AnyRow>(db: Db, fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await db.schema("app").rpc(fn, args);
+  const { data, error } = await db.schema("mudar_app").rpc(fn, args);
   if (error) throw toChangeError(error);
   return data as T;
 }

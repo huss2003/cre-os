@@ -23,11 +23,11 @@ begin
     values (gen_random_uuid(), r.id, r.id::text, jsonb_build_object('sub', r.id::text, 'email', r.email), 'email', now(), now(), now());
   end loop;
 
-  insert into public.platform_admin(user_id) values (u_owner);
-  insert into public.workspace(id, name, slug) values (ws1, 'Tenant One (Pune occupier services)', 'tenant-one'),
+  insert into mudar.platform_admin(user_id) values (u_owner);
+  insert into mudar.workspace(id, name, slug) values (ws1, 'Tenant One (Pune occupier services)', 'tenant-one'),
                                                       (ws2, 'Tenant Two', 'tenant-two');
-  insert into public.membership(workspace_id, user_id, role, allowed_classifications, see_all_accounts, display_name) values
-    (ws1, u_owner, 'owner', array['public','permitted_personal','corporate_confidential','licensed_restricted']::public.classification[], true, 'Owner'),
-    (ws1, u_col, 'editor', array['public','permitted_personal','corporate_confidential']::public.classification[], false, 'Colleague'),
-    (ws2, u_other, 'owner', array['public','permitted_personal','corporate_confidential','licensed_restricted']::public.classification[], true, 'Other owner');
+  insert into mudar.membership(workspace_id, user_id, role, allowed_classifications, see_all_accounts, display_name) values
+    (ws1, u_owner, 'owner', array['public','permitted_personal','corporate_confidential','licensed_restricted']::mudar.classification[], true, 'Owner'),
+    (ws1, u_col, 'editor', array['public','permitted_personal','corporate_confidential']::mudar.classification[], false, 'Colleague'),
+    (ws2, u_other, 'owner', array['public','permitted_personal','corporate_confidential','licensed_restricted']::mudar.classification[], true, 'Other owner');
 end $$;

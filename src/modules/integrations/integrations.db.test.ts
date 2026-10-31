@@ -19,7 +19,7 @@ import { activateEnrollment, proposeEnrollment } from "./sequences";
 import { completeOAuth, OAuthError, startOAuth } from "./oauth";
 import { ProviderAuthError, type CalendarEventItem } from "./types";
 
-type Db = SupabaseClient<any, "public", any>;
+type Db = SupabaseClient<any, any, any>;
 const admin = adminClient();
 let ws = "";
 let colleague: Db;

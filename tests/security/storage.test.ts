@@ -6,7 +6,7 @@ import { describe, it, expect, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { userClient, adminClient, WS1, WS2, tag } from "../helpers";
 
-const BUCKET = "workspace-files";
+const BUCKET = "mudar-workspace-files";
 const created: string[] = [];
 const admin = adminClient();
 
@@ -35,7 +35,7 @@ describe("storage: workspace-files cross-tenant isolation", () => {
     const still = await admin.storage.from(BUCKET).download(path);
     expect(await still.data?.text()).toBe("tenant one secret");
 
-    const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const anon = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false }, db: { schema: "mudar" } });
     const adl = await anon.storage.from(BUCKET).download(path);
     expect(adl.data).toBeNull();
     const pub = await fetch(anon.storage.from(BUCKET).getPublicUrl(path).data.publicUrl);

@@ -1,5 +1,5 @@
 /**
- * Mirror of app.can_read() for job-side assembly. Jobs use the service-role client (bypasses RLS), so every row that
+ * Mirror of mudar_app.can_read() for job-side assembly. Jobs use the service-role client (bypasses RLS), so every row that
  * goes into a user's private brief/plan is filtered here to exactly what that user could read through RLS (S1/S2).
  */
 export interface MemberAccess {

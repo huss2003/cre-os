@@ -18,10 +18,10 @@ describe("imports pipeline at source volume", () => {
   });
   afterAll(async () => {
     if (!ws) return;
-    const { data: objs } = await admin.storage.from("workspace-files").list(`${ws}/imports`, { limit: 100 });
+    const { data: objs } = await admin.storage.from("mudar-workspace-files").list(`${ws}/imports`, { limit: 100 });
     for (const o of objs ?? []) {
-      const { data: files } = await admin.storage.from("workspace-files").list(`${ws}/imports/${o.name}`);
-      await admin.storage.from("workspace-files").remove((files ?? []).map((f) => `${ws}/imports/${o.name}/${f.name}`));
+      const { data: files } = await admin.storage.from("mudar-workspace-files").list(`${ws}/imports/${o.name}`);
+      await admin.storage.from("mudar-workspace-files").remove((files ?? []).map((f) => `${ws}/imports/${o.name}/${f.name}`));
     }
     await admin.from("workspace").delete().eq("id", ws);
   });

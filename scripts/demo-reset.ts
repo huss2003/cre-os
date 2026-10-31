@@ -32,7 +32,7 @@ async function main() {
   const db = new Client({ connectionString: conn });
   await db.connect();
   try {
-    const ws = await db.query<{ id: string; slug: string; name: string }>("select id, slug::text, name from public.workspace where id = $1", [DEMO_WORKSPACE_ID]);
+    const ws = await db.query<{ id: string; slug: string; name: string }>("select id, slug::text, name from mudar.workspace where id = $1", [DEMO_WORKSPACE_ID]);
     if (ws.rowCount === 0) {
       console.log("Demo workspace not present — nothing to do.");
       return;
@@ -43,7 +43,7 @@ async function main() {
       select c.table_name as t
       from information_schema.columns c
       join information_schema.tables tb on tb.table_schema = c.table_schema and tb.table_name = c.table_name and tb.table_type = 'BASE TABLE'
-      where c.table_schema = 'public' and c.column_name = 'workspace_id' and c.table_name not in ('workspace', 'audit_event')
+      where c.table_schema='mudar' and c.column_name = 'workspace_id' and c.table_name not in ('workspace', 'audit_event')
       order by 1`);
 
     await db.query("begin");
@@ -67,7 +67,7 @@ async function main() {
       if (next.length === pending.length) throw new Error(`no progress deleting: ${next.join(", ")}`);
       pending = next;
     }
-    const w = await db.query("delete from public.workspace where id = $1 and slug = $2", [DEMO_WORKSPACE_ID, DEMO_SLUG]);
+    const w = await db.query("delete from mudar.workspace where id = $1 and slug = $2", [DEMO_WORKSPACE_ID, DEMO_SLUG]);
     await db.query("commit");
     const total = Object.values(deleted).reduce((a, b) => a + b, 0);
     console.log(`Deleted demo workspace (${w.rowCount}) and ${total} rows:`, deleted);

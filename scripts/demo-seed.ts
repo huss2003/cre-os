@@ -32,7 +32,7 @@ async function main() {
   const today = opt("today") ?? todayIst();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) throw new Error(`--today must be YYYY-MM-DD, got ${today}`);
   const refresh = flag("refresh");
-  const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false }, db: { schema: "mudar" } });
 
   // ---- preflight
   const { data: owner, error: ownerErr } = await db.auth.admin.getUserById(OWNER_USER_ID);

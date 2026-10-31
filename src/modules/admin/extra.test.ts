@@ -15,7 +15,7 @@ async function dropTestWorkspace(id: string) {
   try {
     await c.query("begin");
     await c.query("set local session_replication_role = replica");
-    await c.query("delete from public.workspace where id = $1 and (slug like 'retention-%' or slug like 'budget-%')", [id]);
+    await c.query("delete from mudar.workspace where id = $1 and (slug like 'retention-%' or slug like 'budget-%')", [id]);
     await c.query("commit");
   } finally { await c.end(); }
 }
@@ -31,14 +31,14 @@ describe("security-review H3: alias_matches only returns aliases of records the 
     const raw = `Secret Alias ${t}`;
     await owner.from("entity_alias").insert({ workspace_id: WS1, entity_type: "organisation", entity_id: org.id, raw_alias: raw,
       canonical_alias: raw.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(), owner_user_id: USERS.owner.id, classification: "corporate_confidential" });
-    const before = await colleague.schema("app").rpc("alias_matches", { p_workspace: WS1, p_query: raw });
+    const before = await colleague.schema("mudar_app").rpc("alias_matches", { p_workspace: WS1, p_query: raw });
     expect(before.error).toBeNull();
     expect((before.data as { entity_id: string }[]).map((r) => r.entity_id)).not.toContain(org.id);
-    const other = await (await userClient("other")).schema("app").rpc("alias_matches", { p_workspace: WS1, p_query: raw });
+    const other = await (await userClient("other")).schema("mudar_app").rpc("alias_matches", { p_workspace: WS1, p_query: raw });
     expect(((other.data ?? []) as { entity_id: string }[]).map((r) => r.entity_id)).not.toContain(org.id);
 
     await adminClient().from("record_share").insert({ workspace_id: WS1, entity_type: "organisation", entity_id: org.id, user_id: USERS.colleague.id });
-    const after = await colleague.schema("app").rpc("alias_matches", { p_workspace: WS1, p_query: raw });
+    const after = await colleague.schema("mudar_app").rpc("alias_matches", { p_workspace: WS1, p_query: raw });
     expect((after.data as { entity_id: string }[]).map((r) => r.entity_id)).toContain(org.id);
   });
 });
@@ -97,6 +97,9 @@ describe("tenant configuration records", () => {
     expect(src.allowed_purposes).toEqual(["internal_research", "client_advice"]);
     expect(src.retention_days).toBeNull();
     expect(src.permits_ai_processing).toBe(false);
+    // clean up: a lane left in the shared test workspace would switch on data-lane enforcement for other suites
+    await adminClient().from("data_lane").delete().eq("id", lane.id);
+    await adminClient().from("licensed_source").delete().eq("id", src.id);
   });
 
   it("template paths must be this workspace's templates/ prefix, an Office file of the right kind, and exist", async () => {
@@ -105,10 +108,10 @@ describe("tenant configuration records", () => {
     await expect(verifyTemplatePath(owner, WS1, `${WS1}/templates/x.docx`, "pptx")).rejects.toThrow(/template format/);
     await expect(verifyTemplatePath(owner, WS1, `${WS1}/templates/${tag("missing")}.pptx`, "pptx")).rejects.toThrow(/not found/);
     const path = `${WS1}/templates/${tag("deck")}.pptx`;
-    const up = await owner.storage.from("workspace-files").upload(path, new Blob(["PK fake"]), { contentType: "application/octet-stream" });
+    const up = await owner.storage.from("mudar-workspace-files").upload(path, new Blob(["PK fake"]), { contentType: "application/octet-stream" });
     expect(up.error).toBeNull();
     expect(await verifyTemplatePath(owner, WS1, path, "pptx")).toBe(path);
-    await adminClient().storage.from("workspace-files").remove([path]);
+    await adminClient().storage.from("mudar-workspace-files").remove([path]);
   });
 });
 
@@ -121,13 +124,13 @@ describe("retention purge (spec §14)", () => {
     ws = data!.id;
   });
   afterAll(async () => {
-    await admin.storage.from("workspace-files").remove([`${ws}/captures/old.m4a`]);
+    await admin.storage.from("mudar-workspace-files").remove([`${ws}/captures/old.m4a`]);
     await dropTestWorkspace(ws);
   });
 
   it("purges only approved categories, honours legal hold, keeps provenance rows", async () => {
     const old = new Date(Date.now() - 400 * 86_400_000).toISOString();
-    await admin.storage.from("workspace-files").upload(`${ws}/captures/old.m4a`, new Blob(["audio"]), { upsert: true });
+    await admin.storage.from("mudar-workspace-files").upload(`${ws}/captures/old.m4a`, new Blob(["audio"]), { upsert: true });
     const { data: caps } = await admin.from("capture").insert([
       { workspace_id: ws, kind: "audio", status: "reviewed", source_at: old, transcript: "old words", storage_paths: [`${ws}/captures/old.m4a`, `${ws}/captures/photo.jpg`] },
       { workspace_id: ws, kind: "text", status: "needs_review", source_at: old, transcript: "unreviewed", storage_paths: [] },
@@ -163,7 +166,7 @@ describe("retention purge (spec §14)", () => {
     expect(r.categories.raw_audio).toMatchObject({ status: "purged", affected: 1 });
     const { data: audioCap } = await admin.from("capture").select("storage_paths").eq("workspace_id", ws).eq("kind", "audio").single();
     expect(audioCap?.storage_paths).toEqual([`${ws}/captures/photo.jpg`]);
-    const { data: files } = await admin.storage.from("workspace-files").list(`${ws}/captures`);
+    const { data: files } = await admin.storage.from("mudar-workspace-files").list(`${ws}/captures`);
     expect((files ?? []).map((f) => f.name)).not.toContain("old.m4a");
     const { data: audit } = await admin.from("audit_event").select("action").eq("workspace_id", ws).eq("action", "retention_purge");
     expect(audit?.length).toBeGreaterThanOrEqual(2);

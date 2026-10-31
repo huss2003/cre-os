@@ -19,12 +19,12 @@ extracted text). Section references below ("Part I §8") point into it. Tenant-s
 - Next.js 16 App Router (TypeScript, `src/`), React 19, Tailwind v4 (tokens in `src/app/globals.css`). Middleware is now `src/proxy.ts`.
 - Supabase Postgres + Auth + Storage. Local stack already running: API `http://127.0.0.1:54321`, DB `postgresql://postgres:postgres@127.0.0.1:54322/postgres`. Keys in `.env.local`.
 - OpenAI via `src/lib/ai/gateway.ts` ONLY. `OPENAI_API_KEY` is empty => **mock mode**: every AI call must pass a deterministic `mock` so the feature works end-to-end without a key.
-- Durable job queue in Postgres (`app.enqueue_job/claim_jobs`), wrappers in `src/lib/jobs/queue.ts`; scheduler entry `/api/cron/tick`.
+- Durable job queue in Postgres (`mudar_app.enqueue_job/claim_jobs`), wrappers in `src/lib/jobs/queue.ts`; scheduler entry `/api/cron/tick`.
 - Office outputs: `pptxgenjs`, `docx`, `exceljs`. Finance maths: `decimal.js`. Dates: `date-fns`, `date-fns-tz`, helpers in `src/lib/util/time.ts` (IST, `edate`).
 - Tests: `vitest` (`npx vitest run <paths>`), helpers in `tests/helpers.ts` (seeded users owner/colleague/other, WS1/WS2).
 
 ## Non-negotiable rules
-- **S1 RLS everywhere.** Every new business table: create it, then `select app.make_business_table('<table>');` (adds workspace_id, classification, owner_user_id, timestamps, row_version, archived_at, RLS, audit trigger). Simple settings tables: `app.make_workspace_table`.
+- **S1 RLS everywhere.** Every new business table: create it, then `select mudar_app.make_business_table('<table>');` (adds workspace_id, classification, owner_user_id, timestamps, row_version, archived_at, RLS, audit trigger). Simple settings tables: `mudar_app.make_workspace_table`.
 - **S2 Service-role discipline.** `createAdminClient()` bypasses RLS — only in jobs/webhooks/platform admin, and every query must filter `workspace_id` explicitly. User actions use `ctx.db` from `requireContext()/requirePageContext()`.
 - **S3 No outbound send.** Nothing in CRE OS sends email/WhatsApp/LinkedIn/invites. Drafts only (`src/lib/services/drafts.ts`); "send" = open mail/app link + user marks sent.
 - **S4 Material changes need approval.** Changes from captures/connectors/models go through `proposeChange()` (`src/lib/services/changes.ts`), never direct writes to canonical fields. Risk is classified in code, not by the LLM.
@@ -34,6 +34,13 @@ extracted text). Section references below ("Part I §8") point into it. Tenant-s
 - **S8 Idempotency.** Mutating `/api/v1/*` routes use `route(..., { requireIdempotency: true })` from `src/lib/util/http.ts`. Jobs use dedupe keys. Re-running an import/capture/webhook must not duplicate rows.
 - **S9 Mobile-first UI.** Pages must work at 375px. Use `src/components/ui` primitives. Server Components by default; Server Actions or `/api/v1` routes for writes.
 - **S10 Visible failure.** Stale/failed sources are labelled (`StaleBanner`); never claim "no replies" when a source failed.
+
+## Database schemas
+CRE OS shares its Supabase project with other apps, so everything lives in its own schemas: **`mudar`** (all tables, views,
+enums, RLS policies) and **`mudar_app`** (all SQL functions: RLS helpers, job queue, change/approval RPCs). Storage bucket:
+`mudar-workspace-files`. Clients are created with `db: { schema: "mudar" }` (see `src/lib/supabase/schema.ts`); call
+functions with `.schema("mudar_app").rpc(...)`. Never create CRE OS objects in `public`. Both schemas must be listed in
+Supabase → Project Settings → API → Exposed schemas.
 
 ## Data model
 Core migrations in `supabase/migrations/2026103100{0100,0200,0300}_*.sql` — READ THEM. Key tables: workspace, membership,

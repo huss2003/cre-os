@@ -75,13 +75,13 @@ describe("requirements: confirmed fields only change via approved proposals (M3)
     const still = await owner.db.from("requirement").select("area_min_sf").eq("id", req.id).single();
     expect(Number(still.data!.area_min_sf)).toBe(16000);
 
-    // approve + apply (rolled back) passes the guard because it carries app.change_proposal_id
+    // approve + apply (rolled back) passes the guard because it carries mudar_app.change_proposal_id
     const applied = await asRole("owner", async (db) => {
-      const a = await db.q(`select app.approve_change($1)`, [r.proposals[0].id]);
+      const a = await db.q(`select mudar_app.approve_change($1)`, [r.proposals[0].id]);
       if (a.error) return `approve: ${a.error.message}`;
-      const p = await db.q(`select app.apply_change($1)`, [r.proposals[0].id]);
+      const p = await db.q(`select mudar_app.apply_change($1)`, [r.proposals[0].id]);
       if (p.error) return `apply: ${p.error.message}`;
-      const row = await db.q<{ area_min_sf: string }>(`select area_min_sf from public.requirement where id=$1`, [req.id]);
+      const row = await db.q<{ area_min_sf: string }>(`select area_min_sf from mudar.requirement where id=$1`, [req.id]);
       return Number(row.rows[0].area_min_sf);
     });
     expect(applied).toBe(17000);

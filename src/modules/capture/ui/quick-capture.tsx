@@ -26,7 +26,7 @@ export function QuickCapture({ workspaceId }: { workspaceId: string }) {
     if (file && typeof file !== "string" && file.size > 0) {
       if (file.size > 25 * 1024 * 1024) return { error: "File too large (max 25 MB)." };
       const path = `${workspaceId}/captures/${crypto.randomUUID()}/${file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(-80) || "upload"}`;
-      const { error } = await createBrowserSupabase().storage.from("workspace-files").upload(path, file, { contentType: file.type || undefined });
+      const { error } = await createBrowserSupabase().storage.from("mudar-workspace-files").upload(path, file, { contentType: file.type || undefined });
       if (error) { return { error: `Upload failed: ${error.message}` }; }
       fd.set("storage_path", path);
     }

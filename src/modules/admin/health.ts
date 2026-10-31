@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { PRICING, PRICING_VERSION } from "@/lib/ai/pricing";
 import { badRequest, conflict, forbidden, notFound } from "./errors";
 
-type Client = SupabaseClient<any, "public", any>;
+type Client = SupabaseClient<any, any, any>;
 type Row = Record<string, any>;
 
 /** Backup objectives (spec §14): RPO 24h, RTO one working day, monthly restore sample, quarterly full drill. */
@@ -157,7 +157,7 @@ async function importsSummary(db: Client, workspaceId: string) {
 }
 
 export async function retryJob(db: Client, jobId: string) {
-  const { error } = await db.schema("app").rpc("retry_job", { p_job: jobId });
+  const { error } = await db.schema("mudar_app").rpc("retry_job", { p_job: jobId });
   if (!error) return;
   if (error.code === "42501") throw forbidden("admin role required to retry jobs");
   if (error.code === "P0002") throw notFound("job");

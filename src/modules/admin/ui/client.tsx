@@ -78,7 +78,7 @@ function TemplateUploader({ workspaceId }: { workspaceId: string }) {
         setStatus("Uploading…");
         const safe = file.name.normalize("NFKD").replace(/[^A-Za-z0-9._-]+/g, "_").slice(-80);
         const p = `${workspaceId}/templates/${crypto.randomUUID()}-${safe}`;
-        const { error } = await createBrowserSupabase().storage.from("workspace-files").upload(p, file, { upsert: false, contentType: file.type || undefined });
+        const { error } = await createBrowserSupabase().storage.from("mudar-workspace-files").upload(p, file, { upsert: false, contentType: file.type || undefined });
         if (error) { setStatus(`Upload failed: ${error.message}`); return; }
         setPath(p);
         setStatus("Uploaded — save to attach it.");

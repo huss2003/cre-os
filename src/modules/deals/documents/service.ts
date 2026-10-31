@@ -1,6 +1,6 @@
 /**
  * Design studio + release guard (spec Part III POST /v1/documents/generate: "template/access/freshness guards, editable
- * output and preview QA"). Files go to storage workspace-files/<ws>/documents/<doc>.<ext>; every document_version
+ * output and preview QA"). Files go to storage mudar-workspace-files/<ws>/documents/<doc>.<ext>; every document_version
  * records the sha256 and the exact input versions it was built from. A stale document can never be approved/released
  * (also enforced by the document_version_deals_guard trigger).
  */
@@ -17,7 +17,7 @@ import { buildComparisonXlsx } from "./xlsx";
 import { buildShortlistPptx } from "./pptx";
 import { buildProposalDocx } from "./docx";
 
-export const BUCKET = "workspace-files";
+export const BUCKET = "mudar-workspace-files";
 export type Purpose = DocModel["purpose"];
 export const PURPOSES: { purpose: Purpose; kind: "pptx" | "docx" | "xlsx"; label: string }[] = [
   { purpose: "shortlist_deck", kind: "pptx", label: "Shortlist deck (PPTX)" },

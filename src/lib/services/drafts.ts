@@ -42,7 +42,7 @@ export interface DraftRow {
 }
 
 /**
- * Canonical content hash. MUST stay byte-identical with app.draft_content_hash() in
+ * Canonical content hash. MUST stay byte-identical with mudar_app.draft_content_hash() in
  * supabase/migrations/20261031001410_integrations_draft_security.sql — the DB recomputes it on every write and
  * rejects a mismatching client hash, so approvals bind to what is really stored.
  */
@@ -189,12 +189,12 @@ export async function updateDraft(db: Db, workspaceId: string, id: string, edit:
 }
 
 /**
- * Hash-bound approval through the SECURITY DEFINER app.approve_draft (role + suppression + hash checks, approval row,
+ * Hash-bound approval through the SECURITY DEFINER mudar_app.approve_draft (role + suppression + hash checks, approval row,
  * draft_event). `reviewedHash` (what the user saw) must equal the current content hash, else DraftConflictError.
  */
 export async function approveDraft(db: Db, workspaceId: string, id: string, _actorUserId: string, opts: { reviewedHash?: string; note?: string; expectedVersion?: number } = {}) {
   await getDraft(db, workspaceId, id); // workspace scoping + not-found
-  const { data, error } = await db.schema("app").rpc("approve_draft", {
+  const { data, error } = await db.schema("mudar_app").rpc("approve_draft", {
     p_draft: id, p_reviewed_hash: opts.reviewedHash ?? null, p_note: opts.note ?? null, p_expected_version: opts.expectedVersion ?? null,
   });
   if (error) throw mapRpcError(error);
@@ -245,7 +245,7 @@ export function buildSendLink(d: Pick<DraftRow, "channel" | "recipient_address" 
 export async function openDraftForSend(db: Db, workspaceId: string, id: string, _actorUserId: string) {
   const cur = await getDraft(db, workspaceId, id);
   if (!["approved", "opened_for_send"].includes(cur.state)) throw new DraftStateError("approve the draft before opening it to send");
-  const { data, error } = await db.schema("app").rpc("open_draft_for_send", { p_draft: id });
+  const { data, error } = await db.schema("mudar_app").rpc("open_draft_for_send", { p_draft: id });
   if (error) throw mapRpcError(error);
   const row = data as DraftRow;
   if (row.state === "paused" && row.pause_reason === "suppressed") throw new SuppressedRecipientError("Recipient is suppressed or consent revoked; the draft was paused");
@@ -257,7 +257,7 @@ export async function markDraftSent(db: Db, workspaceId: string, id: string, _ac
   const cur = await getDraft(db, workspaceId, id);
   if (cur.state === "marked_sent" || cur.state === "reconciled_sent") return { draft: cur, already: true };
   if (!["approved", "opened_for_send"].includes(cur.state)) throw new DraftStateError("only approved drafts can be marked sent");
-  const { data, error } = await db.schema("app").rpc("mark_draft_sent", { p_draft: id });
+  const { data, error } = await db.schema("mudar_app").rpc("mark_draft_sent", { p_draft: id });
   if (error) throw mapRpcError(error);
   return { draft: data as DraftRow, already: false };
 }

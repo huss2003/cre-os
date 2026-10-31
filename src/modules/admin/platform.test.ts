@@ -39,7 +39,7 @@ describe("platform admin tenant onboarding", () => {
     const { count } = await admin.from("retention_policy").select("*", { count: "exact", head: true }).eq("workspace_id", res.workspace.id);
     expect(count).toBeGreaterThanOrEqual(6);
 
-    const c = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false } });
+    const c = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, { auth: { persistSession: false }, db: { schema: "mudar" } });
     const { error } = await c.auth.signInWithPassword({ email, password: res.owner.tempPassword! });
     expect(error).toBeNull();
     const { data: mine } = await c.from("my_workspaces").select("id, role");

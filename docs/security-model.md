@@ -69,7 +69,7 @@ Defined in `supabase/migrations/20261031000100_core_platform.sql`. All are `SECU
 | `app.can_read(ws, classification, owner_user_id, entity_type, id)` | Caller is a member **and** the row's classification is in their `allowed_classifications` **and** (role is owner/admin **or** `see_all_accounts` **or** they own the row **or** the row is shared with them in `record_share`). |
 | `app.can_write(...)` | `can_read(...)` **and** role ≥ editor. |
 
-`app.make_business_table('<table>')` is the only supported way to create a business table. It adds `workspace_id,
+`mudar_app.make_business_table('<table>')` is the only supported way to create a business table. It adds `workspace_id,
 classification, owner_user_id, created_at, updated_at, row_version, archived_at`, the `touch_row` trigger (optimistic
 concurrency + immutable workspace), the generic audit trigger, and four policies:
 
@@ -78,7 +78,7 @@ concurrency + immutable workspace), the generic audit trigger, and four policies
 * **update** → `can_write` in both `using` and `with check` (you cannot move a row into a classification you can't see)
 * **delete** → `has_role(admin)`
 
-`app.make_workspace_table('<table>', write_role)` is for settings-like tables: any member reads, `write_role` writes.
+`mudar_app.make_workspace_table('<table>', write_role)` is for settings-like tables: any member reads, `write_role` writes.
 Exceptions that are stricter by design: `audit_event` (admin read, append-only), `job`, `model_usage`, `backup_run`,
 `tenant_invite` (admin read), `connector_account` (own row or admin; token column never granted), `user_preference`
 (own row only).
