@@ -39,7 +39,7 @@ One production Supabase project (all tenants live in it, separated by RLS) + one
 | Monthly item | INR |
 |---|---:|
 | Supabase Pro (one project, Micro) | 2,250 |
-| Vercel Pro, 1 deploying member | 1,800 |
+| Vercel Hobby (free) now; Pro (~₹1,800/member) once tenants pay | 0 |
 | Off-site backup storage allowance | 300 |
 | Domain allowance | 100 |
 | **Fixed base** | **4,450** |

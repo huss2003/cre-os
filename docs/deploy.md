@@ -32,7 +32,7 @@ You need:
 
 - [ ] A GitHub account with access to `huss2003/cre-os`.
 - [ ] A Supabase account (an **organisation** owned by the agency, not by a freelance developer).
-- [ ] A Vercel account on the **Pro** plan (Hobby only allows a once-a-day cron and is for non-commercial use).
+- [ ] A Vercel account (Hobby/free works: the 5-minute scheduler runs from Supabase `pg_cron`, see §8; Hobby is for non-commercial use).
 - [ ] A password manager to store every secret below.
 - [ ] Optional now, needed later: OpenAI API key, Microsoft Entra app, Google OAuth client
       ([setup-oauth.md](setup-oauth.md)). Without them the app runs in **mock mode** — safe, but AI and
@@ -167,25 +167,22 @@ broken).
 
 After changing any variable: **Deployments → … on the latest → Redeploy** (variables apply to new deployments only).
 
-## 8. Cron (the scheduler)
+## 8. Cron (the scheduler) — Vercel Hobby (free) setup
 
-`vercel.json` declares:
+CRE OS runs on the **Vercel Hobby (free)** plan. Hobby cron jobs run at most once a day, so the scheduler has two parts:
 
-```json
-{ "crons": [ { "path": "/api/cron/tick", "schedule": "*/5 * * * *" } ] }
-```
+1. **Every 5 minutes — Supabase `pg_cron` (free plan works).** Open **Supabase → SQL Editor**, paste
+   `scripts/setup-scheduler.sql`, replace the app URL and the CRON_SECRET placeholders, and run it once.
+   It calls `GET /api/cron/tick` with `Authorization: Bearer <CRON_SECRET>` every 5 minutes. Check it with
+   `select * from cron.job_run_details order by start_time desc limit 5;` (status `succeeded`).
+2. **Once a day — Vercel cron** (`vercel.json`: `30 0 * * *` = 06:00 IST) as a safety net if Supabase cron is paused.
 
-- Every 5 minutes Vercel calls `GET /api/cron/tick` with `Authorization: Bearer <CRON_SECRET>` (Vercel adds the header
-  automatically when `CRON_SECRET` is set). The route runs every module's scheduler, then drains due jobs for up to
-  45 s (`maxDuration = 60`).
-- **Requires Vercel Pro.** On Hobby, cron jobs run at most once per day, which breaks the 08:00 brief, inbox sync and
-  T-60 meeting briefs.
-- Check: **Vercel → Project → Settings → Cron Jobs** lists `/api/cron/tick`, enabled. Click **Run** once and confirm
-  **Logs** show a 200 with JSON like `{"ran":0,"failed":0,...}`. A 401 means `CRON_SECRET` is missing/mismatched.
-- Cron schedules are UTC, but each job computes its own due time in the tenant's timezone (default `Asia/Kolkata`).
-  With a 5-minute tick, a job due at 07:40 runs between 07:40 and 07:45.
-- Fallbacks if Vercel Cron is unavailable: Supabase `pg_cron` + `pg_net` calling the same URL with the bearer header,
-  or any external uptime pinger that can send a header. Never run two schedulers *without* the secret.
+- The route runs every module's scheduler, then drains due jobs for up to 45 s (`maxDuration = 60`, within Hobby limits).
+- Each job computes its own due time in the tenant's timezone (default `Asia/Kolkata`); with a 5-minute tick a job due at
+  07:40 runs between 07:40 and 07:45, so the 08:00 brief, inbox sync and T-60 meeting briefs keep working.
+- A 401 in the logs means `CRON_SECRET` differs between Vercel and the Supabase Vault secret.
+- **Hobby terms:** Vercel's Hobby plan is for personal, non-commercial use. Move to Pro before charging tenants.
+- Never run a scheduler without the secret.
 
 ## 9. Custom domain
 
