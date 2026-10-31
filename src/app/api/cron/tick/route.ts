@@ -10,6 +10,10 @@ export async function GET(req: NextRequest) {
   if (!secret || secret.length < 16 || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "unauthorised" }, { status: 401 });
   }
-  return NextResponse.json(await tick({ budgetMs: 45_000 }));
+  const ua = req.headers.get("user-agent") ?? "";
+  const source = /vercel-cron/i.test(ua) ? "vercel-cron" : /pg_net/i.test(ua) ? "pg_cron" : "other";
+  // Heartbeat: every tick is recorded in scheduler_run; a gap > 15 min (e.g. pg_cron stopped) is alerted by the next
+  // tick that runs — at the latest the daily Vercel cron (00:30 UTC, vercel.json) — and shown on /admin.
+  return NextResponse.json(await tick({ budgetMs: 45_000, source }));
 }
 export const POST = GET;

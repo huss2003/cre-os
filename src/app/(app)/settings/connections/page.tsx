@@ -4,6 +4,7 @@ import { hasRole, requirePageContext } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
 import { URGENT_CATEGORIES, DEFAULT_DND, type AlertPrefs } from "@/modules/integrations/alerts";
 import { isProviderConfigured, scopesFor } from "@/modules/integrations/config";
+import { pushConfigured } from "@/modules/integrations/push";
 import { staleness } from "@/modules/integrations/sync";
 import { connectMockAction, disconnectAction, saveAlertPrefsAction, syncNowAction } from "./actions";
 
@@ -27,6 +28,8 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
   const { data: accounts } = await ctx.db.from("connector_account").select("id, provider, status, scopes, account_email, last_error, token_expires_at, updated_at")
     .eq("workspace_id", ctx.workspaceId).eq("user_id", ctx.userId);
   const { data: cursors } = await ctx.db.from("connector_cursor").select("connector_account_id, resource, last_success_at, last_attempt_at, last_error")
+    .eq("workspace_id", ctx.workspaceId).in("connector_account_id", (accounts ?? []).map((a) => a.id));
+  const { data: subs } = await ctx.db.from("push_subscription").select("connector_account_id, resource, status, expires_at, last_notification_at, last_error")
     .eq("workspace_id", ctx.workspaceId).in("connector_account_id", (accounts ?? []).map((a) => a.id));
   const { data: pref } = await ctx.db.from("user_preference").select("prefs").eq("workspace_id", ctx.workspaceId).eq("user_id", ctx.userId).maybeSingle();
   const prefs = (pref?.prefs ?? {}) as AlertPrefs;
@@ -63,7 +66,17 @@ export default async function ConnectionsPage({ searchParams }: { searchParams: 
                     </li>
                   ))}
                 </ul>
-              ) : (
+              ) : null}
+              {a && a.status !== "mock" ? (
+                <p className="mt-2 text-xs text-ink-soft break-words">
+                  Instant updates: {!pushConfigured(p) ? "not configured on this server — polling every 10–15 min." : (() => {
+                    const mine = (subs ?? []).filter((x) => x.connector_account_id === a.id);
+                    if (!mine.length) return "being set up — polling continues meanwhile.";
+                    return mine.map((x) => `${x.resource}: ${x.status === "active" ? `on until ${x.expires_at ? fmt(x.expires_at, "dd MMM HH:mm", ctx.timezone) : "?"}${x.last_notification_at ? `, last ${fmt(x.last_notification_at, "dd MMM HH:mm", ctx.timezone)}` : ""}` : `${x.status}${x.last_error ? ` (${x.last_error})` : ""}`}`).join(" · ") + ". Polling stays on as a fallback.";
+                  })()}
+                </p>
+              ) : null}
+              {a ? null : (
                 <p className="mt-2 text-sm text-ink-soft">{p === "google"
                   ? "Recommended first step for Gmail: import selected threads from Drafts → Inbox triage. Read-only Gmail OAuth needs Google’s restricted-scope verification before external users can connect."
                   : "Reads mail and calendar with Mail.Read and Calendars.Read only. Your organisation’s admin may need to approve the app."}</p>

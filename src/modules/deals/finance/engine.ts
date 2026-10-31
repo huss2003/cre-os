@@ -2,8 +2,15 @@ import Decimal from "decimal.js";
 import { createHash } from "node:crypto";
 import { edate } from "@/lib/util/time";
 import {
+  COST_ITEMS,
+  COST_ITEM_LABEL,
   ENGINE_VERSION,
+  type Assumption,
   type CashflowRow,
+  type CostGap,
+  type CostItem,
+  type CostState,
+  type RoundingRule,
   type Escalation,
   type FinanceInput,
   type FinanceResult,
@@ -92,12 +99,92 @@ export function validateInput(inp: FinanceInput): void {
   }
 }
 
+// ==================================================================== three-state costs, gaps, assumptions
+export const ROUNDING_RULE: RoundingRule = {
+  engineVersion: ENGINE_VERSION,
+  arithmetic: "decimal.js, 40 significant digits, ROUND_HALF_UP",
+  money: "each category amount per period rounded half-up to 0.01 (paise) before any total",
+  totals: "TCO = sum of rounded period amounts; NPV = Σ rounded period total × (1+r_m)^-t, shown half-up to 0.01",
+  rates: "monthly discount rate and annuity factor shown to 10 decimal places",
+  perUnit: "equivalent monthly and per-SF / per-seat figures half-up to 0.01",
+};
+
+const isBlank = (x: Num | null | undefined) => x === null || x === undefined || x === "";
+const amountPresent = (x: Num | null | undefined) => !isBlank(x) && !d(x).isZero();
+
+/** Is an amount for this cost item present in the input (state-independent)? */
+function itemPresence(inp: FinanceInput, item: CostItem): "present" | "absent" | "declared_none" {
+  switch (item) {
+    case "rent": return inp.rent ? "present" : "absent";
+    case "cam": return !inp.cam ? "absent" : inp.cam.mode === "none" ? "declared_none" : "present";
+    case "parking": return inp.parking && inp.parking.slots > 0 ? "present" : "absent";
+    case "deposit": return inp.deposit && (amountPresent(inp.deposit.amount) || amountPresent(inp.deposit.months)) ? "present" : "absent";
+    case "fitout": return inp.capex && amountPresent(inp.capex.fitoutCost) ? "present" : "absent";
+    case "opex": return (inp.recurring ?? []).length ? "present" : "absent";
+    case "reinstatement": return inp.capex?.reinstatement && amountPresent(inp.capex.reinstatement.amount) ? "present" : "absent";
+  }
+}
+
+/**
+ * Resolve the three-state cost inputs. Explicit states must agree with the amounts (known ⇒ amount; none/unknown ⇒ no
+ * amount). Missing state: amount ⇒ known, CAM mode "none" ⇒ none, nothing ⇒ unknown. Never coerces unknown to zero.
+ */
+export function resolveCostStates(inp: FinanceInput): Record<CostItem, CostState> {
+  const out = {} as Record<CostItem, CostState>;
+  for (const item of COST_ITEMS) {
+    const pres = itemPresence(inp, item);
+    const explicit = inp.costStates?.[item];
+    if (explicit && !["known", "none", "unknown"].includes(explicit)) throw new FinanceInputError(`costStates.${item} must be known | none | unknown`, `costStates.${item}`);
+    if (explicit === "known" && pres !== "present") throw new FinanceInputError(`${COST_ITEM_LABEL[item]} is marked known but no amount was given`, `costStates.${item}`);
+    if ((explicit === "none" || explicit === "unknown") && pres === "present")
+      throw new FinanceInputError(`${COST_ITEM_LABEL[item]} is marked ${explicit} but an amount was given`, `costStates.${item}`);
+    out[item] = explicit ?? (pres === "present" ? "known" : pres === "declared_none" ? "none" : "unknown");
+  }
+  return out;
+}
+
+export function costGaps(inp: FinanceInput, states: Record<CostItem, CostState>): CostGap[] {
+  const gaps: CostGap[] = COST_ITEMS.filter((i) => states[i] === "unknown")
+    .map((i) => ({ item: i, label: COST_ITEM_LABEL[i], reason: "unknown — not modelled; excluded from totals (not zero)" }));
+  if (inp.taxes?.treatment === "excluded" && isBlank(inp.taxes.gstRatePct))
+    gaps.push({ item: "gst", label: "GST", reason: "quoted rates exclude GST but no rate was supplied — GST not modelled" });
+  return gaps;
+}
+
+const hashValue = (v: unknown) => sha(stableStringify(v ?? null));
+
+/**
+ * Assumptions register (workflow 11): every non-quote judgement the result depends on, with its source. Deterministic;
+ * an approval binds to `valueHash`, so changing a value always needs a fresh approval.
+ */
+export function deriveAssumptions(inp: FinanceInput, states: Record<CostItem, CostState> = resolveCostStates(inp)): Assumption[] {
+  const src = (k: string, fallback = "user input") => inp.assumptionSources?.[k] ?? fallback;
+  const out: Assumption[] = [];
+  const add = (key: string, label: string, value: unknown, source: string) => out.push({ key, label, value: value ?? null, valueHash: hashValue(value), source });
+  add("discount_rate", "Discount rate (% p.a.)", String(inp.annualDiscountRatePct), src("discount_rate"));
+  add("horizon", "Comparison horizon & base date", { horizonMonths: inp.horizonMonths, baseDate: inp.baseDate, currency: inp.currency ?? "INR" }, src("horizon"));
+  add("tenure", "Tenure & treatment after tenure", { tenureMonths: inp.tenureMonths ?? null, afterTenure: inp.afterTenure ?? null }, src("tenure"));
+  if (inp.rent) {
+    add("rent_terms", "Rent rate, basis & commencement", { basis: inp.rent.basis, rate: String(inp.rent.rate), startPeriod: inp.rent.startPeriod ?? 1, schedule: inp.rent.schedule ?? null, committedSeats: inp.rent.committedSeats ?? null }, src("rent_terms"));
+    add("rent_escalation", "Rent escalation", inp.rent.escalation ? { pct: String(inp.rent.escalation.pct), everyMonths: inp.rent.escalation.everyMonths } : "none", src("rent_escalation"));
+    add("rent_free", "Rent-free months (CAM waived?)", { months: inp.rent.rentFreeMonths ?? 0, includesCam: !!inp.rent.rentFreeIncludesCam }, src("rent_free"));
+  }
+  add("area", "Billing areas / seats", { chargeableSf: inp.area.chargeableSf ?? null, carpetSf: inp.area.carpetSf ?? null, plannedSeats: inp.area.plannedSeats ?? null }, src("area"));
+  if (inp.cam && inp.cam.mode !== "none") add("cam_escalation", "CAM escalation", inp.cam.escalation ? { pct: String(inp.cam.escalation.pct), everyMonths: inp.cam.escalation.everyMonths } : "none", src("cam_escalation"));
+  add("gst", "GST treatment & rate", inp.taxes ? { treatment: inp.taxes.treatment, ratePct: isBlank(inp.taxes.gstRatePct) ? null : String(inp.taxes.gstRatePct), appliesTo: inp.taxes.appliesTo ?? ["rent", "cam", "parking"] } : "not specified (amounts used as quoted)", src("gst"));
+  if (inp.deposit) add("deposit_terms", "Deposit amount & refund timing", { months: isBlank(inp.deposit.months) ? null : String(inp.deposit.months), amount: isBlank(inp.deposit.amount) ? null : String(inp.deposit.amount), paidPeriod: inp.deposit.paidPeriod ?? 0, refundPeriod: inp.deposit.refundPeriod ?? "end of tenure" }, src("deposit_terms"));
+  if (inp.financing) add("financing", "Financing terms", { partner: inp.financing.partnerName, rate: String(inp.financing.annualInterestRate), termMonths: inp.financing.termMonths, repayment: inp.financing.repayment ?? "annuity" }, src("financing"));
+  for (const item of COST_ITEMS) if (states[item] === "none") add(`none:${item}`, `${COST_ITEM_LABEL[item]} treated as none / included elsewhere`, "none", src(`none:${item}`));
+  return out;
+}
+
 interface Ledger {
   add(period: number, category: string, amount: D): void;
 }
 
 export function evaluate(input: FinanceInput): FinanceResult {
   validateInput(input);
+  const costStates = resolveCostStates(input);
   const H = input.horizonMonths;
   const warnings: string[] = [];
   const rm = monthlyRateFromAnnual(input.annualDiscountRatePct);
@@ -351,7 +438,10 @@ export function evaluate(input: FinanceInput): FinanceResult {
   for (const k of [...catTotals.keys()].sort()) categoryTotals[k] = catTotals.get(k)!.toFixed(2);
   const periodTotals = periodTotalsD.map((v) => v.toFixed(2));
 
+  // hash covers engine version, inputs (incl. cost states) and every number — gaps/assumptions derive from the input
   const outputHash = sha(stableStringify({ engine: ENGINE_VERSION, input, periodTotals, totals, cashflows }));
+  const gaps = costGaps(input, costStates);
+  const complete = gaps.length === 0;
   return {
     engineVersion: ENGINE_VERSION,
     name: input.name,
@@ -366,6 +456,13 @@ export function evaluate(input: FinanceInput): FinanceResult {
     totals,
     warnings,
     outputHash,
+    costStates,
+    gaps,
+    complete,
+    completeTotals: complete ? { nominalTco: totals.nominalTco, npv: totals.npv, equivalentMonthly: totals.equivalentMonthly } : null,
+    totalsLabel: complete ? "Complete: all cost items known or explicitly none" : `Incomplete — known items only; excludes unknown ${gaps.map((g) => g.label).join(", ")}`,
+    assumptions: deriveAssumptions(input, costStates),
+    roundingRule: ROUNDING_RULE,
   };
 }
 
@@ -382,6 +479,8 @@ export interface ComparisonRow {
   breakEvenPeriodVsBaseline: number | null;
   rank: number;
   outputHash: string;
+  complete: boolean;
+  gaps: string[];
 }
 export interface Comparison { baseline: string; rows: ComparisonRow[]; results: FinanceResult[]; warnings: string[] }
 
@@ -426,10 +525,12 @@ export function compareScenarios(inputs: FinanceInput[]): Comparison {
       perChargeableSfMonth: r.totals.perChargeableSfMonth, perPlannedSeatMonth: r.totals.perPlannedSeatMonth,
       incrementalNpvVsBaseline: new Dec(r.totals.npv).minus(results[0].totals.npv).toFixed(2),
       breakEvenPeriodVsBaseline: i === 0 ? null : be,
-      rank: rankOf.get(i)!, outputHash: r.outputHash,
+      rank: rankOf.get(i)!, outputHash: r.outputHash, complete: r.complete, gaps: r.gaps.map((g) => g.label),
     };
   });
-  return { baseline: b.name, rows, results, warnings: results.flatMap((r) => r.warnings.map((w) => `${r.name}: ${w}`)) };
+  const warnings = results.flatMap((r) => r.warnings.map((w) => `${r.name}: ${w}`));
+  for (const r of results) if (!r.complete) warnings.push(`${r.name}: incomplete — excludes unknown ${r.gaps.map((g) => g.label).join(", ")}; its NPV is not comparable as a complete cost.`);
+  return { baseline: b.name, rows, results, warnings };
 }
 
 // ==================================================================== sensitivities

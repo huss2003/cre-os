@@ -1,62 +1,96 @@
 import Link from "next/link";
-import { Card, EmptyState, Field, Input, PageHeader, Stat, StaleBanner, Table, Td, Button, inr } from "@/components/ui";
+import { Badge, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Stat, StaleBanner, Table, Td, Button, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
+import { localDate } from "@/lib/util/time";
 import { toDealsCtx } from "@/modules/deals/api";
-import { feeProtectionIssues, feeSummary, type FeeMilestoneRow } from "@/modules/deals/fees/fees";
-import { funnel } from "@/modules/deals/pipeline/stages";
+import { feeProtectionIssues, type FeeMilestoneRow } from "@/modules/deals/fees/fees";
+import { AGING_BUCKETS, AGING_LABEL, FUNNEL_STAGES, MONEY_STAGES, MONEY_STAGE_LABEL } from "@/modules/deals/fees/ledger";
+import { revenueReport } from "@/modules/deals/fees/report-service";
+import { funnel, STAGE_LABEL, type Stage } from "@/modules/deals/pipeline/stages";
+import { LedgerTable } from "@/modules/deals/closing-ui";
 import { Flash, KV } from "@/modules/deals/ui";
 
 export default async function FeesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = await searchParams;
   const ctx = toDealsCtx(await requirePageContext());
-  const [{ data: fees }, { data: opps }] = await Promise.all([
-    ctx.db.from("fee_milestone").select("*").eq("workspace_id", ctx.workspaceId).is("archived_at", null).order("created_at", { ascending: false }).limit(1000),
-    ctx.db.from("opportunity").select("id, name, stage, outcome, expected_fee, credit_share, crm_external_id").eq("workspace_id", ctx.workspaceId).is("archived_at", null).limit(1000),
-  ]);
-  const rows = (fees ?? []) as (FeeMilestoneRow & { id: string; opportunity_id: string })[];
-  const oppById = new Map((opps ?? []).map((o) => [o.id as string, o]));
-  const today = new Date().toISOString().slice(0, 10);
-  let total: ReturnType<typeof feeSummary> | null = null, mixed = false;
-  try { total = feeSummary(rows); } catch { mixed = true; }
-  const issues = (opps ?? []).flatMap((o) => feeProtectionIssues(o as never, rows.filter((r) => r.opportunity_id === o.id), today).map((i) => ({ ...i, opp: o })));
+  const today = localDate();
+  const rep = await revenueReport(ctx, today);
+  const oppName = new Map(rep.register.map((r) => [r.opp.id, r.opp.name]));
+  const feeRows = rep.register.flatMap((r) => r.lines.filter((l) => l.transaction.feeMilestoneId));
+  const issues = rep.register.flatMap((r) => feeProtectionIssues(r.opp as never, r.rows as FeeMilestoneRow[], today).map((i) => ({ ...i, opp: r.opp })));
   const num = (k: string, d: number) => { const v = Number(typeof sp[k] === "string" ? sp[k] : NaN); return Number.isFinite(v) && v > 0 ? v : d; };
   const f = funnel({ annualFeeTarget: num("target", 50000000), feePerClosure: num("fee", 3000000), cohort: { approached: num("approached", 120), discussions: num("discussions", 15), closures: num("closures", 1) }, workdaysPerMonth: num("wdm", 20) });
   return (
     <div className="space-y-5">
-      <PageHeader title="Fees" subtitle="Gross, credited, invoiced, recognised and collected are kept separate — each with its own date and evidence." />
+      <PageHeader title="Fees & revenue" subtitle="Expected (forecast), contractual, attributed, invoiced, recognised and collected are kept separate — each with its own status, date, evidence and deal link. Official finance records stay authoritative."
+        actions={<ButtonLink variant="secondary" href="/fees/reconcile">Reconcile with finance</ButtonLink>} />
       <Flash sp={sp} />
-      {mixed && <StaleBanner>Fee records use more than one currency: totals are not summed.</StaleBanner>}
-      {total && (
+      {rep.mixedCurrency && <StaleBanner>Fee records use more than one currency: totals are not summed.</StaleBanner>}
+      {rep.totals && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <Stat label="Gross" value={inr(total.gross, { compact: true })} />
-          <Stat label="Credited" value={inr(total.credited, { compact: true })} hint={total.creditShareUnknown ? `${total.creditShareUnknown} without credit share` : undefined} />
-          <Stat label="Invoiced" value={inr(total.invoiced, { compact: true })} />
-          <Stat label="Recognised" value={inr(total.recognised, { compact: true })} />
-          <Stat label="Collected" value={inr(total.collected, { compact: true })} />
-          <Stat label="Receivable" value={inr(total.receivable, { compact: true })} />
+          {MONEY_STAGES.map((s) => <Stat key={s} label={MONEY_STAGE_LABEL[s]} value={inr(rep.totals![s].amount, { compact: true })} hint={s === "expected" ? "forecast — not revenue" : rep.totals![s].unknownCount ? `${rep.totals![s].unknownCount} unknown` : undefined} />)}
         </div>
       )}
       {issues.length > 0 && (
         <Card title={`Fee protection (${issues.length})`}>
-          <ul className="space-y-1 text-sm">{issues.slice(0, 50).map((i, k) => <li key={k} className={i.severity === "high" ? "text-bad" : "text-warn"}><Link className="underline" href={`/deals/${i.opp.id}`}>{i.opp.name as string}</Link>: {i.issue}</li>)}</ul>
+          <ul className="space-y-1 text-sm">{issues.slice(0, 50).map((i, k) => <li key={k} className={i.severity === "high" ? "text-bad" : "text-warn"}><Link className="underline" href={`/deals/${i.opp.id}`}>{i.opp.name}</Link>: {i.issue}</li>)}</ul>
         </Card>
       )}
-      {rows.length === 0 ? (
-        <EmptyState title="No fee records yet">Record fee milestones on a deal (Pipeline → deal → Fees). Invoices, recognition and collections each need a date and evidence.</EmptyState>
-      ) : (
-        <Table head={["Deal", "Milestone", "Gross", "Invoiced", "Recognised", "Collected", "Evidence"]}>
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <Td><Link className="text-brand" href={`/deals/${r.opportunity_id}`}>{(oppById.get(r.opportunity_id)?.name as string) ?? "—"}</Link></Td>
-              <Td>{r.milestone ?? "—"}</Td><Td>{inr(r.gross_fee)}</Td>
-              <Td>{inr(r.invoiced_amount)}{r.invoiced_on ? ` · ${r.invoiced_on}` : ""}</Td>
-              <Td>{inr(r.recognised_amount)}{r.recognised_on ? ` · ${r.recognised_on}` : ""}</Td>
-              <Td>{inr(r.collected_amount)}{r.collected_on ? ` · ${r.collected_on}` : ""}</Td>
-              <Td className="text-xs">{r.evidence ?? "—"}</Td>
-            </tr>
+
+      <Card title="Forecast (expected fees on open deals)">
+        {rep.forecast.length === 0 ? <p className="text-sm text-ink-soft">No open deals with an expected fee. Add one on the deal page.</p> : (
+          <Table head={["Deal", "Stage", "Expected fee", "Expected close", "Status"]}>
+            {rep.forecast.map((o) => <tr key={o.id}><Td><Link className="text-brand" href={`/deals/${o.id}`}>{o.name}</Link></Td><Td>{STAGE_LABEL[o.stage as Stage] ?? o.stage}</Td><Td>{inr(o.expectedFee)}</Td><Td>{o.expectedClose ?? "unknown"}</Td><Td><Badge tone="warn">forecast — not collected</Badge></Td></tr>)}
+          </Table>
+        )}
+      </Card>
+
+      <Card title="Fee attribution register">
+        {feeRows.length === 0 ? (
+          <EmptyState title="No fee records yet">Record fee milestones on a deal (Pipeline → deal → Fees). Contractual terms need the agreement reference; invoices, recognition and collections each need a date and evidence.</EmptyState>
+        ) : (
+          <div className="space-y-4">
+            {rep.register.filter((r) => r.lines.some((l) => l.transaction.feeMilestoneId)).slice(0, 50).map((r) => (
+              <details key={r.opp.id} className="rounded-lg border border-line p-2">
+                <summary className="cursor-pointer text-sm"><span className="font-medium">{r.opp.name}</span> <span className="text-xs text-ink-soft">{STAGE_LABEL[r.opp.stage as Stage] ?? r.opp.stage}{r.opp.crm_external_id ? ` · CRM ${r.opp.crm_external_id}` : " · no CRM id"}</span></summary>
+                <div className="mt-2"><LedgerTable lines={r.lines} /></div>
+              </details>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Outstanding receivables (aging by invoice due date)">
+          <KV items={AGING_BUCKETS.map((b) => [AGING_LABEL[b], inr(rep.aging.buckets[b])])} />
+          <p className="mt-2 text-xs text-ink-soft">Total outstanding {inr(rep.aging.total)}. Invoices without a due date are not guessed — add the due date (or reconcile with finance).</p>
+          {rep.aging.items.filter((i) => i.bucket !== "not_due").slice(0, 10).map((i) => (
+            <div key={`${i.feeMilestoneId}`} className="text-xs"><Link className="underline" href={`/deals/${i.opportunityId}`}>{oppName.get(i.opportunityId ?? "") ?? "deal"}</Link> · {i.invoiceNo ?? "no invoice no."} · {inr(i.outstanding)} · {i.daysPastDue === null ? "due date unknown" : `${i.daysPastDue} days past due`}</div>
           ))}
-        </Table>
-      )}
+        </Card>
+        <Card title="Slippage (expected close moved or passed)">
+          {rep.slippage.rows.length === 0 ? <p className="text-sm text-ink-soft">No slipped or overdue deals. Changes to expected close are recorded automatically.</p> : (
+            <>
+              <p className="mb-2 text-xs text-ink-soft">{rep.slippage.slippingCount} deal(s) pushed out ({rep.slippage.totalSlippedDays} days in total) · {rep.slippage.passedCount} past the expected close without signing.</p>
+              <Table head={["Deal", "First → now", "Pushes", "Days slipped", "Passed"]}>
+                {rep.slippage.rows.slice(0, 20).map((r) => <tr key={r.opportunityId}><Td><Link className="text-brand" href={`/deals/${r.opportunityId}`}>{r.name}</Link></Td><Td>{r.firstExpected ?? "—"} → {r.currentExpected ?? "—"}</Td><Td>{r.pushes}</Td><Td>{r.slippedDays}</Td><Td>{r.passedWithoutClose ? <Badge tone="bad">{r.daysPastExpected}d ago</Badge> : "—"}</Td></tr>)}
+              </Table>
+            </>
+          )}
+        </Card>
+      </div>
+
+      <Card title="Cohort funnel (from actual stage history)">
+        {rep.cohorts.length === 0 ? <p className="text-sm text-ink-soft">No opportunities yet.</p> : (
+          <Table head={["Cohort (first seen)", "Deals", ...FUNNEL_STAGES.map((s) => STAGE_LABEL[s as Stage]), "Won", "Lost"]}>
+            {rep.cohorts.slice(0, 18).map((c) => (
+              <tr key={c.cohort}><Td>{c.cohort}</Td><Td>{c.opportunities}</Td>{FUNNEL_STAGES.map((s) => <Td key={s}>{c.reached[s]} <span className="text-xs text-ink-soft">({c.conversionPct[s]}%)</span></Td>)}<Td>{c.won}</Td><Td>{c.lost}</Td></tr>
+            ))}
+          </Table>
+        )}
+        <p className="mt-2 text-xs text-ink-soft">Each deal counts once in the month it first entered the pipeline; “reached” uses the furthest stage in its history, so deals that later moved back still count.</p>
+      </Card>
+
       <Card title="Funnel & revenue feasibility (planning assumptions)">
         <form method="get" className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-6">
           <Field label="Annual credited fee target ₹"><Input name="target" defaultValue={String(num("target", 50000000))} inputMode="numeric" /></Field>

@@ -11,7 +11,7 @@ import { DealsError, idempotent } from "./ctx";
 import { createRequirement, updateRequirementFields, confirmRequirement, setNotApplicable } from "./requirements/service";
 import { runShortlist } from "./matching/service";
 import { createQuote, reviseQuote } from "./quotes/service";
-import { approveScenario, evaluateScenario, inputFromQuote } from "./finance/service";
+import { approveAssumptions, approveScenario, evaluateScenario, inputFromQuote } from "./finance/service";
 import { approveDocument, downloadDocument, generateDocument, refreshStatus, releaseDocument } from "./documents/service";
 import { createOpportunity, moveStage, recordFeeMilestone, seedClosingChecklist, updateMilestone } from "./pipeline/service";
 import { proposeCrmExport, recordExternalSnapshot, markExported } from "./crm/export";
@@ -180,7 +180,9 @@ describe("shortlist → quote → finance → documents (staleness + permissions
     expect(sc.scenarioId).toBeTruthy();
     const cf = await owner.db.from("finance_cashflow").select("id", { count: "exact", head: true }).eq("scenario_id", sc.scenarioId!);
     expect(cf.count).toBe(sc.result.cashflows.length);
-    await approveScenario(owner, sc.scenarioId!);
+    // round 2: every assumption approved + unknown costs (parking/opex/reinstatement) acknowledged explicitly
+    await approveAssumptions(owner, sc.scenarioId!, sc.result.assumptions.map((x) => x.key));
+    await approveScenario(owner, sc.scenarioId!, { acknowledgeGaps: true, note: "test" });
 
     const deck = await generateDocument(owner, { purpose: "shortlist_deck", requirementId: full.id, scenarioIds: [sc.scenarioId!], preparedFor: "CFO" });
     const xl = await generateDocument(owner, { purpose: "comparison_xlsx", requirementId: full.id, scenarioIds: [sc.scenarioId!] });

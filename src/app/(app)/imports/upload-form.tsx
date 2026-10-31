@@ -4,9 +4,12 @@ import { useState } from "react";
 import { Button, Field, Input, Select } from "@/components/ui";
 
 /** Upload an .xlsx/.csv to POST /api/v1/imports (Idempotency-Key per attempt), then open the batch report. */
-export function UploadForm() {
+export interface SourceOption { id: string; name: string; kind: string; approved: boolean; is_default: boolean }
+
+export function UploadForm({ sources = [] }: { sources?: SourceOption[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [sourceId, setSourceId] = useState<string>(sources.find((s) => s.is_default && s.approved)?.id ?? sources.find((s) => s.approved)?.id ?? "new");
   const [msg, setMsg] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -27,6 +30,7 @@ export function UploadForm() {
         return;
       }
       if (body.duplicate) setMsg("This exact file (same SHA-256) was already imported — opening the existing batch. Nothing was duplicated.");
+      if (body.status === "awaiting_source") setMsg("Stored and quarantined: this source is not approved yet. An admin must approve it before the file is read.");
       router.push(`/imports/${body.batch_id}`);
       router.refresh();
     } catch {
@@ -49,6 +53,23 @@ export function UploadForm() {
           <Input type="number" name="period_year" min={1990} max={2100} placeholder="e.g. 2023" />
         </Field>
       </div>
+      <Field label="Source / folder" hint="Where the file came from. Files from a source an admin has not approved are stored but quarantined.">
+        <Select name="source_id" value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
+          {sources.map((s) => <option key={s.id} value={s.id}>{s.name}{s.approved ? "" : " (not approved)"}</option>)}
+          <option value="new">New source…</option>
+        </Select>
+      </Field>
+      {sourceId === "new" ? (
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Source name"><Input name="source_name" placeholder="e.g. Research team export" required /></Field>
+          <Field label="Kind">
+            <Select name="source_kind" defaultValue="export">
+              <option value="folder">Shared folder</option><option value="export">System export</option><option value="email">Email attachment</option>
+              <option value="connector">Connector</option><option value="other">Other</option>
+            </Select>
+          </Field>
+        </div>
+      ) : null}
       <Field label="Classification">
         <Select name="classification" defaultValue="corporate_confidential">
           <option value="corporate_confidential">Corporate confidential</option>

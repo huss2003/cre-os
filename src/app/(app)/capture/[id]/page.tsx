@@ -94,8 +94,38 @@ async function Body({ params }: Props) {
                   {rid ? (href ? <Link className="text-brand" href={href}>{label}</Link> : <span>{label}</span>) : <Badge tone="warn">unresolved</Badge>}</li>;
               })}</ul>
             )}
-            {ex.interaction ? <p className="mt-2 text-xs text-ink-soft">Logged as a {ex.interaction.channel} interaction.</p> : null}
+            <p className="mt-2 text-xs text-ink-soft">Logged as a {ex.interaction?.channel ?? "note"} interaction.</p>
+            {r.inferredOrg ? <p className="mt-1 text-xs text-ink-soft">No company was named: using <Link className="underline" href={`/companies/${r.inferredOrg.org_id}`}>{r.inferredOrg.label}</Link>, the confirmed person&apos;s only current employer. Proposals still need approval.</p> : null}
+            {r.ocr ? <p className="mt-1 text-xs text-ink-soft">{r.ocr.length ? `Photo text read (${r.ocr.mocked ? "mock — no OCR configured" : r.ocr.model}). It is evidence for context only, never proof of legal or commercial terms; facts from it are tentative.` : "No legible text was read from the photo (or OCR is not configured); the caption is the content."}</p> : null}
           </Card>
+
+          {ex.promises.length || ex.objections.length ? (
+            <Card title="Promises and objections">
+              {ex.promises.length ? (
+                <ul className="space-y-1 text-sm">{((r.interaction?.promises ?? []) as { key: string; who: string; what: string; due: string | null; due_tentative?: string | null; status: string }[]).map((p) => (
+                  <li key={p.key}>• <span className="font-medium">{p.who === "me" ? "You" : p.who}</span>: {p.what} <span className="text-ink-soft">{p.due ? `due ${p.due}` : p.due_tentative ? `due ${p.due_tentative}? (confirm above)` : "no due date"} · {p.status}</span></li>
+                ))}</ul>
+              ) : null}
+              {ex.objections.length ? (
+                <ul className="mt-2 space-y-1 text-sm">{ex.objections.map((o, i) => <li key={i}><Badge tone="warn">objection</Badge> “{o.text}”</li>)}</ul>
+              ) : null}
+              <p className="mt-2 text-xs text-ink-soft">Stored on the interaction; overdue promises show up in your brief.</p>
+            </Card>
+          ) : null}
+
+          {ex.stakeholders.length || ex.details.length ? (
+            <Card title="Roles and requirement details">
+              {ex.stakeholders.length ? (
+                <ul className="space-y-1 text-sm">{ex.stakeholders.map((s, i) => (
+                  <li key={i}>• {ex.mentions[s.mention_index]?.text} — <Badge>{s.role}</Badge>{r.resolved[String(s.mention_index)] ? null : <span className="text-xs text-ink-soft"> (confirm who this is above)</span>}</li>
+                ))}</ul>
+              ) : null}
+              {ex.details.length ? (
+                <ul className="mt-2 space-y-1 text-sm">{ex.details.map((d, i) => <li key={i}>• <span className="font-mono text-xs">{d.key}</span>: {String(d.value ?? "—")} <span className="text-xs text-ink-soft">(estimated)</span></li>)}</ul>
+              ) : null}
+              <p className="mt-2 text-xs text-ink-soft">Roles and details are proposed against the company&apos;s requirement once the company and requirement are known.</p>
+            </Card>
+          ) : null}
 
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-soft">Facts for approval</h2>

@@ -33,6 +33,6 @@ export async function strategyAction(form: FormData) {
     if (op === "note") { await addNegotiationNote(ctx.db, ctx.workspaceId, id, str(form, "note") ?? "", ctx.userId); return "Note saved."; }
     if (op === "concession") { await setConcessionStatus(ctx.db, ctx.workspaceId, str(form, "item_id") ?? "", (str(form, "status") ?? "proposed") as never, intOrNull(form, "row_version") ?? undefined); return "Concession updated."; }
     const r = await saveStrategySnapshot(ctx.db, ctx.workspaceId, id, ctx.userId);
-    return r.saved ? "Snapshot saved to the negotiation log." : "Today's snapshot already exists.";
+    return r.saved || r.ladderAdded ? `Snapshot saved (${r.saved} log entr${r.saved === 1 ? "y" : "ies"}, ${r.ladderAdded} new ladder step(s)).` : "No deal facts changed since the last snapshot — nothing new saved.";
   });
 }

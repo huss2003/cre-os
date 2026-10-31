@@ -35,13 +35,32 @@ export const completeSchema = z.object({ expectedVersion: z.number().int().posit
 export const snoozeSchema = z.object({ expectedVersion: z.number().int().positive(), until: z.string().datetime({ offset: true }) });
 export const reopenSchema = z.object({ expectedVersion: z.number().int().positive() });
 
-const COLS = "id, title, description, due_at, priority, status, snoozed_until, assigned_user_id, linked_entity_type, linked_entity_id, completion_evidence, completed_at, source, row_version, updated_at, created_at, owner_user_id";
+const COLS = "id, title, description, due_at, priority, status, snoozed_until, assigned_user_id, linked_entity_type, linked_entity_id, completion_evidence, completed_at, source, depends_on, row_version, updated_at, created_at, owner_user_id";
 
-export interface TaskRow extends TaskLite { description: string | null; rowVersion: number; completionEvidence: string | null; assignedUserId: string | null; state: ReturnType<typeof effectiveTaskState> }
+export interface TaskRow extends TaskLite {
+  description: string | null; rowVersion: number; completionEvidence: string | null; assignedUserId: string | null; state: ReturnType<typeof effectiveTaskState>;
+  dependsOn: string | null;
+  /** Set when the task waits on an unfinished (or invisible) prerequisite — blocked, not doable. */
+  waitsOn: string | null;
+}
 
 function toRow(t: any, now: string, staleAfter: number): TaskRow {
   const lite = toTaskLite(t);
-  return { ...lite, description: t.description, rowVersion: Number(t.row_version), completionEvidence: t.completion_evidence, assignedUserId: t.assigned_user_id, state: effectiveTaskState(lite, now, staleAfter) };
+  return { ...lite, description: t.description, rowVersion: Number(t.row_version), completionEvidence: t.completion_evidence, assignedUserId: t.assigned_user_id, state: effectiveTaskState(lite, now, staleAfter), dependsOn: t.depends_on ?? null, waitsOn: null };
+}
+
+/** Fill `waitsOn` for tasks whose depends_on task is not done/cancelled (RLS decides what the user can see). */
+async function markBlocked(db: Db, workspaceId: string, rows: TaskRow[]): Promise<TaskRow[]> {
+  const ids = [...new Set(rows.filter((r) => r.dependsOn && r.state !== "done" && r.state !== "cancelled").map((r) => r.dependsOn!))];
+  if (!ids.length) return rows;
+  const { data } = await db.from("task").select("id, title, status, archived_at").eq("workspace_id", workspaceId).in("id", ids.slice(0, 500));
+  const dep = new Map((data ?? []).map((d: any) => [d.id, d]));
+  return rows.map((r) => {
+    if (!r.dependsOn || r.state === "done" || r.state === "cancelled") return r;
+    const d: any = dep.get(r.dependsOn);
+    if (d && (d.status === "done" || d.status === "cancelled" || d.archived_at)) return r;
+    return { ...r, waitsOn: d ? `“${d.title}” (${d.status})` : "a prerequisite task you cannot see" };
+  });
 }
 
 export async function listTasks(db: Db, workspaceId: string, userId: string, f: TaskFilter, opts: { now?: Date; staleAfterDays?: number; limit?: number } = {}): Promise<TaskRow[]> {
@@ -56,7 +75,7 @@ export async function listTasks(db: Db, workspaceId: string, userId: string, f: 
   else q = q.order("updated_at", { ascending: false });
   const { data, error } = await q.limit(opts.limit ?? 300);
   if (error) throw error;
-  const rows = (data ?? []).map((t: any) => toRow(t, now, staleAfter));
+  const rows = await markBlocked(db, workspaceId, (data ?? []).map((t: any) => toRow(t, now, staleAfter)));
   if (f.state === "done" || f.state === "all") return rows;
   return rows.filter((r) => (f.state === "open" ? r.state === "open" || r.state === "overdue" : r.state === f.state));
 }

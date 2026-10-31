@@ -12,7 +12,7 @@ export async function jobMoveAction(form: FormData) {
     if (r.status === "needs_identity") {
       return r.candidates?.length ? `Pick the person explicitly — possible matches: ${r.candidates.map((c) => `${c.full_name}${c.current_orgs.length ? ` (${c.current_orgs.join(", ")})` : ""}`).join("; ")}.` : "Choose the person from the list (a name alone never selects or merges a record).";
     }
-    return { notice: `Job move recorded as evidence; ${r.proposals?.length ?? 0} change(s) sent to Approvals. ${(r.flags ?? []).join(" ")}` };
+    return { notice: `Job move recorded as unverified evidence; ${r.proposals?.length ?? 0} change(s) sent to Approvals${r.task ? " and a verification task added to Tasks" : ""}. ${(r.flags ?? []).join(" ")}` };
   });
 }
 

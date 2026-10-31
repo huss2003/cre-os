@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { HttpError, requireContext } from "@/lib/auth/context";
-import { approveMappingAndReprocess, closeException, decideCandidate, reprocess } from "@/modules/imports/service";
+import { approveMappingAndReprocess, approveSource, closeException, createSource, decideCandidate, reprocess, revokeSource } from "@/modules/imports/service";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const id = (form: FormData, key: string) => {
@@ -60,5 +60,29 @@ export async function approveMappingAction(form: FormData) {
       positional: form.get("positional") === "true", headerRow: Number(form.get("header_row") ?? 0),
       note: String(form.get("note") ?? "").trim() || undefined,
     });
+  });
+}
+
+/* ------------------------------------------------------------------ approved import sources */
+async function runSources(fn: () => Promise<unknown>): Promise<never> {
+  let error: string | null = null;
+  try { await fn(); } catch (e) { error = e instanceof HttpError ? e.message : e instanceof Error ? e.message : "action failed"; }
+  revalidatePath("/imports/sources");
+  revalidatePath("/imports");
+  redirect(`/imports/sources${error ? `?error=${encodeURIComponent(error)}` : ""}`);
+}
+
+export async function createSourceAction(form: FormData) {
+  await runSources(async () => createSource(await requireContext("editor"), {
+    name: String(form.get("name") ?? ""), kind: String(form.get("kind") ?? "other"), location: String(form.get("location") ?? "") || null,
+    approve: form.get("approve") === "1", note: String(form.get("note") ?? "") || null,
+  }));
+}
+
+export async function sourceDecisionAction(form: FormData) {
+  const sid = id(form, "source_id");
+  await runSources(async () => {
+    const ctx = await requireContext("admin");
+    return form.get("decision") === "revoke" ? revokeSource(ctx, sid) : approveSource(ctx, sid);
   });
 }

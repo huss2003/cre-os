@@ -56,6 +56,7 @@ export async function gatherBriefInputs(c: LoadCtx, settings: BriefSettings, dat
   return {
     kind: "daily", date, tz: c.tz, now: now.toISOString(), mode: plan?.mode ?? "workday", sources,
     targets: plan?.targets ?? [], displaced: plan?.displaced ?? [], capacity: plan?.capacity ?? null, planGeneratedAt: plan?.generatedAt ?? null,
+    agenda: plan?.agenda ?? null,
     tasks, meetings, radar: radar.items, replies, approvals, intel, pipeline,
     approachesThisMonth: approaches.thisMonth, cohortTarget: settings.cohortTarget, workdays: settings.workdays, staleTaskAfterDays: settings.staleTaskAfterDays,
   };

@@ -9,14 +9,14 @@ import { requireContext } from "@/lib/auth/context";
 import { toDealsCtx } from "./api";
 import { DealsError, type DealsCtx } from "./ctx";
 import { FIELD_BY_KEY } from "./requirements/contract";
-import { addStakeholder, confirmRequirement, createRequirement, updateRequirementFields, type FieldChange } from "./requirements/service";
+import { addStakeholder, confirmRequirement, createRequirement, resolveGeographies, updateRequirementFields, type FieldChange } from "./requirements/service";
 import { runShortlist, setOptionStatus } from "./matching/service";
 import { createQuote, reviseQuote } from "./quotes/service";
 import { createOpportunity, logObjection, moveStage, recordFeeMilestone, seedClosingChecklist, setOutcome, updateFeeMilestone, updateLabels, updateMilestone } from "./pipeline/service";
 import { markExported, proposeCrmExport, recordExternalSnapshot } from "./crm/export";
 import { approveScenario, evaluateScenario, inputFromQuote } from "./finance/service";
 import { approveDocument, generateDocument, refreshStatus, releaseDocument, type Purpose } from "./documents/service";
-import type { FinanceInput } from "./finance/types";
+import type { CostItem, CostState, FinanceInput } from "./finance/types";
 
 const s = (f: FormData, k: string) => { const v = f.get(k); return v === null ? "" : String(v).trim(); };
 const n = (f: FormData, k: string) => { const v = s(f, k); if (v === "") return null; const x = Number(v.replace(/,/g, "")); return Number.isFinite(x) ? x : null; };
@@ -71,10 +71,12 @@ export async function updateRequirementFieldAction(f: FormData) {
     const status = (opt(f, "status") ?? undefined) as FieldChange["status"];
     const change: FieldChange = { key, status };
     if (s(f, "value_mode") !== "status_only") {
-      change.value = def.kind === "range" ? [s(f, "v0"), s(f, "v1"), s(f, "v2")].slice(0, def.columns?.length ?? 3) : s(f, "value");
+      change.value = def.kind === "range" ? [s(f, "v0"), s(f, "v1"), s(f, "v2")].slice(0, def.columns?.length ?? 3)
+        : def.kind === "geo_list" ? await resolveGeographies(ctx, s(f, "value")) : s(f, "value");
     }
     const r = await updateRequirementFields(ctx, id, Number(s(f, "row_version")), [change], s(f, "reason"), s(f, "nonce") || null);
     if (r.proposals.length) return { msg: `"${def.label}" is client-confirmed: a change proposal was created and needs approval (see Approvals)` };
+    if (r.specNotes.length) return { msg: `Field updated. Could not derive a structured spec: ${r.specNotes.join("; ")} — set it under Matching configuration.` };
   }, "Field updated");
 }
 
@@ -139,8 +141,9 @@ export async function quickScenarioFromQuoteAction(f: FormData) {
     const horizon = n(f, "horizon") ?? 60;
     const input = inputFromQuote({
       name: s(f, "name") || `Quote v${q.version}`, baseDate: s(f, "base_date"), horizonMonths: horizon, annualDiscountRatePct: n(f, "discount") ?? 0,
-      quote: q as never, space: space as never, fitoutCost: n(f, "fitout"), gstRatePct: n(f, "gst_rate"),
+      quote: q as never, space: space as never, fitoutCost: s(f, "fitout_state") === "none" ? 0 : n(f, "fitout"), gstRatePct: n(f, "gst_rate"),
       afterTenure: (opt(f, "after_tenure") as FinanceInput["afterTenure"]) ?? null,
+      parkingSlots: s(f, "parking_state") === "none" ? 0 : n(f, "parking_slots"), opexMonthly: s(f, "opex_state") === "none" ? 0 : n(f, "opex_monthly"),
     });
     const r = await evaluateScenario(ctx, { input, requirementId: id, save: true });
     return `/finance/${r.scenarioId}`;
@@ -226,10 +229,33 @@ export async function crmExportedAction(f: FormData) {
 }
 
 // ---------------------------------------------------------------- finance
-function financeInputFromForm(f: FormData): FinanceInput {
+/**
+ * Each optional cost has a three-state selector `<item>_state`: "unknown" (default — a visible gap, never zero),
+ * "none" (explicitly included elsewhere / not applicable) or "amount" (use the amount fields). An amount typed while
+ * the selector is left on "unknown" counts as known.
+ */
+async function costStateFromForm(f: FormData, item: CostItem, hasAmount: boolean): Promise<CostState> {
+  const sel = s(f, `${item}_state`);
+  if (sel === "none") return "none";
+  return hasAmount ? "known" : "unknown";
+}
+
+async function financeInputFromForm(f: FormData): Promise<FinanceInput> {
   const escPct = n(f, "esc_pct"), escEvery = n(f, "esc_every");
   const esc = escPct !== null && escEvery ? { pct: escPct, everyMonths: escEvery } : null;
-  const camMode = s(f, "cam_mode") || "none";
+  const camAmount = n(f, "cam_rate") !== null || n(f, "cam_fixed") !== null;
+  const camMode = !camAmount ? "none" : n(f, "cam_rate") !== null && n(f, "cam_fixed") !== null ? "mixed" : n(f, "cam_rate") !== null ? "per_sf" : "fixed";
+  const parkingAmount = !!n(f, "parking_slots") && n(f, "parking_rate") !== null;
+  const depositAmount = !!n(f, "deposit_months");
+  const fitoutAmount = !!n(f, "fitout");
+  const reinstAmount = !!n(f, "reinstatement");
+  const opexAmount = !!n(f, "opex_monthly");
+  const costStates: Partial<Record<CostItem, CostState>> = {
+    rent: n(f, "rent") === null ? (s(f, "rent_state") === "none" ? "none" : "unknown") : "known",
+    cam: await costStateFromForm(f, "cam", camAmount), parking: await costStateFromForm(f, "parking", parkingAmount),
+    deposit: await costStateFromForm(f, "deposit", depositAmount), fitout: await costStateFromForm(f, "fitout", fitoutAmount),
+    reinstatement: await costStateFromForm(f, "reinstatement", reinstAmount), opex: await costStateFromForm(f, "opex", opexAmount),
+  };
   const input: FinanceInput = {
     name: s(f, "name") || "Scenario", kind: (s(f, "kind") || "conventional") as FinanceInput["kind"], baseDate: s(f, "base_date"),
     horizonMonths: n(f, "horizon") ?? 60, annualDiscountRatePct: n(f, "discount") ?? (null as never),
@@ -237,9 +263,14 @@ function financeInputFromForm(f: FormData): FinanceInput {
     tenureMonths: n(f, "tenure"), afterTenure: (opt(f, "after_tenure") as FinanceInput["afterTenure"]) ?? null,
     rent: n(f, "rent") === null ? null : { basis: (s(f, "rent_basis") || "chargeable") as "chargeable", rate: n(f, "rent")!, escalation: esc, rentFreeMonths: n(f, "rent_free") ?? 0, startPeriod: n(f, "start_period") ?? 1 },
     cam: camMode === "none" ? null : { mode: camMode as "fixed", fixedMonthly: n(f, "cam_fixed") ?? undefined, ratePerSf: n(f, "cam_rate") ?? undefined, escalation: esc },
-    parking: n(f, "parking_slots") ? { slots: n(f, "parking_slots")!, ratePerSlot: n(f, "parking_rate") ?? 0, escalation: esc } : null,
-    deposit: n(f, "deposit_months") !== null ? { months: n(f, "deposit_months")! } : null,
-    capex: n(f, "fitout") !== null ? { fitoutCost: n(f, "fitout")!, landlordContribution: n(f, "capex_support") ?? 0, reinstatement: n(f, "reinstatement") ? { amount: n(f, "reinstatement")!, period: n(f, "tenure") ?? n(f, "horizon") ?? 60 } : null } : null,
+    parking: parkingAmount ? { slots: n(f, "parking_slots")!, ratePerSlot: n(f, "parking_rate")!, escalation: esc } : null,
+    deposit: depositAmount ? { months: n(f, "deposit_months")! } : null,
+    capex: fitoutAmount || reinstAmount || n(f, "capex_support")
+      ? { fitoutCost: n(f, "fitout") ?? 0, landlordContribution: n(f, "capex_support") ?? 0, reinstatement: reinstAmount ? { amount: n(f, "reinstatement")!, period: n(f, "tenure") ?? n(f, "horizon") ?? 60 } : null }
+      : null,
+    recurring: opexAmount ? [{ label: "Other operating costs", monthly: n(f, "opex_monthly")!, category: "opex" }] : [],
+    costStates,
+    assumptionSources: s(f, "discount_source") ? { discount_rate: s(f, "discount_source") } : undefined,
     move: n(f, "parallel_rent") ? { parallelRentMonthly: n(f, "parallel_rent")!, parallelMonths: n(f, "parallel_months") ?? 0, moveCost: n(f, "move_cost") ?? undefined } : null,
     taxes: s(f, "gst") ? { treatment: s(f, "gst") as "excluded", gstRatePct: n(f, "gst_rate") } : null,
   };
@@ -251,13 +282,13 @@ function financeInputFromForm(f: FormData): FinanceInput {
 
 export async function evaluateScenarioAction(f: FormData) {
   await run("/finance", "editor", async (ctx) => {
-    const r = await evaluateScenario(ctx, { input: financeInputFromForm(f), requirementId: opt(f, "requirement_id"), save: true });
+    const r = await evaluateScenario(ctx, { input: await financeInputFromForm(f), requirementId: opt(f, "requirement_id"), save: true });
     return `/finance/${r.scenarioId}`;
   }, "Scenario calculated");
 }
 export async function approveScenarioAction(f: FormData) {
   const id = s(f, "id");
-  await run(`/finance/${id}`, "admin", async (ctx) => { await approveScenario(ctx, id); }, "Scenario approved");
+  await run(`/finance/${id}`, "admin", async (ctx) => { await approveScenario(ctx, id, { acknowledgeGaps: s(f, "acknowledge_gaps") === "on", note: opt(f, "note") }); }, "Scenario approved");
 }
 
 // ---------------------------------------------------------------- documents

@@ -1,13 +1,13 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdminApi } from "../guard";
+import { requireAdminApi, requirePlatformApi } from "../guard";
 import { errorMessage } from "../http";
 import { saveGeneral, saveRules, saveRetention, RETENTION_DEFAULTS } from "../settings";
 import { addMember, removeMember, updateMember, CLASSES } from "../members";
 import { archiveConfig, createConfig, updateConfig, verifyTemplatePath, CONFIG, type ConfigKind } from "../config";
-import { setAiPaused } from "../killswitch";
-import { retryJob } from "../health";
+import { setAiPaused, setJobsPaused } from "../killswitch";
+import { acknowledgeAlert, retryJob } from "../health";
 import type { ActionState } from "../ui/client";
 
 /* Server actions for /settings/** and /admin. Every action re-checks role + owner MFA (requireAdminApi). */
@@ -152,6 +152,34 @@ export async function setPausedAction(_p: ActionState, form: FormData): Promise<
     const paused = form.get("paused") === "1";
     await setAiPaused(ctx.db, ctx.workspaceId, paused, (form.get("reason") as string) || null);
     return ok(paused ? "Paused: AI calls and external ingestion stop. Internal records, tasks, approvals and the fallback brief keep working." : "Resumed.", "/admin");
+  } catch (e) { return fail(e); }
+}
+
+/** Pause / resume background jobs for this workspace (backups keep running). Admin+, audited in the DB function. */
+export async function setJobsPausedAction(_p: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireAdminApi("admin");
+    const paused = form.get("paused") === "1";
+    await setJobsPaused(ctx.db, ctx.workspaceId, paused, (form.get("reason") as string) || null);
+    return ok(paused ? "Background jobs paused for this workspace. Queued work waits; nightly backups continue." : "Background jobs resumed.", "/admin");
+  } catch (e) { return fail(e); }
+}
+
+/** Platform-wide pause of all background jobs except backups (platform admin + AAL2 policy). */
+export async function setPlatformJobsPausedAction(_p: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePlatformApi();
+    const paused = form.get("paused") === "1";
+    await setJobsPaused(ctx.db, null, paused, (form.get("reason") as string) || null);
+    return ok(paused ? "All background jobs are paused platform-wide (backups continue)." : "Platform-wide pause lifted.", "/admin");
+  } catch (e) { return fail(e); }
+}
+
+export async function ackAlertAction(alertId: string): Promise<ActionState> {
+  try {
+    const ctx = await requireAdminApi("admin");
+    await acknowledgeAlert(ctx.db, ctx.workspaceId, alertId, ctx.userId);
+    return ok("Alert acknowledged — no further notifications for it; it stays listed until the problem clears.", "/admin");
   } catch (e) { return fail(e); }
 }
 

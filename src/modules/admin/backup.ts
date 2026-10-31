@@ -104,7 +104,59 @@ export async function exportWorkspace(admin: Admin, workspaceId: string, opts: {
  * manifest and backup_run, and flag restore hazards (suppressions/revocations newer than the export that a naive
  * restore would undo; members in the export who have since been removed).
  */
-export async function restoreSampleCheck(admin: Admin, workspaceId: string, opts: { exportId?: string; jobId?: string; sample?: number } = {}) {
+/** Real restore test limits: rows restored per table, and a deadline so the whole check fits a 60 s serverless tick. */
+export const RESTORE_TEST = { rowsPerTable: 200, deadlineMs: 30_000, concurrency: 8 };
+
+export interface RestoreTableResult {
+  table: string; rows_in: number; rows_restored?: number; value_mismatch_rows?: number; value_mismatch_columns?: string[];
+  duplicate_ids?: number; dropped_columns?: string[]; defaulted_columns?: string[]; restored_hash?: string; error?: string; ms?: number;
+}
+
+/** Deterministic spread sample: every k-th row so old and new rows are both exercised. */
+export function sampleRows<T>(rows: T[], max: number): T[] {
+  if (rows.length <= max) return rows;
+  const step = rows.length / max;
+  return Array.from({ length: max }, (_, i) => rows[Math.floor(i * step)]);
+}
+
+/**
+ * Restore exported rows into a TEMP copy of the live table (mudar_app.restore_sample_table: LIKE mudar.<t> incl.
+ * defaults and CHECK/NOT NULL; dropped at the end; live data untouched) and compare value by value.
+ */
+export async function restoreTableSample(admin: Admin, workspaceId: string, table: string, rows: Row[], max = RESTORE_TEST.rowsPerTable): Promise<RestoreTableResult> {
+  const sample = sampleRows(rows, max);
+  const { data, error } = await admin.schema("mudar_app").rpc("restore_sample_table", { p_workspace: workspaceId, p_table: table, p_rows: sample });
+  if (error) return { table, rows_in: sample.length, error: error.message };
+  return data as RestoreTableResult;
+}
+
+/** Fold per-table restore results into findings + integrity problems (problems fail the check; dropped columns warn). */
+export function summariseRestore(results: RestoreTableResult[], skipped: string[], ms: number) {
+  const problems: { table: string; problem: string }[] = [];
+  const dropped: Record<string, string[]> = {};
+  for (const r of results) {
+    if (r.error) { problems.push({ table: r.table, problem: `restore failed: ${r.error}` }); continue; }
+    if (r.rows_restored !== r.rows_in) problems.push({ table: r.table, problem: `restored ${r.rows_restored} of ${r.rows_in} rows` });
+    if (r.value_mismatch_rows) problems.push({ table: r.table, problem: `${r.value_mismatch_rows} restored row(s) differ from the export (${(r.value_mismatch_columns ?? []).join(", ")})` });
+    if (r.duplicate_ids) problems.push({ table: r.table, problem: `${r.duplicate_ids} duplicate id(s) after restore` });
+    if (r.dropped_columns?.length) dropped[r.table] = r.dropped_columns;
+  }
+  return {
+    problems,
+    findings: {
+      method: "temp table LIKE live table (defaults + CHECK/NOT NULL), rows inserted from the export, compared value by value, then dropped",
+      tables_restored: results.filter((r) => !r.error).length,
+      rows_restored: results.reduce((n, r) => n + (r.rows_restored ?? 0), 0),
+      failed: results.filter((r) => r.error).map((r) => ({ table: r.table, error: r.error })),
+      dropped_columns: dropped,
+      skipped_for_time: skipped,
+      hashes: Object.fromEntries(results.filter((r) => r.restored_hash).map((r) => [r.table, r.restored_hash])),
+      ms,
+    },
+  };
+}
+
+export async function restoreSampleCheck(admin: Admin, workspaceId: string, opts: { exportId?: string; jobId?: string; sample?: number; restoreRows?: number; restoreDeadlineMs?: number } = {}) {
   let q = admin.from("backup_run").select("*").eq("workspace_id", workspaceId).eq("kind", "logical_export").eq("status", "succeeded");
   if (opts.exportId) q = q.eq("id", opts.exportId);
   const { data: exp } = await q.order("started_at", { ascending: false }).limit(1).maybeSingle();
@@ -147,8 +199,19 @@ export async function restoreSampleCheck(admin: Admin, workspaceId: string, opts
       if (stableHash(parsed.rows) !== meta.sha256) mismatches.push({ table, problem: "hash mismatch" });
       verifiedCounts[table] = parsed.rows.length;
       exported[table] = parsed.rows;
+      // Real restore of a sample into a scratch copy of the live table (skips empty tables; respects the deadline).
+      if (parsed.rows.length > 0) {
+        if (Date.now() - started > (opts.restoreDeadlineMs ?? RESTORE_TEST.deadlineMs)) restoreSkipped.push(table);
+        else restoreResults.push(await restoreTableSample(admin, workspaceId, table, parsed.rows, opts.restoreRows));
+      }
     };
-    await Promise.all(Array.from({ length: Math.min(8, picked.length) }, reader));
+    const restoreResults: RestoreTableResult[] = [];
+    const restoreSkipped: string[] = [];
+    await Promise.all(Array.from({ length: Math.min(RESTORE_TEST.concurrency, picked.length) }, reader));
+    const restore = summariseRestore(restoreResults.sort((a, b) => a.table.localeCompare(b.table)), restoreSkipped.sort(), Date.now() - started);
+    mismatches.push(...restore.problems);
+    if (Object.keys(restore.findings.dropped_columns).length) hazards.columns_in_export_missing_from_live_schema = restore.findings.dropped_columns;
+    if (restoreSkipped.length) hazards.restore_skipped_for_time = restoreSkipped;
     mismatches.sort((a, b) => a.table.localeCompare(b.table));
 
     if (exported.contact_method) {
@@ -176,7 +239,7 @@ export async function restoreSampleCheck(admin: Admin, workspaceId: string, opts
     const status = mismatches.length ? "failed" : Object.keys(hazards).length ? "warning" : "succeeded";
     const { data: done } = await admin.from("backup_run").update({
       status, finished_at: new Date().toISOString(), table_counts: verifiedCounts,
-      findings: { mismatches, hazards, tables_checked: picked.length, duration_ms: Date.now() - started,
+      findings: { mismatches, hazards, tables_checked: picked.length, duration_ms: Date.now() - started, restore: restore.findings,
         note: "Re-apply hazards after any restore so suppressed contacts and removed members are not reactivated." },
       error: mismatches.length ? `${mismatches.length} integrity mismatch(es)` : null,
     }).eq("id", run.id).eq("workspace_id", workspaceId).select().single();

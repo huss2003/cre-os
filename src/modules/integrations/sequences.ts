@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured } from "@/lib/ai/gateway";
-import { assertNotSuppressed, createDraft, setDraftPaused, SuppressedRecipientError, type DraftChannel, type DraftRow } from "@/lib/services/drafts";
+import { assertNotSuppressed, createDraft, discardDraft, setDraftPaused, SuppressedRecipientError, type DraftChannel, type DraftRow } from "@/lib/services/drafts";
 import { checkCollision, collisionsDirect, currentOrgForPerson, recordTouch, touchChannelForDraft, type CollisionReport } from "./touches";
 
 /**
@@ -30,6 +30,24 @@ export const DEFAULT_CAPS: SequenceCaps = {
 };
 export const NEGOTIATION_STAGES = ["proposal_negotiation", "loi", "documentation", "signed", "possession"];
 
+/** Sequence templates the user can choose when enrolling. WhatsApp is a manual channel: one draft, opened via wa.me. */
+export const WHATSAPP_SEQUENCE_NAME = "3-touch / 21-day with WhatsApp follow-up";
+export const SEQUENCE_TEMPLATES: Record<string, { name: string; steps: SequenceStep[] }> = {
+  default: { name: DEFAULT_SEQUENCE_NAME, steps: DEFAULT_STEPS },
+  whatsapp: {
+    name: WHATSAPP_SEQUENCE_NAME,
+    steps: [
+      DEFAULT_STEPS[0],
+      { step: 2, day_offset: 9, channel: "whatsapp", purpose: "Short personal WhatsApp follow-up (only where the contact shared this number for work)" },
+      DEFAULT_STEPS[2],
+    ],
+  },
+};
+
+/** Signals that contradict the outreach premise for a person / organisation (recorded after enrolment). */
+export const CONTRARY_CLAIM_TYPES = ["job_move", "contrary_info", "not_in_market", "lease_renewed", "relocation_completed", "deal_signed_elsewhere"];
+const CONTRARY_PREDICATE = /(already (moved|relocated|signed|renewed)|not in (the )?market|no requirement|renewed (the )?lease|signed elsewhere|hiring freeze|on hold|left the (company|organisation|organization))/i;
+
 export function sequenceKey(enrollmentId: string) {
   return `enr:${enrollmentId}`;
 }
@@ -51,10 +69,15 @@ export function nextDueAfter(steps: SequenceStep[], step: number, sentAt: Date):
 }
 
 export async function ensureDefaultSequence(db: Db, workspaceId: string, ownerUserId: string | null) {
-  const { data: existing } = await db.from("outreach_sequence").select("*").eq("workspace_id", workspaceId).eq("name", DEFAULT_SEQUENCE_NAME).eq("status", "active").limit(1);
+  return ensureSequenceTemplate(db, workspaceId, "default", ownerUserId);
+}
+
+export async function ensureSequenceTemplate(db: Db, workspaceId: string, template: keyof typeof SEQUENCE_TEMPLATES | string, ownerUserId: string | null) {
+  const t = SEQUENCE_TEMPLATES[template] ?? SEQUENCE_TEMPLATES.default;
+  const { data: existing } = await db.from("outreach_sequence").select("*").eq("workspace_id", workspaceId).eq("name", t.name).eq("status", "active").limit(1);
   if (existing?.[0]) return existing[0];
   const { data, error } = await db.from("outreach_sequence").insert({
-    workspace_id: workspaceId, name: DEFAULT_SEQUENCE_NAME, steps: DEFAULT_STEPS, caps: DEFAULT_CAPS, owner_user_id: ownerUserId,
+    workspace_id: workspaceId, name: t.name, steps: t.steps, caps: DEFAULT_CAPS, owner_user_id: ownerUserId,
   }).select().single();
   if (error) throw error;
   return data;
@@ -147,7 +170,7 @@ export class CollisionError extends Error {
 
 export async function proposeEnrollment(db: Db, workspaceId: string, p: {
   personId: string; orgId?: string | null; opportunityId?: string | null; persona?: string | null; valueProposition?: string | null;
-  sequenceId?: string; userId: string; overrideCollision?: boolean;
+  sequenceId?: string; template?: string; userId: string; overrideCollision?: boolean;
 }) {
   await assertNotSuppressed(db, workspaceId, p.personId, "email");
   const orgId = p.orgId ?? (await currentOrgForPerson(db, workspaceId, p.personId));
@@ -155,7 +178,7 @@ export async function proposeEnrollment(db: Db, workspaceId: string, p: {
   if ((report.collisions.length > 0 || report.saturated) && !p.overrideCollision) throw new CollisionError(report);
   const seq = p.sequenceId
     ? (await db.from("outreach_sequence").select("*").eq("workspace_id", workspaceId).eq("id", p.sequenceId).single()).data
-    : await ensureDefaultSequence(db, workspaceId, p.userId);
+    : await ensureSequenceTemplate(db, workspaceId, p.template ?? "default", p.userId);
   if (!seq) throw new Error("sequence not found");
   const { data: enr, error } = await db.from("sequence_enrollment").insert({
     workspace_id: workspaceId, sequence_id: seq.id, person_id: p.personId, org_id: orgId, opportunity_id: p.opportunityId ?? null,
@@ -175,8 +198,64 @@ export async function proposeEnrollment(db: Db, workspaceId: string, p: {
   return { enrollment: enr, draft, report, existing: false };
 }
 
+export class ActiveNegotiationError extends Error {
+  constructor(public opportunity: { id: string; name: string; stage: string }) {
+    super(`"${opportunity.name}" is in ${opportunity.stage.replace(/_/g, " ")} — outreach stays paused during active negotiation`);
+  }
+}
+
+/**
+ * Active negotiation for an enrollment: its own opportunity, else any open opportunity of the person's organisation, else
+ * any open opportunity where the person is a stakeholder — at proposal_negotiation or later.
+ */
+export async function negotiationFor(db: Db, workspaceId: string, enr: { person_id: string; org_id: string | null; opportunity_id: string | null }) {
+  const sel = "id, name, stage";
+  if (enr.opportunity_id) {
+    const { data } = await db.from("opportunity").select(sel).eq("workspace_id", workspaceId).eq("id", enr.opportunity_id).eq("outcome", "open").in("stage", NEGOTIATION_STAGES).maybeSingle();
+    if (data) return data as { id: string; name: string; stage: string };
+  }
+  if (enr.org_id) {
+    const { data } = await db.from("opportunity").select(sel).eq("workspace_id", workspaceId).eq("org_id", enr.org_id).eq("outcome", "open").in("stage", NEGOTIATION_STAGES).is("archived_at", null).limit(1);
+    if (data?.[0]) return data[0] as { id: string; name: string; stage: string };
+  }
+  const { data: st } = await db.from("stakeholder").select("requirement_id").eq("workspace_id", workspaceId).eq("person_id", enr.person_id).is("archived_at", null);
+  const reqs = (st ?? []).map((s) => s.requirement_id as string).filter(Boolean);
+  if (reqs.length) {
+    const { data } = await db.from("opportunity").select(sel).eq("workspace_id", workspaceId).in("requirement_id", reqs).eq("outcome", "open").in("stage", NEGOTIATION_STAGES).is("archived_at", null).limit(1);
+    if (data?.[0]) return data[0] as { id: string; name: string; stage: string };
+  }
+  return null;
+}
+
+/** A contradicting signal recorded for the person or organisation after `since` (enrolment time). */
+export async function contrarySignalFor(db: Db, workspaceId: string, enr: { person_id: string; org_id: string | null }, since: string) {
+  const subjects = [`and(subject_type.eq.person,subject_id.eq.${enr.person_id})`, ...(enr.org_id ? [`and(subject_type.eq.organisation,subject_id.eq.${enr.org_id})`] : [])];
+  const { data } = await db.from("signal_claim").select("id, subject_type, claim_type, predicate, evidence_excerpt, created_at").eq("workspace_id", workspaceId)
+    .or(subjects.join(",")).gte("created_at", since).is("archived_at", null).order("created_at", { ascending: false }).limit(50);
+  const hit = (data ?? []).find((c) => CONTRARY_CLAIM_TYPES.includes(c.claim_type) || CONTRARY_PREDICATE.test(`${c.predicate ?? ""} ${c.evidence_excerpt ?? ""}`));
+  return hit ? { id: hit.id as string, detail: `Signal on ${hit.subject_type}: ${String(hit.claim_type).replace(/_/g, " ")}${hit.predicate ? ` — ${hit.predicate}` : ""}${hit.evidence_excerpt ? ` (“${String(hit.evidence_excerpt).slice(0, 160)}”)` : ""}` } : null;
+}
+
+/**
+ * Exported for other modules (documented in README): a contradicting fact was recorded for a person or organisation.
+ * Pauses their live enrollments with reason contrary_info and records the detail.
+ */
+export async function onContrarySignal(db: Db, workspaceId: string, s: { subjectType: "person" | "organisation"; subjectId: string; detail: string }) {
+  return s.subjectType === "person"
+    ? pauseForPerson(db, workspaceId, s.subjectId, "contrary_info", undefined, s.detail)
+    : pauseForOrg(db, workspaceId, s.subjectId, "contrary_info", s.detail);
+}
+
 export async function activateEnrollment(db: Db, workspaceId: string, id: string) {
-  const { data, error } = await db.from("sequence_enrollment").update({ status: "active", activated_at: new Date().toISOString(), pause_reason: null, paused_at: null })
+  const { data: cur } = await db.from("sequence_enrollment").select("person_id, org_id, opportunity_id").eq("workspace_id", workspaceId).eq("id", id).maybeSingle();
+  if (cur) {
+    const neg = await negotiationFor(db, workspaceId, cur);
+    if (neg) {
+      await pauseEnrollment(db, workspaceId, id, "active_negotiation", null, `Opportunity “${neg.name}” is at ${neg.stage.replace(/_/g, " ")}`);
+      throw new ActiveNegotiationError(neg);
+    }
+  }
+  const { data, error } = await db.from("sequence_enrollment").update({ status: "active", activated_at: new Date().toISOString(), pause_reason: null, paused_at: null, pause_detail: null })
     .eq("workspace_id", workspaceId).eq("id", id).in("status", ["proposed", "paused"]).select().maybeSingle();
   if (error) throw error;
   if (data) {
@@ -187,8 +266,8 @@ export async function activateEnrollment(db: Db, workspaceId: string, id: string
 }
 
 /** Pause an enrollment and park its unsent drafts (they cannot be opened to send while paused). */
-export async function pauseEnrollment(db: Db, workspaceId: string, id: string, reason: PauseReason, actorUserId?: string | null) {
-  const { data, error } = await db.from("sequence_enrollment").update({ status: "paused", pause_reason: reason, paused_at: new Date().toISOString() })
+export async function pauseEnrollment(db: Db, workspaceId: string, id: string, reason: PauseReason, actorUserId?: string | null, detail?: string | null) {
+  const { data, error } = await db.from("sequence_enrollment").update({ status: "paused", pause_reason: reason, paused_at: new Date().toISOString(), pause_detail: detail ? detail.slice(0, 500) : null })
     .eq("workspace_id", workspaceId).eq("id", id).in("status", ["proposed", "active"]).select().maybeSingle();
   if (error) throw error;
   const { data: drafts } = await db.from("draft").select("id").eq("workspace_id", workspaceId).eq("sequence_key", sequenceKey(id))
@@ -197,11 +276,11 @@ export async function pauseEnrollment(db: Db, workspaceId: string, id: string, r
   return data;
 }
 
-export async function cancelEnrollment(db: Db, workspaceId: string, id: string, reason: PauseReason) {
-  await pauseEnrollment(db, workspaceId, id, reason);
+export async function cancelEnrollment(db: Db, workspaceId: string, id: string, reason: PauseReason, actorUserId?: string | null) {
+  await pauseEnrollment(db, workspaceId, id, reason, actorUserId);
   await db.from("sequence_enrollment").update({ status: "cancelled", pause_reason: reason }).eq("workspace_id", workspaceId).eq("id", id);
   const { data: drafts } = await db.from("draft").select("id").eq("workspace_id", workspaceId).eq("sequence_key", sequenceKey(id)).eq("state", "paused");
-  for (const d of drafts ?? []) await db.from("draft").update({ state: "discarded" }).eq("workspace_id", workspaceId).eq("id", d.id);
+  for (const d of drafts ?? []) await discardDraft(db, workspaceId, d.id, actorUserId ?? null, `sequence cancelled (${reason})`);
 }
 
 /**
@@ -209,12 +288,21 @@ export async function cancelEnrollment(db: Db, workspaceId: string, id: string, 
  * `occurredAt`: only enrollments that started before the triggering message are paused — old backfilled mail
  * neither pauses nor re-triggers anything newer.
  */
-export async function pauseForPerson(db: Db, workspaceId: string, personId: string, reason: PauseReason, occurredAt?: string) {
+export async function pauseForPerson(db: Db, workspaceId: string, personId: string, reason: PauseReason, occurredAt?: string, detail?: string | null) {
   let q = db.from("sequence_enrollment").select("id, enrolled_at").eq("workspace_id", workspaceId).eq("person_id", personId).in("status", ["proposed", "active"]);
   if (occurredAt) q = q.lte("enrolled_at", occurredAt);
   const { data } = await q;
-  for (const e of data ?? []) await pauseEnrollment(db, workspaceId, e.id, reason);
+  for (const e of data ?? []) await pauseEnrollment(db, workspaceId, e.id, reason, null, detail);
   return (data ?? []).map((e) => e.id);
+}
+
+/** Pause all live enrollments targeting an organisation (contrary information about the account). */
+export async function pauseForOrg(db: Db, workspaceId: string, orgId: string, reason: PauseReason, detail: string | null, occurredAt?: string) {
+  let q = db.from("sequence_enrollment").select("id").eq("workspace_id", workspaceId).eq("org_id", orgId).in("status", ["proposed", "active"]);
+  if (occurredAt) q = q.lte("enrolled_at", occurredAt);
+  const { data } = await q;
+  for (const e of data ?? []) await pauseEnrollment(db, workspaceId, e.id, reason, null, detail);
+  return (data ?? []).map((e) => e.id as string);
 }
 
 /** Called after a sequence draft is marked/reconciled sent: advance step and schedule the next touch. */
@@ -254,10 +342,10 @@ export async function sequenceTick(admin: Db, workspaceId: string, now = new Dat
       if (e instanceof SuppressedRecipientError) { await pauseEnrollment(admin, workspaceId, enr.id, "suppressed"); out.paused++; continue; }
       throw e;
     }
-    if (enr.opportunity_id) {
-      const { data: opp } = await admin.from("opportunity").select("stage, outcome").eq("workspace_id", workspaceId).eq("id", enr.opportunity_id).maybeSingle();
-      if (opp && NEGOTIATION_STAGES.includes(opp.stage)) { await pauseEnrollment(admin, workspaceId, enr.id, "active_negotiation"); out.paused++; continue; }
-    }
+    const neg = await negotiationFor(admin, workspaceId, enr);
+    if (neg) { await pauseEnrollment(admin, workspaceId, enr.id, "active_negotiation", null, `Opportunity “${neg.name}” is at ${neg.stage.replace(/_/g, " ")}`); out.paused++; continue; }
+    const contrary = await contrarySignalFor(admin, workspaceId, enr, enr.enrolled_at);
+    if (contrary) { await pauseEnrollment(admin, workspaceId, enr.id, "contrary_info", null, contrary.detail); out.paused++; continue; }
     const report = await collisionsDirect(admin, workspaceId, { orgId: enr.org_id, personId: enr.person_id, userId: enr.owner_user_id, accountPerWeek: seq?.caps?.account_per_week, now });
     if (report.recentInbound) { await pauseEnrollment(admin, workspaceId, enr.id, "reply"); out.paused++; continue; }
     if (report.collisions.length > 0) { await pauseEnrollment(admin, workspaceId, enr.id, "collision"); out.paused++; continue; }

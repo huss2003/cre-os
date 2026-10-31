@@ -6,7 +6,7 @@ import { getRequirementDetail, updateRequirementFields } from "@/modules/deals/r
 const Patch = z.object({
   expectedVersion: z.number().int(),
   reason: z.string().max(1000).default(""),
-  changes: z.array(z.object({ key: z.string(), value: z.unknown().optional(), status: z.enum(["client_confirmed", "estimated", "unknown"]).optional() })).min(1).max(60),
+  changes: z.array(z.object({ key: z.string(), value: z.unknown().optional(), status: z.enum(["client_confirmed", "reported", "estimated", "unknown"]).optional() })).min(1).max(60),
 });
 
 export const GET = dealsRoute<{ id: string }>({}, async (_req, ctx, p) => getRequirementDetail(ctx, z.string().uuid().parse(p.id)));

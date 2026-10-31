@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const PUBLIC = ["/login", "/auth", "/api/cron", "/api/oauth", "/api/health"];
+// /api/webhooks: Microsoft Graph / Gmail push — authenticated by clientState hash / verification token, not a session.
+const PUBLIC = ["/login", "/auth", "/api/cron", "/api/oauth", "/api/health", "/api/webhooks"];
 
 export async function proxy(request: NextRequest) {
   // Deployed before Supabase is configured: keep health check working, show a clear message elsewhere.

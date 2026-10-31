@@ -12,11 +12,14 @@ export interface CardProposal {
   patch: { op: string; path: string; value?: unknown }[]; before: AnyRow | null; proposed_by_kind: string; model?: string | null;
   capture_id: string | null; created_at: string; expected_version: number | null; approval_required: boolean;
   target_label?: string | null; current?: Record<string, unknown> | null; current_version?: number | null; stale?: boolean;
+  evidence_ids?: string[] | null;
 }
 
 const OPEN = ["proposed", "approved", "clarify"];
 
 /** Before/after approval card with approve / reject / clarify / edit and (for applied changes) undo. */
+const EVIDENCE_TYPES = new Set(["organisation", "person", "asset", "lease", "lease_event", "requirement", "opportunity", "availability", "employment", "contact_method", "quote", "fee_milestone", "market_transaction", "stakeholder", "space"]);
+
 export function ProposalCard({ p, role, selectable = false }: { p: CardProposal; role: "owner" | "admin" | "editor" | "viewer"; selectable?: boolean }) {
   const isAdmin = role === "owner" || role === "admin";
   const canDecide = isAdmin || (role === "editor" && p.risk === "routine_internal");
@@ -51,6 +54,8 @@ export function ProposalCard({ p, role, selectable = false }: { p: CardProposal;
       </div>
       <p className="mt-2 text-sm text-ink-soft">{p.reason ?? "No reason given"}
         {p.capture_id ? <> · <Link className="text-brand" href={`/capture/${p.capture_id}`}>evidence: capture</Link></> : null}
+        {(p.evidence_ids?.length ?? 0) > 0 && !p.capture_id ? <> · {p.evidence_ids!.length} evidence item{p.evidence_ids!.length > 1 ? "s" : ""}</> : null}
+        {p.target_id && EVIDENCE_TYPES.has(p.target_type) ? <> · <Link className="text-brand" href={`/approvals/evidence?type=${p.target_type}&id=${p.target_id}`}>why do we believe this?</Link></> : null}
         {" · "}{fmt(p.created_at)}</p>
 
       {OPEN.includes(p.state) && role !== "viewer" ? (

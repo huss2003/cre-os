@@ -15,7 +15,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { Db } from "@/lib/supabase/server";
 import { assertIngestionAllowed, IngestionPausedError } from "@/modules/admin/killswitch";
-import { proposeChange } from "@/lib/services/changes";
+import { MATERIAL_FIELDS, proposeChange } from "@/lib/services/changes";
 import { parseFile } from "./parse";
 import { type ApprovedMapping, type SheetDetection, detectWorkbook, getAdapter, getRole, mapWorkbook } from "./detect";
 import { type DiffRow, type Reconciliation, type StagedRowDraft, type WriteStats, buildStaged, diffKey, diffVersions, markDuplicates, reconcile } from "./reconcile";
@@ -95,6 +95,121 @@ async function selectAll<T>(db: Db, ws: string, table: string, columns: string, 
   return out;
 }
 
+/* ------------------------------------------------------------------ steward: conflicts, person candidates */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyRow = Record<string, any>;
+
+interface ConflictDraft {
+  entity_type: "asset" | "lease" | "lease_event"; entity_id: string; label: string; field: string;
+  master_value: unknown; source_value: unknown; row_version: number; r: StagedRowDraft;
+}
+interface RepDraft { name: string; org_id: string; org_name: string; r: StagedRowDraft }
+
+/** Equality across numeric/text/date representations (PostgREST returns numerics as numbers or strings). */
+export function sameValue(a: unknown, b: unknown): boolean {
+  if (a === null || a === undefined) return b === null || b === undefined;
+  if (b === null || b === undefined) return false;
+  const na = Number(a), nb = Number(b);
+  if (typeof a !== "boolean" && Number.isFinite(na) && Number.isFinite(nb) && String(a).trim() !== "" && String(b).trim() !== "") return na === nb;
+  return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+}
+
+/** A representative cell that plausibly names a person (not "NA", "-", a number, an email or a company). */
+export function plausiblePersonName(s: string): boolean {
+  const t = s.trim();
+  if (t.length < 3 || t.length > 80) return false;
+  if (/^(n\/?a|nil|none|null|-+|tbc|tbd|unknown|not available|\.+)$/i.test(t)) return false;
+  if (/[\d@]/.test(t)) return false;
+  if (/\b(pvt|private|ltd|limited|llp|inc|corp|technologies|solutions|services|group|company)\b/i.test(t)) return false;
+  return /[a-z]/i.test(t);
+}
+
+/** Proposal keys used by the steward (stable across re-imports => zero duplicates). */
+export const personProposalKey = (ws: string, name: string, orgId: string) => `imports.person:${detId(ws, "person_candidate", `${exactKey(name)}|${orgId}`)}|${orgId}`;
+
+async function existingProposalKeys(db: Db, ws: string, keys: string[]): Promise<Map<string, AnyRow>> {
+  const out = new Map<string, AnyRow>();
+  for (const part of chunk([...new Set(keys)], 150)) {
+    if (!part.length) continue;
+    const { data } = await db.from("change_proposal").select("id, idempotency_key, state").eq("workspace_id", ws).in("idempotency_key", part);
+    for (const r of data ?? []) out.set(r.idempotency_key as string, r);
+  }
+  return out;
+}
+
+async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) await fn(items[i++]); }));
+}
+
+/**
+ * Record field conflicts (deterministic ids => re-processing adds nothing) and raise a change proposal for every
+ * MATERIAL disagreement (classified in code from MATERIAL_FIELDS). Person masters for representative names are only
+ * PROPOSED (one per name + company, keyed so re-imports never duplicate), each carrying the staged row + file as evidence.
+ */
+async function raiseStewardItems(ctx: Ctx, conflicts: ConflictDraft[], reps: RepDraft[]) {
+  const stagedId = (r: StagedRowDraft) => detId(ctx.ws, "staged_row", `${ctx.batchId}|${r.sheet}|${r.row_number}`);
+  const now = new Date().toISOString();
+  const rows = new Map<string, AnyRow>();
+  const byId = new Map<string, ConflictDraft>();
+  for (const c of conflicts) {
+    const id = detId(ctx.ws, "field_conflict", `${c.entity_type}|${c.entity_id}|${c.field}|${JSON.stringify(c.source_value)}`);
+    if (rows.has(id)) continue;
+    byId.set(id, c);
+    rows.set(id, stamp(ctx, {
+      id, entity_type: c.entity_type, entity_id: c.entity_id, field: c.field, master_value: c.master_value ?? null, source_value: c.source_value,
+      material: (MATERIAL_FIELDS[c.entity_type] ?? []).includes(c.field), source_object_id: ctx.src, staged_row_id: stagedId(c.r), batch_id: ctx.batchId,
+      source_locator: c.r.locator, source_label: ctx.sourceVersion, observed_at: now, status: "open",
+    }));
+  }
+  await insertIgnore(ctx.db, "field_conflict", [...rows.values()]);
+  const current = await selectIn<AnyRow>(ctx.db, ctx.ws, "field_conflict", "id", [...rows.keys()], "id, status, material, change_proposal_id");
+  let proposals = 0, failed = 0;
+  const warnings: string[] = [];
+  await pool(current.filter((x) => x.material && x.status === "open" && !x.change_proposal_id), 6, async (x) => {
+    const c = byId.get(x.id)!;
+    try {
+      const p = await proposeChange(ctx.db, ctx.ws, {
+        targetType: c.entity_type, targetId: c.entity_id, operation: "update", expectedVersion: c.row_version,
+        patch: [{ op: "replace", path: `/${c.field}`, value: c.source_value }],
+        reason: `Import conflict: ${c.label} ${c.field} is ${JSON.stringify(c.master_value)} on the record but ${JSON.stringify(c.source_value)} in ${ctx.sourceVersion} ${c.r.locator}`,
+        evidenceIds: [stagedId(c.r), ctx.src], proposedByKind: "job", idempotencyKey: `imports.conflict:${x.id}`,
+        classification: ctx.classification, ownerUserId: ctx.owner, actorUserId: ctx.actor,
+      });
+      await ctx.db.from("field_conflict").update({ status: "proposed", change_proposal_id: p.id }).eq("workspace_id", ctx.ws).eq("id", x.id).eq("status", "open");
+      proposals++;
+    } catch (e) { failed++; warnings.push(`${c.label} ${c.field}: ${(e as Error).message}`); }
+  });
+
+  // person candidates: one proposal per (name, company); already-proposed keys are skipped cheaply on re-runs
+  const uniq = new Map<string, RepDraft>();
+  for (const r of reps) { const k = personProposalKey(ctx.ws, r.name, r.org_id); if (!uniq.has(k)) uniq.set(k, r); }
+  const known = await existingProposalKeys(ctx.db, ctx.ws, [...uniq.keys()]);
+  const names = [...new Set([...uniq.values()].map((r) => r.name))];
+  const sameName = new Map<string, number>();
+  for (const part of chunk(names, 100)) {
+    const { data } = await ctx.db.from("person").select("full_name").eq("workspace_id", ctx.ws).is("archived_at", null).in("full_name", part);
+    for (const p of data ?? []) sameName.set(exactKey(p.full_name), (sameName.get(exactKey(p.full_name)) ?? 0) + 1);
+  }
+  let personProposals = 0;
+  await pool([...uniq].filter(([k]) => !known.has(k)), 6, async ([k, r]) => {
+    const dup = sameName.get(exactKey(r.name)) ?? 0;
+    try {
+      await proposeChange(ctx.db, ctx.ws, {
+        targetType: "person", operation: "create", patch: [{ op: "add", path: "/full_name", value: r.name }],
+        reason: `Import ${ctx.sourceVersion} ${r.r.locator}: "${r.name}" named as representative of ${r.org_name}. Creates a new person` +
+          (dup ? ` — ${dup} existing person(s) share this name; they are NOT merged automatically (check before applying)` : "") +
+          `; on apply, an employment link to ${r.org_name} is proposed for approval.`,
+        evidenceIds: [stagedId(r.r), ctx.src], proposedByKind: "job", idempotencyKey: k,
+        classification: ctx.classification, ownerUserId: ctx.owner, actorUserId: ctx.actor,
+      });
+      personProposals++;
+    } catch (e) { warnings.push(`person ${r.name}: ${(e as Error).message}`); }
+  });
+  return { conflicts: rows.size, conflict_proposals: proposals, conflict_proposal_failures: failed, person_proposals: personProposals, warnings: warnings.slice(0, 20) };
+}
+
 /* ------------------------------------------------------------------ settings */
 
 export async function loadImportSettings(db: Db, ws: string): Promise<{ sizeRules: SizeRules; thresholds: IdentityThresholds }> {
@@ -122,10 +237,54 @@ export interface ImportOptions {
   as_of?: string | null;
   period_year?: number | null;
   classification?: "public" | "permitted_personal" | "corporate_confidential" | "licensed_restricted";
+  /** Approved source/folder the file came from. Omitted => the workspace's built-in "Manual upload" source. */
+  source?: ImportSourceInput | null;
+}
+
+export type ImportSourceKind = "manual_upload" | "folder" | "export" | "connector" | "email" | "other";
+export interface ImportSourceInput { id?: string | null; name?: string | null; kind?: ImportSourceKind | null; location?: string | null }
+export interface ImportSourceRow { id: string; name: string; kind: ImportSourceKind; approved: boolean; is_default: boolean; location: string | null }
+
+export const sourceKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
+
+/**
+ * Resolve the source a file came from. A known id/name is used as is (approved or not); an unknown name is
+ * registered UNAPPROVED (the batch is quarantined until an admin approves it); no source => "Manual upload".
+ */
+export async function resolveImportSource(db: Db, ws: string, userId: string | null, src?: ImportSourceInput | null): Promise<ImportSourceRow> {
+  const cols = "id, name, kind, approved, is_default, location";
+  if (src?.id) {
+    const { data } = await db.from("import_source").select(cols).eq("workspace_id", ws).eq("id", src.id).is("archived_at", null).maybeSingle();
+    if (!data) throw new ImportError(400, "unknown import source");
+    return data as ImportSourceRow;
+  }
+  const name = src?.name?.trim().slice(0, 120);
+  if (name) {
+    const key = sourceKey(name);
+    const { data } = await db.from("import_source").select(cols).eq("workspace_id", ws).eq("name_key", key).maybeSingle();
+    if (data) return data as ImportSourceRow;
+    const { data: ins, error } = await db.from("import_source").insert({
+      workspace_id: ws, name, name_key: key, kind: src?.kind ?? "other", location: src?.location?.slice(0, 300) ?? null, approved: false, created_by: userId,
+    }).select(cols).single();
+    if (error) {
+      if (error.code === "23505") {
+        const { data: again } = await db.from("import_source").select(cols).eq("workspace_id", ws).eq("name_key", key).single();
+        return again as ImportSourceRow;
+      }
+      throw error;
+    }
+    return ins as ImportSourceRow;
+  }
+  const { data: id, error } = await db.schema("mudar_app").rpc("imports_default_source", { p_ws: ws });
+  if (error) throw error;
+  const { data } = await db.from("import_source").select(cols).eq("workspace_id", ws).eq("id", id).single();
+  return data as ImportSourceRow;
 }
 
 export interface RegisterResult {
   batchId: string;
+  sourceId?: string | null;
+  sourceApproved?: boolean;
   sourceObjectId: string;
   duplicate: boolean; // same sha256 already imported in this workspace => no-op
   version: number;
@@ -153,6 +312,7 @@ export async function registerImport(
   if (!/\.(xlsx|csv|txt)$/i.test(input.fileName)) throw new ImportError(400, "upload an .xlsx or .csv file (macro-enabled and legacy .xls files are not accepted)");
   const sha = sha256Hex(input.bytes);
   const fileName = safeName(input.fileName);
+  const importSource = await resolveImportSource(db, ws, input.userId, input.options?.source);
 
   // Same hash => idempotent no-op (whatever the file name).
   const { data: same } = await db.from("source_object").select("id, version").eq("workspace_id", ws).eq("kind", "file").eq("sha256", sha)
@@ -160,7 +320,7 @@ export async function registerImport(
   if (same) {
     const { data: b } = await db.from("import_batch").select("id").eq("workspace_id", ws).eq("source_object_id", same.id)
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (b) return { batchId: b.id, sourceObjectId: same.id, duplicate: true, version: same.version, sha256: sha };
+    if (b) return { batchId: b.id, sourceObjectId: same.id, duplicate: true, version: same.version, sha256: sha, sourceId: importSource.id, sourceApproved: importSource.approved };
   }
 
   // Same name, new hash => new version of that source.
@@ -179,7 +339,8 @@ export async function registerImport(
       workspace_id: ws, owner_user_id: input.userId, classification,
       kind: "file", uri: `storage://${BUCKET}/${path}`, file_name: fileName, sha256: sha, version,
       previous_version_id: prev?.id ?? null,
-      meta: { size: input.bytes.length, module: "imports", storage_bucket: BUCKET, storage_path: path, read_only: true },
+      meta: { size: input.bytes.length, module: "imports", storage_bucket: BUCKET, storage_path: path, read_only: true,
+        import_source: { id: importSource.id, name: importSource.name, kind: importSource.kind } },
     }).select("id, version").single();
     if (error) throw error;
     sourceId = so.id as string;
@@ -194,12 +355,12 @@ export async function registerImport(
   }
   const { data: batch, error: be } = await db.from("import_batch").insert({
     workspace_id: ws, owner_user_id: input.userId, classification,
-    source_object_id: sourceId, previous_batch_id: previousBatchId, file_name: fileName, status: "registered",
+    source_object_id: sourceId, previous_batch_id: previousBatchId, file_name: fileName, status: "registered", import_source_id: importSource.id,
     options: { as_of: input.options?.as_of ?? null, period_year: input.options?.period_year ?? null, classification },
     created_by: input.userId,
   }).select("id").single();
   if (be) throw be;
-  return { batchId: batch.id, sourceObjectId: sourceId!, duplicate: false, version, sha256: sha };
+  return { batchId: batch.id, sourceObjectId: sourceId!, duplicate: false, version, sha256: sha, sourceId: importSource.id, sourceApproved: importSource.approved };
 }
 
 /* ------------------------------------------------------------------ 2. process */
@@ -213,6 +374,8 @@ interface Ctx {
   classification: string;
   sourceVersion: string;
   thresholds: IdentityThresholds;
+  /** Service-role runs name the originating user for proposals; user-client runs act as auth.uid(). */
+  actor: string | null;
 }
 
 type Target = { type: string; id: string; role: "master" | "observation"; created: boolean; via?: string };
@@ -254,7 +417,7 @@ async function followMerges(ctx: Ctx, table: string, res: Map<string, KeyRes>, k
   const archived = (await selectIn<{ id: string; archived_at: string | null }>(ctx.db, ctx.ws, table, "id", ids, "id, archived_at")).filter((r) => r.archived_at);
   for (const a of archived) {
     const { data } = await ctx.db.from("change_proposal").select("target_id").eq("workspace_id", ctx.ws).eq("target_type", table)
-      .eq("operation", "merge").eq("state", "applied").contains("patch", [{ path: "/loser_id", value: a.id }]).limit(1).maybeSingle();
+      .eq("operation", "merge").eq("state", "applied").contains("patch", JSON.stringify([{ path: "/loser_id", value: a.id }])).limit(1).maybeSingle();
     if (!data?.target_id) continue;
     for (const [k, r] of res) {
       if (r.id !== a.id) continue;
@@ -291,7 +454,7 @@ function bumpObs(m: Record<string, { new: number; existing: number }>, type: str
 }
 
 /** Validated upserts for accepted rows. Returns targets per staged row + write stats. */
-async function writeRecords(ctx: Ctx, staged: StagedRowDraft[]): Promise<{ targets: Map<string, Target[]>; stats: WriteStats; issues: { locator: string; issue: RowIssue }[] }> {
+async function writeRecords(ctx: Ctx, staged: StagedRowDraft[]): Promise<{ targets: Map<string, Target[]>; stats: WriteStats; issues: { locator: string; issue: RowIssue }[]; conflicts: ConflictDraft[]; reps: RepDraft[] }> {
   const live = staged.filter((r) => (r.status === "accepted" || r.status === "duplicate") && r.record && r.record.kind !== "reference");
   const assetsObs = live.filter((r) => r.record!.kind === "asset_observation") as (StagedRowDraft & { record: AssetObservationRecord })[];
   const leases = live.filter((r) => r.record!.kind === "lease_row") as (StagedRowDraft & { record: LeaseRecord })[];
@@ -493,6 +656,59 @@ async function writeRecords(ctx: Ctx, staged: StagedRowDraft[]): Promise<{ targe
   bumpObs(observations, "asset_observation", true, aoRows.length);
   bumpObs(observations, "asset_observation", false, aoIds.length - aoRows.length);
 
+  // ---- field conflicts: a source value that disagrees with the CURRENT master value is raised, never written (S4)
+  const conflicts: ConflictDraft[] = [];
+  {
+    const ids = [...new Set(assetsObs.map((r) => assetRes.get(assetKey(r.record.building_name, r.record.locality))!.id))];
+    const masters = new Map((await selectIn<AnyRow>(ctx.db, ctx.ws, "asset", "id", ids, "id, name, status, total_area_sf, floor_size_min_sf, floor_size_max_sf, floors, row_version"))
+      .map((a) => [a.id as string, a]));
+    for (const r of assetsObs) {
+      if (r.status === "duplicate") continue;
+      const o = r.record;
+      const m = masters.get(assetRes.get(assetKey(o.building_name, o.locality))!.id);
+      if (!m) continue;
+      const floors = o.floors_text && /^\d+$/.test(o.floors_text.trim()) ? Number(o.floors_text.trim()) : null;
+      const src: Record<string, unknown> = { status: assetStatus(o.status_raw), total_area_sf: o.total_area_sf, floor_size_min_sf: o.floor_size_min_sf,
+        floor_size_max_sf: o.floor_size_max_sf, floors };
+      for (const [field, v] of Object.entries(src)) {
+        if (v === null || v === undefined || sameValue(v, m[field])) continue;
+        conflicts.push({ entity_type: "asset", entity_id: m.id, label: m.name, field, master_value: m[field] ?? null, source_value: v, row_version: Number(m.row_version), r });
+      }
+    }
+    const oldLeaseIds = [...leaseIds.values()].filter((id) => existingLeases.has(id));
+    const leaseMasters = new Map((await selectIn<AnyRow>(ctx.db, ctx.ws, "lease", "id", oldLeaseIds, "id, tenant_name_raw, rent_per_sf, tenure_months_raw, lockin_months_raw, row_version"))
+      .map((l) => [l.id as string, l]));
+    const oldEvents = new Map((await selectIn<AnyRow>(ctx.db, ctx.ws, "lease_event", "id", eventIds.filter((i) => existingEvents.has(i)), "id, event_date, row_version"))
+      .map((e) => [e.id as string, e]));
+    for (const [k, rows] of leaseGroups) {
+      const m = leaseMasters.get(leaseIds.get(k)!);
+      if (!m) continue;
+      for (const r of rows) {
+        if (r.status === "duplicate") continue;
+        const rec = r.record;
+        const src: Record<string, unknown> = rec.eventKind === "lockin_end" ? { lockin_months_raw: rec.tenure_months } : { rent_per_sf: rec.rent_per_sf, tenure_months_raw: rec.tenure_months };
+        for (const [field, v] of Object.entries(src)) {
+          if (v === null || v === undefined || sameValue(v, m[field])) continue;
+          conflicts.push({ entity_type: "lease", entity_id: m.id, label: `${m.tenant_name_raw} lease`, field, master_value: m[field] ?? null, source_value: v, row_version: Number(m.row_version), r });
+        }
+        const ev = oldEvents.get(detId(ctx.ws, "lease_event", `${k}|${rec.eventKind}`));
+        if (ev && rec.calculated_event_date && !sameValue(rec.calculated_event_date, ev.event_date)) {
+          conflicts.push({ entity_type: "lease_event", entity_id: ev.id, label: `${m.tenant_name_raw} ${rec.eventKind === "lockin_end" ? "lock-in end" : "expiry"}`, field: "event_date",
+            master_value: ev.event_date ?? null, source_value: rec.calculated_event_date, row_version: Number(ev.row_version), r });
+        }
+      }
+    }
+  }
+
+  // ---- representative / contact names: candidate person masters (proposed, never merged by name)
+  const reps: RepDraft[] = [];
+  for (const r of leases) {
+    const name = r.record.representative_name?.trim();
+    if (!name || !plausiblePersonName(name) || r.status === "duplicate") continue;
+    const org = orgRes.get(exactKey(r.record.tenant_name))!;
+    reps.push({ name, org_id: org.id, org_name: r.record.tenant_name, r });
+  }
+
   // ---- aliases (deduplicated by deterministic id)
   const aliasMap = new Map(aliases.map((a) => [a.id as string, a]));
   await insertIgnore(ctx.db, "entity_alias", [...aliasMap.values()]);
@@ -536,7 +752,7 @@ async function writeRecords(ctx: Ctx, staged: StagedRowDraft[]): Promise<{ targe
   await insertIgnore(ctx.db, "identity_match_candidate", candRows);
   candidates = candRows.length;
 
-  return { targets, stats: { masters, observations, rows_linked_to_existing_master: linked, match_candidates: candidates }, issues: extraIssues };
+  return { targets, stats: { masters, observations, rows_linked_to_existing_master: linked, match_candidates: candidates }, issues: extraIssues, conflicts, reps };
 }
 
 async function loadMappings(db: Db, ws: string): Promise<ApprovedMapping[]> {
@@ -561,7 +777,7 @@ async function downloadOriginal(db: Db, ws: string, sourceObjectId: string): Pro
 }
 
 export interface ProcessResult {
-  status: "skipped" | "paused" | "completed" | "completed_with_exceptions" | "needs_mapping" | "failed";
+  status: "skipped" | "paused" | "completed" | "completed_with_exceptions" | "needs_mapping" | "failed" | "awaiting_source";
   batchId: string;
   counts?: Reconciliation;
   error?: string;
@@ -573,7 +789,7 @@ export interface ProcessResult {
  */
 export async function processBatch(
   db: Db,
-  args: { workspaceId: string; batchId: string; allowFrom?: string[] },
+  args: { workspaceId: string; batchId: string; allowFrom?: string[]; asService?: boolean },
 ): Promise<ProcessResult> {
   const ws = args.workspaceId;
   const allow = args.allowFrom ?? ["registered"];
@@ -591,6 +807,21 @@ export async function processBatch(
       return { status: "paused", batchId: batch.id, error: e.message };
     }
     throw e;
+  }
+
+  // approved source/folder control: files from an unknown/unapproved source are quarantined, not processed
+  if (batch.import_source_id) {
+    const { data: src } = await db.from("import_source").select("id, name, approved, archived_at").eq("workspace_id", ws).eq("id", batch.import_source_id).maybeSingle();
+    if (!src || !src.approved || src.archived_at) {
+      const msg = `Source "${src?.name ?? "unknown"}" is not an approved import source. An admin must approve it before this file is processed.`;
+      await db.from("import_batch").update({ status: "awaiting_source", error: msg }).eq("workspace_id", ws).eq("id", batch.id).eq("row_version", batch.row_version);
+      await insertIgnore(db, "import_exception", [{
+        id: detId(ws, "import_exception", `${batch.id}|source|unapproved_source`), workspace_id: ws, owner_user_id: batch.created_by ?? batch.owner_user_id ?? null,
+        classification: batch.classification, batch_id: batch.id, kind: "unapproved_source", severity: "blocking", message: msg,
+        details: { import_source_id: batch.import_source_id }, status: "open",
+      }]);
+      return { status: "awaiting_source", batchId: batch.id, error: msg };
+    }
   }
 
   const { data: claimed } = await db.from("import_batch")
@@ -614,8 +845,9 @@ export async function processBatch(
       db, ws, batchId: batch.id, src: batch.source_object_id, owner: batch.created_by ?? batch.owner_user_id ?? null,
       classification: options.classification ?? batch.classification ?? "corporate_confidential",
       sourceVersion: `${so.file_name ?? batch.file_name}@v${so.version}#${String(so.sha256).slice(0, 12)}`, thresholds: settings.thresholds,
+      actor: args.asService ? (batch.created_by ?? batch.owner_user_id ?? null) : null,
     };
-    const { targets, stats } = await writeRecords(ctx, staged);
+    const { targets, stats, conflicts, reps } = await writeRecords(ctx, staged);
 
     // staged rows (every considered row, with locator, raw cells + formula text, mapping and targets)
     await upsertMerge(db, "staged_row", staged.map((r) => stamp(ctx, {
@@ -623,6 +855,9 @@ export async function processBatch(
       sheet: r.sheet, row_number: r.row_number, locator: r.locator, raw_json: r.raw_json, row_hash: r.row_hash, status: r.status, reason: r.reason,
       flags: r.flags, mapped_json: r.record ? { ...r.record, adapter: r.adapter, role: r.role } : null, targets: targets.get(r.locator) ?? [],
     })));
+
+    // steward: field conflicts (+ proposals for material ones) and proposed person masters, with evidence ids
+    const steward = await raiseStewardItems(ctx, conflicts, reps);
 
     // exception queue: row issues + sheet issues + failed controls
     const exc: Record<string, unknown>[] = [];
@@ -666,7 +901,7 @@ export async function processBatch(
       })));
     }
 
-    const counts = reconcile(staged, detections, controls, stats, openCount ?? 0);
+    const counts = { ...reconcile(staged, detections, controls, stats, openCount ?? 0), steward };
     const mappedSheets = detections.filter((d) => d.status === "mapped");
     const unknown = detections.filter((d) => d.status === "unknown");
     const status: ProcessResult["status"] =
@@ -742,6 +977,23 @@ export async function approveMapping(db: Db, ws: string, userId: string, input: 
 
 export type MatchDecision = "link" | "keep_separate" | "related";
 
+/**
+ * Evidence for an identity decision: the source file of the batch that raised the candidate plus the staged rows
+ * (with their locators) that point at either record. Merge/relate proposals carry these ids so "why" stays traceable.
+ */
+export async function candidateEvidence(db: Db, ws: string, c: { batch_id: string | null; left_id: string; right_id: string }): Promise<string[]> {
+  const ids: string[] = [];
+  if (c.batch_id) {
+    const { data: b } = await db.from("import_batch").select("source_object_id").eq("workspace_id", ws).eq("id", c.batch_id).maybeSingle();
+    if (b?.source_object_id) ids.push(b.source_object_id);
+  }
+  for (const id of [c.right_id, c.left_id]) {
+    const { data } = await db.from("staged_row").select("id").eq("workspace_id", ws).contains("targets", JSON.stringify([{ id }])).order("created_at").limit(3);
+    ids.push(...(data ?? []).map((r: { id: string }) => r.id));
+  }
+  return [...new Set(ids)];
+}
+
 export async function decideMatch(db: Db, ws: string, userId: string, candidateId: string, decision: MatchDecision) {
   const { data: c } = await db.from("identity_match_candidate").select("*").eq("workspace_id", ws).eq("id", candidateId).maybeSingle();
   if (!c) throw new ImportError(404, "candidate not found");
@@ -749,6 +1001,7 @@ export async function decideMatch(db: Db, ws: string, userId: string, candidateI
   const now = new Date().toISOString();
   let proposalId: string | null = null;
   let newDecision: string = "kept_separate";
+  const evidenceIds = await candidateEvidence(db, ws, c);
   if (decision === "link") {
     if (c.entity_type === "person" && !c.evidence?.hard_agree) throw new ImportError(400, "people are never merged on name alone");
     if (c.evidence?.different_towers) throw new ImportError(400, "different towers are never merged");
@@ -757,7 +1010,7 @@ export async function decideMatch(db: Db, ws: string, userId: string, candidateI
       targetType: c.entity_type, targetId: c.left_id, operation: "merge",
       patch: [{ op: "replace", path: "/loser_id", value: c.right_id }],
       reason: `Import identity review: merge ${c.right_raw?.name ?? c.right_id} into ${c.right_raw?.left_name ?? c.left_id} (score ${c.score})`,
-      evidenceIds: [], proposedByKind: "user", idempotencyKey: `imports.merge:${c.id}`, ownerUserId: userId,
+      evidenceIds, proposedByKind: "user", idempotencyKey: `imports.merge:${c.id}`, ownerUserId: userId,
     });
     proposalId = p.id;
     newDecision = "merge_proposed";
@@ -771,7 +1024,7 @@ export async function decideMatch(db: Db, ws: string, userId: string, candidateI
           { op: "add", path: "/relation_type", value: "affiliate" },
         ],
         reason: `Import identity review: ${c.right_raw?.name ?? "organisation"} related to ${c.right_raw?.left_name ?? "organisation"} (group/subsidiary, not merged)`,
-        proposedByKind: "user", idempotencyKey: `imports.relate:${c.id}`, ownerUserId: userId,
+        evidenceIds, proposedByKind: "user", idempotencyKey: `imports.relate:${c.id}`, ownerUserId: userId,
       });
       proposalId = p.id;
     } else if (c.entity_type === "asset") {
@@ -781,7 +1034,7 @@ export async function decideMatch(db: Db, ws: string, userId: string, candidateI
       const p = await proposeChange(db, ws, {
         targetType: "asset", targetId: tower, operation: "update", expectedVersion: t?.row_version ?? null,
         patch: [{ op: "replace", path: "/parent_asset_id", value: campus }],
-        reason: "Import identity review: tower linked to its campus (not merged)", proposedByKind: "user", idempotencyKey: `imports.relate:${c.id}`, ownerUserId: userId,
+        reason: "Import identity review: tower linked to its campus (not merged)", evidenceIds, proposedByKind: "user", idempotencyKey: `imports.relate:${c.id}`, ownerUserId: userId,
       });
       proposalId = p.id;
     } else throw new ImportError(400, "related is only available for organisations and buildings");

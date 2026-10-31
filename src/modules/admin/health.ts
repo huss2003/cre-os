@@ -2,6 +2,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PRICING, PRICING_VERSION } from "@/lib/ai/pricing";
 import { badRequest, conflict, forbidden, notFound } from "./errors";
+import { heartbeatState, SUPERVISOR } from "./supervisor";
+import { jobsPauseState } from "./killswitch";
 
 type Client = SupabaseClient<any, any, any>;
 type Row = Record<string, any>;
@@ -99,7 +101,7 @@ export async function getHealth(db: Client, workspaceId: string, now = new Date(
     const { count } = await db.from("job").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("state", state);
     return [state, count ?? 0] as const;
   };
-  const [stateCounts, failures, retrying, accounts, cursors, runs, spend, imports] = await Promise.all([
+  const [stateCounts, failures, retrying, accounts, cursors, runs, spend, imports, latency, slowest, heartbeat, alerts, pause] = await Promise.all([
     Promise.all(JOB_STATES.map(countState)),
     db.from("job").select("id, job_type, state, attempts, max_attempts, last_error, updated_at, due_at").eq("workspace_id", workspaceId)
       .in("state", ["failed", "dead"]).order("updated_at", { ascending: false }).limit(25),
@@ -110,13 +112,24 @@ export async function getHealth(db: Client, workspaceId: string, now = new Date(
     db.from("backup_run").select("*").eq("workspace_id", workspaceId).order("started_at", { ascending: false }).limit(50),
     spendSummary(db, workspaceId, Number(ws.monthly_ai_budget_inr ?? 0), now),
     importsSummary(db, workspaceId),
+    latencySummary(db, workspaceId, now),
+    db.from("job").select("id, job_type, state, attempts, duration_ms, started_at, finished_at").eq("workspace_id", workspaceId)
+      .gte("finished_at", new Date(now.getTime() - 86_400_000).toISOString()).not("duration_ms", "is", null)
+      .order("duration_ms", { ascending: false }).limit(10),
+    schedulerHeartbeat(db, now),
+    db.from("supervisor_alert").select("id, kind, subject, severity, title, action_href, opened_at, last_seen_at, resolved_at, acknowledged_at, notified_at")
+      .eq("workspace_id", workspaceId).or(`resolved_at.is.null,opened_at.gte.${new Date(now.getTime() - 7 * 86_400_000).toISOString()}`)
+      .order("opened_at", { ascending: false }).limit(100),
+    jobsPauseState(db, workspaceId).then((p) => ({ ...p, checked: true }), () => ({ workspacePaused: false, globalPaused: false, pausedAt: null, reason: null, globalPausedAt: null, checked: false })),
   ]);
 
   const staleAfterH = 26;
-  const connectors = ((accounts.data ?? []) as Row[]).map((a): Row & { resources: Row[] } => {
+  const connectors = ((accounts.data ?? []) as Row[]).map((a): Row & { resources: Row[]; healthy: boolean } => {
     const cs = ((cursors.data ?? []) as Row[]).filter((c) => c.connector_account_id === a.id);
     return {
       ...a,
+      // connector_account.status is connected | mock | expired | revoked | error
+      healthy: a.status === "connected" || a.status === "mock",
       resources: cs.map((c): Row => ({
         ...c,
         stale: !c.last_success_at || (now.getTime() - Date.parse(c.last_success_at)) / 3_600_000 > staleAfterH,
@@ -132,12 +145,65 @@ export async function getHealth(db: Client, workspaceId: string, now = new Date(
       counts: Object.fromEntries(stateCounts) as Record<(typeof JOB_STATES)[number], number>,
       recentFailures: (failures.data ?? []) as Row[],
       retrying: (retrying.data ?? []) as Row[],
+      latency,
+      slowest: (slowest.data ?? []) as Row[],
+      paused: pause,
+    },
+    scheduler: heartbeat,
+    alerts: {
+      checked: !alerts.error,
+      open: ((alerts.data ?? []) as Row[]).filter((a) => !a.resolved_at),
+      recent: ((alerts.data ?? []) as Row[]).filter((a) => !!a.resolved_at).slice(0, 20),
     },
     connectors,
     spend: { ...spend, budgetExceeded: spend.budgetInr > 0 && spend.spentInr >= spend.budgetInr },
     imports,
     backups: { ...backupStatus((runs.data ?? []) as Row[], now), recent: ((runs.data ?? []) as Row[]).slice(0, 10) },
   };
+}
+
+export interface LatencyRow {
+  jobType: string; runs24h: number; failed24h: number; p50Ms: number | null; p95Ms: number | null; maxMs: number | null;
+  runsBaseline: number; p95BaselineMs: number | null; drift: boolean;
+}
+
+/** Drift = p95 over the last 24 h is > 2x the previous 7 days' p95 (and > 1 s slower), with >= 5 baseline runs. */
+export function latencyDrift(p95: number | null, baseline: number | null, baselineRuns: number) {
+  return p95 !== null && baseline !== null && baselineRuns >= 5 && p95 > 2 * baseline && p95 - baseline > 1000;
+}
+
+/** p50/p95 per job type (mudar_app.job_latency_stats, SECURITY INVOKER => job RLS: admins only). */
+export async function latencySummary(db: Client, workspaceId: string, now = new Date()) {
+  const { data, error } = await db.schema("mudar_app").rpc("job_latency_stats", { p_workspace: workspaceId, p_now: now.toISOString() });
+  if (error) return { checked: false, error: error.message, rows: [] as LatencyRow[] };
+  const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  const rows = ((data ?? []) as Row[]).map((r): LatencyRow => {
+    const p95 = num(r.p95_ms), base = num(r.p95_baseline_ms);
+    return { jobType: r.job_type, runs24h: r.runs_24h, failed24h: r.failed_24h, p50Ms: num(r.p50_ms), p95Ms: p95, maxMs: num(r.max_ms),
+      runsBaseline: r.runs_baseline, p95BaselineMs: base, drift: latencyDrift(p95, base, r.runs_baseline) };
+  });
+  return { checked: true, error: null as string | null, rows };
+}
+
+/** Scheduler heartbeat. `checked: false` when the heartbeat could not be read — never reported as healthy. */
+export async function schedulerHeartbeat(db: Client, now = new Date()) {
+  const { data, error } = await db.schema("mudar_app").rpc("scheduler_heartbeat");
+  if (error || !data) return { checked: false, error: error?.message ?? "no data", ...heartbeatState(null, now), staleAfterMinutes: SUPERVISOR.heartbeatStaleMinutes, ticks24h: null, ticksWithErrors24h: null, maxGapMinutes24h: null, p95TickMs24h: null };
+  const d = data as Row;
+  return {
+    checked: true, error: null as string | null, ...heartbeatState(d.last_tick_at, now), staleAfterMinutes: SUPERVISOR.heartbeatStaleMinutes,
+    ticks24h: Number(d.ticks_24h ?? 0), ticksWithErrors24h: Number(d.ticks_with_errors_24h ?? 0),
+    maxGapMinutes24h: d.max_gap_minutes_24h === null ? null : Number(d.max_gap_minutes_24h),
+    p95TickMs24h: d.p95_tick_ms_24h === null ? null : Number(d.p95_tick_ms_24h),
+  };
+}
+
+/** Acknowledge an alert (stops further notifications; it stays listed until the condition clears). Admin RLS. */
+export async function acknowledgeAlert(db: Client, workspaceId: string, alertId: string, userId: string) {
+  const { data, error } = await db.from("supervisor_alert").update({ acknowledged_at: new Date().toISOString(), acknowledged_by: userId })
+    .eq("workspace_id", workspaceId).eq("id", alertId).select("id");
+  if (error) throw badRequest(error.message);
+  if (!data?.length) throw notFound("alert");
 }
 
 /** Import batches are owned by the imports module; read defensively (table name may differ or be absent). */

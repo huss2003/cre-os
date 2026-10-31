@@ -1,7 +1,8 @@
 /** Opportunity pipeline, closing coordinator and fee records (RLS-scoped). Stage history is written by a DB trigger. */
 import { type DealsCtx, DealsError, dbError, must, owned, today } from "../ctx";
 import { feeProtectionIssues, feeSummary, type FeeMilestoneRow } from "../fees/fees";
-import { CLOSING_TEMPLATE, MANDATES, STAGES, TEMPERATURES, checkOutcome, checkTransition } from "./stages";
+import type { FeeRowB } from "../fees/ledger";
+import { MANDATES, STAGES, TEMPERATURES, checkOutcome, checkTransition } from "./stages";
 
 export interface CreateOpportunityInput {
   name: string; orgId?: string | null; requirementId?: string | null; stage?: string;
@@ -42,6 +43,11 @@ export async function moveStage(ctx: DealsCtx, id: string, expectedVersion: numb
   if (Number(opp.row_version) !== Number(expectedVersion)) throw new DealsError(409, "stale_version: the opportunity changed, reload and retry");
   let reqStatus: string | null = null;
   if (opp.requirement_id) reqStatus = ((await ctx.db.from("requirement").select("status").eq("id", opp.requirement_id).maybeSingle()).data as { status: string } | null)?.status ?? null;
+  // moving past LOI: make sure the closing checklist exists (committed) so its open items block with real names
+  if (STAGES.indexOf(to as never) > STAGES.indexOf("loi") && STAGES.indexOf(opp.stage as never) < STAGES.indexOf(to as never)) {
+    const seeded = await ctx.db.rpc("deals_seed_closing_checklist", { p_id: id });
+    if (seeded.error) throw dbError(seeded.error, "deal_milestone");
+  }
   const ms = await ctx.db.from("deal_milestone").select("title, required_for_stage, status").eq("opportunity_id", id).not("required_for_stage", "is", null);
   const fees = (await ctx.db.from("fee_milestone").select("invoiced_amount, recognised_amount, collected_amount").eq("opportunity_id", id)).data ?? [];
   const chk = checkTransition(opp.stage, to, {
@@ -78,18 +84,14 @@ export async function updateLabels(ctx: DealsCtx, id: string, expectedVersion: n
   return r.data;
 }
 
-/** Seed the closing checklist (idempotent: one row per template key). */
+/**
+ * Seed the closing checklist (idempotent: one row per template key; dependencies resolved by key). The template lives in
+ * SQL (mudar_app.deals_closing_template, mirrored by CLOSING_TEMPLATE) and is also auto-seeded when a deal reaches LOI.
+ */
 export async function seedClosingChecklist(ctx: DealsCtx, opportunityId: string) {
-  const opp = await loadOpp(ctx, opportunityId);
-  const have = new Set((((await ctx.db.from("deal_milestone").select("template_key").eq("opportunity_id", opportunityId)).data ?? []) as { template_key: string | null }[]).map((r) => r.template_key));
-  const rows = CLOSING_TEMPLATE.filter((t) => !have.has(t.key)).map((t, i) => ({
-    ...owned(ctx, String(opp.classification ?? "corporate_confidential")), opportunity_id: opportunityId, template_key: t.key, kind: t.kind,
-    category: t.category, title: t.title, required_for_stage: t.required_for_stage, proof_required: t.proof_required, sort_order: i,
-  }));
-  if (rows.length) {
-    const r = await ctx.db.from("deal_milestone").insert(rows);
-    if (r.error && r.error.code !== "23505") throw dbError(r.error, "deal_milestone");
-  }
+  await loadOpp(ctx, opportunityId);
+  const r = await ctx.db.rpc("deals_seed_closing_checklist", { p_id: opportunityId });
+  if (r.error) throw dbError(r.error, "deal_milestone");
   return (await ctx.db.from("deal_milestone").select("*").eq("opportunity_id", opportunityId).order("sort_order")).data ?? [];
 }
 
@@ -105,7 +107,7 @@ export async function updateMilestone(ctx: DealsCtx, milestoneId: string, p: { s
   return r.data;
 }
 
-export async function recordFeeMilestone(ctx: DealsCtx, opportunityId: string, f: FeeMilestoneRow) {
+export async function recordFeeMilestone(ctx: DealsCtx, opportunityId: string, f: FeeRowB) {
   const opp = await loadOpp(ctx, opportunityId);
   const r = await ctx.db.from("fee_milestone").insert({
     ...owned(ctx, String(opp.classification ?? "corporate_confidential")), opportunity_id: opportunityId,
@@ -113,15 +115,18 @@ export async function recordFeeMilestone(ctx: DealsCtx, opportunityId: string, f
     invoiced_amount: f.invoiced_amount ?? null, invoiced_on: f.invoiced_on ?? null, recognised_amount: f.recognised_amount ?? null,
     recognised_on: f.recognised_on ?? null, collected_amount: f.collected_amount ?? null, collected_on: f.collected_on ?? null,
     currency: f.currency ?? "INR", tax_basis: f.tax_basis ?? null, evidence: f.evidence ?? null,
+    contractual_amount: f.contractual_amount ?? null, contract_ref: f.contract_ref ?? null, attributed_on: f.attributed_on ?? null,
+    attribution_ref: f.attribution_ref ?? null, invoice_no: f.invoice_no ?? null, invoice_due_on: f.invoice_due_on ?? null, deal_milestone_id: f.deal_milestone_id ?? null,
   }).select("*").single();
   if (r.error) throw dbError(r.error, "fee_milestone");
   return r.data;
 }
 
 /** Update a fee milestone with the next money event (invoice / recognition / collection). Earlier amounts are kept. */
-export async function updateFeeMilestone(ctx: DealsCtx, id: string, f: Partial<FeeMilestoneRow>) {
+export async function updateFeeMilestone(ctx: DealsCtx, id: string, f: Partial<FeeRowB>) {
   const patch: Record<string, unknown> = {};
-  for (const k of ["gross_fee", "credit_share", "invoiced_amount", "invoiced_on", "recognised_amount", "recognised_on", "collected_amount", "collected_on", "evidence", "milestone", "tax_basis", "exclusions"] as const)
+  for (const k of ["gross_fee", "credit_share", "invoiced_amount", "invoiced_on", "recognised_amount", "recognised_on", "collected_amount", "collected_on", "evidence", "milestone", "tax_basis", "exclusions",
+    "contractual_amount", "contract_ref", "attributed_on", "attribution_ref", "invoice_no", "invoice_due_on", "deal_milestone_id"] as const)
     if (f[k] !== undefined) patch[k] = f[k];
   const r = await ctx.db.rpc("deals_update_fee", { p_id: id, p_patch: patch });
   if (r.error) throw dbError(r.error, "fee_milestone");

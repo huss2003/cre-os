@@ -105,6 +105,41 @@ export interface TaxInput {
   appliesTo?: ("rent" | "cam" | "parking" | "recurring")[];
 }
 
+/**
+ * Cost items that can be missing from a quote. Each has three states (workflow 11 "no unknown cost is silently treated
+ * as zero"): "known" (amount supplied), "none" (explicitly included elsewhere / not applicable — a recorded assumption)
+ * or "unknown" (not modelled → listed as a gap, excluded from complete totals, blocks approval unless acknowledged).
+ * When a state is not given it is inferred: amount present → known; absent → unknown (CAM mode "none" → none).
+ */
+export type CostItem = "rent" | "cam" | "parking" | "deposit" | "fitout" | "opex" | "reinstatement";
+export type CostState = "known" | "none" | "unknown";
+export const COST_ITEMS: CostItem[] = ["rent", "cam", "parking", "deposit", "fitout", "opex", "reinstatement"];
+export const COST_ITEM_LABEL: Record<CostItem, string> = {
+  rent: "Rent", cam: "CAM / maintenance", parking: "Parking", deposit: "Security deposit", fitout: "Fit-out capex",
+  opex: "Other operating costs", reinstatement: "Reinstatement",
+};
+
+export interface CostGap { item: CostItem | "gst"; label: string; reason: string }
+
+export interface Assumption {
+  key: string;
+  label: string;
+  value: unknown;
+  /** sha256 of the stable JSON value — an approval is valid only for this exact value. */
+  valueHash: string;
+  source: string;
+}
+
+/** Explicit rounding rule stored with every result (not only implied by the engine version). */
+export interface RoundingRule {
+  engineVersion: string;
+  arithmetic: string;
+  money: string;
+  totals: string;
+  rates: string;
+  perUnit: string;
+}
+
 export interface FinanceInput {
   name: string;
   kind: ScenarioKind;
@@ -128,6 +163,10 @@ export interface FinanceInput {
   taxes?: TaxInput | null;
   /** Provenance only (not used in maths): quote ids/versions the inputs came from. */
   quoteRefs?: { quoteId: string; version: number; validUntil?: string | null }[];
+  /** Three-state cost inputs (see CostItem). Not used in maths: drives gaps / completeness. */
+  costStates?: Partial<Record<CostItem, CostState>>;
+  /** Source of each assumption key (e.g. "quote <id> v2", "finance policy 2026"). Default "user input". */
+  assumptionSources?: Record<string, string>;
 }
 
 export interface CashflowRow { period: number; date: string; category: string; amount: string }
@@ -160,6 +199,16 @@ export interface FinanceResult {
   };
   warnings: string[];
   outputHash: string;
+  /** Resolved three-state cost inputs. */
+  costStates: Record<CostItem, CostState>;
+  /** Unknown costs (and an unsupplied GST rate). Non-empty ⇒ totals cover known items only. */
+  gaps: CostGap[];
+  complete: boolean;
+  /** Same as totals when complete; null when any cost is unknown (never present a partial total as complete). */
+  completeTotals: { nominalTco: string; npv: string; equivalentMonthly: string } | null;
+  totalsLabel: string;
+  assumptions: Assumption[];
+  roundingRule: RoundingRule;
 }
 
 export interface Sensitivity { label: string; parameter: string; delta: string; npv: string; npvChange: string }

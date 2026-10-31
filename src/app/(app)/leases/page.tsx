@@ -29,8 +29,11 @@ async function Body({ searchParams }: { searchParams: SP }) {
   const w = (WINDOWS as string[]).includes(str("window")) ? (str("window") as RadarWindow) : "all";
   const q = str("q").trim().toLowerCase();
   const focus = str("lease");
+  const reviewOnly = str("review") === "1";
+  const reviewCount = items.filter((it) => it.reviewFlags.length).length;
   const filtered = items
     .filter((it) => inWindow(it, w, today))
+    .filter((it) => !reviewOnly || it.reviewFlags.length > 0)
     .filter((it) => !q || `${it.tenantName ?? ""} ${it.assetName ?? ""} ${it.landlordName ?? ""}`.toLowerCase().includes(q))
     .filter((it) => !focus || it.leaseId === focus)
     .sort((a, b) => (a.nextKeyDate ?? "9999") < (b.nextKeyDate ?? "9999") ? -1 : (a.nextKeyDate ?? "9999") > (b.nextKeyDate ?? "9999") ? 1 : (a.tenantName ?? "").localeCompare(b.tenantName ?? ""));
@@ -43,7 +46,11 @@ async function Body({ searchParams }: { searchParams: SP }) {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Lease radar" subtitle={`${items.length} leases · expiry, lock-in, notice and break are separate facts · dates as of ${today}`} />
+      <PageHeader title="Lease radar" subtitle={`${items.length} leases · expiry, lock-in, notice, break, rent escalation and options are separate event types · dates as of ${today}`} />
+      <p className="text-xs text-ink-soft">
+        <Badge tone="ok">Contractual / confirmed</Badge> dates are verified; <Badge tone="neutral">Calculated by radar</Badge> dates are reproducible calculations
+        (formula on hover, stored as separate calculated events) and never replace a verified date. Re-calculated automatically when a lease, lease event or lease document changes.
+      </p>
       {items.length === 0 ? (
         <EmptyState title="No leases yet" action={<ButtonLink href="/imports">Import a lease schedule</ButtonLink>}>
           Import a lease/transaction export (or add leases on a company) and the radar computes expiry with EDATE, notice deadlines only
@@ -52,6 +59,10 @@ async function Body({ searchParams }: { searchParams: SP }) {
       ) : (
         <>
           <nav className="-mx-1 flex gap-1 overflow-x-auto pb-1 text-sm">
+            <Link href={reviewOnly ? "/leases" : "/leases?review=1"}
+              className={clsx("whitespace-nowrap rounded-full border px-3 py-1.5", reviewOnly ? "border-bad bg-bad text-white" : "border-line bg-surface")}>
+              Needs review ({reviewCount})
+            </Link>
             {WINDOWS.map((x) => (
               <Link key={x} href={`/leases?${new URLSearchParams({ ...(x !== "all" ? { window: x } : {}), ...(q ? { q } : {}) }).toString()}`}
                 className={clsx("whitespace-nowrap rounded-full border px-3 py-1.5", w === x ? "border-brand bg-brand text-white" : "border-line bg-surface")}>
@@ -94,7 +105,9 @@ function DateRow({ label, f, extra }: { label: string; f: DatedFact | null; extr
       {f ? (
         <>
           <span className="tabular-nums">{f.date}</span>
-          <Badge tone={f.verified ? "ok" : "neutral"} title={f.formula}>{f.basisLabel}</Badge>
+          <Badge tone={f.verified ? "ok" : "neutral"} title={f.formula}>{f.basisLabel}{f.source === "radar" ? " · not verified" : ""}</Badge>
+          {f.detail ? <span className={clsx("text-xs", /review/.test(f.detail) ? "text-bad" : "text-ink-soft")}>{f.detail}</span> : null}
+          {f.source === "radar" && f.formula ? <span className="text-xs text-ink-soft break-all">= {f.formula}</span> : null}
           {extra ? <span className="text-xs text-ink-soft">{extra}</span> : null}
         </>
       ) : <span className="text-ink-soft">Unknown</span>}
@@ -117,7 +130,15 @@ function LeaseCard({ it, highlight }: { it: RadarItem; highlight: boolean }) {
         <DateRow label="Lock-in end" f={it.lockinEnd} />
         <DateRow label="Notice by" f={it.noticeDeadline} extra={it.daysToNotice != null ? `${it.daysToNotice} days` : "needs notice clause"} />
         {it.breaks.map((b) => <DateRow key={b.date} label="Break" f={b} />)}
+        {it.options.map((o) => <DateRow key={`o${o.date}`} label="Option" f={o} />)}
+        <EscalationRows list={it.escalations} />
       </div>
+      {it.reviewFlags.length ? (
+        <ul className="mt-2 space-y-1 rounded-lg border border-bad/30 bg-bad/5 p-2 text-xs text-bad">
+          {it.reviewFlags.map((r) => <li key={r.key}><span className="font-semibold">Needs review — {r.eventType.replace(/_/g, " ")}{r.date ? ` ${r.date}` : ""}:</span> {r.reason}</li>)}
+          <li><Link className="underline" href={`/tasks?source=workflow&q=${encodeURIComponent("Review lease clause")}`}>Review tasks</Link></li>
+        </ul>
+      ) : null}
       {it.plan ? (
         <details className="mt-2 text-sm">
           <summary className="cursor-pointer text-brand">Reverse plan from occupation {it.plan.occupation} {it.plan.viable ? "" : "· decision date passed"}</summary>
@@ -129,11 +150,29 @@ function LeaseCard({ it, highlight }: { it: RadarItem; highlight: boolean }) {
             <li>Fit-out start ({it.plan.fitoutMonths} mo): {it.plan.fitoutStart}</li>
             <li>Move by: {it.plan.moveBy}</li>
             <li className="sm:col-span-2 font-medium">Last decision: {it.plan.lastDecision}{it.plan.noticeDeadline ? ` (notice ${it.plan.noticeDeadline})` : ""}</li>
+            <li className="sm:col-span-2 text-ink-soft">Milestones within 90 days become dated tasks — <Link className="text-brand" href={`/tasks?source=workflow&q=${encodeURIComponent(it.tenantName ?? "")}`}>see tasks</Link></li>
           </ul>
         </details>
       ) : null}
       {it.issues.length ? <ul className="mt-2 list-disc pl-5 text-xs text-warn">{it.issues.map((x) => <li key={x}>{x}</li>)}</ul> : null}
       {it.enrichment.length ? <p className="mt-1 text-xs"><Link className="text-brand" href={`/tasks?source=workflow&q=${encodeURIComponent((it.tenantName ?? "").slice(0, 40))}`}>Enrichment task raised</Link>: {it.enrichment.map((e) => e.reason).join("; ")}</p> : null}
     </li>
+  );
+}
+
+function EscalationRows({ list }: { list: DatedFact[] }) {
+  if (!list.length) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = list.filter((e) => e.date >= today);
+  const shown = (upcoming.length ? upcoming : list).slice(0, 2);
+  return (
+    <>
+      {shown.map((e) => <DateRow key={`e${e.date}`} label="Escalation" f={e} />)}
+      {list.length > shown.length ? (
+        <details className="text-xs"><summary className="cursor-pointer text-ink-soft">All {list.length} rent escalation dates</summary>
+          <ul className="ml-4 mt-1 list-disc">{list.map((e) => <li key={e.date}>{e.date} · {e.basisLabel}{e.detail ? ` · ${e.detail}` : ""}{e.formula ? ` · ${e.formula}` : ""}</li>)}</ul>
+        </details>
+      ) : null}
+    </>
   );
 }

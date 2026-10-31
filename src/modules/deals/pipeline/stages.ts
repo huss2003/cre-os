@@ -71,21 +71,22 @@ export function checkOutcome(stage: string, outcome: string, reason?: string | n
 }
 
 // ---------------------------------------------------------------- closing coordinator + move dependencies
-export interface MilestoneTemplate { key: string; kind: string; category: string; title: string; required_for_stage: Stage | null; proof_required: boolean }
+/** Mirrored in SQL by mudar_app.deals_closing_template() (auto-seeded at LOI); closing.test.ts keeps them equal. */
+export interface MilestoneTemplate { key: string; kind: string; category: string; title: string; required_for_stage: Stage | null; proof_required: boolean; depends_on: string | null }
 export const CLOSING_TEMPLATE: MilestoneTemplate[] = [
-  { key: "loi_signed", kind: "document", category: "loi", title: "LOI / term sheet signed by both parties", required_for_stage: "documentation", proof_required: true },
-  { key: "title_due_diligence", kind: "legal", category: "legal", title: "Title, approvals and occupation certificate checked", required_for_stage: "signed", proof_required: true },
-  { key: "lease_draft_review", kind: "legal", category: "legal", title: "Lease draft reviewed by client legal", required_for_stage: "signed", proof_required: true },
-  { key: "internal_approval", kind: "approval", category: "approval", title: "Client internal / board approval", required_for_stage: "signed", proof_required: true },
-  { key: "stamp_registration", kind: "document", category: "legal", title: "Stamp duty and registration completed", required_for_stage: "possession", proof_required: true },
-  { key: "fitout_approval", kind: "move_dependency", category: "fitout_approval", title: "Fit-out drawings approved by landlord / authorities", required_for_stage: "possession", proof_required: true },
-  { key: "handover", kind: "possession", category: "handover", title: "Handover inspection and snag list signed", required_for_stage: "possession", proof_required: true },
-  { key: "access", kind: "move_dependency", category: "access", title: "Access cards, parking allocation and signage", required_for_stage: null, proof_required: false },
-  { key: "it_migration", kind: "move_dependency", category: "it_migration", title: "IT / connectivity migration plan", required_for_stage: null, proof_required: false },
-  { key: "parallel_rent", kind: "move_dependency", category: "parallel_rent", title: "Parallel rent window agreed with old landlord", required_for_stage: null, proof_required: false },
-  { key: "reinstatement", kind: "move_dependency", category: "reinstatement", title: "Reinstatement obligations on the old premises", required_for_stage: null, proof_required: false },
-  { key: "business_interruption", kind: "move_dependency", category: "business_interruption", title: "Business-interruption / cut-over plan", required_for_stage: null, proof_required: false },
-  { key: "fee_invoice_prereqs", kind: "fee", category: "fee", title: "Fee invoice prerequisites (signed lease copy, PO / engagement letter)", required_for_stage: "invoiced", proof_required: true },
+  { key: "loi_signed", kind: "document", category: "loi", title: "LOI / term sheet signed by both parties", required_for_stage: "documentation", proof_required: true, depends_on: null },
+  { key: "title_due_diligence", kind: "legal", category: "legal", title: "Title, approvals and occupation certificate checked", required_for_stage: "signed", proof_required: true, depends_on: "loi_signed" },
+  { key: "lease_draft_review", kind: "legal", category: "legal", title: "Lease draft reviewed by client legal", required_for_stage: "signed", proof_required: true, depends_on: "loi_signed" },
+  { key: "internal_approval", kind: "approval", category: "approval", title: "Client internal / board approval", required_for_stage: "signed", proof_required: true, depends_on: "lease_draft_review" },
+  { key: "stamp_registration", kind: "document", category: "legal", title: "Stamp duty and registration completed", required_for_stage: "possession", proof_required: true, depends_on: "internal_approval" },
+  { key: "fitout_approval", kind: "move_dependency", category: "fitout_approval", title: "Fit-out drawings approved by landlord / authorities", required_for_stage: "possession", proof_required: true, depends_on: "loi_signed" },
+  { key: "handover", kind: "possession", category: "handover", title: "Handover inspection and snag list signed", required_for_stage: "possession", proof_required: true, depends_on: "stamp_registration" },
+  { key: "access", kind: "move_dependency", category: "access", title: "Access cards, parking allocation and signage", required_for_stage: null, proof_required: false, depends_on: "handover" },
+  { key: "it_migration", kind: "move_dependency", category: "it_migration", title: "IT / connectivity migration plan", required_for_stage: null, proof_required: false, depends_on: "fitout_approval" },
+  { key: "parallel_rent", kind: "move_dependency", category: "parallel_rent", title: "Parallel rent window agreed with old landlord", required_for_stage: null, proof_required: false, depends_on: null },
+  { key: "reinstatement", kind: "move_dependency", category: "reinstatement", title: "Reinstatement obligations on the old premises", required_for_stage: null, proof_required: false, depends_on: null },
+  { key: "business_interruption", kind: "move_dependency", category: "business_interruption", title: "Business-interruption / cut-over plan", required_for_stage: null, proof_required: false, depends_on: "it_migration" },
+  { key: "fee_invoice_prereqs", kind: "fee", category: "fee", title: "Fee invoice prerequisites (signed lease copy, PO / engagement letter)", required_for_stage: "invoiced", proof_required: true, depends_on: "stamp_registration" },
 ];
 
 // ---------------------------------------------------------------- funnel maths (spec §12) — decimal, no LLM

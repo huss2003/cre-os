@@ -44,6 +44,8 @@ async function Body({ searchParams }: Props) {
           <Link key={t.key} href={`/approvals?tab=${t.key}`} aria-current={t.key === tab ? "page" : undefined}
             className={clsx("whitespace-nowrap rounded-lg px-3 py-2 text-sm", t.key === tab ? "bg-brand text-white" : "border border-line bg-surface")}>{t.label}</Link>
         ))}
+        <Link href="/approvals/conflicts" className="whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-sm">Conflicts</Link>
+        <Link href="/approvals/stale" className="whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-sm">Stale records</Link>
       </nav>
 
       {"proposals" in q && q.proposals ? (

@@ -41,9 +41,45 @@ export function rejectChange(db: Db, proposalId: string, opts: Actor & { note?: 
 export function clarifyChange(db: Db, proposalId: string, opts: Actor & { note: string }) {
   return rpc(db, "approve_change", { p_proposal: proposalId, p_decision: "clarify", p_note: opts.note, p_ttl_hours: null, p_actor: opts.actorUserId ?? null });
 }
-export function applyChange(db: Db, proposalId: string, opts: Actor = {}) {
-  return rpc<{ status: string; proposal_id: string; target_id: string; applied_audit_id: number; row_version?: number }>(
+export async function applyChange(db: Db, proposalId: string, opts: Actor = {}) {
+  const r = await rpc<{ status: string; proposal_id: string; target_id: string; applied_audit_id: number; row_version?: number; follow_up?: AnyRow }>(
     db, "apply_change", { p_proposal: proposalId, p_actor: opts.actorUserId ?? null });
+  if (r.status === "applied") r.follow_up = await afterApply(db, proposalId, opts);
+  return r;
+}
+
+/**
+ * Follow-ups after an apply (each is itself a proposal, never a direct write):
+ *  - a person created from an import's representative-name column => propose the employment link to that company
+ *    (material: needs approval), carrying the same evidence (staged row + file).
+ */
+async function afterApply(db: Db, proposalId: string, opts: Actor): Promise<AnyRow | undefined> {
+  const { data: p } = await db.from("change_proposal").select("id, workspace_id, idempotency_key, target_id, evidence_ids, classification, owner_user_id, reason")
+    .eq("id", proposalId).maybeSingle();
+  const key = p?.idempotency_key as string | null;
+  if (!p || !key?.startsWith("imports.person:") || !p.target_id) return undefined;
+  const orgId = key.split("|").pop()!;
+  if (!/^[0-9a-f-]{36}$/i.test(orgId)) return undefined;
+  const evidence = (p.evidence_ids ?? []) as string[];
+  const { data: so } = evidence.length
+    ? await db.from("source_object").select("id").eq("workspace_id", p.workspace_id).in("id", evidence).limit(1).maybeSingle()
+    : { data: null };
+  try {
+    const e = await proposeChange(db, p.workspace_id, {
+      targetType: "employment", operation: "create",
+      patch: [
+        { op: "add", path: "/person_id", value: p.target_id }, { op: "add", path: "/org_id", value: orgId },
+        { op: "add", path: "/title", value: "Representative (named in import)" }, { op: "add", path: "/is_current", value: true },
+        { op: "add", path: "/fact_status", value: "reported" }, ...(so ? [{ op: "add" as const, path: "/source_object_id", value: so.id }] : []),
+      ],
+      reason: `Link the person created from an import to the company they were named for (${(p.reason ?? "").slice(0, 160)})`,
+      evidenceIds: evidence, proposedByKind: "job", idempotencyKey: `imports.employment:${p.id}`,
+      classification: p.classification, ownerUserId: p.owner_user_id, actorUserId: opts.actorUserId ?? null,
+    });
+    return { employment_proposal_id: e.id };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
 }
 /** Approve then apply in one step (approval is still recorded and hash-bound). */
 export async function approveAndApply(db: Db, proposalId: string, opts: Actor & { note?: string } = {}) {

@@ -58,8 +58,28 @@ None beyond the core (`NEXT_PUBLIC_SUPABASE_URL`, keys). No AI calls.
 throwaway workspace (`pipeline.test.ts`: headerless tab, repeat & revision, lease chronology, identity ambiguity, market controls, unknown
 schema, admin-only mapping guard, restricted storage, kill switch), volume (`scale.test.ts`: 815 lease rows, idempotent re-run).
 
+## Round 2 (Intake Engineer / Database Steward) — migration `20261101000200_capture_imports_round2.sql`
+- **Approved sources** (`import_source`, `import_batch.import_source_id`, status `awaiting_source`): upload chooses a source; an unknown
+  name is registered unapproved and the batch is stored but **quarantined** (blocking `unapproved_source` exception) until an admin
+  approves it (DB trigger `imports_source_guard`; `approveSource` then processes waiting batches). No source => built-in approved
+  "Manual upload" source (`mudar_app.imports_default_source`, revocable). Page `/imports/sources`; API `GET/POST /api/v1/imports/sources`,
+  `POST /api/v1/imports/sources/[id]` `{decision: approve|revoke}`; upload accepts `source_id` or `source_name`+`source_kind`.
+- **Field conflicts** (`field_conflict`, deterministic ids): asset status/area/floor sizes/floors, lease rent/tenure/lock-in and lease-event
+  dates that disagree with the CURRENT master are recorded with source locator + file version; masters are never overwritten.
+  Material ones (MATERIAL_FIELDS) get a change proposal (`imports.conflict:<id>`, evidence = staged row + source_object). Shown on
+  `/imports/[id]` and `/approvals/conflicts`. Re-import/re-process => zero new rows (counts in `counts.steward`).
+- **Person candidates**: representative-name columns => `person` create proposals keyed `imports.person:<name+company>` (never merged by
+  name; same-name records are mentioned in the reason). Applying one proposes the employment link (material, needs approval).
+- **Merge/relate evidence**: `decideMatch` attaches the batch's source_object + staged rows targeting either record (`candidateEvidence`).
+- **Stale-record job** `imports.steward_stale` (daily per workspace, dedupe `imports.steward_stale:<ws>:<day>`) runs
+  `changes/steward.ts#runStaleDetector`.
+- Fixed: jsonb `contains` filters (`targets`, merge `patch`) were sent in array-literal form and never matched (merge following now works).
+- Tests: `steward.test.ts` (quarantine + admin-only approval, conflicts/proposals/zero duplicates, propose-fix → provenance, person proposals
+  → employment follow-up, merge evidence, stale detector).
+
 ## Known gaps
-- Person masters are not created from "representative name" columns (no verified identifiers; names kept in staged rows).
+- Transactions' broker/contact columns are not turned into people (brokers are firm context only).
+- Conflicts are detected for assets and leases; transaction and market rows are observations and are not compared with a master.
 - Developer names are kept raw (not linked as landlord/developer organisations).
 - Transactions link to buildings only on an exact building|locality key; no building masters are created from tracker labels.
 - Fractional-tenure rows create the lease with a dateless `needs_review` event; there is no in-app "confirm intended tenure" editor yet.

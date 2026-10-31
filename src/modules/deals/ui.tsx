@@ -13,8 +13,10 @@ export function Flash({ sp }: { sp: Record<string, string | string[] | undefined
 }
 
 export function FieldStatusBadge({ status }: { status: string }) {
-  if (status === "client_confirmed") return <Badge tone="ok">Client confirmed</Badge>;
-  if (status === "estimated") return <Badge tone="warn">Estimated</Badge>;
+  if (status === "client_confirmed") return <Badge tone="ok" title="Confirmed client instruction">Client-confirmed</Badge>;
+  if (status === "reported") return <Badge tone="brand" title="Stated second-hand — not a client instruction">Reported</Badge>;
+  if (status === "estimated") return <Badge tone="warn" title="Our estimate — not a client instruction">Estimated</Badge>;
+  if (status === "config") return <Badge title="Adviser matching configuration">Config</Badge>;
   return <Badge>Unknown</Badge>;
 }
 

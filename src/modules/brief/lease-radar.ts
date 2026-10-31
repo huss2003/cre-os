@@ -42,6 +42,17 @@ export interface LeaseInput {
   lockinMonthsRaw?: number | null;
   contractualExpiry?: string | null;
   status?: string | null;
+  /** Escalation terms stated in a linked lease document clause (stated values only; never inferred). */
+  escalationTerms?: EscalationTerm[];
+}
+
+export interface EscalationTerm {
+  clauseId: string;
+  documentId: string | null;
+  percent: number | null;
+  everyMonths: number | null;   // already converted from years by the loader (×12, integer only)
+  needsReview?: boolean;
+  excerpt?: string | null;
 }
 
 export interface LeaseEventInput {
@@ -54,6 +65,7 @@ export interface LeaseEventInput {
   noticeDayRule?: string | null; // 'business' | 'calendar'
   confirmed?: boolean;
   needsReview?: boolean;
+  reviewReason?: string | null;
   formulaRaw?: string | null;
 }
 
@@ -66,7 +78,25 @@ export interface DatedFact {
   source: "event" | "lease_field" | "radar";
   eventId?: string;
   formula?: string;
+  inputs?: Record<string, unknown>;
+  detail?: string;
+  sourceClauseId?: string;
 }
+
+/** A radar-calculated date to persist as a lease_event row (calc_key, date_basis calculated_by_radar, confirmed=false). */
+export interface CalculatedEvent {
+  calcKey: string;
+  leaseId: string;
+  eventType: "expiry" | "lockin_end" | "notice_deadline" | "escalation";
+  date: string;
+  formula: string;
+  inputs: Record<string, unknown>;
+  sourceClauseId: string | null;
+}
+
+export interface ReviewFlag { key: string; eventId: string | null; eventType: string; date: string | null; reason: string }
+
+export interface PlanMilestone { key: "options_start" | "decision_by" | "procurement_start" | "fitout_start" | "notice_deadline"; label: string; date: string }
 
 export interface ReversePlan {
   occupation: string;
@@ -102,6 +132,10 @@ export interface RadarItem {
   lockinEnd: DatedFact | null;
   noticeDeadline: DatedFact | null;
   breaks: DatedFact[];
+  escalations: DatedFact[];     // rent escalation events — their own event type
+  options: DatedFact[];         // renewal/extension option events
+  reviewFlags: ReviewFlag[];    // ambiguous clauses / unverified events needing human review
+  calculated: CalculatedEvent[]; // radar-calculated dates to persist (distinct from verified/imported events)
   status: RadarStatus;
   issues: string[];
   enrichment: { reason: string; key: string }[]; // become idempotent enrichment tasks
@@ -125,6 +159,7 @@ function fact(e: LeaseEventInput): DatedFact {
     source: "event",
     eventId: e.id,
     formula: e.formulaRaw ?? undefined,
+    detail: e.needsReview ? `needs review${e.reviewReason ? `: ${e.reviewReason}` : ""}` : undefined,
   };
 }
 
@@ -220,7 +255,7 @@ export function analyseLease(
   if (!expiry && calculated) {
     expiry = {
       date: calculated, basis: "calculated_by_radar", basisLabel: DATE_BASIS_LABEL.calculated_by_radar, verified: false, confirmed: false, source: "radar",
-      formula: `EDATE(${lease.startDate}, ${tenure})`,
+      formula: `EDATE(${lease.startDate}, ${tenure})`, inputs: { start_date: lease.startDate, tenure_months: tenure, lease_id: lease.id },
     };
   } else if (expiry && calculated && expiry.date !== calculated && expiry.basis !== "estimated" && expiry.basis !== "reported") {
     issues.push(`Calculated expiry ${calculated} (EDATE(start, ${tenure})) differs from ${expiry.basisLabel.toLowerCase()} ${expiry.date}; ${expiry.basisLabel.toLowerCase()} kept.`);
@@ -235,6 +270,7 @@ export function analyseLease(
       lockinEnd = {
         date: edate(lease.startDate, lease.lockinMonthsRaw), basis: "calculated_by_radar", basisLabel: DATE_BASIS_LABEL.calculated_by_radar,
         verified: false, confirmed: false, source: "radar", formula: `EDATE(${lease.startDate}, ${lease.lockinMonthsRaw})`,
+        inputs: { start_date: lease.startDate, lockin_months: lease.lockinMonthsRaw, lease_id: lease.id },
       };
     } else {
       issues.push(`Fractional lock-in (${lease.lockinMonthsRaw} months) quarantined.`);
@@ -242,7 +278,18 @@ export function analyseLease(
   }
 
   // ---- breaks
-  const breaks = ev.filter((e) => e.eventType === "break" && e.eventDate).map(fact).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const byDate = (a: DatedFact, b: DatedFact) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  const breaks = ev.filter((e) => e.eventType === "break" && e.eventDate).map(fact).sort(byDate);
+  const options = ev.filter((e) => e.eventType === "option" && e.eventDate).map(fact).sort(byDate);
+
+  // ---- review flags: ambiguous clauses / events explicitly marked for review
+  const reviewFlags: ReviewFlag[] = ev.filter((e) => e.needsReview).map((e) => ({
+    key: `event:${e.id}`, eventId: e.id, eventType: e.eventType, date: e.eventDate,
+    reason: e.reviewReason?.trim() || `${e.eventType.replace(/_/g, " ")} event flagged for review (no reason recorded)`,
+  }));
+  for (const e of ev.filter((x) => !x.eventDate && !x.needsReview)) {
+    reviewFlags.push({ key: `event:${e.id}`, eventId: e.id, eventType: e.eventType, date: null, reason: `${e.eventType.replace(/_/g, " ")} event has no date — clause needs interpretation` });
+  }
 
   // ---- notice deadline: explicit event, else derived only when length + day rule + basis exist
   let noticeDeadline: DatedFact | null = null;
@@ -261,11 +308,42 @@ export function analyseLease(
       derived.push({
         date: d, basis: "calculated_by_radar", basisLabel: `${DATE_BASIS_LABEL.calculated_by_radar} (${e.eventType} − ${e.noticeDays} ${rule} days)`,
         verified: fact(e).verified, confirmed: false, source: "radar", formula: `${e.eventType} ${e.eventDate} − ${e.noticeDays} ${rule} days`,
+        inputs: { base_event_id: e.id, base_event_type: e.eventType, base_date: e.eventDate, notice_days: e.noticeDays, day_rule: rule, lease_id: lease.id },
       });
     }
     const upcoming = derived.filter((d) => d.date >= today).sort((a, b) => (a.date < b.date ? -1 : 1));
     noticeDeadline = upcoming[0] ?? derived.sort((a, b) => (a.date < b.date ? 1 : -1))[0] ?? null;
   }
+
+  // ---- rent escalation (its own event type): recorded events first; otherwise calculated from a stated clause term
+  let escalations: DatedFact[] = ev.filter((e) => e.eventType === "escalation" && e.eventDate).map(fact).sort(byDate);
+  for (const t of lease.escalationTerms ?? []) {
+    if (t.needsReview) reviewFlags.push({ key: `clause:${t.clauseId}`, eventId: null, eventType: "escalation", date: null, reason: `Escalation clause needs review${t.excerpt ? `: “${t.excerpt.slice(0, 140)}”` : ""}` });
+  }
+  if (escalations.length === 0 && lease.escalationTerms?.length) {
+    const t = lease.escalationTerms.find((x) => isIntegerMonths(x.everyMonths)) ?? null;
+    if (!t) {
+      reviewFlags.push({ key: `clause:${lease.escalationTerms[0].clauseId}:frequency`, eventId: null, eventType: "escalation", date: null, reason: "Escalation clause found but its frequency is not stated — escalation dates not calculated" });
+    } else if (!lease.startDate) {
+      issues.push("Escalation term known but the lease start date is unknown — escalation dates not calculated.");
+    } else if (!expiry) {
+      issues.push("Escalation term known but the lease term/expiry is unknown — escalation dates not calculated.");
+    } else {
+      const every = t.everyMonths!;
+      const pct = t.percent;
+      for (let k = 1; k <= 40; k++) {
+        const d = edate(lease.startDate, k * every);
+        if (d >= expiry.date) break;
+        escalations.push({
+          date: d, basis: "calculated_by_radar", basisLabel: DATE_BASIS_LABEL.calculated_by_radar, verified: false, confirmed: false, source: "radar",
+          formula: `EDATE(${lease.startDate}, ${k} × ${every})`, detail: pct != null ? `+${pct}% (stated)` : "rate not stated",
+          inputs: { start_date: lease.startDate, every_months: every, step: k, percent: pct, clause_id: t.clauseId, document_id: t.documentId, lease_id: lease.id },
+          sourceClauseId: t.clauseId,
+        });
+      }
+    }
+  }
+  escalations = escalations.sort(byDate);
 
   // ---- status
   let status: RadarStatus = "active";
@@ -291,7 +369,18 @@ export function analyseLease(
     callWindow = callWindowFor(plan, today, opts.settings);
   }
 
-  const upcomingKey = [noticeDeadline?.date, ...breaks.map((b) => b.date), expiry?.date].filter((d): d is string => !!d && d >= today).sort();
+  const upcomingKey = [noticeDeadline?.date, ...breaks.map((b) => b.date), ...options.map((o) => o.date), ...escalations.map((e) => e.date), expiry?.date].filter((d): d is string => !!d && d >= today).sort();
+
+  // ---- radar-calculated dates to persist (reproducible: same inputs -> same keys and values)
+  const calculatedEvents: CalculatedEvent[] = [];
+  const persist = (key: string, type: CalculatedEvent["eventType"], f: DatedFact | null) => {
+    if (f && f.source === "radar" && f.formula) calculatedEvents.push({ calcKey: `radar:${lease.id}:${key}`, leaseId: lease.id, eventType: type, date: f.date, formula: f.formula, inputs: f.inputs ?? {}, sourceClauseId: f.sourceClauseId ?? null });
+  };
+  persist("expiry", "expiry", expiry);
+  persist("lockin_end", "lockin_end", lockinEnd);
+  persist("notice_deadline", "notice_deadline", noticeDeadline);
+  escalations.forEach((e) => persist(`escalation:${(e.inputs?.step as number | undefined) ?? e.date}`, "escalation", e));
+
   return {
     leaseId: lease.id,
     tenantOrgId: lease.tenantOrgId,
@@ -300,7 +389,7 @@ export function analyseLease(
     assetId: lease.assetId ?? null,
     assetName: lease.assetName ?? null,
     areaSf: lease.areaSf ?? null,
-    expiry, lockinEnd, noticeDeadline, breaks, status, issues, enrichment, plan, callWindow,
+    expiry, lockinEnd, noticeDeadline, breaks, escalations, options, reviewFlags, calculated: calculatedEvents, status, issues, enrichment, plan, callWindow,
     daysToExpiry: expiry ? daysBetween(today, expiry.date) : null,
     daysToNotice: noticeDeadline ? daysBetween(today, noticeDeadline.date) : null,
     nextKeyDate: upcomingKey[0] ?? null,
@@ -374,4 +463,30 @@ export function landlordConcentration(items: RadarItem[], today: string, horizon
     map.set(key, row);
   }
   return [...map.values()].sort((a, b) => b.leases - a.leases || b.areaSf - a.areaSf || a.quarter.localeCompare(b.quarter));
+}
+
+/** Reverse-plan milestones (decision, procurement, fit-out start, notice) to turn into dated tasks. */
+export function planMilestones(item: Pick<RadarItem, "plan" | "status">): PlanMilestone[] {
+  const p = item.plan;
+  if (!p || item.status !== "active") return [];
+  const out: PlanMilestone[] = [
+    { key: "options_start", label: "Start options / site visits", date: p.optionsStart },
+    { key: "decision_by", label: "Site decision", date: p.decisionBy },
+    { key: "procurement_start", label: "Start LOI / documentation / approvals", date: p.procurementStart },
+    { key: "fitout_start", label: "Fit-out must start", date: p.fitoutStart },
+  ];
+  if (p.noticeDeadline) out.push({ key: "notice_deadline", label: "Serve / decide notice", date: p.noticeDeadline });
+  return out;
+}
+
+/** Upcoming rent escalation / option events within `days` (for alerts and the brief). */
+export function upcomingEventFacts(item: RadarItem, today: string, days: number): { kind: "escalation" | "option"; fact: DatedFact; days: number }[] {
+  const out: { kind: "escalation" | "option"; fact: DatedFact; days: number }[] = [];
+  for (const [kind, list] of [["escalation", item.escalations], ["option", item.options]] as const) {
+    for (const f of list) {
+      const d = daysBetween(today, f.date);
+      if (d >= 0 && d <= days) out.push({ kind, fact: f, days: d });
+    }
+  }
+  return out.sort((a, b) => a.days - b.days);
 }

@@ -7,6 +7,7 @@ import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
 import { type AiCall, isoDate, expiryFor } from "../common";
 import { detectThreadingGaps, type ThreadingGap, stageIndex } from "./graph";
 import { introPathSummaries, nameMap } from "../research/service";
+import { verifyTaskKey, jobMoveVerified } from "./consent";
 
 type Row = Record<string, unknown>;
 
@@ -51,6 +52,8 @@ export interface JobMoveResult {
   claim?: Row;
   proposals?: Row[];
   flags?: string[];
+  task?: Row | null;
+  verified?: boolean;
 }
 
 export async function recordJobMove(db: Db, workspaceId: string, raw: z.input<typeof JobMoveInput>, userId?: string | null): Promise<JobMoveResult> {
@@ -60,7 +63,11 @@ export async function recordJobMove(db: Db, workspaceId: string, raw: z.input<ty
     return { status: "needs_identity", candidates };
   }
   const observed = input.observedOn ?? isoDate(new Date())!;
-  const { data: claim, error } = await db.from("signal_claim").insert({
+  // Replay-safe: an open (unconfirmed) candidate move for the same person and new employer is reused, not duplicated.
+  const { data: openClaims } = await db.from("signal_claim").select("*").eq("workspace_id", workspaceId).eq("subject_type", "person").eq("subject_id", input.personId)
+    .eq("claim_type", "job_move").eq("value_json->>to_org_id", input.toOrgId).eq("status", "reported").is("archived_at", null).order("created_at", { ascending: false }).limit(1);
+  const reused = openClaims?.[0] ?? null;
+  const { data: claim, error } = reused ? { data: reused, error: null } : await db.from("signal_claim").insert({
     workspace_id: workspaceId, subject_type: "person", subject_id: input.personId, claim_type: "job_move",
     predicate: "moved_to", value_json: { from_org_id: input.fromOrgId ?? null, to_org_id: input.toOrgId, title: input.newTitle ?? null, source_kind: input.sourceKind },
     status: "reported", evidence_tier: input.sourceKind === "press_release" || input.sourceKind === "appointment_notice" || input.sourceKind === "company_page" ? "credible_reported" : "single_unverified",
@@ -109,7 +116,63 @@ export async function recordJobMove(db: Db, workspaceId: string, raw: z.input<ty
     `Possible opportunity at ${orgs.get(input.toOrgId) ?? "the new employer"}: a new leader may review the workplace — verify; do not assume authority to decide.`,
     ...[...new Set((olds ?? []).map((o) => String(o.org_id)))].filter((o) => o !== input.toOrgId).map((o) => `Re-map the decision committee at ${orgs.get(o) ?? "the former employer"}: a contact has left. Old-company deal notes stay with that account.`),
   ];
-  return { status: "proposed", claim, proposals, flags };
+  const task = await ensureVerificationTask(db, workspaceId, { personId: input.personId, toOrgId: input.toOrgId, claimId: String(claim.id), userId: userId ?? null,
+    personName: (await nameMap(db, workspaceId, "person", [input.personId])).get(input.personId) ?? "Contact", toOrgName: orgs.get(input.toOrgId) ?? "the new employer" });
+  return { status: "proposed", claim, proposals, flags, task, verified: false };
+}
+
+/**
+ * Dedicated verification task for a candidate job move (in addition to the approval proposals). One per person + new
+ * employer (deterministic idempotency key), so re-recording the same move never creates a second task.
+ */
+export async function ensureVerificationTask(db: Db, workspaceId: string, p: { personId: string; toOrgId: string; claimId: string; userId: string | null; personName: string; toOrgName: string }) {
+  const key = verifyTaskKey(p.personId, p.toOrgId);
+  const { data: existing } = await db.from("task").select("*").eq("workspace_id", workspaceId).eq("idempotency_key", key).limit(1);
+  if (existing?.length) return existing[0] as Row;
+  const due = new Date(Date.now() + 7 * 86_400_000).toISOString();
+  const { data, error } = await db.from("task").insert({
+    workspace_id: workspaceId, title: `Verify job move: ${p.personName} → ${p.toOrgName}`,
+    description: `Unverified candidate move (evidence signal_claim ${p.claimId}). Confirm with a second source or the person before treating it as fact; do not assume authority at the new employer. Approve or reject the employment proposals in Approvals.`,
+    due_at: due, status: "open", priority: 60, assigned_user_id: p.userId, linked_entity_type: "person", linked_entity_id: p.personId,
+    source: "workflow", idempotency_key: key, owner_user_id: p.userId ?? undefined,
+  }).select().single();
+  if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      const { data: again } = await db.from("task").select("*").eq("workspace_id", workspaceId).eq("idempotency_key", key).limit(1);
+      return (again?.[0] as Row) ?? null;
+    }
+    throw error;
+  }
+  return data as Row;
+}
+
+/** Human confirmation of a candidate move: claim -> currently_confirmed, verification task done (with the evidence note). */
+export async function verifyJobMove(db: Db, workspaceId: string, claimId: string, note: string | null) {
+  const { data: claim, error } = await db.from("signal_claim").select("id, subject_id, value_json, status, row_version").eq("workspace_id", workspaceId).eq("id", claimId).eq("claim_type", "job_move").maybeSingle();
+  if (error) throw error;
+  if (!claim) throw new Error("Job move not found.");
+  if (claim.status !== "currently_confirmed") {
+    const { data: upd, error: e1 } = await db.from("signal_claim").update({ status: "currently_confirmed", evidence_tier: "corroborated_public" }).eq("workspace_id", workspaceId).eq("id", claimId).eq("row_version", claim.row_version).select("id").maybeSingle();
+    if (e1) throw e1;
+    if (!upd) throw new Error("This job move changed meanwhile — reload and try again.");
+  }
+  const toOrg = String(((claim.value_json ?? {}) as Row).to_org_id ?? "");
+  const { data: task } = await db.from("task").update({ status: "done", completed_at: new Date().toISOString(), completion_evidence: (note ?? "Confirmed by user").slice(0, 1000) })
+    .eq("workspace_id", workspaceId).eq("idempotency_key", verifyTaskKey(String(claim.subject_id), toOrg)).in("status", ["open", "snoozed", "stale"]).select("id").maybeSingle();
+  return { claimId, verified: true, taskClosed: !!task };
+}
+
+/** Verification state of job-move claims (claim confirmed, or all employment proposals applied). */
+export async function jobMoveStates(db: Db, workspaceId: string, claims: { id: string; status: string }[]) {
+  const out = new Map<string, boolean>();
+  if (!claims.length) return out;
+  // The "open new employment" proposal is the one that turns the move into a fact.
+  const { data } = await db.from("change_proposal").select("idempotency_key, state").eq("workspace_id", workspaceId).in("idempotency_key", claims.map((c) => `jobmove:${c.id}:open`)).limit(1000);
+  for (const c of claims) {
+    const states = ((data ?? []) as Row[]).filter((p) => String(p.idempotency_key).startsWith(`jobmove:${c.id}:`)).map((p) => String(p.state));
+    out.set(c.id, jobMoveVerified(c.status, states));
+  }
+  return out;
 }
 
 const ReconnectSchema = z.object({ subject: z.string(), body: z.string() });

@@ -6,8 +6,9 @@
  */
 import { proposeChange } from "@/lib/services/changes";
 import { type DealsCtx, DealsError, dbError, must, owned } from "../ctx";
+import { syncQuestionTasks } from "./tasks";
 import {
-  FIELD_BY_KEY, REQUIREMENT_FIELDS, confirmationBlockers, fieldStatus, missingQuestions, partitionEdit, requirementCompleteness,
+  FIELD_BY_KEY, REQUIREMENT_FIELDS, applyDerivedSpecs, confirmationBlockers, hardConstraints, fieldStatus, missingQuestions, partitionEdit, requirementCompleteness,
   stakeholderGaps, toColumnPatch, type FieldStatus, type RequirementConstraints, type RequirementRow, STAKEHOLDER_ROLES,
 } from "./contract";
 
@@ -52,8 +53,11 @@ function coerce(key: string, value: unknown): unknown {
   }
 }
 
-/** Build the column patch + new constraints object for a set of field changes (pure). */
-export function buildPatch(req: RequirementRow, changes: FieldChange[]): { columns: Record<string, unknown>; constraints: RequirementConstraints } {
+/**
+ * Build the column patch + new constraints object for a set of field changes (pure). Free-text technical answers
+ * (power, parking, transit, working hours, certifications, fit-out) are re-parsed into constraints.required_specs.
+ */
+export function buildPatch(req: RequirementRow, changes: FieldChange[]): { columns: Record<string, unknown>; constraints: RequirementConstraints; specNotes: string[] } {
   const constraints: RequirementConstraints = JSON.parse(JSON.stringify(req.constraints ?? {}));
   constraints.values = constraints.values ?? {};
   constraints.field_status = constraints.field_status ?? {};
@@ -72,7 +76,8 @@ export function buildPatch(req: RequirementRow, changes: FieldChange[]): { colum
     }
     if (ch.status) constraints.field_status[ch.key] = ch.status;
   }
-  return { columns, constraints };
+  const specNotes = applyDerivedSpecs(constraints, changes.filter((c) => "value" in c).map((c) => c.key));
+  return { columns, constraints, specNotes };
 }
 
 async function snapshot(ctx: DealsCtx, req: Record<string, unknown>, reason: string | null, changeProposalId: string | null = null) {
@@ -116,10 +121,11 @@ export async function createRequirement(ctx: DealsCtx, input: CreateRequirementI
     conflict_status: (columns.conflict_status as string | undefined) ?? "not_checked",
   }).select("*").single(), "requirement") as Record<string, unknown>;
   await snapshot(ctx, row, "created");
+  await syncQuestionTasks(ctx, row as unknown as RequirementRow & { id: string });
   return row;
 }
 
-export interface UpdateResult { requirement: Record<string, unknown>; applied: string[]; proposals: { id: string; fields: string[]; risk: string }[] }
+export interface UpdateResult { requirement: Record<string, unknown>; applied: string[]; proposals: { id: string; fields: string[]; risk: string }[]; specNotes: string[] }
 
 /**
  * Apply field changes. Estimated/unknown fields are written directly (optimistic concurrency on row_version);
@@ -135,8 +141,10 @@ export async function updateRequirementFields(ctx: DealsCtx, id: string, expecte
   const propChanges = changes.filter((c) => viaProposal.includes(c.key));
   let current: Record<string, unknown> = req;
   const applied: string[] = [];
+  const specNotes: string[] = [];
   if (directChanges.length) {
-    const { columns, constraints } = buildPatch(req, directChanges);
+    const { columns, constraints, specNotes: notes } = buildPatch(req, directChanges);
+    specNotes.push(...notes);
     // a confirmed field's status may never be changed through the direct path
     // controlled write path (SQL re-checks role, row access, version and confirmed-field locks)
     const upd = await ctx.db.rpc("deals_update_requirement", {
@@ -146,6 +154,7 @@ export async function updateRequirementFields(ctx: DealsCtx, id: string, expecte
     current = upd.data as Record<string, unknown>;
     applied.push(...directChanges.map((c) => c.key));
     await snapshot(ctx, current, reason || "edited");
+    await syncQuestionTasks(ctx, current as unknown as RequirementRow & { id: string });
   }
   const proposals: UpdateResult["proposals"] = [];
   if (propChanges.length) {
@@ -165,7 +174,7 @@ export async function updateRequirementFields(ctx: DealsCtx, id: string, expecte
     });
     proposals.push({ id: (cp as { id: string }).id, fields: propChanges.map((c) => c.key), risk: (cp as { risk: string }).risk });
   }
-  return { requirement: current, applied, proposals };
+  return { requirement: current, applied, proposals, specNotes };
 }
 
 /** Mark the requirement client-confirmed. Every mandatory field must be known AND individually confirmed. */
@@ -178,6 +187,7 @@ export async function confirmRequirement(ctx: DealsCtx, id: string, expectedVers
   const upd = await ctx.db.rpc("deals_confirm_requirement", { p_id: id, p_expected_version: expectedVersion, p_evidence: opts.evidence.trim(), p_person: opts.confirmedByPersonId ?? null });
   if (upd.error) throw dbError(upd.error, "requirement");
   await snapshot(ctx, upd.data as Record<string, unknown>, `client confirmed: ${opts.evidence.trim()}`);
+  await syncQuestionTasks(ctx, upd.data as RequirementRow & { id: string });
   return upd.data as Record<string, unknown>;
 }
 
@@ -190,6 +200,7 @@ export async function setNotApplicable(ctx: DealsCtx, id: string, expectedVersio
   const upd = await ctx.db.rpc("deals_update_requirement", { p_id: id, p_expected_version: expectedVersion, p_patch: { constraints: { ...(req.constraints ?? {}), not_applicable: [...cur].sort() } } });
   if (upd.error) throw dbError(upd.error, "requirement");
   await snapshot(ctx, upd.data as Record<string, unknown>, `not applicable: ${keys.join(", ")}`);
+  await syncQuestionTasks(ctx, upd.data as RequirementRow & { id: string });
   return upd.data as Record<string, unknown>;
 }
 
@@ -219,14 +230,19 @@ export async function listRequirements(ctx: DealsCtx, opts: { status?: string; l
 
 export async function getRequirementDetail(ctx: DealsCtx, id: string) {
   const req = must(await ctx.db.from("requirement").select("*, organisation:org_id(id, display_name)").eq("id", id).maybeSingle(), "requirement") as RequirementRow & Record<string, unknown>;
-  const [stake, versions, sv, quotes, opps, props] = await Promise.all([
+  const [stake, versions, sv, quotes, opps, props, tasks] = await Promise.all([
     ctx.db.from("stakeholder").select("id, role, influence_basis, access_status, person:person_id(id, full_name)").eq("requirement_id", id),
     ctx.db.from("requirement_version").select("version, change_reason, created_at, change_proposal_id").eq("requirement_id", id).order("version", { ascending: false }).limit(20),
     ctx.db.from("shortlist_version").select("*").eq("requirement_id", id).order("version", { ascending: false }).limit(1).maybeSingle(),
     ctx.db.from("quote").select("*").eq("requirement_id", id).order("created_at", { ascending: false }),
     ctx.db.from("opportunity").select("id, name, stage, outcome").eq("requirement_id", id),
     ctx.db.from("change_proposal").select("id, state, risk, reason, created_at").eq("target_type", "requirement").eq("target_id", id).in("state", ["proposed", "approved", "clarify"]),
+    ctx.db.from("task").select("id, title, status, source, idempotency_key, completed_at, completion_evidence, row_version").eq("workspace_id", ctx.workspaceId)
+      .eq("linked_entity_type", "requirement").eq("linked_entity_id", id).is("archived_at", null).order("created_at", { ascending: true }).limit(300),
   ]);
+  const geoIds = [...new Set([...(req.preferred_geography_ids ?? []), ...(req.excluded_geography_ids ?? [])])];
+  const geos = geoIds.length ? ((await ctx.db.from("geography").select("id, name, level").in("id", geoIds)).data ?? []) as { id: string; name: string; level: string }[] : [];
+  const geoName = (gid: string) => geos.find((g) => g.id === gid)?.name ?? `unknown geography ${gid.slice(0, 8)}`;
   const latest = sv.data as { version: number } | null;
   const options = latest
     ? (await ctx.db.from("shortlist_option").select("*").eq("requirement_id", id).eq("version", latest.version).order("fit_score", { ascending: false })).data ?? []
@@ -245,5 +261,31 @@ export async function getRequirementDetail(ctx: DealsCtx, id: string) {
     quotes: quotes.data ?? [],
     opportunities: opps.data ?? [],
     pendingProposals: props.data ?? [],
+    hardConstraints: hardConstraints(req, geoName),
+    geographies: geos,
+    tasks: (tasks.data ?? []) as { id: string; title: string; status: string; source: string | null; idempotency_key: string | null; completed_at: string | null; completion_evidence: string | null; row_version: number }[],
   };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve location names (or ids) to geography ids in this workspace — exact, case-insensitive match on the name or
+ * an alias. Unknown names are an error listing them (never silently dropped or fuzzily guessed).
+ */
+export async function resolveGeographies(ctx: DealsCtx, input: string[] | string): Promise<string[]> {
+  const items = (Array.isArray(input) ? input : String(input).split(",")).map((x) => String(x).trim()).filter(Boolean);
+  if (!items.length) return [];
+  const r = await ctx.db.from("geography").select("id, name, aliases").eq("workspace_id", ctx.workspaceId).is("archived_at", null).limit(5000);
+  if (r.error) throw dbError(r.error, "geography");
+  const geos = (r.data ?? []) as { id: string; name: string; aliases: string[] | null }[];
+  const out: string[] = [];
+  const unknown: string[] = [];
+  for (const it of items) {
+    const low = it.toLowerCase();
+    const g = UUID_RE.test(it) ? geos.find((x) => x.id === it) : geos.find((x) => x.name.toLowerCase() === low || (x.aliases ?? []).some((a) => a.toLowerCase() === low));
+    if (g) { if (!out.includes(g.id)) out.push(g.id); } else unknown.push(it);
+  }
+  if (unknown.length) throw new DealsError(400, `unknown location(s): ${unknown.join(", ")} — add them under geographies first or use an existing name`);
+  return out;
 }

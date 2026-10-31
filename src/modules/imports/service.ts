@@ -8,8 +8,8 @@ import { ForbiddenTargetError } from "@/lib/services/changes";
 import { getAdapter, ADAPTERS } from "./detect";
 import { enqueueProcess } from "./jobs";
 import {
-  type ApproveMappingInput, type ImportOptions, type MatchDecision, ImportError, approveMapping, decideMatch, getReconciliation, processBatch,
-  registerImport, resolveException,
+  type ApproveMappingInput, type ImportOptions, type ImportSourceKind, type MatchDecision, ImportError, approveMapping, decideMatch, getReconciliation, processBatch,
+  registerImport, resolveException, resolveImportSource, sourceKey,
 } from "./pipeline";
 
 type Ctx = Pick<AppContext, "db" | "workspaceId" | "userId" | "role">;
@@ -26,7 +26,7 @@ export async function asHttp<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
-const REPROCESSABLE = ["registered", "completed", "completed_with_exceptions", "needs_mapping", "failed"];
+const REPROCESSABLE = ["registered", "completed", "completed_with_exceptions", "needs_mapping", "failed", "awaiting_source"];
 
 /** Upload => register (hash/version/store) => enqueue a durable job => try to process inline for immediate feedback. */
 export async function uploadImport(ctx: Ctx, file: { name: string; bytes: Uint8Array }, options: ImportOptions) {
@@ -38,6 +38,12 @@ export async function uploadImport(ctx: Ctx, file: { name: string; bytes: Uint8A
     const reg = await registerImport(ctx.db, { workspaceId: ctx.workspaceId, userId: ctx.userId, fileName: file.name, bytes: file.bytes, options });
     if (reg.duplicate) {
       return { batch_id: reg.batchId, source_object_id: reg.sourceObjectId, duplicate: true, version: reg.version, sha256: reg.sha256, status: "duplicate_noop" };
+    }
+    if (reg.sourceApproved === false) {
+      // quarantined: stored and hashed, but nothing is read into the workbench until an admin approves the source
+      const res = await processBatch(ctx.db, { workspaceId: ctx.workspaceId, batchId: reg.batchId });
+      return { batch_id: reg.batchId, source_object_id: reg.sourceObjectId, duplicate: false, version: reg.version, sha256: reg.sha256,
+        status: res.status, queued: false, error: res.error ?? null, counts: null };
     }
     let queued = true;
     try {
@@ -130,3 +136,73 @@ export function mappableRoles() {
 }
 
 export const adapterLabel = (id: string | null | undefined) => (id ? id.split(",").map((x) => getAdapter(x)?.label ?? x).join(", ") : "—");
+
+/* ------------------------------------------------------------------ approved import sources */
+
+export async function listSources(ctx: Ctx) {
+  await asHttp(() => resolveImportSource(ctx.db, ctx.workspaceId, ctx.userId, null)); // make sure the default exists
+  const { data, error } = await ctx.db.from("import_source").select("id, name, kind, location, approved, approved_at, is_default, note, created_at, archived_at")
+    .eq("workspace_id", ctx.workspaceId).is("archived_at", null).order("approved", { ascending: false }).order("name");
+  if (error) throw error;
+  const { data: waiting } = await ctx.db.from("import_batch").select("id, import_source_id").eq("workspace_id", ctx.workspaceId).eq("status", "awaiting_source");
+  const counts = new Map<string, number>();
+  for (const b of waiting ?? []) counts.set(b.import_source_id, (counts.get(b.import_source_id) ?? 0) + 1);
+  return (data ?? []).map((r) => ({ ...r, waiting: counts.get(r.id) ?? 0 }));
+}
+
+const KINDS: ImportSourceKind[] = ["folder", "export", "connector", "email", "other"];
+
+/** Register a source. Editors register it unapproved; admins may approve at once (DB guard enforces this). */
+export async function createSource(ctx: Ctx, input: { name: string; kind?: string; location?: string | null; approve?: boolean; note?: string | null }) {
+  if (!hasRole(ctx, "editor")) throw new HttpError(403, "requires editor");
+  const name = input.name.trim().slice(0, 120);
+  if (name.length < 2) throw new HttpError(400, "source name is required");
+  const kind = (KINDS as string[]).includes(input.kind ?? "") ? (input.kind as ImportSourceKind) : "other";
+  const approve = !!input.approve && hasRole(ctx, "admin");
+  const { data, error } = await ctx.db.from("import_source").insert({
+    workspace_id: ctx.workspaceId, name, name_key: sourceKey(name), kind, location: input.location?.slice(0, 300) || null,
+    note: input.note?.slice(0, 500) || null, approved: approve, created_by: ctx.userId,
+  }).select("id, name, approved").single();
+  if (error) {
+    if (error.code === "23505") throw new HttpError(409, "a source with this name already exists");
+    if (error.code === "42501") throw new HttpError(403, error.message);
+    throw error;
+  }
+  return data;
+}
+
+/** Admin approves a source, then every batch quarantined for it is processed. */
+export async function approveSource(ctx: Ctx, sourceId: string) {
+  if (!hasRole(ctx, "admin")) throw new HttpError(403, "approving an import source requires the admin role");
+  const { data, error } = await ctx.db.from("import_source").update({ approved: true }).eq("workspace_id", ctx.workspaceId).eq("id", sourceId).select("id").maybeSingle();
+  if (error) throw error.code === "42501" ? new HttpError(403, error.message) : error;
+  if (!data) throw new HttpError(404, "source not found");
+  const { data: waiting } = await ctx.db.from("import_batch").select("id").eq("workspace_id", ctx.workspaceId).eq("import_source_id", sourceId).eq("status", "awaiting_source");
+  const processed: { batch_id: string; status: string }[] = [];
+  for (const b of waiting ?? []) {
+    const r = await asHttp(() => processBatch(ctx.db, { workspaceId: ctx.workspaceId, batchId: b.id, allowFrom: ["awaiting_source"] }));
+    processed.push({ batch_id: b.id, status: r.status });
+  }
+  return { source_id: sourceId, approved: true, processed };
+}
+
+export async function revokeSource(ctx: Ctx, sourceId: string) {
+  if (!hasRole(ctx, "admin")) throw new HttpError(403, "revoking an import source requires the admin role");
+  const { data, error } = await ctx.db.from("import_source").update({ approved: false, approved_at: null }).eq("workspace_id", ctx.workspaceId).eq("id", sourceId).select("id").maybeSingle();
+  if (error) throw error.code === "42501" ? new HttpError(403, error.message) : error;
+  if (!data) throw new HttpError(404, "source not found");
+  return { source_id: sourceId, approved: false };
+}
+
+/** Field conflicts and steward proposals (conflict fixes, person candidates) raised by one batch, for the batch page. */
+export async function batchSteward(ctx: Ctx, batchId: string, sourceObjectId: string | null) {
+  const [conf, props] = await Promise.all([
+    ctx.db.from("field_conflict").select("id, entity_type, entity_id, field, master_value, source_value, material, source_locator, status, change_proposal_id")
+      .eq("workspace_id", ctx.workspaceId).eq("batch_id", batchId).order("status").order("entity_type").limit(200),
+    sourceObjectId
+      ? ctx.db.from("change_proposal").select("id, target_type, operation, patch, state, risk, reason, idempotency_key")
+        .eq("workspace_id", ctx.workspaceId).like("idempotency_key", "imports.person:%").contains("evidence_ids", [sourceObjectId]).order("created_at").limit(200)
+      : Promise.resolve({ data: [] }),
+  ]);
+  return { conflicts: conf.data ?? [], personProposals: props.data ?? [] };
+}

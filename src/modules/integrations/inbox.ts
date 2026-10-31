@@ -9,7 +9,10 @@ import { BACKFILL_AGE_HOURS } from "./config";
 import { suppressContact } from "./consent";
 import { parseEml } from "./eml";
 import { cleanSubject, normaliseAddress, normaliseMessageId, sanitiseBody } from "./sanitize";
-import { pauseForPerson } from "./sequences";
+import { commitmentKey, commitmentTaskTitle, resolveDueDate } from "./commitments";
+import { ensureInteractionLink, resolveLinks, type LinkResult } from "./links";
+import { pauseForOrg, pauseForPerson } from "./sequences";
+import { refreshThreadSummary } from "./threads";
 import { enforceTriageSafety, mockTriage, TRIAGE_SYSTEM, TriageSchema, type Triage } from "./triage";
 import { currentOrgForPerson, recordTouch } from "./touches";
 import type { MailMessage } from "./types";
@@ -27,6 +30,7 @@ export interface InboundRow {
   folder: "inbox" | "sent"; from_address: string | null; from_name: string | null; to_addresses: string[]; subject: string | null;
   received_at: string; body_excerpt: string | null; is_backfill: boolean; matched_person_ids: string[]; triage: Triage | null;
   triage_status: string; interaction_id: string | null; owner_user_id: string | null; import_method: string;
+  thread_id?: string | null; matched_org_ids?: string[]; matched_opportunity_ids?: string[];
 }
 
 export function messageKey(m: Pick<InboundRow, "internet_message_id" | "provider" | "provider_message_id">) {
@@ -97,15 +101,31 @@ export async function runTriage(ws: string, row: Pick<InboundRow, "from_name" | 
 const ACTIONABLE = new Set(["near_term_visit", "commercial_decision", "expiring_offer", "critical_deadline", "new_requirement"]);
 const MEANINGFUL = new Set([...ACTIONABLE, "reply", "wrong_contact", "opt_out"]);
 
-export interface TriageEffects { interactionId: string | null; taskId: string | null; draftId: string | null; alert: string | null; suppressed: boolean; pausedEnrollments: string[] }
+export interface TriageEffects {
+  interactionId: string | null; taskId: string | null; draftId: string | null; alert: string | null; suppressed: boolean; pausedEnrollments: string[];
+  commitmentTaskIds: string[]; links: LinkResult | null; threadRefreshed: boolean;
+}
 
 /**
  * Apply triage effects for one inbox message. Each effect has its own dedupe key, so re-running is a no-op.
  * `alerts` (outbox) needs the service-role client; manual imports skip alerts (the user is already looking).
  */
-export async function processMessage(db: Db, ws: string, row: InboundRow, opts: { now?: Date; tz?: string; allowAlerts?: boolean } = {}): Promise<TriageEffects> {
-  const out: TriageEffects = { interactionId: row.interaction_id, taskId: null, draftId: null, alert: null, suppressed: false, pausedEnrollments: [] };
+export async function processMessage(db: Db, ws: string, row: InboundRow, opts: { now?: Date; tz?: string; allowAlerts?: boolean; threadQueue?: Set<string> } = {}): Promise<TriageEffects> {
+  const out: TriageEffects = { interactionId: row.interaction_id, taskId: null, draftId: null, alert: null, suppressed: false, pausedEnrollments: [], commitmentTaskIds: [], links: null, threadRefreshed: false };
   if (row.folder !== "inbox" || row.triage_status === "skipped") return out;
+  out.threadRefreshed = !!row.thread_id && !opts.threadQueue;
+  try {
+    return await applyEffects(db, ws, row, opts, out);
+  } finally {
+    // thread-level summary: rebuilt only when the thread's message set changed (sync batches per run)
+    if (row.thread_id) {
+      if (opts.threadQueue) opts.threadQueue.add(row.thread_id);
+      else await refreshThreadSummary(db, ws, row.thread_id, { tz: opts.tz });
+    }
+  }
+}
+
+async function applyEffects(db: Db, ws: string, row: InboundRow, opts: { now?: Date; tz?: string; allowAlerts?: boolean }, out: TriageEffects): Promise<TriageEffects> {
   const key = messageKey(row);
   const triage = row.triage ?? (await runTriage(ws, row));
   if (!row.triage) {
@@ -114,14 +134,25 @@ export async function processMessage(db: Db, ws: string, row: InboundRow, opts: 
   const persons = row.matched_person_ids ?? [];
   const owner = row.owner_user_id;
 
+  // 0. evidence-backed links to organisations / open opportunities (ambiguous => suggestion only, never linked)
+  const links = triage.category === "suspicious" ? null : await resolveLinks(db, ws, { fromAddress: row.from_address, personIds: persons });
+  out.links = links;
+  if (links) {
+    await db.from("inbound_message").update({ matched_org_ids: links.orgIds, matched_opportunity_ids: links.opportunityIds, link_evidence: links.evidence, link_suggestions: links.suggestions })
+      .eq("workspace_id", ws).eq("id", row.id);
+  }
+  const orgIds = links?.orgIds ?? [];
+  const oppIds = links?.opportunityIds ?? [];
+
   // 1. interaction (one per message; suspicious/newsletter mail from unknown senders is not logged as relationship activity)
-  if (!out.interactionId && (persons.length > 0 || MEANINGFUL.has(triage.category))) {
+  if (!out.interactionId && (persons.length > 0 || orgIds.length > 0 || MEANINGFUL.has(triage.category))) {
     const { data: existing } = await db.from("interaction").select("id").eq("workspace_id", ws).eq("source_message_id", key).limit(1);
     let id = existing?.[0]?.id as string | undefined;
     if (!id) {
       const { data: created, error } = await db.from("interaction").insert({
         workspace_id: ws, occurred_at: row.received_at, channel: "email", direction: "inbound", subject: row.subject, summary: triage.summary,
         source_message_id: key, is_meaningful: MEANINGFUL.has(triage.category) && persons.length > 0, classification: "corporate_confidential", owner_user_id: owner,
+        opportunity_id: oppIds.length === 1 ? oppIds[0] : null,
       }).select("id").single();
       if (error) throw error;
       id = created.id as string;
@@ -131,6 +162,10 @@ export async function processMessage(db: Db, ws: string, row: InboundRow, opts: 
     }
     out.interactionId = id;
     await db.from("inbound_message").update({ interaction_id: id }).eq("workspace_id", ws).eq("id", row.id);
+  }
+  if (out.interactionId) {
+    for (const oid of orgIds) await ensureInteractionLink(db, ws, { interactionId: out.interactionId, entityType: "organisation", entityId: oid, role: "about", ownerUserId: owner });
+    for (const pid of oppIds) await ensureInteractionLink(db, ws, { interactionId: out.interactionId, entityType: "opportunity", entityId: pid, role: "about", ownerUserId: owner });
   }
   for (const pid of persons) {
     await recordTouch(db, ws, { personId: pid, orgId: await currentOrgForPerson(db, ws, pid), userId: owner, channel: "email", kind: "inbound",
@@ -145,11 +180,16 @@ export async function processMessage(db: Db, ws: string, row: InboundRow, opts: 
   }
   if (row.is_backfill || triage.category === "suspicious") return out;
 
-  // 3. a reply pauses outreach (only enrollments that started before the message)
+  // 3. a reply pauses outreach (only enrollments that started before the message). Contrary information
+  //    (not interested / already moved / wrong timing) is recorded as such and also pauses the account's other enrollments.
   if (triage.category !== "newsletter" && triage.category !== "opt_out") {
+    const contrary = triage.contrary_info ?? null;
+    const reason = triage.category === "wrong_contact" ? "wrong_contact" : contrary ? "contrary_info" : "reply";
+    const detail = contrary ? `Reply from ${row.from_name ?? row.from_address ?? "contact"}: ${contrary.kind.replace(/_/g, " ")} — “${contrary.evidence.slice(0, 200)}”` : null;
     for (const pid of persons) {
-      out.pausedEnrollments.push(...(await pauseForPerson(db, ws, pid, triage.category === "wrong_contact" ? "wrong_contact" : "reply", row.received_at)));
+      out.pausedEnrollments.push(...(await pauseForPerson(db, ws, pid, reason, row.received_at, detail)));
     }
+    if (contrary) for (const oid of orgIds) out.pausedEnrollments.push(...(await pauseForOrg(db, ws, oid, "contrary_info", detail, row.received_at)));
   }
   // 4. next-action task
   if (ACTIONABLE.has(triage.category) && triage.next_actions[0]) {
@@ -161,6 +201,25 @@ export async function processMessage(db: Db, ws: string, row: InboundRow, opts: 
     });
     out.taskId = t.id;
   }
+  // 4b. structured deadlines / commitments => tasks (date resolved in code; unknown dates stay unknown). One task per
+  //     commitment per thread, so duplicate notifications and quoted repeats never duplicate tasks.
+  const commitments = (triage.commitments ?? []).map((c) => ({ ...c, due_date: resolveDueDate(c.due_text, row.received_at, opts.tz), task_id: null as string | null }));
+  const sender = row.from_name ?? row.from_address ?? "sender";
+  for (const c of commitments) {
+    if (!(c.who === "adviser" || c.kind === "deadline" || (c.who === "sender" && c.due_date))) continue;
+    const t = await createTask(db, ws, {
+      title: commitmentTaskTitle(c, sender),
+      description: `${c.kind === "deadline" ? "Deadline" : "Commitment"} from email “${row.subject ?? "(no subject)"}”.\nEvidence: “${c.evidence}”` +
+        `${c.due_text ? `\nDate as written: “${c.due_text}”${c.due_date ? ` → ${c.due_date}` : " (could not be resolved to a date — check)"}` : "\nNo date given."}`,
+      priority: c.kind === "deadline" ? 75 : 60, dueAt: c.due_date ? `${c.due_date}T18:00:00+05:30` : null,
+      linkedEntityType: "inbound_message", linkedEntityId: row.id, source: "connector", ownerUserId: owner,
+      idempotencyKey: `integrations.commitment:${sha256(row.thread_id ?? key).slice(0, 24)}:${sha256(commitmentKey(c)).slice(0, 24)}`,
+    });
+    c.task_id = t.id;
+    out.commitmentTaskIds.push(t.id);
+  }
+  if (commitments.length) await db.from("inbound_message").update({ commitments }).eq("workspace_id", ws).eq("id", row.id);
+
   // 5. reply draft (never sent; suppressed senders get none)
   if (triage.draft_reply && row.from_address) {
     const seqKey = `reply:${sha256(key).slice(0, 40)}`;

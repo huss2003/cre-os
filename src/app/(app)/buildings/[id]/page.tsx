@@ -5,6 +5,7 @@ import { Badge, ButtonLink, FactBadge, PageHeader, StaleBanner, sf } from "@/com
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { getBuilding, type VacancyState } from "@/modules/admin/entities";
 import { ArchiveCard, ShareCard } from "@/modules/admin/ui/entity";
+import { RecordTrust } from "@/modules/admin/ui/trust";
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, fmtDate } from "@/modules/admin/ui/parts";
 
 export const metadata = { title: "Building" };
@@ -38,7 +39,7 @@ async function Body({ params, searchParams }: Props) {
       <PageHeader title={a.name}
         subtitle={<span className="flex flex-wrap items-center gap-1.5"><ClassBadge value={a.classification} /><Badge>{a.asset_kind}</Badge>
           {b.parent ? <span>part of <Link className="text-brand" href={`/buildings/${b.parent.id}`}>{b.parent.name}</Link></span> : null}
-          {a.archived_at ? <Badge tone="bad">Archived</Badge> : null}</span>}
+          {a.archived_at ? <Badge tone="bad">Archived</Badge> : null}<RecordTrust db={ctx.db} workspaceId={ctx.workspaceId} type="asset" id={a.id} /></span>}
         actions={<>{hasRole(ctx, "editor") && !a.archived_at ? <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink> : null}<AsOfForm asOf={asOf} action={base} /></>} />
 
       {asOf ? <StaleBanner>Showing availability snapshots and leases recorded on or before {fmtDate(asOf)}.</StaleBanner> : null}

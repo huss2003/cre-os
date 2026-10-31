@@ -8,6 +8,7 @@ import { ingestMessage, isBackfill, processMessage, type InboundRow } from "./in
 import { adapterFor } from "./providers";
 import { normaliseWhitespace } from "./sanitize";
 import { onSequenceDraftSent } from "./sequences";
+import { refreshThreadSummary } from "./threads";
 import { markConnectorFailure, type ConnectorAccountRow, type FetchLike } from "./tokens";
 import { recordTouch } from "./touches";
 import { CursorExpiredError, ProviderAuthError, ProviderRateLimitError, type MailMessage, type ProviderAdapter } from "./types";
@@ -96,20 +97,24 @@ async function runResource(admin: Db, account: ConnectorAccountRow, adapter: Pro
   const provider = adapter.mode === "mock" ? "mock" : account.provider;
   if (resource === "inbox") {
     const page = await adapter.listMessagesDelta(cursor);
-    const counts = { seen: page.items.length, inserted: 0, triaged: 0, drafts: 0, tasks: 0, alerts: 0 };
+    const counts = { seen: page.items.length, inserted: 0, triaged: 0, drafts: 0, tasks: 0, alerts: 0, threads: 0 };
+    const threads = new Set<string>();
     for (const m of page.items) {
       if (m.removed) continue;
       const { row, inserted } = await ingestMessage(admin, ws, { message: m, provider, connectorAccountId: account.id, importMethod: cursor ? "sync" : "backfill",
         backfill: isBackfill(m.receivedAt, now, false), ownerUserId: account.user_id });
       if (inserted) counts.inserted++;
       if (inserted || row.triage_status === "pending") {
-        const fx = await processMessage(admin, ws, row, { now, allowAlerts: true });
+        const fx = await processMessage(admin, ws, row, { now, allowAlerts: true, threadQueue: threads });
         counts.triaged++;
         if (fx.draftId) counts.drafts++;
         if (fx.taskId) counts.tasks++;
         if (fx.alert) counts.alerts++;
+        counts.tasks += fx.commitmentTaskIds.length;
       }
     }
+    // one thread-summary refresh per touched thread per run (no-op when the thread's message set is unchanged)
+    for (const t of threads) if ((await refreshThreadSummary(admin, ws, t)).changed) counts.threads++;
     return { counts, cursor: page.nextCursor, fullResync: page.fullResync };
   }
   if (resource === "calendar") {
@@ -126,13 +131,20 @@ async function runResource(admin: Db, account: ConnectorAccountRow, adapter: Pro
   // sent items: watermark is the newest sent time seen
   const since = cursor && !Number.isNaN(Date.parse(cursor)) ? new Date(cursor) : new Date(now.getTime() - 3 * 86_400_000);
   const sent = await adapter.listSentItems(since);
-  const counts = { seen: sent.length, inserted: 0, reconciled: 0 };
+  const counts = { seen: sent.length, inserted: 0, reconciled: 0, threads: 0 };
+  const threads = new Set<string>();
   let newest = since.getTime();
   for (const m of sent) {
     newest = Math.max(newest, Date.parse(m.receivedAt));
     const { row, inserted } = await ingestMessage(admin, ws, { message: { ...m, folder: "sent" }, provider, connectorAccountId: account.id, importMethod: "sync", backfill: true, ownerUserId: account.user_id });
     if (inserted) counts.inserted++;
+    if (inserted && m.threadId) threads.add(m.threadId);
     if (await reconcileSentMessage(admin, ws, row, m)) counts.reconciled++;
+  }
+  // our own replies change where a thread stands; only threads that already have inbound mail get a summary
+  for (const t of threads) {
+    const { count } = await admin.from("inbound_message").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("thread_id", t).eq("folder", "inbox");
+    if (count && (await refreshThreadSummary(admin, ws, t)).changed) counts.threads++;
   }
   return { counts, cursor: new Date(newest).toISOString(), fullResync: !cursor };
 }

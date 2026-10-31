@@ -8,7 +8,9 @@ import {
   addStakeholderAction, confirmRequirementAction, createOpportunityAction, createQuoteAction, quickScenarioFromQuoteAction,
   reviseQuoteAction, runShortlistAction, setOptionStatusAction, updateRequirementFieldAction,
 } from "@/modules/deals/actions";
-import { STAKEHOLDER_ROLES, fieldValue } from "@/modules/deals/requirements/contract";
+import { saveMatchingConfigAction } from "@/modules/deals/actions-a";
+import { CRITERIA, DEFAULT_WEIGHTS, effectiveWeights } from "@/modules/deals/matching/match";
+import { STAKEHOLDER_ROLES, fieldValue, type RequirementConstraints, type RequirementRow } from "@/modules/deals/requirements/contract";
 import { getRequirementDetail } from "@/modules/deals/requirements/service";
 import { EligibilityBadge, FieldStatusBadge, Flash, RequirementStatusBadge, nonce } from "@/modules/deals/ui";
 
@@ -28,6 +30,19 @@ export default async function RequirementDetail({ params, searchParams }: { para
   const canEdit = app.role !== "viewer";
   const today = new Date().toISOString().slice(0, 10);
   const hidden = (<><input type="hidden" name="id" value={id} /><input type="hidden" name="row_version" value={r.row_version} /><input type="hidden" name="nonce" value={nonce()} /></>);
+  const geoName = (gid: string) => d.geographies.find((g) => g.id === gid)?.name ?? `unknown (${gid.slice(0, 8)})`;
+  const display = (key: string, kind: string) => {
+    const v = fieldValue(r, key);
+    if (kind === "geo_list") return Array.isArray(v) && v.length ? (v as string[]).map(geoName).join(", ") : "—";
+    return show(v);
+  };
+  const cons = (r.constraints ?? {}) as RequirementConstraints;
+  const rs = cons.required_specs ?? {};
+  const hf = { budget_ceiling: !!cons.hard_filters?.budget_ceiling, latest_occupation: !!cons.hard_filters?.latest_occupation, preferred_only: !!cons.hard_filters?.preferred_only };
+  const weights = effectiveWeights(r as RequirementRow);
+  const catchText = (cons.catchments ?? []).map((c) => [c.label, c.lat, c.lon, c.weight].filter((x) => x !== undefined).join(", ")).join("\n");
+  const openTasks = d.tasks.filter((t) => t.status === "open" || t.status === "snoozed" || t.status === "stale");
+  const specVal = (k: string) => { const v = (rs as Record<string, unknown>)[k]; return v === undefined || v === null ? "" : Array.isArray(v) ? v.join(", ") : String(v); };
 
   return (
     <div className="space-y-5">
@@ -48,7 +63,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
           <div className="divide-y divide-line">
             {d.fields.map((f) => (
               <div key={f.key} className="flex items-start justify-between gap-3 py-2 text-sm">
-                <div><div className="font-medium">{f.label}{f.mandatory ? <span className="text-bad"> *</span> : null}</div><div className="text-ink-soft">{show(fieldValue(r, f.key))}</div></div>
+                <div><div className="font-medium">{f.label}{f.mandatory ? <span className="text-bad"> *</span> : null}</div><div className="text-ink-soft">{display(f.key, f.kind)}</div></div>
                 <FieldStatusBadge status={f.status} />
               </div>
             ))}
@@ -58,19 +73,20 @@ export default async function RequirementDetail({ params, searchParams }: { para
           <Card title={`Questions to ask (${d.missing.length})`}>
             {d.missing.length === 0 ? <p className="text-sm text-ink-soft">Nothing open.</p> : (
               <ol className="list-decimal space-y-1 pl-5 text-sm">
-                {d.missing.slice(0, 15).map((q) => <li key={q.key}>{q.question} {q.reason === "estimated_needs_confirmation" ? <Badge tone="warn">confirm estimate</Badge> : q.priority === "mandatory" ? <Badge tone="bad">mandatory</Badge> : null}</li>)}
+                {d.missing.slice(0, 15).map((q) => <li key={q.key}>{q.question} {q.reason === "estimated_needs_confirmation" ? <Badge tone="warn">confirm with client</Badge> : q.priority === "mandatory" ? <Badge tone="bad">mandatory</Badge> : null}</li>)}
               </ol>
             )}
+            <p className="mt-2 text-xs text-ink-soft">Mandatory questions become follow-up tasks automatically and close as answers are confirmed — {openTasks.filter((t) => t.source === "deals.requirement_question").length} open. <Link className="underline" href="/tasks">Tasks</Link></p>
           </Card>
           {canEdit && (
             <Card title="Update a field">
               <form action={updateRequirementFieldAction} className="space-y-3">
                 {hidden}
                 <Field label="Field"><Select name="key" required defaultValue="">{[<option key="" value="">— choose —</option>, ...d.fields.map((f) => <option key={f.key} value={f.key}>{f.label}{f.status === "client_confirmed" ? " (confirmed → needs approval)" : ""}</option>)]}</Select></Field>
-                <Field label="Value" hint="Ranges (area / seats / budget): fill min · target · max below instead. Lists: comma-separated."><Input name="value" /></Field>
+                <Field label="Value" hint="Ranges (area / seats / budget): fill min · target · max below instead. Lists and locations: comma-separated names. Power / parking / transit text (e.g. “500 kVA”, “40 cars, 120 two-wheelers”, “within 1 km of metro”) also sets the matching spec."><Input name="value" /></Field>
                 <div className="grid grid-cols-3 gap-2"><Input name="v0" placeholder="min" /><Input name="v1" placeholder="target / max" /><Input name="v2" placeholder="max" /></div>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <Field label="Status"><Select name="status" defaultValue=""><option value="">Estimated (default)</option><option value="client_confirmed">Client confirmed</option><option value="unknown">Unknown</option></Select></Field>
+                  <Field label="Status"><Select name="status" defaultValue=""><option value="">Estimated (default)</option><option value="reported">Reported (second-hand)</option><option value="client_confirmed">Client-confirmed</option><option value="unknown">Unknown</option></Select></Field>
                   <Field label="Only change status?"><Select name="value_mode" defaultValue="value"><option value="value">Set value</option><option value="status_only">Status only</option></Select></Field>
                 </div>
                 <Field label="Reason / source"><Input name="reason" placeholder="e.g. call with CFO 31 Oct" /></Field>
@@ -93,6 +109,68 @@ export default async function RequirementDetail({ params, searchParams }: { para
           )}
         </div>
       </div>
+
+      <Card title={`Hard constraints (${d.hardConstraints.length})`}>
+        <p className="mb-2 text-xs text-ink-soft">Applied as eligibility filters before any ranking — a high score can never override them. Missing building data under a constraint means “needs verification”, never a match.</p>
+        {d.hardConstraints.length === 0 ? <p className="text-sm text-ink-soft">No hard constraints yet. Set area, excluded locations, or the specs below (power, parking, metro, certifications, fit-out).</p> : (
+          <ul className="divide-y divide-line text-sm">
+            {d.hardConstraints.map((h) => (
+              <li key={h.key} className="flex flex-wrap items-start justify-between gap-2 py-1.5">
+                <div><span className="font-medium">{h.label}</span> <span className="text-ink-soft">{h.value}</span><div className="text-xs text-ink-soft">{h.source}</div></div>
+                <FieldStatusBadge status={h.status} />
+              </li>
+            ))}
+          </ul>
+        )}
+        {canEdit && (
+          <details className="mt-3 rounded-lg border border-line p-3">
+            <summary className="cursor-pointer text-sm font-medium">Edit matching configuration (specs, hard filters, weights, catchments)</summary>
+            <form action={saveMatchingConfigAction} className="mt-3 space-y-4">
+              {hidden}
+              {r.status === "client_confirmed" && <p className="text-xs text-warn">Client-confirmed requirement: spec and hard-filter changes are submitted for approval; weights and catchments apply directly.</p>}
+              <div className="grid gap-2 sm:grid-cols-3">
+                <Field label="Min power (kVA)"><Input name="spec_min_power_kva" inputMode="decimal" defaultValue={specVal("min_power_kva")} /></Field>
+                <Field label="Min car parks"><Input name="spec_min_car_parks" inputMode="numeric" defaultValue={specVal("min_car_parks")} /></Field>
+                <Field label="Min two-wheeler parks"><Input name="spec_min_two_wheeler_parks" inputMode="numeric" defaultValue={specVal("min_two_wheeler_parks")} /></Field>
+                <Field label="Max metro distance (km)"><Input name="spec_max_metro_km" inputMode="decimal" defaultValue={specVal("max_metro_km")} /></Field>
+                <Field label="Certifications (any of)" hint="comma-separated, e.g. LEED Gold, IGBC"><Input name="spec_certifications" defaultValue={specVal("certifications")} /></Field>
+                <Field label="Fit-out basis" hint="bare, warm_shell, fitted, managed"><Input name="spec_fitout_basis" defaultValue={specVal("fitout_basis")} /></Field>
+              </div>
+              {["min_power_kva", "min_car_parks", "min_two_wheeler_parks", "max_metro_km", "certifications", "fitout_basis"].map((k) => <input key={k} type="hidden" name={`orig_spec_${k}`} value={specVal(k)} />)}
+              <input type="hidden" name="orig_spec_operating_24x7" value={String(!!rs.operating_24x7)} />
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="spec_operating_24x7" defaultChecked={!!rs.operating_24x7} /> 24×7 operations required</label>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="reset_derived" /> Reset specs to what the power / parking / transit / certification answers say</label>
+              <fieldset className="space-y-1 text-sm">
+                <legend className="font-medium">Optional hard filters (off = scored only)</legend>
+                <input type="hidden" name="orig_hf" value={JSON.stringify(hf)} />
+                <label className="flex items-center gap-2"><input type="checkbox" name="hf_budget_ceiling" defaultChecked={hf.budget_ceiling} /> Exclude options above the budget ceiling</label>
+                <label className="flex items-center gap-2"><input type="checkbox" name="hf_latest_occupation" defaultChecked={hf.latest_occupation} /> Exclude options not available by the occupation date</label>
+                <label className="flex items-center gap-2"><input type="checkbox" name="hf_preferred_only" defaultChecked={hf.preferred_only} /> Preferred locations only</label>
+              </fieldset>
+              <div>
+                <div className="mb-1 text-sm font-medium">Criterion weights (blank = default)</div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
+                  {CRITERIA.map((c) => {
+                    const cur = cons.weights?.[c];
+                    return (
+                      <Field key={c} label={`${c} (${weights[c]})`}>
+                        <Input name={`w_${c}`} inputMode="decimal" placeholder={String(DEFAULT_WEIGHTS[c])} defaultValue={cur === undefined ? "" : String(cur)} />
+                        <input type="hidden" name={`orig_w_${c}`} value={cur === undefined ? "" : String(cur)} />
+                      </Field>
+                    );
+                  })}
+                </div>
+              </div>
+              <Field label="Catchment points" hint="One per line: label, latitude, longitude[, weight] — e.g. “Hinjewadi staff, 18.5912, 73.7389, 2”">
+                <Textarea name="catchments" rows={3} defaultValue={catchText} />
+              </Field>
+              <input type="hidden" name="orig_catchments" value={catchText} />
+              <Field label="Reason / source"><Input name="reason" placeholder="e.g. CFO call — 600 kVA confirmed" /></Field>
+              <Button type="submit">Save matching configuration</Button>
+            </form>
+          </details>
+        )}
+      </Card>
 
       <Card title="Stakeholder map">
         {d.stakeholderGaps.length > 0 && <ul className="mb-3 space-y-1 text-sm text-warn">{d.stakeholderGaps.map((g) => <li key={g}>• {g}</li>)}</ul>}
@@ -118,9 +196,10 @@ export default async function RequirementDetail({ params, searchParams }: { para
         {options.length === 0 ? (
           <EmptyState title="No shortlist yet">Run the shortlist after buildings, spaces and availability are imported. Spaces without a dated availability snapshot appear as “vacancy unverified”.</EmptyState>
         ) : (
-          <Table head={["#", "Option", "Eligibility", "Fit", "Data", "Flags / reasons", "Status"]}>
+          <Table head={["#", "Option", "Eligibility", "Fit score", "Data completeness", "Why / flags", "Status"]}>
             {options.slice(0, 40).map((o) => {
-              const b = (o.score_breakdown ?? {}) as { rank?: number; label?: string; eligibility?: string; verificationNeeded?: string[]; flags?: Record<string, boolean> };
+              const b = (o.score_breakdown ?? {}) as { rank?: number; label?: string; eligibility?: string; verificationNeeded?: string[]; qualifies?: string[]; flags?: Record<string, boolean>;
+                criteria?: Record<string, { weight: number; status: string; score: number | null; detail: string }> };
               return (
                 <tr key={o.id as string}>
                   <Td>{b.rank}</Td>
@@ -129,7 +208,18 @@ export default async function RequirementDetail({ params, searchParams }: { para
                   <Td>{String(o.fit_score ?? "—")}</Td>
                   <Td>{String(o.completeness_score ?? "—")}%</Td>
                   <Td className="max-w-md text-xs text-ink-soft">
+                    {(b.flags?.availabilityStale || b.flags?.vacancyUnverified) && <div className="mb-1 font-medium text-warn">{b.flags?.availabilityStale ? "Stale availability" : ""}{b.flags?.availabilityStale && b.flags?.vacancyUnverified ? " · " : ""}{b.flags?.vacancyUnverified ? "Vacancy unverified" : ""}</div>}
                     {[...(o.disqualifiers as string[]), ...(b.verificationNeeded ?? []), b.flags?.quoteExpired ? "Quote expired/superseded" : null].filter(Boolean).slice(0, 4).join(" · ") || "—"}
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-brand">Why it {b.eligibility === "ineligible" ? "fails" : "qualifies"}</summary>
+                      {(b.qualifies ?? []).length > 0 && <ul className="mt-1 list-disc pl-4">{(b.qualifies ?? []).map((q) => <li key={q}>{q}</li>)}</ul>}
+                      <ul className="mt-1 space-y-0.5">
+                        {Object.entries(b.criteria ?? {}).map(([k, c]) => (
+                          <li key={k}><span className="font-medium">{k}</span> · w{c.weight} · {c.status === "scored" ? `${Math.round((c.score ?? 0) * 100)}%` : c.status === "unknown" ? "unknown (scores 0)" : "n/a"} — {c.detail}</li>
+                        ))}
+                      </ul>
+                      <p className="mt-1">Fit and data completeness are separate: data completeness {String(o.completeness_score ?? "—")}% says how much of this option is known, not how well it fits.</p>
+                    </details>
                   </Td>
                   <Td>
                     {canEdit && b.eligibility !== "ineligible" ? (
@@ -144,6 +234,19 @@ export default async function RequirementDetail({ params, searchParams }: { para
               );
             })}
           </Table>
+        )}
+      </Card>
+
+      <Card title={`Follow-up & verification tasks (${openTasks.length} open)`} actions={<ButtonLink variant="ghost" href="/tasks">All tasks</ButtonLink>}>
+        {d.tasks.length === 0 ? <p className="text-sm text-ink-soft">None yet. Missing mandatory answers and shortlist verification items create tasks here automatically (deduped).</p> : (
+          <ul className="divide-y divide-line text-sm">
+            {d.tasks.slice(0, 30).map((t) => (
+              <li key={t.id} className="flex items-start justify-between gap-2 py-1.5">
+                <span className={t.status === "done" ? "text-ink-soft line-through" : ""}>{t.title}{t.completion_evidence ? <span className="block text-xs text-ink-soft no-underline">{t.completion_evidence}</span> : null}</span>
+                <Badge tone={t.status === "done" ? "ok" : t.status === "open" ? "warn" : "neutral"}>{t.status}</Badge>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 
@@ -210,7 +313,9 @@ export default async function RequirementDetail({ params, searchParams }: { para
                 <Field label="Base date"><Input type="date" name="base_date" required defaultValue={(r.occupation_date as string) ?? today} /></Field>
                 <Field label="Horizon (months)"><Input name="horizon" defaultValue="60" inputMode="numeric" /></Field>
                 <Field label="Discount rate % p.a."><Input name="discount" required inputMode="decimal" /></Field>
-                <Field label="Fit-out capex ₹"><Input name="fitout" inputMode="decimal" /></Field>
+                <Field label="Fit-out capex ₹" hint="blank = unknown (a gap, not zero)"><div className="flex gap-1"><Input name="fitout" inputMode="decimal" /><Select name="fitout_state" defaultValue="" aria-label="fit-out state"><option value="">amount / unknown</option><option value="none">none (fitted)</option></Select></div></Field>
+                <Field label="Parking slots" hint="uses the quote's ₹/slot; blank = unknown"><div className="flex gap-1"><Input name="parking_slots" inputMode="numeric" /><Select name="parking_state" defaultValue="" aria-label="parking state"><option value="">count / unknown</option><option value="none">none needed</option></Select></div></Field>
+                <Field label="Other opex ₹/month" hint="blank = unknown"><div className="flex gap-1"><Input name="opex_monthly" inputMode="decimal" /><Select name="opex_state" defaultValue="" aria-label="opex state"><option value="">amount / unknown</option><option value="none">none</option></Select></div></Field>
                 <Field label="If tenure < horizon"><Select name="after_tenure" defaultValue=""><option value="">(tenure covers horizon)</option><option value="continue_same_terms">Renew on same terms</option><option value="vacate">Vacate</option></Select></Field>
                 <Field label="GST rate % (if excluded)"><Input name="gst_rate" inputMode="decimal" /></Field>
                 <Button type="submit" variant="secondary">Calculate</Button>

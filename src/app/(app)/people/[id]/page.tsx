@@ -5,7 +5,10 @@ import { Badge, ButtonLink, FactBadge, PageHeader, StaleBanner } from "@/compone
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { getPerson } from "@/modules/admin/entities";
 import { ArchiveCard, ShareCard } from "@/modules/admin/ui/entity";
+import { RecordTrust } from "@/modules/admin/ui/trust";
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, TierBadge, fmtDate } from "@/modules/admin/ui/parts";
+import { RelationshipPanel } from "@/modules/intelligence/network/ui";
+import { Flash } from "@/modules/intelligence/ui";
 
 export const metadata = { title: "Person" };
 
@@ -29,9 +32,11 @@ async function Body({ params, searchParams }: Props) {
       <PageHeader title={person.full_name}
         subtitle={<span className="flex flex-wrap items-center gap-1.5"><ClassBadge value={person.classification} />
           {current.length ? current.map((e) => <span key={e.id}>{e.title ?? "Role unknown"} @ {e.org_name ?? "hidden organisation"}</span>) : <span>No current role on record{asOf ? ` on ${fmtDate(asOf)}` : ""}</span>}
-          {person.archived_at ? <Badge tone="bad">Archived</Badge> : null}</span>}
+          {person.archived_at ? <Badge tone="bad">Archived</Badge> : null}<RecordTrust db={ctx.db} workspaceId={ctx.workspaceId} type="person" id={person.id} /></span>}
         actions={<>{hasRole(ctx, "editor") && !person.archived_at ? <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink> : null}<AsOfForm asOf={asOf} action={base} /></>} />
 
+      <Flash sp={{ notice: typeof sp.notice === "string" ? sp.notice : undefined, error: typeof sp.error === "string" ? sp.error : undefined }} />
+      {typeof sp.draft === "string" ? <p className="text-sm"><ButtonLink variant="secondary" href="/drafts">Open Drafts</ButtonLink></p> : null}
       {asOf ? <StaleBanner>Showing the role valid on {fmtDate(asOf)} and evidence recorded on or before that date. Past roles stay on the person.</StaleBanner> : null}
       {anySuppressed ? <div className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad"><strong>Suppressed:</strong> do not contact through suppressed channels. Suppression survives imports and restores.</div> : null}
       {person.contact_restrictions ? <div className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn"><strong>Contact restriction:</strong> {person.contact_restrictions}</div> : null}
@@ -56,6 +61,8 @@ async function Body({ params, searchParams }: Props) {
                   {r.intro_permission ? <Badge tone="ok">intro permitted</Badge> : null}</li>))}</ul>
             ) : null}
           </Section>
+
+          <RelationshipPanel ctx={ctx} personId={id} personName={person.full_name} />
 
           <Section title="Intro paths" empty="No known path from your team. Ask before assuming anyone will introduce you.">
             {p.introPaths.length ? (

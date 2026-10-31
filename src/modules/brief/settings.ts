@@ -20,6 +20,8 @@ export interface CapacitySettings {
   travelBufferMinutes: number;   // per external meeting/site visit
   adminReserveMinutes: number;   // approvals/capture time kept free
   approvalsFullThreshold: number;
+  prepMinutes: number;           // day order: prep before an external meeting/site visit
+  defaultTaskMinutes: number;    // day order: effort assumed for a task without an estimate
 }
 
 export interface ReversePlanSettings {
@@ -71,6 +73,8 @@ export const BRIEF_DEFAULTS: BriefSettings = {
     travelBufferMinutes: 30,
     adminReserveMinutes: 60,
     approvalsFullThreshold: 15,
+    prepMinutes: 15,
+    defaultTaskMinutes: 20,
   },
   reversePlan: {
     moveBufferDays: 14,

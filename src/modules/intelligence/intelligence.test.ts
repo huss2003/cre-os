@@ -266,7 +266,7 @@ describe("deal strategist", () => {
     expect(s.disclaimer).toMatch(/Suggestions only/);
     expect(s.health.factors.reduce((a, f) => a + f.points, 0)).toBe(s.health.score);
     expect(s.risks.map((r) => r.key)).toEqual(expect.arrayContaining(["close_slipped", "no_mandate", "expired_quote", "occupation_after_expiry"]));
-    expect(s.batna_questions.some((q) => q.includes("2027-03-31"))).toBe(true);
+    expect(s.batna_questions.some((q) => q.text.includes("2027-03-31"))).toBe(true);
     expect(s.concession_ladder.every((x) => /finance scenario/i.test(x.value_basis) || /Non-financial/.test(x.value_basis))).toBe(true);
   });
 });

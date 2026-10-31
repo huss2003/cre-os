@@ -23,6 +23,14 @@ export interface IntroPath {
   needs_permission: boolean;      // some intermediate hop lacks intro_permission
   last_contact: string | null;    // most recent contact on the first hop
   score: number;
+  consent_edge_id: string | null; // the edge whose introducer must consent (null = your own direct relationship)
+}
+
+export interface PathOptions {
+  /** When given, a hop is "permitted" only if its edge has an active introduction consent (the bare flag is not enough). */
+  consentedEdgeIds?: Set<string>;
+  /** People who are suppressed / revoked — never part of a suggested path. */
+  blockedPersonIds?: Set<string>;
 }
 
 const W: Record<string, number> = { trusted: 4, hot: 3, warm: 2, cold: 1 };
@@ -30,8 +38,10 @@ const wv = (w: Edge["warmth"]) => (w ? W[w] : 0);
 const weakest = (a: Edge["warmth"], b: Edge["warmth"]): Edge["warmth"] => (wv(a) <= wv(b) ? a : b);
 
 /** BFS up to two hops from the adviser (me) and colleagues to each target person. */
-export function findIntroPaths(edges: Edge[], me: string, targets: string[], today: string): IntroPath[] {
-  const live = edges.filter((e) => !e.valid_to || e.valid_to >= today);
+export function findIntroPaths(edges: Edge[], me: string, targets: string[], today: string, opts: PathOptions = {}): IntroPath[] {
+  const blocked = opts.blockedPersonIds ?? new Set<string>();
+  const live = edges.filter((e) => (!e.valid_to || e.valid_to >= today) && !blocked.has(e.to_person_id) && !(e.from_person_id && blocked.has(e.from_person_id)));
+  const permitted = (e: Edge) => (opts.consentedEdgeIds ? opts.consentedEdgeIds.has(e.id) : e.intro_permission);
   const targetSet = new Set(targets);
   const out: IntroPath[] = [];
   const fromUser = live.filter((e) => e.from_user_id);
@@ -45,7 +55,7 @@ export function findIntroPaths(edges: Edge[], me: string, targets: string[], tod
     if (targetSet.has(e.to_person_id)) {
       out.push({
         target_person_id: e.to_person_id, hops: [start, { kind: "person", id: e.to_person_id }], edge_ids: [e.id], warmth: e.warmth,
-        needs_permission: !isMe && !e.intro_permission, last_contact: e.last_meaningful_contact, score: 0,
+        needs_permission: !isMe && !permitted(e), last_contact: e.last_meaningful_contact, score: 0, consent_edge_id: isMe ? null : e.id,
       });
     }
     // two hops: (me|colleague) -> P1 -> target ; P1 must have recorded intro permission
@@ -55,7 +65,7 @@ export function findIntroPaths(edges: Edge[], me: string, targets: string[], tod
         target_person_id: e2.to_person_id,
         hops: [start, { kind: "person", id: e.to_person_id }, { kind: "person", id: e2.to_person_id }],
         edge_ids: [e.id, e2.id], warmth: weakest(e.warmth, e2.warmth),
-        needs_permission: !e2.intro_permission || (!isMe && !e.intro_permission), last_contact: e.last_meaningful_contact, score: 0,
+        needs_permission: !permitted(e2) || (!isMe && !permitted(e)), last_contact: e.last_meaningful_contact, score: 0, consent_edge_id: e2.id,
       });
     }
   }

@@ -5,6 +5,7 @@ import { Badge, ButtonLink, FactBadge, PageHeader, StaleBanner, inr, sf } from "
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { getCompany, memberDirectory } from "@/modules/admin/entities";
 import { ArchiveCard, ShareCard } from "@/modules/admin/ui/entity";
+import { RecordTrust } from "@/modules/admin/ui/trust";
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, TierBadge, fmtDate } from "@/modules/admin/ui/parts";
 
 export const metadata = { title: "Company" };
@@ -27,7 +28,7 @@ async function Body({ params, searchParams }: Props) {
   return (
     <div className="space-y-4">
       <PageHeader title={o.display_name}
-        subtitle={<span className="flex flex-wrap items-center gap-1.5"><ClassBadge value={o.classification} />{o.sector ? <Badge>{o.sector}</Badge> : null}{o.is_gcc ? <Badge tone="brand">GCC</Badge> : null}{o.archived_at ? <Badge tone="bad">Archived</Badge> : null}</span>}
+        subtitle={<span className="flex flex-wrap items-center gap-1.5"><ClassBadge value={o.classification} />{o.sector ? <Badge>{o.sector}</Badge> : null}{o.is_gcc ? <Badge tone="brand">GCC</Badge> : null}{o.archived_at ? <Badge tone="bad">Archived</Badge> : null}<RecordTrust db={ctx.db} workspaceId={ctx.workspaceId} type="organisation" id={o.id} /></span>}
         actions={<>{hasRole(ctx, "editor") && !o.archived_at ? <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink> : null}<AsOfForm asOf={asOf} action={base} /></>} />
 
       {asOf ? <StaleBanner>Showing evidence recorded on or before {fmtDate(asOf)}. Employment and signals are filtered to that date; identity fields show the current record{c.snapshot ? " (an audited snapshot from that date is listed in the trail)" : ""}.</StaleBanner> : null}

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Table, Td, inr } from "@/components/ui";
+import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, Table, Td, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { toDealsCtx } from "@/modules/deals/api";
 import { evaluateScenarioAction } from "@/modules/deals/actions";
@@ -16,24 +16,32 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
   const today = new Date().toISOString().slice(0, 10);
   return (
     <div className="space-y-5">
-      <PageHeader title="Financials" subtitle="Deterministic engine fin-1.0: monthly cash flows on an equal horizon — TCO, NPV, equivalent monthly cost, sensitivities." />
+      <PageHeader title="Financials" subtitle="Deterministic engine fin-1.0: monthly cash flows on an equal horizon — TCO, NPV, equivalent monthly cost, sensitivities. Unknown costs are gaps, never zero."
+        actions={<ButtonLink variant="secondary" href={`/finance/compare${requirementId ? `?requirement=${requirementId}` : ""}`}>Compare scenarios</ButtonLink>} />
       <Flash sp={sp} />
       {rows.length === 0 ? (
         <EmptyState title="No scenarios yet">Calculate one below, or open a requirement and use “Calculate a scenario from a quote” so quote versions are tracked.</EmptyState>
       ) : (
-        <Table head={["Scenario", "Requirement", "NPV", "Nominal TCO", "Equivalent monthly", "Approved"]}>
-          {rows.map((r) => {
-            const t = ((r.result_json as { totals?: Record<string, string> } | null)?.totals) ?? {};
-            return (
-              <tr key={r.id as string}>
-                <Td><Link className="font-medium text-brand" href={`/finance/${r.id}`}>{r.name as string}</Link></Td>
-                <Td>{(reqs ?? []).find((q) => q.id === r.requirement_id)?.title ?? "—"}</Td>
-                <Td>{inr(t.npv)}</Td><Td>{inr(t.nominalTco)}</Td><Td>{inr(t.equivalentMonthly)}</Td>
-                <Td>{r.approved_at ? <Badge tone="ok">approved</Badge> : <Badge>draft</Badge>}</Td>
-              </tr>
-            );
-          })}
-        </Table>
+        <form action="/finance/compare" method="get" className="space-y-2">
+          <Table head={["Compare", "Scenario", "Requirement", "NPV", "Nominal TCO", "Equivalent monthly", "Costs", "Approved"]}>
+            {rows.map((r) => {
+              const rj = (r.result_json ?? {}) as { totals?: Record<string, string>; gaps?: { label: string }[] };
+              const t = rj.totals ?? {};
+              const gaps = (rj.gaps ?? (r.gaps as { label: string }[] | null) ?? []);
+              return (
+                <tr key={r.id as string}>
+                  <Td><input type="checkbox" name="ids" value={r.id as string} aria-label={`compare ${r.name}`} /></Td>
+                  <Td><Link className="font-medium text-brand" href={`/finance/${r.id}`}>{r.name as string}</Link> <span className="text-xs text-ink-soft">v{String(r.version ?? 1)}</span></Td>
+                  <Td>{(reqs ?? []).find((q) => q.id === r.requirement_id)?.title ?? "—"}</Td>
+                  <Td>{inr(t.npv)}</Td><Td>{inr(t.nominalTco)}</Td><Td>{inr(t.equivalentMonthly)}</Td>
+                  <Td>{rj.gaps === undefined ? <Badge>not assessed — open to check</Badge> : gaps.length ? <Badge tone="warn" title={gaps.map((g) => g.label).join(", ")}>incomplete: {gaps.length} unknown</Badge> : <Badge tone="ok">complete</Badge>}</Td>
+                  <Td>{r.approved_at ? <Badge tone="ok">approved</Badge> : <Badge>draft</Badge>}</Td>
+                </tr>
+              );
+            })}
+          </Table>
+          <Button type="submit" variant="secondary">Compare selected (first = baseline)</Button>
+        </form>
       )}
       {app.role !== "viewer" && (
         <Card title="New scenario">
@@ -57,18 +65,25 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
               <Field label="Escalation % / every months"><div className="flex gap-1"><Input name="esc_pct" inputMode="decimal" /><Input name="esc_every" inputMode="numeric" /></div></Field>
               <Field label="Rent-free months"><Input name="rent_free" inputMode="numeric" /></Field>
               <Field label="Rent starts at period"><Input name="start_period" defaultValue="1" inputMode="numeric" /></Field>
-              <Field label="CAM"><Select name="cam_mode" defaultValue="none"><option value="none">none / included</option><option value="per_sf">₹/SF</option><option value="fixed">fixed ₹/month</option><option value="mixed">mixed</option></Select></Field>
-              <Field label="CAM ₹/SF · fixed ₹"><div className="flex gap-1"><Input name="cam_rate" inputMode="decimal" /><Input name="cam_fixed" inputMode="decimal" /></div></Field>
-              <Field label="Parking slots · ₹/slot"><div className="flex gap-1"><Input name="parking_slots" inputMode="numeric" /><Input name="parking_rate" inputMode="decimal" /></div></Field>
-              <Field label="Deposit (months of rent)"><Input name="deposit_months" inputMode="decimal" /></Field>
-              <Field label="Fit-out capex ₹"><Input name="fitout" inputMode="decimal" /></Field>
               <Field label="Landlord capex support ₹"><Input name="capex_support" inputMode="decimal" /></Field>
-              <Field label="Reinstatement ₹ (end of tenure)"><Input name="reinstatement" inputMode="decimal" /></Field>
               <Field label="GST"><Select name="gst" defaultValue=""><option value="">not specified</option><option value="excluded">excluded (add)</option><option value="included">included</option><option value="recoverable">recoverable</option></Select></Field>
               <Field label="GST rate % (from finance)"><Input name="gst_rate" inputMode="decimal" /></Field>
               <Field label="Parallel rent ₹/month · months"><div className="flex gap-1"><Input name="parallel_rent" inputMode="decimal" /><Input name="parallel_months" inputMode="numeric" /></div></Field>
               <Field label="Move cost ₹"><Input name="move_cost" inputMode="decimal" /></Field>
             </div>
+            <div className="rounded-lg border border-line p-3">
+              <div className="mb-2 text-sm font-medium">Other costs — each is <em>unknown</em> until you give an amount or mark it none</div>
+              <p className="mb-3 text-xs text-ink-soft">Unknown costs are listed as gaps, excluded from “complete” totals and block approval unless acknowledged. They are never treated as zero.</p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <CostRow item="cam" label="CAM / maintenance"><Input name="cam_rate" inputMode="decimal" placeholder="₹/SF/month" /><Input name="cam_fixed" inputMode="decimal" placeholder="or fixed ₹/month" /></CostRow>
+                <CostRow item="parking" label="Parking"><Input name="parking_slots" inputMode="numeric" placeholder="slots" /><Input name="parking_rate" inputMode="decimal" placeholder="₹/slot/month" /></CostRow>
+                <CostRow item="deposit" label="Security deposit"><Input name="deposit_months" inputMode="decimal" placeholder="months of rent" /></CostRow>
+                <CostRow item="fitout" label="Fit-out capex"><Input name="fitout" inputMode="decimal" placeholder="₹ total" /></CostRow>
+                <CostRow item="opex" label="Other operating costs"><Input name="opex_monthly" inputMode="decimal" placeholder="₹/month (power, housekeeping…)" /></CostRow>
+                <CostRow item="reinstatement" label="Reinstatement (end of tenure)"><Input name="reinstatement" inputMode="decimal" placeholder="₹" /></CostRow>
+              </div>
+            </div>
+            <Field label="Discount-rate source"><Input name="discount_source" placeholder="e.g. client WACC per CFO email 30 Oct" /></Field>
             <details className="rounded-lg border border-line p-3"><summary className="cursor-pointer text-sm font-medium">Fit-out financing (optional)</summary>
               <div className="mt-3 grid gap-3 sm:grid-cols-5">
                 <Field label="Partner"><Input name="fin_partner" placeholder="from your partner list" /></Field>
@@ -83,5 +98,20 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
         </Card>
       )}
     </div>
+  );
+}
+
+/** Three-state cost input: unknown (default, a visible gap) · none / included · amount. */
+function CostRow({ item, label, children }: { item: string; label: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="space-y-1">
+      <legend className="text-sm font-medium">{label}</legend>
+      <Select name={`${item}_state`} defaultValue="unknown" aria-label={`${label} state`}>
+        <option value="unknown">Unknown — gap (default)</option>
+        <option value="none">None / included elsewhere</option>
+        <option value="amount">Amount below</option>
+      </Select>
+      <div className="flex gap-1">{children}</div>
+    </fieldset>
   );
 }

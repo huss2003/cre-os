@@ -11,6 +11,11 @@
  * 3. Fit score (0-100) and data-completeness score (0-100) are reported separately.
  * 4. Only space snapshots are quoted (never a building's total area). Observations past valid_until — or older
  *    than the decay window when no validity is recorded — are stale and block client release.
+ * 5. Optional hard filters (constraints.hard_filters, default off): budget ceiling, latest occupation date and
+ *    preferred-location-only turn the corresponding scored criterion into an eligibility filter. Unknown data under
+ *    a hard filter is "needs verification", never a pass.
+ * 6. Every option carries `qualifies` (why it passed each hard check, with the evidence values) and coded
+ *    verification items (`verification[{code,text}]`) so follow-up tasks can be deduped across runs.
  */
 import type { RequirementRow, RequiredSpecs } from "../requirements/contract";
 
@@ -54,12 +59,17 @@ export interface Candidate {
 
 export type Eligibility = "eligible" | "needs_verification" | "ineligible";
 export interface CriterionResult { weight: number; status: "scored" | "unknown" | "not_applicable"; score: number | null; detail: string }
+export interface VerificationItem { code: string; text: string }
 export interface OptionResult {
   spaceId: string; assetId: string; availabilityId: string | null; quoteId: string | null;
   label: string;
   eligibility: Eligibility;
   disqualifiers: string[];
   verificationNeeded: string[];
+  /** Same items as verificationNeeded with a stable code (no dates) for task dedupe. */
+  verification: VerificationItem[];
+  /** Why the option passes each hard check that applies (evidence values). */
+  qualifies: string[];
   fitScore: number;
   completenessScore: number;
   criteria: Record<Criterion, CriterionResult>;
@@ -123,14 +133,14 @@ function specValue(asset: AssetData, key: string): number | boolean | null {
   return Number.isFinite(n) ? n : null;
 }
 
-interface SpecCheck { label: string; met: boolean | null }
+interface SpecCheck { label: string; code: string; met: boolean | null; actual?: string }
 function checkSpecs(req: RequiredSpecs | undefined, c: Candidate): SpecCheck[] {
   if (!req) return [];
   const out: SpecCheck[] = [];
   const cmp = (label: string, required: number | null | undefined, key: string, dir: "min" | "max") => {
     if (required === null || required === undefined) return;
     const v = specValue(c.asset, key);
-    out.push({ label, met: typeof v === "number" ? (dir === "min" ? v >= required : v <= required) : null });
+    out.push({ label, code: key, met: typeof v === "number" ? (dir === "min" ? v >= required : v <= required) : null, actual: typeof v === "number" ? `building: ${v}` : undefined });
   };
   cmp(`power ≥ ${req.min_power_kva} kVA`, req.min_power_kva, "power_kva", "min");
   cmp(`car parks ≥ ${req.min_car_parks}`, req.min_car_parks, "car_parks", "min");
@@ -138,11 +148,11 @@ function checkSpecs(req: RequiredSpecs | undefined, c: Candidate): SpecCheck[] {
   cmp(`metro ≤ ${req.max_metro_km} km`, req.max_metro_km, "metro_km", "max");
   if (req.operating_24x7) {
     const v = specValue(c.asset, "operating_24x7");
-    out.push({ label: "24×7 operations permitted", met: typeof v === "boolean" ? v : null });
+    out.push({ label: "24×7 operations permitted", code: "operating_24x7", met: typeof v === "boolean" ? v : null });
   }
   if (req.fitout_basis && req.fitout_basis.length) {
     const cfg = c.availability?.fitout_basis ?? c.space.configuration ?? null;
-    out.push({ label: `fit-out basis in [${req.fitout_basis.join(", ")}]`, met: cfg ? req.fitout_basis.includes(cfg) : null });
+    out.push({ label: `fit-out basis in [${req.fitout_basis.join(", ")}]`, code: "fitout_basis", met: cfg ? req.fitout_basis.includes(cfg) : null, actual: cfg ? `offered: ${cfg}` : undefined });
   }
   return out;
 }
@@ -161,7 +171,10 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
   const tol = opts.areaTolerance ?? 0.15;
   const weights = effectiveWeights(req);
   const disq: string[] = [];
-  const verify: string[] = [];
+  const verification: VerificationItem[] = [];
+  const qualifies: string[] = [];
+  const verify = { push: (text: string, code = "other") => { if (!verification.some((v) => v.code === code && code !== "other")) verification.push({ code, text }); } };
+  const hf = req.constraints?.hard_filters ?? {};
   let known = 0, needed = 0;
   const need = (ok: boolean) => { needed++; if (ok) known++; };
 
@@ -169,20 +182,33 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
   const av = c.availability;
   let vacancyUnverified = false, stale = false;
   need(!!av);
-  if (!av) { vacancyUnverified = true; verify.push("No availability snapshot: vacancy unverified"); }
+  if (!av) { vacancyUnverified = true; verify.push("No availability snapshot: vacancy unverified", "no_availability"); }
   else {
     if (av.status === "leased" || av.status === "withdrawn") disq.push(`Availability status: ${av.status} (as of ${av.as_of})`);
-    else if (av.status === "under_offer") verify.push(`Under offer (as of ${av.as_of})`);
-    else if (av.status === "unverified") { vacancyUnverified = true; verify.push(`Vacancy unverified (as of ${av.as_of})`); }
+    else if (av.status === "under_offer") verify.push(`Under offer (as of ${av.as_of})`, "under_offer");
+    else if (av.status === "unverified") { vacancyUnverified = true; verify.push(`Vacancy unverified (as of ${av.as_of})`, "vacancy_unverified"); }
     if (av.fact_status && av.fact_status !== "currently_confirmed" && av.status === "available") vacancyUnverified = true;
+    if (av.status === "available") qualifies.push(`Space snapshot: available as of ${av.as_of}${av.fact_status && av.fact_status !== "currently_confirmed" ? ` (${av.fact_status}, not currently confirmed)` : " (currently confirmed)"}`);
     stale = isStale(av, opts.asOf, decay);
     need(!stale);
-    if (stale) verify.push(`Availability observation stale (as of ${av.as_of}${av.valid_until ? `, valid until ${av.valid_until}` : `, no validity — ${decay}-day decay`})`);
+    if (stale) verify.push(`Availability observation stale (as of ${av.as_of}${av.valid_until ? `, valid until ${av.valid_until}` : `, no validity — ${decay}-day decay`})`, "availability_stale");
   }
 
   const excluded = new Set(req.excluded_geography_ids ?? []);
   if ((c.asset.locality_id && excluded.has(c.asset.locality_id)) || (c.asset.micro_market_id && excluded.has(c.asset.micro_market_id)))
     disq.push("Location is in an excluded area");
+  else if (excluded.size) {
+    if (!c.asset.locality_id && !c.asset.micro_market_id) verify.push("Building geography unknown — cannot rule out excluded locations", "geo_unknown");
+    else qualifies.push("Not in an excluded location");
+  }
+  const pref = req.preferred_geography_ids ?? [];
+  if (hf.preferred_only) {
+    const ids = [c.asset.locality_id, c.asset.micro_market_id].filter(Boolean) as string[];
+    if (!pref.length) verify.push("Preferred-locations-only filter is on but no preferred locations are set", "hf_preferred_unset");
+    else if (!ids.length) verify.push("Building geography unknown (preferred-locations-only filter)", "geo_unknown");
+    else if (!ids.some((i) => pref.includes(i))) disq.push("Outside the preferred locations (hard filter)");
+    else qualifies.push("Inside a preferred location (hard filter)");
+  }
 
   const basis = req.area_basis ?? null;
   const area = spaceArea(c.space, basis);
@@ -195,29 +221,38 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
       // basis unknown: test both; pass on either only as needs-verification
       const a1 = spaceArea(c.space, "carpet").value, a2 = spaceArea(c.space, "chargeable").value;
       const inR = (v: number | null) => v !== null && (lo === null || v >= lo) && (hi === null || v <= hi);
-      if (a1 === null && a2 === null) verify.push("Space area unknown");
+      if (a1 === null && a2 === null) verify.push("Space area unknown", "area_unknown");
       else if (!inR(a1) && !inR(a2)) disq.push(`Space area outside ${lo ?? "–"}–${hi ?? "–"} SF on any basis`);
-      else verify.push("Requirement area basis not confirmed (carpet vs chargeable)");
-    } else if (area.value === null) verify.push(`Space ${basis} area unknown`);
+      else verify.push("Requirement area basis not confirmed (carpet vs chargeable)", "area_basis_unconfirmed");
+    } else if (area.value === null) verify.push(`Space ${basis} area unknown`, "area_unknown");
     else if ((lo !== null && area.value < lo) || (hi !== null && area.value > hi))
       disq.push(`Space ${basis} area ${area.value} SF outside ${lo !== null ? Math.round(lo) : "–"}–${hi !== null ? Math.round(hi) : "–"} SF`);
-    else if (area.derived) verify.push(`${basis} area derived from efficiency — confirm`);
+    else {
+      qualifies.push(`Area ${area.value} SF ${basis} within ${lo !== null ? Math.round(lo) : "–"}–${hi !== null ? Math.round(hi) : "–"} SF${area.derived ? " (derived from efficiency)" : ""}`);
+      if (area.derived) verify.push(`${basis} area derived from efficiency — confirm`, "area_derived");
+    }
   }
   const smin = req.seats_min ?? null;
-  if (smin && c.space.seats !== null && c.space.seats !== undefined && c.space.seats < smin) disq.push(`Seats ${c.space.seats} below minimum ${smin}`);
+  if (smin) {
+    if (c.space.seats === null || c.space.seats === undefined) verify.push(`Seat count unknown (minimum ${smin})`, "seats_unknown");
+    else if (c.space.seats < smin) disq.push(`Seats ${c.space.seats} below minimum ${smin}`);
+    else qualifies.push(`Seats ${c.space.seats} ≥ minimum ${smin}`);
+  }
 
   const specs = req.constraints?.required_specs;
   const specChecks = checkSpecs(specs, c);
   for (const s of specChecks) {
     need(s.met !== null);
     if (s.met === false) disq.push(`Fails required spec: ${s.label}`);
-    else if (s.met === null) verify.push(`Unknown: ${s.label}`);
+    else if (s.met === null) verify.push(`Unknown: ${s.label}`, `spec:${s.code}`);
+    else qualifies.push(`Meets ${s.label}${s.actual !== undefined ? ` (${s.actual})` : ""}`);
   }
   const cert = certMatch(specs?.certifications, c.asset);
   if (specs?.certifications?.length) {
     need(cert.anyKnown);
-    if (!cert.anyKnown) verify.push(`Certification unknown (required: ${specs.certifications.join(" / ")})`);
+    if (!cert.anyKnown) verify.push(`Certification unknown (required: ${specs.certifications.join(" / ")})`, "certification_unknown");
     else if (!cert.matched) disq.push(`Required certification missing (${specs.certifications.join(" / ")})`);
+    else qualifies.push(`Certification matches ${specs.certifications.join(" / ")}`);
   }
 
   const quote = c.quote ?? null;
@@ -232,7 +267,6 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
   // location / catchment
   {
     const subs: { s: number | null; d: string }[] = [];
-    const pref = req.preferred_geography_ids ?? [];
     if (pref.length) {
       const ids = [c.asset.locality_id, c.asset.micro_market_id].filter(Boolean) as string[];
       need(ids.length > 0);
@@ -302,6 +336,15 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
         set("cost", "scored", s, `${detail}${useQuote ? ` (quote v${quote!.version})` : " (asking)"}`);
       }
     }
+    if (hf.budget_ceiling) {
+      if (bmax === null || !bb) verify.push("Budget-ceiling filter is on but the budget max/basis is unknown", "hf_budget_unset");
+      else if (allIn === null) verify.push("All-in cost unknown (budget-ceiling filter)", "cost_unknown");
+      else if (allIn > bmax) disq.push(`All-in cost ${allIn} above budget ceiling ${bmax} (${bb}, hard filter)`);
+      else {
+        qualifies.push(`All-in cost ${allIn} within budget ceiling ${bmax} (${bb})${camKnown ? "" : " — CAM unknown, rent only"}`);
+        if (!camKnown) verify.push("CAM unknown: all-in cost under the budget ceiling is rent-only", "cam_unknown");
+      }
+    }
   }
 
   // readiness / timing
@@ -310,6 +353,12 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
     let from = av?.available_from ?? null;
     if (c.asset.status && /under_construction|planned/.test(c.asset.status) && c.asset.completion_date && (!from || c.asset.completion_date > from)) from = c.asset.completion_date;
     need(!!from);
+    if (hf.latest_occupation) {
+      if (!occ) verify.push("Latest-occupation filter is on but the occupation date is unknown", "hf_occupation_unset");
+      else if (!from) verify.push("Available-from date unknown (latest-occupation filter)", "available_from_unknown");
+      else if (from > occ) disq.push(`Available ${from}, after the required occupation date ${occ} (hard filter)`);
+      else qualifies.push(`Available ${from}, by the occupation date ${occ}`);
+    }
     if (!occ) set("readiness", "not_applicable", null, "no occupation date on requirement");
     else if (!from) set("readiness", "unknown", 0, "available-from date unknown");
     else {
@@ -364,11 +413,12 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
   }
   const fitScore = wsum ? round2((ssum / wsum) * 100) : 0;
   const completenessScore = needed ? round2((known / needed) * 100) : 0;
-  const eligibility: Eligibility = disq.length ? "ineligible" : verify.length ? "needs_verification" : "eligible";
+  const verifyText = verification.map((v) => v.text);
+  const eligibility: Eligibility = disq.length ? "ineligible" : verification.length ? "needs_verification" : "eligible";
   const label = [c.asset.name, c.space.floor_text ? `Floor ${c.space.floor_text}` : null, c.space.unit ? `Unit ${c.space.unit}` : null].filter(Boolean).join(" · ");
   return {
     spaceId: c.space.id, assetId: c.asset.id, availabilityId: av?.id ?? null, quoteId: quote?.id ?? null, label,
-    eligibility, disqualifiers: disq, verificationNeeded: verify, fitScore, completenessScore, criteria: crit,
+    eligibility, disqualifiers: disq, verificationNeeded: verifyText, verification, qualifies, fitScore, completenessScore, criteria: crit,
     area, allInCostPerUnit: allIn,
     flags: { vacancyUnverified, availabilityStale: stale, quoteExpired, clientReleaseBlocked: eligibility !== "eligible" || vacancyUnverified || stale || quoteExpired },
   };

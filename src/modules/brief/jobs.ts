@@ -18,7 +18,8 @@ import { loadMemberAccess, loadSettings, loadWorkspace, notify } from "./db";
 import { loadApproaches, loadMeetings, loadOpenTasks, loadPipeline, loadSources, toTaskLite, type LoadCtx } from "./data";
 import { buildPreMeetingBrief, buildReconciliation, buildWeekly } from "./other-briefs";
 import { buildDailyPlan } from "./plan";
-import { loadRadar, raiseRadarTasks } from "./radar-data";
+import { loadRadar, persistCalculatedEvents, raiseRadarAlerts, raiseRadarTasks } from "./radar-data";
+import { runCaretaker } from "./caretaker-data";
 import { meetingVersionKey, planSchedule, staleMeetingJobs, type MeetingCtx, type WorkspaceCtx } from "./scheduler";
 import { computeScores, persistScores } from "./scoring-data";
 import { explain } from "./scoring";
@@ -72,6 +73,17 @@ export async function schedule(now: Date, admin: Db = createAdminClient()): Prom
     await enqueue({ workspaceId: s.workspaceId, type: s.type, payload: s.payload, dueAt: s.dueAt, dedupeKey: s.dedupeKey, maxAttempts: s.type === "brief.recalc" ? 3 : 4 });
     enqueued++;
   }
+  // hourly "deadline enters 48 h" watch per workspace (dedupe = workspace + UTC hour)
+  const hour = now.toISOString().slice(0, 13);
+  const watchKeys = ids.map((id: string) => `brief.deadline_watch:${id}:${hour}`);
+  const { data: haveWatch } = await admin.from("job").select("dedupe_key").in("workspace_id", ids).in("dedupe_key", watchKeys);
+  const hw = new Set((haveWatch ?? []).map((r: { dedupe_key: string }) => r.dedupe_key));
+  for (const id of ids) {
+    const key = `brief.deadline_watch:${id}:${hour}`;
+    if (hw.has(key)) continue;
+    await enqueue({ workspaceId: id, type: "brief.deadline_watch", payload: { hour }, dueAt: now, dedupeKey: key, maxAttempts: 2 });
+    enqueued++;
+  }
   const cancelled = await cancelStalePreMeetingJobs(admin, ids);
   return { enqueued, cancelled };
 }
@@ -122,16 +134,97 @@ function withMember(fn: (m: MemberJobCtx, job: Job) => Promise<unknown>, adminFa
 
 // ------------------------------------------------------------------ handlers
 
-export async function runRecalc(admin: Db, workspaceId: string, date: string) {
+async function workspaceOwner(admin: Db, workspaceId: string): Promise<string | null> {
+  const { data: owner } = await admin.from("membership").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").limit(1).maybeSingle();
+  return owner?.user_id ?? null;
+}
+
+/**
+ * Lease radar refresh (daily at 07:00 inside recalc, and on lease / lease_event / lease-document changes via
+ * brief.radar): persist calculated events, raise review / reverse-plan / notice tasks, raise event alerts.
+ */
+export async function runRadarRefresh(admin: Db, workspaceId: string, date: string) {
   const ws = await loadWorkspace(admin, workspaceId);
   if (ws.status !== "active") return { skipped: `workspace ${ws.status}` };
   const settings = await loadSettings(admin, workspaceId, null);
   const radar = await loadRadar(admin, workspaceId, date, settings);
-  const { data: owner } = await admin.from("membership").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").limit(1).maybeSingle();
-  const tasks = await raiseRadarTasks(admin, workspaceId, radar, date, owner?.user_id ?? null);
+  const owner = await workspaceOwner(admin, workspaceId);
+  const events = await persistCalculatedEvents(admin, workspaceId, radar);
+  const tasks = await raiseRadarTasks(admin, workspaceId, radar, date, owner);
+  const alerts = await raiseRadarAlerts(admin, workspaceId, radar, date, owner);
+  return { radar, settings, owner, result: { leases: radar.items.length, events, tasks, alerts } };
+}
+
+export async function runRecalc(admin: Db, workspaceId: string, date: string) {
+  const r = await runRadarRefresh(admin, workspaceId, date);
+  if ("skipped" in r) return r;
+  const { radar, settings, owner } = r;
+  const caretaker = await runCaretaker(admin, workspaceId, date, radar.items, owner);
   const scores = await computeScores(admin, workspaceId, date, settings, radar.items);
   const persisted = await persistScores(admin, workspaceId, scores);
-  return { leases: radar.items.length, tasks, scored: scores.length, ...persisted };
+  return { leases: radar.items.length, tasks: r.result.tasks, events: r.result.events, alerts: r.result.alerts, caretaker, scored: scores.length, ...persisted };
+}
+
+/** Event-driven re-plan (debounced by mudar_app.brief_enqueue): rebuild today's plan/day order for every member. */
+export async function runReplan(admin: Db, workspaceId: string, reason: string, now = new Date()) {
+  const ws = await loadWorkspace(admin, workspaceId);
+  if (ws.status !== "active") return { skipped: `workspace ${ws.status}` };
+  const tz = ws.timezone || "Asia/Kolkata";
+  const date = localDate(now, tz);
+  const { data: members } = await admin.from("membership").select("user_id").eq("workspace_id", workspaceId);
+  const out: { userId: string; planId: string | null; conflicts: number; blocked: number }[] = [];
+  for (const m of members ?? []) {
+    const access = await loadMemberAccess(admin, workspaceId, m.user_id);
+    if (!access) continue;
+    const settings = await loadSettings(admin, workspaceId, m.user_id);
+    if (!settings.workdays.includes(isoWeekdayOf(date)) && !settings.weekendBrief) continue;
+    const plan = await buildDailyPlan({ db: admin, workspaceId, userId: m.user_id, tz, access }, settings, date, { now, reason });
+    out.push({ userId: m.user_id, planId: plan.id, conflicts: plan.agenda?.conflicts.length ?? 0, blocked: plan.agenda?.blocked.length ?? 0 });
+  }
+  return { date, reason, plans: out };
+}
+
+function isoWeekdayOf(date: string): number {
+  const d = new Date(date + "T00:00:00Z").getUTCDay();
+  return d === 0 ? 7 : d;
+}
+
+/**
+ * Hourly: anything whose deadline is now within 48 h (open tasks, lease events incl. calculated ones, deal milestones)
+ * gets one private alert (dedupe by item + due) and, if anything newly entered the window, a debounced re-plan.
+ */
+export async function runDeadlineWatch(admin: Db, workspaceId: string, now = new Date()) {
+  const ws = await loadWorkspace(admin, workspaceId);
+  if (ws.status !== "active") return { skipped: `workspace ${ws.status}` };
+  const tz = ws.timezone || "Asia/Kolkata";
+  const today = localDate(now, tz);
+  const horizon = new Date(now.getTime() + 48 * 3_600_000);
+  const horizonDate = localDate(horizon, tz);
+  const owner = await workspaceOwner(admin, workspaceId);
+  const items: { key: string; user: string | null; title: string; due: string; href: string }[] = [];
+  const { data: tasks } = await admin.from("task").select("id, title, due_at, assigned_user_id, owner_user_id").eq("workspace_id", workspaceId).is("archived_at", null)
+    .eq("status", "open").gt("due_at", now.toISOString()).lte("due_at", horizon.toISOString()).limit(2000);
+  for (const t of tasks ?? []) items.push({ key: `deadline48:task:${t.id}:${t.due_at}`, user: t.assigned_user_id ?? t.owner_user_id ?? owner, title: t.title, due: t.due_at, href: `/tasks?focus=${t.id}` });
+  const { data: evs } = await admin.from("lease_event").select("id, lease_id, event_type, event_date, date_basis, owner_user_id").eq("workspace_id", workspaceId).is("archived_at", null)
+    .in("event_type", ["notice_deadline", "break", "escalation", "option", "expiry", "lockin_end"]).gte("event_date", today).lte("event_date", horizonDate).limit(2000);
+  for (const e of evs ?? []) items.push({ key: `deadline48:lease_event:${e.id}:${e.event_date}`, user: e.owner_user_id ?? owner, title: `${e.event_type.replace(/_/g, " ")} ${e.event_date} (${e.date_basis.replace(/_/g, " ")})`, due: e.event_date, href: `/leases?lease=${e.lease_id}` });
+  const { data: ms } = await admin.from("deal_milestone").select("id, title, due_date, status, opportunity_id, owner_user_id").eq("workspace_id", workspaceId).is("archived_at", null)
+    .not("status", "in", "(done,waived,not_applicable)").gte("due_date", today).lte("due_date", horizonDate).limit(2000);
+  for (const m of ms ?? []) items.push({ key: `deadline48:milestone:${m.id}:${m.due_date}`, user: m.owner_user_id ?? owner, title: m.title, due: m.due_date, href: `/deals/${m.opportunity_id}` });
+  if (!items.length) return { entered: 0 };
+  const have = new Set<string>();
+  for (const part of chunk(items.map((i) => i.key))) {
+    const { data } = await admin.from("outbox").select("dedupe_key").eq("workspace_id", workspaceId).in("dedupe_key", part);
+    for (const r of data ?? []) have.add(r.dedupe_key);
+  }
+  let entered = 0;
+  for (const it of items) {
+    if (have.has(it.key) || !it.user) continue;
+    await notify(admin, workspaceId, it.user, "deadline_48h", it.key, { title: `Due within 48 h: ${it.title}`, due: it.due, href: it.href });
+    entered++;
+  }
+  if (entered) await admin.schema("mudar_app").rpc("brief_enqueue", { p_ws: workspaceId, p_type: "brief.replan", p_reason: "deadline entered 48 h", p_debounce_sec: 120 });
+  return { entered };
 }
 
 export async function runReconcile(m: MemberJobCtx, now = new Date()) {
@@ -255,9 +348,34 @@ export const handlers: Record<string, JobHandler> = {
     const ws = await loadWorkspace(admin, job.workspace_id);
     return runRecalc(admin, job.workspace_id, date ?? localDate(new Date(), ws.timezone));
   },
+  "brief.replan": async (job) => {
+    if (!job.workspace_id) return { skipped: "no workspace" };
+    return runReplan(createAdminClient(), job.workspace_id, String((job.payload as { reason?: string }).reason ?? "event"));
+  },
+  "brief.radar": async (job) => {
+    if (!job.workspace_id) return { skipped: "no workspace" };
+    const admin = createAdminClient();
+    const ws = await loadWorkspace(admin, job.workspace_id);
+    const r = await runRadarRefresh(admin, job.workspace_id, localDate(new Date(), ws.timezone));
+    return "skipped" in r ? r : r.result;
+  },
+  "brief.caretaker": async (job) => {
+    if (!job.workspace_id) return { skipped: "no workspace" };
+    const admin = createAdminClient();
+    const ws = await loadWorkspace(admin, job.workspace_id);
+    if (ws.status !== "active") return { skipped: `workspace ${ws.status}` };
+    const date = localDate(new Date(), ws.timezone);
+    const settings = await loadSettings(admin, job.workspace_id, null);
+    const radar = await loadRadar(admin, job.workspace_id, date, settings);
+    return runCaretaker(admin, job.workspace_id, date, radar.items, await workspaceOwner(admin, job.workspace_id));
+  },
+  "brief.deadline_watch": async (job) => {
+    if (!job.workspace_id) return { skipped: "no workspace" };
+    return runDeadlineWatch(createAdminClient(), job.workspace_id);
+  },
   "brief.plan": withMember(async (m) => {
     const hk = await housekeepTasks(m.admin, m.c.workspaceId, m.c.userId, new Date(), m.settings.staleTaskAfterDays);
-    const plan = await buildDailyPlan(m.c, m.settings, m.date);
+    const plan = await buildDailyPlan(m.c, m.settings, m.date, { reason: "scheduled 07:20" });
     return { planId: plan.id, targets: plan.targets.length, mode: plan.mode, ...hk };
   }),
   "brief.generate": withMember(async (m) => {

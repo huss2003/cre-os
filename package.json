@@ -25,6 +25,7 @@
     "docx": "^9.15.0",
     "exceljs": "^4.4.0",
     "fastest-levenshtein": "^1.0.16",
+    "jszip": "^3.10.2",
     "lucide-react": "^1.66.0",
     "mammoth": "^1.13.0",
     "next": "16.4.3",

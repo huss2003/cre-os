@@ -7,6 +7,8 @@ import { draftCounts, listDrafts } from "@/modules/integrations/drafts-view";
 import { staleness } from "@/modules/integrations/sync";
 import { importEmlAction } from "./actions";
 import { DraftCard, type DraftView } from "./draft-card";
+import { InboxThreads } from "./inbox-threads";
+import { SequencesTab } from "./sequences-tab";
 
 const TABS: { key: string; label: string; channels: string[] | null }[] = [
   { key: "all", label: "All", channels: null },
@@ -15,6 +17,7 @@ const TABS: { key: string; label: string; channels: string[] | null }[] = [
   { key: "linkedin", label: "LinkedIn", channels: ["linkedin", "post"] },
   { key: "invites", label: "Invites", channels: ["calendar_invite"] },
   { key: "inbox", label: "Inbox triage", channels: [] },
+  { key: "sequences", label: "Sequences", channels: [] },
 ];
 const VIEWS: Record<string, { label: string; states: string[] }> = {
   open: { label: "Needs action", states: ["drafted", "approved", "opened_for_send", "paused"] },
@@ -24,7 +27,15 @@ const VIEWS: Record<string, { label: string; states: string[] }> = {
 const NOTICES: Record<string, string> = {
   imported: "Message imported and triaged.", imported_draft: "Message imported; a reply draft is waiting below in the Email tab.",
   duplicate: "That message was already imported — nothing was duplicated.", empty: "Paste the raw message or choose an .eml file first.",
-  too_large: "That file is larger than 2 MB.", import_failed: "Could not read that message. Use Gmail ‘Download message’ (.eml) or ‘Show original’ and paste all of it.",
+  too_large: "That file is larger than 2 MB.",
+  enrolled: "Enrolled. The first touch is waiting in Drafts for your approval; activate the sequence when you are ready.",
+  enrol_existing: "This person is already in that sequence — nothing was duplicated.",
+  enrol_invalid: "Pick a person and write a one-line value proposition (5–200 characters).",
+  enrol_collision: "A colleague is already approaching this person or account, or the weekly account cap is reached. Agree it with them, then tick the box to proceed.",
+  enrol_suppressed: "This person opted out or their contact is suppressed — they cannot be enrolled.",
+  enr_activate: "Sequence activated. Later steps are drafted after you send the previous one.", enr_resume: "Sequence resumed.",
+  enr_pause: "Sequence paused; its unsent drafts are parked.", enr_cancel: "Sequence cancelled; unsent drafts were discarded.",
+  enr_negotiation: "Not resumed: the account has an opportunity in negotiation or later, so outreach stays paused.", import_failed: "Could not read that message. Use Gmail ‘Download message’ (.eml) or ‘Show original’ and paste all of it.",
 };
 
 export default async function DraftsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -43,12 +54,12 @@ export default async function DraftsPage({ searchParams }: { searchParams: Promi
       <nav className="-mx-1 mb-4 flex gap-1 overflow-x-auto pb-1" aria-label="Draft channels">
         {TABS.map((t) => (
           <Link key={t.key} href={`/drafts?tab=${t.key}`} className={clsx("whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium", t.key === tab.key ? "bg-brand text-white" : "bg-surface text-ink hover:bg-brand-soft")}>
-            {t.label}{t.key !== "inbox" && tabCount(t) ? ` (${tabCount(t)})` : ""}
+            {t.label}{t.key !== "inbox" && t.key !== "sequences" && tabCount(t) ? ` (${tabCount(t)})` : ""}
           </Link>
         ))}
       </nav>
       {notice ? <p className="mb-4 rounded-lg border border-line bg-surface px-3 py-2 text-sm" role="status">{notice}</p> : null}
-      {tab.key === "inbox" ? <InboxTab ws={ctx.workspaceId} db={ctx.db} userId={ctx.userId} tz={ctx.timezone} canEdit={canEdit} /> : (
+      {tab.key === "sequences" ? <SequencesTab ctx={ctx} sp={sp} canEdit={canEdit} /> : tab.key === "inbox" ? <InboxTab ws={ctx.workspaceId} db={ctx.db} userId={ctx.userId} tz={ctx.timezone} canEdit={canEdit} view={sp.iv === "messages" ? "messages" : "threads"} /> : (
         <DraftList db={ctx.db} ws={ctx.workspaceId} tab={tab} view={view} viewKey={String(sp.view ?? "open")} tz={ctx.timezone} canEdit={canEdit} />
       )}
     </div>
@@ -86,7 +97,8 @@ const CAT_TONE: Record<string, "neutral" | "brand" | "ok" | "warn" | "bad" | "ac
   reply: "neutral", opt_out: "warn", wrong_contact: "warn", newsletter: "neutral", suspicious: "bad", other: "neutral",
 };
 
-async function InboxTab({ db, ws, userId, tz, canEdit }: { db: Awaited<ReturnType<typeof requirePageContext>>["db"]; ws: string; userId: string; tz: string; canEdit: boolean }) {
+async function InboxTab({ db, ws, userId, tz, canEdit, view }: { db: Awaited<ReturnType<typeof requirePageContext>>["db"]; ws: string; userId: string; tz: string; canEdit: boolean; view: "threads" | "messages" }) {
+  const threadView = view === "threads" ? await InboxThreads({ db, ws, tz, catTone: CAT_TONE }) : null;
   const { data: msgs } = await db.from("inbound_message").select("id, provider, from_name, from_address, subject, received_at, triage, triage_status, is_backfill, import_method, matched_person_ids")
     .eq("workspace_id", ws).eq("folder", "inbox").is("archived_at", null).order("received_at", { ascending: false }).limit(50);
   const { data: accounts } = await db.from("connector_account").select("id, provider, status").eq("workspace_id", ws).eq("user_id", userId);
@@ -98,7 +110,14 @@ async function InboxTab({ db, ws, userId, tz, canEdit }: { db: Awaited<ReturnTyp
       <div className="min-w-0 space-y-3">
         {broken.length ? <StaleBanner>Mailbox connection {broken.map((b) => `${b.provider} (${b.status})`).join(", ")} needs attention — the list below may be incomplete. <Link className="underline" href="/settings/connections">Reconnect</Link>.</StaleBanner> : null}
         {stale && !broken.length ? <StaleBanner>Inbox last synced {stale.lastSuccessAt ? fmt(stale.lastSuccessAt, "dd MMM, HH:mm", tz) : "never"}{stale.error ? ` · ${stale.error}` : ""}. Messages since then are not shown yet.</StaleBanner> : null}
-        {(msgs ?? []).length === 0 ? (
+        {(msgs ?? []).length ? (
+          <div className="flex flex-wrap gap-2 text-sm">
+            {[["threads", "Threads"], ["messages", "Messages"]].map(([k, l]) => (
+              <Link key={k} href={`/drafts?tab=inbox&iv=${k}`} className={clsx("rounded-full border px-3 py-1", k === view ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-soft")}>{l}</Link>
+            ))}
+          </div>
+        ) : null}
+        {threadView ? threadView : (msgs ?? []).length === 0 ? (
           <EmptyState title="No emails triaged yet">
             Connect Microsoft 365 or Google (read-only) in <Link className="text-brand underline" href="/settings/connections">Settings → Connections</Link>, or import one email using the form.
             {(accounts ?? []).length === 0 ? " No mailbox is connected, so this is not the same as “no replies”." : ""}

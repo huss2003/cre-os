@@ -62,7 +62,7 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
         <Input name="q" defaultValue={f.q ?? ""} placeholder="Search titles" />
         <Select name="scope" defaultValue={f.scope} className="sm:w-44"><option value="mine">Mine</option><option value="all">Everyone</option></Select>
         <Select name="source" defaultValue={f.source ?? ""} className="sm:w-44">
-          <option value="">Any source</option><option value="brief">Brief / targets</option><option value="workflow">Lease radar</option><option value="capture">Capture</option><option value="manual">Manual</option><option value="import">Import</option>
+          <option value="">Any source</option><option value="brief">Brief / targets</option><option value="workflow">Lease radar / relationships</option><option value="capture">Capture</option><option value="manual">Manual</option><option value="import">Import</option>
         </Select>
         <Button type="submit" variant="secondary">Filter</Button>
       </form>
@@ -74,11 +74,15 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={STATE_TONE[t.state]}>{t.state === "snoozed" && t.snoozedUntil ? `Snoozed until ${fmt(t.snoozedUntil, "dd MMM", tz)}` : STATE_LABEL[t.state] ?? t.state}</Badge>
                 <span className="font-medium">{t.title}</span>
+                {t.waitsOn ? <Badge tone="bad">Blocked</Badge> : null}
               </div>
+              {t.waitsOn ? <p className="mt-1 text-xs text-bad">Waits on {t.waitsOn} — not ranked as doable until that is done.</p> : null}
               <div className="mt-1 text-xs text-ink-soft">
                 {t.dueAt ? `Due ${fmt(t.dueAt, "dd MMM yyyy HH:mm", tz)}` : "No due date"} · priority {t.priority}{t.source ? ` · ${t.source}` : ""}
                 {t.linkedEntityType === "lease" ? <> · <Link className="text-brand" href={`/leases?lease=${t.linkedEntityId}`}>lease</Link></> : null}
                 {t.linkedEntityType === "organisation" ? <> · <Link className="text-brand" href={`/companies/${t.linkedEntityId}`}>company</Link></> : null}
+                {t.linkedEntityType === "interaction" ? <> · linked to the interaction it came from</> : null}
+                {t.linkedEntityType === "meeting_visit" ? <> · <Link className="text-brand" href="/calendar">visit</Link></> : null}
               </div>
               {t.description ? <p className="mt-1 text-sm text-ink-soft">{t.description}</p> : null}
               {t.completionEvidence ? <p className="mt-1 text-sm"><span className="font-medium">Evidence:</span> {t.completionEvidence} {t.completedAt ? <span className="text-xs text-ink-soft">({fmt(t.completedAt, "dd MMM HH:mm", tz)})</span> : null}</p> : null}

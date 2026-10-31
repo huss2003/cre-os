@@ -1,6 +1,7 @@
 import "server-only";
 import type { Db } from "@/lib/supabase/server";
 import { nameMap } from "./service";
+import { jobMoveStates } from "../network/service";
 
 type Row = Record<string, unknown>;
 
@@ -45,15 +46,16 @@ export async function dossierPage(db: Db, workspaceId: string, orgId: string) {
     db.from("research_dossier").select("*").eq("workspace_id", workspaceId).eq("org_id", orgId).eq("is_current", true).maybeSingle(),
     db.from("research_dossier").select("id, version, generated_at, synthesis_status").eq("workspace_id", workspaceId).eq("org_id", orgId).order("version", { ascending: false }).limit(10),
     db.from("watchlist").select("tier, next_due_at, reason").eq("workspace_id", workspaceId).eq("org_id", orgId).maybeSingle(),
-    db.from("signal_claim").select("id, claim_type, predicate, evidence_tier, source_url, observed_on, expires_on").eq("workspace_id", workspaceId).eq("subject_type", "organisation").eq("subject_id", orgId).is("archived_at", null).order("observed_on", { ascending: false }).limit(30),
+    db.from("signal_claim").select("id, claim_type, predicate, evidence_tier, source_url, observed_on, expires_on, status, classification, value_json").eq("workspace_id", workspaceId).eq("subject_type", "organisation").eq("subject_id", orgId).is("archived_at", null).order("observed_on", { ascending: false }).limit(30),
   ]);
   return { org: org as Row | null, dossier: cur as Row | null, versions: (versions ?? []) as Row[], watch: watch as Row | null, claims: (claims ?? []) as Row[] };
 }
 
 export async function recentJobMoves(db: Db, workspaceId: string, limit = 20) {
-  const { data } = await db.from("signal_claim").select("id, subject_id, value_json, observed_on, effective_on, source_url, evidence_tier").eq("workspace_id", workspaceId).eq("claim_type", "job_move").is("archived_at", null).order("created_at", { ascending: false }).limit(limit);
+  const { data } = await db.from("signal_claim").select("id, subject_id, value_json, observed_on, effective_on, source_url, evidence_tier, status").eq("workspace_id", workspaceId).eq("claim_type", "job_move").is("archived_at", null).order("created_at", { ascending: false }).limit(limit);
   const rows = (data ?? []) as Row[];
   const people = await nameMap(db, workspaceId, "person", rows.map((r) => r.subject_id as string));
   const orgs = await nameMap(db, workspaceId, "organisation", rows.flatMap((r) => { const v = (r.value_json ?? {}) as Row; return [v.from_org_id as string, v.to_org_id as string]; }));
-  return rows.map((r): Row & { person: string; from: string | null; to: string | null; to_org_id: string | null; title: string | null } => { const v = (r.value_json ?? {}) as Row; return { ...r, person: people.get(String(r.subject_id)) ?? "(restricted)", from: v.from_org_id ? orgs.get(String(v.from_org_id)) ?? "(restricted)" : null, to: v.to_org_id ? orgs.get(String(v.to_org_id)) ?? "(restricted)" : null, to_org_id: v.to_org_id as string | null, title: v.title as string | null }; });
+  const verified = await jobMoveStates(db, workspaceId, rows.map((r) => ({ id: String(r.id), status: String(r.status) })));
+  return rows.map((r): Row & { person: string; from: string | null; to: string | null; to_org_id: string | null; title: string | null; verified: boolean } => { const v = (r.value_json ?? {}) as Row; return { ...r, person: people.get(String(r.subject_id)) ?? "(restricted)", from: v.from_org_id ? orgs.get(String(v.from_org_id)) ?? "(restricted)" : null, to: v.to_org_id ? orgs.get(String(v.to_org_id)) ?? "(restricted)" : null, to_org_id: v.to_org_id as string | null, title: v.title as string | null, verified: verified.get(String(r.id)) ?? false }; });
 }

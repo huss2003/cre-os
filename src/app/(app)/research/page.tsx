@@ -16,7 +16,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
 
   return (
     <div>
-      <PageHeader title="Research" subtitle="Cited company dossiers. Every claim has dates, an expiry and an evidence tier; unknowns stay unknown." actions={canEdit ? <form action={patrolAction}><Button variant="secondary">Run evidence patrol</Button></form> : null} />
+      <PageHeader title="Research" subtitle="Cited company dossiers. Every claim has dates, an expiry and an evidence tier; unknowns stay unknown." actions={<><ButtonLink variant="secondary" href="/research/sources">Approved sources</ButtonLink>{canEdit ? <form action={patrolAction}><Button variant="secondary">Run evidence patrol</Button></form> : null}</>} />
       <Flash sp={sp} />
 
       <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">

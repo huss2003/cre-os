@@ -10,7 +10,8 @@
  */
 import Decimal from "decimal.js";
 import { addDays, daysBetween, isoWeekday, monthEnd, workdaysBetween } from "./dates";
-import type { RadarItem } from "./lease-radar";
+import { renderAgendaText, type DayAgenda } from "./agenda";
+import { upcomingEventFacts, type RadarItem } from "./lease-radar";
 import type { Capacity, DisplacedCandidate, SelectedTarget } from "./priority";
 import type { Component, ComponentKey } from "./scoring";
 import { COMPONENT_LABEL } from "./scoring";
@@ -91,12 +92,13 @@ export interface BriefInputs {
   cohortTarget: { minimum: number; pace: number };
   workdays: number[];
   staleTaskAfterDays: number;
+  agenda?: DayAgenda | null;
 }
 
 export interface ActionItem { kind: "notice" | "overdue" | "deadline_target" | "reply" | "target" | "approvals" | "enrichment"; title: string; why: string; href: string; ref: string }
 
 export interface DeadlineItem {
-  leaseId: string; tenant: string; asset: string | null; kind: "notice" | "expiry" | "expired" | "break";
+  leaseId: string; tenant: string; asset: string | null; kind: "notice" | "expiry" | "expired" | "break" | "escalation" | "option";
   date: string; days: number; basisLabel: string; verified: boolean; lastDecision: string | null; callWindow: string | null;
 }
 
@@ -121,6 +123,7 @@ export interface BriefContent {
   displaced: DisplacedCandidate[];
   capacity: Capacity | null;
   planGeneratedAt: string | null;
+  agenda?: DayAgenda | null;
   fallbackText: string;
 }
 
@@ -180,6 +183,10 @@ function deadlineItems(radar: RadarItem[], today: string): { items: DeadlineItem
     }
     if (r.status === "active" && r.expiry && r.daysToExpiry != null && r.daysToExpiry >= 0 && r.daysToExpiry <= 90) {
       items.push({ ...base, kind: "expiry", date: r.expiry.date, days: r.daysToExpiry, basisLabel: r.expiry.basisLabel, verified: r.expiry.verified });
+    }
+    // rent escalation and option events are their own event types (never merged into expiry/notice)
+    for (const u of upcomingEventFacts({ ...r, escalations: r.escalations ?? [], options: r.options ?? [] }, today, 90)) {
+      items.push({ ...base, kind: u.kind, date: u.fact.date, days: u.days, basisLabel: u.fact.basisLabel + (u.fact.detail ? ` · ${u.fact.detail}` : ""), verified: u.fact.verified });
     }
   }
   items.sort((a, b) => a.days - b.days || a.tenant.localeCompare(b.tenant));
@@ -243,6 +250,10 @@ export function renderFallbackText(c: Omit<BriefContent, "fallbackText">, tz: st
   L.push(`CRE OS brief — ${c.date}${c.mode === "light" ? " (light review)" : ""}`);
   const bad = c.sources.filter((s) => s.state !== "ok");
   L.push(bad.length ? `Sources: ${bad.map((s) => s.note).join("; ")}` : "Sources: all connected sources fresh");
+  if (c.agenda && (c.agenda.timeline.length || c.agenda.blocked.length)) {
+    L.push("", `Day plan (${c.agenda.window.from}–${c.agenda.window.end}; ${c.agenda.capacity.plannedMinutes}/${c.agenda.capacity.freeMinutes} free min planned):`);
+    for (const line of renderAgendaText(c.agenda).slice(0, 30)) L.push(`- ${line}`);
+  }
   L.push("", "Top actions:");
   if (c.actions.length) c.actions.forEach((a, n) => L.push(`${n + 1}. ${a.title} — ${a.why}`));
   else L.push("- No urgent actions computed");
@@ -317,6 +328,7 @@ export function buildBrief(i: BriefInputs): BriefContent {
     displaced: i.mode === "light" ? [] : i.displaced.slice(0, 5),
     capacity: i.capacity,
     planGeneratedAt: i.planGeneratedAt,
+    agenda: i.agenda ?? null,
   };
   return { ...content, fallbackText: renderFallbackText(content, i.tz) };
 }

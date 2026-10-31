@@ -3,7 +3,7 @@ import { parseJson } from "@/lib/util/http";
 import { dealsRoute } from "@/modules/deals/api";
 import { createRequirement, listRequirements } from "@/modules/deals/requirements/service";
 
-const FieldChange = z.object({ key: z.string(), value: z.unknown().optional(), status: z.enum(["client_confirmed", "estimated", "unknown"]).optional() });
+const FieldChange = z.object({ key: z.string(), value: z.unknown().optional(), status: z.enum(["client_confirmed", "reported", "estimated", "unknown"]).optional() });
 const Create = z.object({
   title: z.string().min(1).max(300), orgId: z.string().uuid().nullish(), orgName: z.string().max(300).nullish(),
   changes: z.array(FieldChange).max(60).optional(), classification: z.enum(["public", "permitted_personal", "corporate_confidential", "licensed_restricted"]).optional(),

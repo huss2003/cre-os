@@ -1,17 +1,24 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, Textarea, Table, Td } from "@/components/ui";
-import { listLegalDocuments } from "@/modules/intelligence/legal/queries";
+import { listLegalDocuments, legalLinkOptions } from "@/modules/intelligence/legal/queries";
+import { LinkFields } from "./link-fields";
 import { LEGAL_DISCLAIMER } from "@/modules/intelligence/common";
 import { Flash, Disclaimer, fmtDay, label } from "@/modules/intelligence/ui";
 import { addDocumentAction, compareAction } from "./actions";
+import { LegalUploadForm } from "./upload-form";
 
 export default async function LegalPage({ searchParams }: { searchParams: Promise<{ error?: string; notice?: string }> }) {
   const sp = await searchParams;
   const ctx = await requirePageContext();
   const canEdit = hasRole(ctx, "editor");
-  const docs = await listLegalDocuments(ctx.db, ctx.workspaceId);
-  const opts = docs.map((d) => <option key={String(d.id)} value={String(d.id)}>{String(d.title)} · v{String(d.version)}</option>);
+  const [docs, linkOptions] = await Promise.all([listLegalDocuments(ctx.db, ctx.workspaceId), legalLinkOptions(ctx.db, ctx.workspaceId)]);
+  const families = [...new Set(docs.map((d) => String(d.family_key)))];
+  const opts = families.map((f) => (
+    <optgroup key={f} label={f}>
+      {docs.filter((d) => String(d.family_key) === f).map((d) => <option key={String(d.id)} value={String(d.id)}>{String(d.title)} · v{String(d.version)}</option>)}
+    </optgroup>
+  ));
 
   return (
     <div>
@@ -20,13 +27,13 @@ export default async function LegalPage({ searchParams }: { searchParams: Promis
       <Flash sp={sp} />
 
       <Card title="Documents" className="mb-4">
-        {docs.length === 0 ? <EmptyState title="No documents yet">Paste the text of an LOI, term sheet or lease below. Upload a later version with the same family key to get a redline.</EmptyState> : (
+        {docs.length === 0 ? <EmptyState title="No documents yet">Upload a PDF or Word file of an LOI, term sheet or lease below (or paste its text). Add a later version with the same family key to get a redline.</EmptyState> : (
           <Table head={["Document", "Kind", "Version", "Status", "Added"]}>
             {docs.map((d) => (
               <tr key={String(d.id)}>
                 <Td><Link className="font-medium text-brand" href={`/legal/${d.id}`}>{String(d.title)}</Link><div className="text-xs text-ink-soft">{String(d.family_key)}</div></Td>
-                <Td>{label(String(d.doc_kind))}</Td><Td>v{String(d.version)}</Td>
-                <Td><Badge>{label(String(d.status))}</Badge>{d.ocr_unverified ? <> <Badge tone="warn">OCR unverified</Badge></> : null}</Td>
+                <Td>{label(String(d.doc_kind))}<div className="text-xs text-ink-soft">{String(d.file_kind ?? "text").toUpperCase()}{d.page_count ? ` · ${String(d.page_count)} p.` : ""}</div></Td><Td>v{String(d.version)}</Td>
+                <Td><Badge>{label(String(d.status))}</Badge>{d.ocr_status === "ocr_needed" ? <> <Badge tone="bad">OCR needed</Badge></> : d.ocr_unverified ? <> <Badge tone="warn">OCR unverified</Badge></> : null}</Td>
                 <Td>{fmtDay(String(d.created_at))}</Td>
               </tr>
             ))}
@@ -36,7 +43,10 @@ export default async function LegalPage({ searchParams }: { searchParams: Promis
 
       {canEdit && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <Card title="Add a document version">
+          <Card title="Upload a document (PDF / Word)">
+            <LegalUploadForm options={linkOptions} />
+          </Card>
+          <Card title="Or paste text">
             <form action={addDocumentAction} className="space-y-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Title"><Input name="title" required minLength={2} maxLength={200} placeholder="Acme Baner LOI" /></Field>
@@ -44,6 +54,7 @@ export default async function LegalPage({ searchParams }: { searchParams: Promis
               </div>
               <Field label="Family key" hint="Same key = new version of the same document. Leave blank to derive from the title."><Input name="family_key" maxLength={120} /></Field>
               <Field label="Text" hint="Paste the full text. Scanned documents: tick OCR unverified."><Textarea name="text" required minLength={20} className="min-h-48" /></Field>
+              <LinkFields options={linkOptions} />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="ocr_unverified" /> Text came from OCR (clauses need verification)</label>
               <Button type="submit">Store &amp; extract clauses</Button>
             </form>
@@ -53,6 +64,8 @@ export default async function LegalPage({ searchParams }: { searchParams: Promis
               <form action={compareAction} className="space-y-3">
                 <Field label="Base (earlier)"><Select name="base_id" required defaultValue="">{[<option key="" value="" disabled>Choose…</option>, ...opts]}</Select></Field>
                 <Field label="Compare (later)"><Select name="compare_id" required defaultValue="">{[<option key="" value="" disabled>Choose…</option>, ...opts]}</Select></Field>
+                <p className="text-xs text-ink-soft">Only versions of the same document family are compared. Comparing two different documents needs your explicit confirmation.</p>
+                <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="confirm_cross_family" className="mt-1" /> These are different documents — compare anyway</label>
                 <Button type="submit">Build redline</Button>
               </form>
             )}

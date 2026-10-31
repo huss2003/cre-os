@@ -61,8 +61,37 @@ No module-specific environment variables. `OPENAI_API_KEY` empty means the rule 
 ## Tests
 `npx vitest run src/modules/capture src/modules/changes tests/security/change-tamper.test.ts`
 
+## Round 2 (Daily Debrief + Database Steward) — migration `20261101000200_capture_imports_round2.sql`
+- **Extractor** (`extract.ts`, contract still `schema_version 1`, new arrays `promises`, `objections`, `stakeholders`, `details`):
+  - bare amounts without a unit ("20k", "bees hazaar", "2 lakh") => `unit` question (sq ft vs ₹ per seat / ₹ total; option values
+    `area_target_sf` | `budget_max|<budget_basis>`), never assumed; explicit units/₹ psf/per seat resolve directly (with `budget_basis`).
+  - Roman-script **Hinglish** rules (no AI): "X se baat hui", "Acme ke Priya se mila", "March tak", "Baner ho sakta hai",
+    "Friday ko options bhejna hai", "Raj Monday tak floor plan bhejega", "decision Raj lega"; Hindi number words (bees, pachaas, hazaar,
+    lakh, dedh…), confusable saat/saath, satrah/sattar; Devanagari digits. The transcription prompt hint is unchanged.
+  - promises (`who: "me"` for the user, else the name), objections, stakeholder roles (contract `STAKEHOLDER_ROLES`), and requirement
+    details using contract keys: parking, power, transit, security_access, fitout_standard, tenure_months, lockin_months, expansion,
+    employee_catchments.
+- **Materialise**: every capture logs an interaction (`note` if no channel verb). Company not named => the CONFIRMED person's single
+  current employer (re-checked visible) is used and flagged. Details => one `/constraints` proposal (`capture:<id>:details`, field_status
+  `estimated`); roles => `stakeholder` link proposals once person + requirement are known. Tasks link to the interaction
+  (`linked_entity_type='interaction'`) and carry `task.related_entities` [{type:'interaction'|'person'|'organisation', id}].
+  `interaction.promises` = `{key, who, what, due ('YYYY-MM-DD' only when confirmed, else null + due_tentative), status:'open', ...}`;
+  `interaction.objections` = `{key, text, status}`; statuses set later are preserved on re-processing.
+- **Photo OCR**: `gateway.extractImageText` (Responses API vision, deterministic `mock`). Photo text is appended under a marker,
+  spans use `photo_text:` locators, facts from it are `tentative` and reasons say "evidence only, not proof of terms".
+- **Voice**: in-browser recorder (`ui/voice-recorder.tsx`, MediaRecorder webm/mp4) on `/capture`, alongside file upload.
+- **Steward** (`changes/steward.ts`): `listConflicts`, `proposeConflictFix`, `dismissConflict`, `recordProvenance` (per-field applied
+  changes + resolved evidence: file, staged row/locator, capture excerpt; flags untraceable material fields), `runStaleDetector`
+  (windows in workspace_setting `steward.freshness_windows`, defaults org/person 180d, building 365d, availability 45d; one deduped task per
+  record per verification date; notify owner via outbox), `markVerified`, `listStale`, `getFreshness`. UI: `FreshnessBadge`, `StewardNav`.
+  Applying an `imports.person:*` proposal proposes the employment link (`afterApply` in `changes/service.ts#applyChange`).
+- Pages: `/approvals/conflicts`, `/approvals/stale`, `/approvals/evidence?type=&id=`; API: `GET /api/v1/changes/conflicts`,
+  `POST /api/v1/changes/conflicts/[id]` `{action: propose_fix|dismiss}`, `GET /api/v1/changes/provenance`, `GET/POST /api/v1/changes/freshness`.
+- Tests: `extract-round2.test.ts` (spec sentence, unit question, Hinglish, Hindi numbers, promises/roles/details),
+  `capture-round2.test.ts` (two Rajs, year + unit asked, task↔interaction, promise shape, budget basis, details/roles proposals, photo OCR).
+
 ## Known gaps
 - Speech-to-text in mock mode cannot transcribe audio. A voice note without typed text waits in review until the user types the note.
-- There is no OCR for photos: the caption is the content.
+- Hinglish coverage is rule-based (common phrasings, Roman script); Devanagari words other than digits are left to the model.
+- Record pages (`/companies`, `/people`, `/buildings`, owned by admin) do not yet render `FreshnessBadge` / the evidence link.
 - The documents tab lists `document_version` rows; the deals module owns their approval flow.
-- The extractor recognises only requirement fields (area, seats, budget, occupation/decision date, locality). There is no stakeholder-role extraction yet.

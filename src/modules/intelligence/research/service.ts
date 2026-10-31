@@ -10,6 +10,8 @@ import {
   buildDossierSections, evidenceKeys, shouldRegenerate, nextRefreshAt, ruleSynthesis, synthesisSections, sourcesSection, selectDossierInteractions,
 } from "./dossier";
 import { findIntroPaths, type Edge } from "../network/graph";
+import { evidencePolicy, type RegistrySourceLite, type LicensedSourceLite } from "./sources";
+import { detectSignals, hypothesisSummary } from "./signals";
 
 type Row = Record<string, unknown>;
 
@@ -40,7 +42,7 @@ export async function loadDossierInputs(db: Db, workspaceId: string, orgId: stri
   const [relFrom, relTo, claims, emps, leases, txs, opps, reqs] = await Promise.all([
     rows<Row>(db.from("organisation_relation").select("id, to_org_id, relation_type, valid_from, valid_to, updated_at, row_version").eq("workspace_id", workspaceId).eq("from_org_id", orgId).is("archived_at", null)),
     rows<Row>(db.from("organisation_relation").select("id, from_org_id, relation_type, valid_from, valid_to, updated_at, row_version").eq("workspace_id", workspaceId).eq("to_org_id", orgId).is("archived_at", null)),
-    rows<ClaimRow>(db.from("signal_claim").select("id, claim_type, predicate, value_json, status, evidence_tier, evidence_excerpt, source_url, source_locator, published_on, observed_on, effective_on, expires_on, created_at, row_version")
+    rows<ClaimRow>(db.from("signal_claim").select("id, claim_type, predicate, value_json, status, evidence_tier, evidence_excerpt, source_url, source_locator, published_on, observed_on, effective_on, expires_on, created_at, row_version, classification")
       .eq("workspace_id", workspaceId).eq("subject_type", "organisation").eq("subject_id", orgId).is("archived_at", null).order("observed_on", { ascending: false, nullsFirst: false }).limit(300)),
     rows<Row>(db.from("employment").select("id, person_id, title, function, seniority, start_date, end_date, is_current, fact_status, updated_at, row_version").eq("workspace_id", workspaceId).eq("org_id", orgId).is("archived_at", null)),
     rows<Row>(db.from("lease").select("id, asset_id, landlord_org_id, area_sf, area_basis, contractual_expiry, status, fact_status, updated_at, row_version").eq("workspace_id", workspaceId).eq("tenant_org_id", orgId).is("archived_at", null)),
@@ -113,9 +115,9 @@ export async function loadDossierInputs(db: Db, workspaceId: string, orgId: stri
   // stakeholders on this org's requirements
   let stakeholders: StakeholderRow[] = [];
   if (reqs.length) {
-    const sh = await rows<Row>(db.from("stakeholder").select("id, requirement_id, person_id, role, row_version").eq("workspace_id", workspaceId).in("requirement_id", reqs.map((r) => String(r.id))).is("archived_at", null));
+    const sh = await rows<Row>(db.from("stakeholder").select("id, requirement_id, person_id, role, row_version, updated_at").eq("workspace_id", workspaceId).in("requirement_id", reqs.map((r) => String(r.id))).is("archived_at", null));
     const pn = await nameMap(db, workspaceId, "person", sh.map((s) => s.person_id as string));
-    stakeholders = sh.map((s) => ({ id: String(s.id), person_name: pn.get(String(s.person_id)) ?? "(restricted person)", role: String(s.role), requirement_title: String(reqs.find((r) => r.id === s.requirement_id)?.title ?? ""), row_version: Number(s.row_version) }));
+    stakeholders = sh.map((s) => ({ id: String(s.id), person_name: pn.get(String(s.person_id)) ?? "(restricted person)", role: String(s.role), requirement_title: String(reqs.find((r) => r.id === s.requirement_id)?.title ?? ""), row_version: Number(s.row_version), updated_at: (s.updated_at as string | null) ?? null }));
   }
 
   // intro paths to current employees
@@ -129,16 +131,46 @@ export async function loadEdges(db: Db, workspaceId: string): Promise<Edge[]> {
   return rows<Edge>(db.from("relationship_edge").select("id, from_user_id, from_person_id, to_person_id, edge_type, warmth, intro_permission, last_meaningful_contact, valid_to").eq("workspace_id", workspaceId).is("archived_at", null).limit(5000));
 }
 
+/**
+ * Intro paths use only permitted relationship context: live edges the caller can read (RLS), no suppressed people,
+ * and a hop counts as "permitted" only with an ACTIVE introduction consent (recorded by whom/when) — not a bare flag.
+ */
 export async function introPathSummaries(db: Db, workspaceId: string, me: string | null, targets: string[], today: string): Promise<IntroPathSummary[]> {
   const edges = await loadEdges(db, workspaceId);
-  const paths = findIntroPaths(edges, me ?? "", targets, today).slice(0, 15);
+  const [consents, blocked] = await Promise.all([activeIntroConsentEdges(db, workspaceId, edges.map((e) => e.id), today), suppressedPeople(db, workspaceId, edges)]);
+  const paths = findIntroPaths(edges, me ?? "", targets, today, { consentedEdgeIds: consents, blockedPersonIds: blocked }).slice(0, 15);
   const names = await nameMap(db, workspaceId, "person", paths.flatMap((p) => p.hops.filter((h) => h.kind === "person").map((h) => h.id)));
   return paths.map((p) => ({
     target_person_id: p.target_person_id,
     target_name: names.get(p.target_person_id) ?? "(restricted person)",
     hops: p.hops.map((h) => (h.kind === "me" ? "You" : h.kind === "colleague" ? "Colleague" : names.get(h.id) ?? "(restricted person)")),
     warmth: p.warmth, needs_permission: p.needs_permission, last_contact: p.last_contact,
+    consent_edge_id: p.consent_edge_id, consent_recorded: p.consent_edge_id ? consents.has(p.consent_edge_id) : null,
+    introducer_person_id: p.hops.length === 3 ? p.hops[1].id : null,
   }));
+}
+
+/** Edge ids with an active introduction consent (not revoked, not expired, given on or before today). */
+export async function activeIntroConsentEdges(db: Db, workspaceId: string, edgeIds: string[], today: string): Promise<Set<string>> {
+  const out = new Set<string>();
+  for (let i = 0; i < edgeIds.length; i += 300) {
+    const chunk = edgeIds.slice(i, i + 300);
+    const data = await rows<Row>(db.from("introduction_consent").select("edge_id, given_on, expires_on, revoked_at").eq("workspace_id", workspaceId).in("edge_id", chunk).is("revoked_at", null).is("archived_at", null));
+    for (const c of data) if (String(c.given_on) <= today && (!c.expires_on || String(c.expires_on) >= today)) out.add(String(c.edge_id));
+  }
+  return out;
+}
+
+/** People who must not appear in intro suggestions (suppressed / consent revoked for all channels). */
+export async function suppressedPeople(db: Db, workspaceId: string, edges: Edge[]): Promise<Set<string>> {
+  const ids = [...new Set(edges.flatMap((e) => [e.from_person_id, e.to_person_id]).filter((x): x is string => !!x))];
+  const out = new Set<string>();
+  for (let i = 0; i < ids.length; i += 300) {
+    const chunk = ids.slice(i, i + 300);
+    const data = await rows<Row>(db.from("consent_permission").select("person_id, suppressed, revoked_at, channel").eq("workspace_id", workspaceId).in("person_id", chunk).is("archived_at", null));
+    for (const c of data) if (c.suppressed || (c.revoked_at && !c.channel)) out.add(String(c.person_id));
+  }
+  return out;
 }
 
 // ------------------------------------------------------------------ dossier generation
@@ -177,12 +209,24 @@ export async function generateDossier(db: Db, workspaceId: string, orgId: string
   let synthesisStatus: "ok" | "fallback_no_ai" = "ok";
   let degraded: string | null = null;
   let model: string | null = null;
+  // Licence + data-lane rules: licensed-restricted evidence goes to the model only when its licence permits AI processing;
+  // then the call is classified licensed_restricted so the gateway also checks the tenant's data lanes.
+  const licensedClaims = inputs.claims.filter((c) => c.classification === "licensed_restricted");
+  const licIds = [...new Set(licensedClaims.map((c) => String((c.value_json ?? {}).licensed_source_id ?? "")).filter(Boolean))];
+  const aiOk = new Set<string>();
+  if (licIds.length) {
+    const { data: lic } = await db.from("licensed_source").select("id, permits_ai_processing, expires_on").eq("workspace_id", workspaceId).in("id", licIds);
+    for (const l of lic ?? []) if (l.permits_ai_processing && (!l.expires_on || String(l.expires_on) >= today)) aiOk.add(String(l.id));
+  }
+  const excludedClaimIds = new Set(licensedClaims.filter((c) => !aiOk.has(String((c.value_json ?? {}).licensed_source_id ?? ""))).map((c) => c.id));
+  const sentLicensed = licIds.filter((id) => aiOk.has(id));
   try {
     const res = await ai({
+      classification: sentLicensed.length ? "licensed_restricted" : "corporate_confidential", licensedSourceIds: sentLicensed,
       workspaceId, workflow: "research.dossier", tier: tier === "critical" ? "sol" : "luna",
       system: "You are a prospect researcher for a commercial-real-estate adviser in Pune. Produce a timing hypothesis, the single next best discovery question and falsification questions. Use only the evidence given. If timing is not supported by a dated event or live signal, return null. Never invent contacts, numbers or dates. Hiring is not an office-size commitment.",
       input: `Company: ${inputs.org.display_name}\nUnknown sections: ${built.sections.filter((s) => s.status === "unknown").map((s) => s.key).join(", ") || "none"}\nRule-based draft timing: ${rule.timing_hypothesis ?? "null"}`,
-      evidence: built.sections.flatMap((s) => s.claims.filter((c) => !c.expired).map((c) => `[${s.key}|${c.evidence_tier}|${c.observed_on ?? "?"}] ${c.text}`)).join("\n").slice(0, 12000),
+      evidence: built.sections.flatMap((s) => s.claims.filter((c) => !c.expired && !(c.source.kind === "signal_claim" && c.source.id && excludedClaimIds.has(c.source.id))).map((c) => `[${s.key}|${c.evidence_tier}|${c.observed_on ?? "?"}] ${c.text}`)).join("\n").slice(0, 12000),
       schema: SynthesisSchema, schemaName: "dossier_synthesis", maxOutputTokens: 800,
       mock: () => ({ timing_hypothesis: rule.timing_hypothesis, next_best_question: rule.next_best_question, falsification_questions: rule.falsification_questions }),
     });
@@ -236,7 +280,7 @@ async function capacityWarning(db: Db, workspaceId: string, tier: ResearchTier):
 
 export const EvidenceInput = z.object({
   orgId: z.string().uuid(),
-  claimType: z.enum(["identity", "footprint", "headcount", "hiring", "funding", "financial", "rto", "consolidation", "gcc_plan", "expansion", "relocation", "other"]),
+  claimType: z.enum(["identity", "footprint", "headcount", "hiring", "funding", "financial", "rto", "consolidation", "gcc_plan", "expansion", "relocation", "leadership_change", "other"]),
   text: z.string().min(3).max(5000),
   url: z.string().url().refine((u) => /^https?:\/\//i.test(u), "http(s) only").optional().nullable(),
   publishedOn: z.string().date().optional().nullable(),
@@ -245,27 +289,104 @@ export const EvidenceInput = z.object({
   evidenceTier: z.enum(["documentary_current", "credible_reported", "corroborated_public", "single_unverified", "inference"]).default("single_unverified"),
   function: z.string().max(80).optional().nullable(),
   location: z.string().max(80).optional().nullable(),
+  /** Approved source from the research registry. Required unless manualNote is set. */
+  sourceId: z.string().uuid().optional().nullable(),
+  /** Your own note / unregistered source: allowed, but the evidence tier is capped at "single unverified". */
+  manualNote: z.boolean().default(false),
 });
 
 /**
  * Store a pasted note/URL as evidence (signal_claim). The text is UNTRUSTED data: stored verbatim as an excerpt, never executed,
  * never fetched (no scraping; the URL is a citation the user supplies). Status 'reported', not canonical.
+ * Licence enforcement: the paste must name an allowed registry source (or be a manual note, tier capped); licensed sources
+ * need a valid licence and store the claim as licensed_restricted. Rule-based signal detection runs on the stored text.
  */
-export async function addPastedEvidence(db: Db, workspaceId: string, raw: z.input<typeof EvidenceInput>, userId?: string | null) {
+export async function addPastedEvidence(db: Db, workspaceId: string, raw: z.input<typeof EvidenceInput>, userId?: string | null, opts: { viaWebResearch?: boolean } = {}) {
   const input = EvidenceInput.parse(raw);
-  const observed = input.observedOn ?? isoDate(new Date())!;
+  const today = isoDate(new Date())!;
+  const observed = input.observedOn ?? today; // the user (or search) saw it today — a real observation, not a guess
+  let source: RegistrySourceLite | null = null;
+  let licensed: LicensedSourceLite | null = null;
+  if (input.sourceId) {
+    const { data, error } = await db.from("research_source_registry").select("id, name, kind, base_url, acquisition_method, allowed, archived_at, licensed_source_id").eq("workspace_id", workspaceId).eq("id", input.sourceId).maybeSingle();
+    if (error) throw error;
+    if (!data) throw new Error("Research source not found in the registry.");
+    source = data as RegistrySourceLite;
+    if (source.licensed_source_id) {
+      const { data: l } = await db.from("licensed_source").select("id, name, expires_on, allowed_purposes, permits_ai_processing, permits_colleague_sharing, archived_at").eq("workspace_id", workspaceId).eq("id", source.licensed_source_id).maybeSingle();
+      licensed = (l as LicensedSourceLite | null) ?? null;
+    }
+  }
+  const policy = evidencePolicy({ url: input.url, evidenceTier: input.evidenceTier as EvidenceTier, manualNote: input.manualNote, viaWebResearch: opts.viaWebResearch }, source, licensed, today);
+
   // Replay-safe: the same pasted text for the same company/claim type/day is stored once.
   const { data: dup } = await db.from("signal_claim").select("*").eq("workspace_id", workspaceId).eq("subject_type", "organisation").eq("subject_id", input.orgId)
     .eq("claim_type", input.claimType).eq("observed_on", observed).eq("evidence_excerpt", input.text).is("archived_at", null).limit(1);
   if (dup?.length) return dup[0];
   const { data, error } = await db.from("signal_claim").insert({
     workspace_id: workspaceId, subject_type: "organisation", subject_id: input.orgId, claim_type: input.claimType,
-    predicate: input.text.slice(0, 160), value_json: { summary: input.text.slice(0, 500), ...(input.function ? { function: input.function } : {}), ...(input.location ? { location: input.location } : {}) },
-    status: "reported", evidence_tier: input.evidenceTier as EvidenceTier, evidence_excerpt: input.text, source_url: input.url ?? null, source_locator: input.url ? null : "pasted by user",
+    predicate: input.text.slice(0, 160), value_json: {
+      summary: input.text.slice(0, 500), ...(input.function ? { function: input.function } : {}), ...(input.location ? { location: input.location } : {}),
+      ...(policy.registry_source_id ? { registry_source_id: policy.registry_source_id } : { manual_note: true }),
+      ...(policy.licensed_source_id ? { licensed_source_id: policy.licensed_source_id, permits_ai_processing: policy.permits_ai_processing } : {}),
+      ...(policy.tier_lowered ? { tier_lowered_from: input.evidenceTier } : {}),
+    },
+    status: "reported", evidence_tier: policy.evidence_tier, evidence_excerpt: input.text, source_url: input.url ?? null, source_locator: policy.source_locator,
     published_on: input.publishedOn ?? null, observed_on: observed, expires_on: expiryFor(input.claimType, observed, input.expiresOn ?? null), owner_user_id: userId ?? undefined,
+    classification: policy.classification,
   }).select().single();
   if (error) throw error;
+  await detectSignalsForClaims(db, workspaceId, [data as Row], userId ?? null);
   return data;
+}
+
+// ------------------------------------------------------------------ rule-based signal detection
+/**
+ * Detect business signals (expansion, consolidation, RTO, GCC, hiring surge, leadership change, funding) in stored evidence and
+ * store each as a HYPOTHESIS claim (status ai_inference, tier inference) linked to the evidence it came from, with expiry.
+ * Deduped per (source claim, kind). A DB trigger enqueues one dossier refresh per source item for watchlist companies.
+ */
+export async function detectSignalsForClaims(db: Db, workspaceId: string, claims: Row[], userId: string | null) {
+  let created = 0;
+  for (const c of claims) {
+    const v = (c.value_json ?? {}) as Row;
+    if (c.subject_type !== "organisation" || v.detected_by || c.archived_at) continue;
+    const text = [c.evidence_excerpt, c.predicate].filter((x) => typeof x === "string" && x).join("\n");
+    const found = detectSignals(text);
+    if (!found.length) continue;
+    const { data: existing } = await db.from("signal_claim").select("claim_type").eq("workspace_id", workspaceId).eq("subject_type", "organisation").eq("subject_id", String(c.subject_id))
+      .eq("value_json->>source_claim_id", String(c.id)).limit(20);
+    const have = new Set((existing ?? []).map((e) => String(e.claim_type)));
+    const observed = (c.observed_on as string | null) ?? null;
+    for (const f of found) {
+      if (have.has(f.kind)) continue;
+      const ownExpiry = expiryFor(f.kind, observed ?? (c.published_on as string | null) ?? isoDate(String(c.created_at)));
+      const srcExpiry = (c.expires_on as string | null) ?? null;
+      const { error } = await db.from("signal_claim").insert({
+        workspace_id: workspaceId, subject_type: "organisation", subject_id: c.subject_id, claim_type: f.kind,
+        predicate: `possible ${f.kind.replace(/_/g, " ")}${f.surge ? " surge" : ""} (rule-detected hypothesis)`,
+        value_json: { summary: hypothesisSummary(f), detected_by: "rule", rule: f.rule, matched: f.matched, hypothesis: true, source_claim_id: String(c.id), evidence_claim_ids: [String(c.id)],
+          ...(f.surge ? { surge: true } : {}), ...(v.licensed_source_id ? { licensed_source_id: v.licensed_source_id, permits_ai_processing: v.permits_ai_processing ?? false } : {}) },
+        status: "ai_inference", evidence_tier: "inference", evidence_excerpt: f.context.slice(0, 500), source_url: c.source_url ?? null,
+        source_locator: `derived from signal_claim:${c.id}`, published_on: c.published_on ?? null, observed_on: observed,
+        expires_on: srcExpiry && ownExpiry && srcExpiry < ownExpiry ? srcExpiry : ownExpiry ?? srcExpiry,
+        classification: (c.classification as string | undefined) ?? "corporate_confidential", owner_user_id: userId ?? (c.owner_user_id as string | null) ?? undefined,
+      });
+      if (error && (error as { code?: string }).code !== "23505") throw error;
+      if (!error) created++;
+    }
+  }
+  return { created };
+}
+
+/** Detection over one company's stored evidence (dossier page button) or over recently changed evidence (daily job). */
+export async function detectSignalsForOrg(db: Db, workspaceId: string, orgId: string, userId: string | null) {
+  const claims = await rows<Row>(db.from("signal_claim").select("*").eq("workspace_id", workspaceId).eq("subject_type", "organisation").eq("subject_id", orgId).is("archived_at", null).limit(500));
+  return detectSignalsForClaims(db, workspaceId, claims, userId);
+}
+export async function detectRecentSignals(db: Db, workspaceId: string, since: Date) {
+  const claims = await rows<Row>(db.from("signal_claim").select("*").eq("workspace_id", workspaceId).eq("subject_type", "organisation").gte("updated_at", since.toISOString()).is("archived_at", null).limit(1000));
+  return detectSignalsForClaims(db, workspaceId, claims, null);
 }
 
 const WebClaims = z.object({
@@ -300,7 +421,7 @@ export async function webResearch(db: Db, workspaceId: string, orgId: string, op
       if (!/^https?:\/\//i.test(c.source_url) || /linkedin\.com/i.test(c.source_url)) continue;
       const { data: dup } = await db.from("signal_claim").select("id").eq("workspace_id", workspaceId).eq("subject_id", orgId).eq("claim_type", c.claim_type).eq("source_url", c.source_url).limit(1);
       if (dup?.length) continue;
-      await addPastedEvidence(db, workspaceId, { orgId, claimType: c.claim_type, text: c.summary, url: c.source_url, publishedOn: /^\d{4}-\d{2}-\d{2}$/.test(c.published_on ?? "") ? c.published_on : null, evidenceTier: "single_unverified" }, opts.userId);
+      await addPastedEvidence(db, workspaceId, { orgId, claimType: c.claim_type, text: c.summary, url: c.source_url, publishedOn: /^\d{4}-\d{2}-\d{2}$/.test(c.published_on ?? "") ? c.published_on : null, evidenceTier: "single_unverified", sourceId: String(reg.id) }, opts.userId, { viaWebResearch: true });
       added++;
     }
     return { status: "ok" as const, added };

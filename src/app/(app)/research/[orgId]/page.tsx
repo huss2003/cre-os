@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, Textarea, FactBadge, StaleBanner } from "@/components/ui";
 import { dossierPage } from "@/modules/intelligence/research/queries";
+import { pasteSourceOptions } from "@/modules/intelligence/research/registry";
 import { EVIDENCE_TIER_LABEL, type EvidenceTier } from "@/modules/intelligence/common";
-import type { DossierSection } from "@/modules/intelligence/research/dossier";
+import { type DossierSection, claimDateLabel } from "@/modules/intelligence/research/dossier";
 import { Flash, TIER_TONE, fmtDay, label } from "@/modules/intelligence/ui";
-import { generateAction, evidenceAction, webResearchAction, watchAction } from "../actions";
+import { generateAction, evidenceAction, webResearchAction, watchAction, detectAction } from "../actions";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -15,7 +16,7 @@ export default async function DossierPage({ params, searchParams }: { params: Pr
   if (!UUID.test(orgId)) notFound();
   const ctx = await requirePageContext();
   const canEdit = hasRole(ctx, "editor");
-  const d = await dossierPage(ctx.db, ctx.workspaceId, orgId);
+  const [d, sources] = await Promise.all([dossierPage(ctx.db, ctx.workspaceId, orgId), pasteSourceOptions(ctx.db, ctx.workspaceId)]);
   if (!d.org) notFound();
   const sections = (d.dossier?.sections ?? []) as DossierSection[];
   const falsify = (d.dossier?.falsification_questions ?? []) as string[];
@@ -48,8 +49,9 @@ export default async function DossierPage({ params, searchParams }: { params: Pr
                       <div className="break-words">{c.source.url && s.key === "sources" ? <a className="text-brand underline" href={c.source.url} target="_blank" rel="noopener noreferrer nofollow">{c.text}</a> : c.text}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-ink-soft">
                         <FactBadge status={c.status} /><Badge>{EVIDENCE_TIER_LABEL[c.evidence_tier as EvidenceTier] ?? c.evidence_tier}</Badge>
-                        <span>observed {c.observed_on ?? "unknown"}</span>{c.published_on && <span>· published {c.published_on}</span>}
-                        <span>· expires {c.expires_on ?? "unknown"}</span>{c.expired && <Badge tone="warn">expired — re-verify</Badge>}
+                        {c.status === "ai_inference" && <Badge tone="accent">hypothesis</Badge>}
+                        <span>{claimDateLabel(c)}</span>
+                        <span>· {c.expires_on ? `refresh by ${c.expires_on}` : "refresh need unknown (no date)"}</span>{c.expired && <Badge tone="warn">expired — re-verify</Badge>}
                         {c.source.url && s.key !== "sources" && <a className="text-brand" href={c.source.url} target="_blank" rel="noopener noreferrer nofollow">source</a>}
                       </div>
                     </li>
@@ -71,9 +73,12 @@ export default async function DossierPage({ params, searchParams }: { params: Pr
           <Card title="Paste evidence">
             <form action={evidenceAction} className="space-y-3">
               <input type="hidden" name="org_id" value={orgId} />
-              <Field label="What does it say?" hint="Stored verbatim as untrusted evidence; it never triggers actions."><Textarea name="text" required minLength={3} maxLength={5000} /></Field>
+              <Field label="What does it say?" hint="Stored verbatim as untrusted evidence; it never triggers actions. Business signals in it are added as hypotheses."><Textarea name="text" required minLength={3} maxLength={5000} /></Field>
+              <Field label="Source" hint={<>Approved sources come from the <Link className="text-brand" href="/research/sources">registry</Link>. A manual note is capped at “single unverified”.</>}>
+                <Select name="source_id" required defaultValue="">{[<option key="" value="" disabled>Choose…</option>, ...sources.map((s) => <option key={s.id} value={s.id}>{s.name}{s.licensed ? " (licensed)" : ""}</option>), <option key="manual" value="manual">Manual note / unregistered source</option>]}</Select>
+              </Field>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Type"><Select name="claim_type" defaultValue="other">{["identity", "footprint", "headcount", "hiring", "funding", "financial", "rto", "consolidation", "gcc_plan", "expansion", "relocation", "other"].map((t) => <option key={t} value={t}>{label(t)}</option>)}</Select></Field>
+                <Field label="Type"><Select name="claim_type" defaultValue="other">{["identity", "footprint", "headcount", "hiring", "funding", "financial", "rto", "consolidation", "gcc_plan", "expansion", "relocation", "leadership_change", "other"].map((t) => <option key={t} value={t}>{label(t)}</option>)}</Select></Field>
                 <Field label="Evidence tier"><Select name="evidence_tier" defaultValue="single_unverified">{Object.entries(EVIDENCE_TIER_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
                 <Field label="Source URL (optional)" hint="Citation only — CRE OS does not fetch it."><Input name="url" type="url" placeholder="https://" /></Field>
                 <Field label="Published on"><Input name="published_on" type="date" /></Field>
@@ -91,13 +96,17 @@ export default async function DossierPage({ params, searchParams }: { params: Pr
                 <Button variant="secondary">Save tier</Button>
               </form>
             </Card>
+            <Card title="Signal detection">
+              <p className="mb-2 text-sm text-ink-soft">Rule-based check of stored evidence for expansion, consolidation, RTO, GCC plans, hiring surges, leadership changes and funding. Results are hypotheses with links to the evidence and an expiry — hiring is never proof of office size.</p>
+              <form action={detectAction}><input type="hidden" name="org_id" value={orgId} /><Button variant="secondary">Detect signals</Button></form>
+            </Card>
             <Card title="Web research (optional)">
               <p className="mb-2 text-sm text-ink-soft">Uses the AI gateway&apos;s web search only when an API key is configured and an allowed source exists in the registry, within its rate limit. Results are stored as unverified, cited claims. LinkedIn and paywalled pages are excluded.</p>
               <form action={webResearchAction}><input type="hidden" name="org_id" value={orgId} /><Button variant="secondary">Look for public sources</Button></form>
             </Card>
             <Card title={`Evidence on file (${d.claims.length})`}>
               {d.claims.length === 0 ? <p className="text-sm text-ink-soft">None yet.</p> : (
-                <ul className="space-y-1 text-sm">{d.claims.map((c) => <li key={String(c.id)} className="break-words"><Badge>{label(String(c.claim_type))}</Badge> {String(c.predicate ?? "")} <span className="text-xs text-ink-soft">({String(c.observed_on ?? "?")} → {String(c.expires_on ?? "?")})</span></li>)}</ul>
+                <ul className="space-y-1 text-sm">{d.claims.map((c) => <li key={String(c.id)} className="break-words"><Badge>{label(String(c.claim_type))}</Badge> {c.status === "ai_inference" ? <Badge tone="accent">hypothesis</Badge> : null} {c.classification === "licensed_restricted" ? <Badge tone="warn">licensed</Badge> : null} {String(c.predicate ?? "")} <span className="text-xs text-ink-soft">({String(c.observed_on ?? "date unknown")} → {String(c.expires_on ?? "?")})</span></li>)}</ul>
               )}
             </Card>
             {d.versions.length > 1 && <Card title="Versions"><ul className="text-sm">{d.versions.map((v) => <li key={String(v.id)}>v{String(v.version)} · {fmtDay(String(v.generated_at))} · {String(v.synthesis_status)}</li>)}</ul></Card>}

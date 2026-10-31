@@ -12,7 +12,13 @@ import { TIER_LABEL, type Tier } from "@/modules/brief/scoring";
 import type { SynthesisOutcome } from "@/modules/brief/synthesis";
 import { listTasks } from "@/modules/brief/tasks-service";
 import { addTargetTaskAction, completeTaskFromToday, generateBriefAction, snoozeTargetAction, snoozeTaskFromToday } from "./actions";
+import { DayPlanCard, RelationshipCard } from "./day-plan";
+import { computeDailyPlan, latestPlan } from "@/modules/brief/plan";
+import { computeRelationshipSuggestions } from "@/modules/brief/caretaker-data";
+import { loadRadar } from "@/modules/brief/radar-data";
 
+
+const ALERT_LABEL: Record<string, string> = { urgent_alert: "Urgent", brief_alert: "Brief alert", promise_overdue: "Overdue promise", lease_event_alert: "Lease event", deadline_48h: "Due ≤ 48 h" };
 
 const tierTone: Record<string, "ok" | "warn" | "neutral" | "bad"> = { act_this_week: "ok", validate_nurture: "warn", enrich_or_park: "neutral", suppressed: "bad" };
 
@@ -36,11 +42,17 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
   const content: BriefContent = stored?.content ?? buildBrief(await gatherBriefInputs(lc, settings, date, new Date(), { persistPlan: false }));
   const synthesis = (stored?.content as { synthesis?: SynthesisOutcome } | undefined)?.synthesis ?? null;
 
-  const [overdueLive, preMeeting, urgent] = await Promise.all([
+  const [overdueLive, preMeeting, urgent, storedPlan, radar] = await Promise.all([
     listTasks(ctx.db, ctx.workspaceId, ctx.userId, { state: "overdue", scope: "mine" }, { staleAfterDays: settings.staleTaskAfterDays, limit: 50 }),
     loadPreMeetingBriefs(ctx, date),
     loadUrgent(ctx),
+    latestPlan(lc, date),
+    loadRadar(ctx.db, ctx.workspaceId, date, settings),
   ]);
+  // latest (event-driven) plan; none yet → live deterministic preview, not stored
+  const plan = storedPlan?.agenda ? storedPlan : { ...(await computeDailyPlan(lc, settings, date)), generatedAt: null as string | null };
+  const { data: planMeta } = storedPlan?.id ? await ctx.db.from("daily_plan").select("trigger_reason").eq("workspace_id", ctx.workspaceId).eq("id", storedPlan.id).maybeSingle() : { data: null };
+  const rel = await computeRelationshipSuggestions(ctx.db, ctx.workspaceId, date, radar.items, { userId: ctx.userId });
 
   const nothing = !content.targets.length && !content.actions.length && !content.meetings.clusters.length && !content.deadlines.items.length && !overdueLive.length && content.pipeline.open === 0;
   const meetingCount = content.meetings.clusters.reduce((n, c) => n + c.meetings.length, 0);
@@ -68,8 +80,8 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
           <ul className="space-y-2 text-sm">
             {urgent.data.map((u: any) => (
               <li key={u.id} className="flex flex-wrap items-center gap-2">
-                <Badge tone={u.kind === "urgent_alert" ? "bad" : "warn"}>{u.kind === "urgent_alert" ? "Urgent" : "Brief alert"}</Badge>
-                <span>{u.payload?.title ?? u.payload?.reason ?? u.kind}</span>
+                <Badge tone={u.kind === "urgent_alert" || u.kind === "promise_overdue" ? "bad" : "warn"}>{ALERT_LABEL[u.kind] ?? "Alert"}</Badge>
+                {u.payload?.href ? <Link href={u.payload.href} className="hover:underline">{u.payload?.title ?? u.payload?.reason ?? u.kind}</Link> : <span>{u.payload?.title ?? u.payload?.reason ?? u.kind}</span>}
                 <span className="text-xs text-ink-soft">{fmt(u.created_at, "dd MMM HH:mm", tz)}</span>
               </li>
             ))}
@@ -102,6 +114,10 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
           </ol>
         ) : <p className="text-sm text-ink-soft">No high-impact actions computed. Add leases, requirements or tasks to give the adviser something to rank.</p>}
       </Card>
+
+      <DayPlanCard agenda={plan.agenda} generatedAt={plan.generatedAt} reason={(planMeta as { trigger_reason?: string } | null)?.trigger_reason ?? null} tz={tz} canEdit={canEdit} />
+
+      <RelationshipCard items={rel.suggestions} withheld={rel.withheld.length} canEdit={canEdit} />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Stat label="New companies approached" value={`${content.approaches.thisMonth} / ${content.approaches.minimum}`} hint={`Pace target ${content.approaches.pace}; ${content.approaches.perDayMinimum}/workday needed over ${content.approaches.workdaysLeft} workdays`} />
@@ -177,12 +193,12 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
 
       {typeof sp.meeting === "string" && preMeeting.get(sp.meeting) ? <PreMeetingCard b={preMeeting.get(sp.meeting)!} tz={tz} /> : null}
 
-      <Card title="Expiry & notice (next 90 days)" actions={<Link href="/leases" className="text-sm text-brand">Lease radar</Link>}>
+      <Card title="Expiry, notice, escalation & options (next 90 days)" actions={<Link href="/leases" className="text-sm text-brand">Lease radar</Link>}>
         {content.deadlines.items.length ? (
           <ul className="space-y-2 text-sm">
             {content.deadlines.items.slice(0, 10).map((d) => (
               <li key={`${d.leaseId}-${d.kind}-${d.date}`} className="flex flex-wrap items-center gap-2">
-                <Badge tone={d.kind === "notice" ? "bad" : "warn"}>{d.kind}</Badge>
+                <Badge tone={d.kind === "notice" ? "bad" : d.kind === "escalation" || d.kind === "option" ? "accent" : "warn"}>{d.kind === "escalation" ? "rent escalation" : d.kind}</Badge>
                 <span className="tabular-nums">{d.date}</span><span className="text-ink-soft">({d.days} d)</span>
                 <span className="font-medium">{d.tenant}</span>{d.asset ? <span className="text-ink-soft">@ {d.asset}</span> : null}
                 <Badge tone={d.verified ? "ok" : "neutral"}>{d.basisLabel}</Badge>
@@ -286,7 +302,7 @@ function TargetCard({ t, canEdit }: { t: TargetView; canEdit: boolean }) {
 async function loadUrgent(ctx: { db: any; workspaceId: string; userId: string }) {
   const since = new Date(Date.now() - 36 * 3_600_000).toISOString();
   return ctx.db.from("outbox").select("id, kind, payload, created_at").eq("workspace_id", ctx.workspaceId).eq("user_id", ctx.userId)
-    .in("kind", ["urgent_alert", "brief_alert"]).gte("created_at", since).order("created_at", { ascending: false }).limit(10);
+    .in("kind", ["urgent_alert", "brief_alert", "promise_overdue", "lease_event_alert", "deadline_48h"]).gte("created_at", since).order("created_at", { ascending: false }).limit(10);
 }
 
 type PreMeetingBrief = StoredBrief & { content: any };

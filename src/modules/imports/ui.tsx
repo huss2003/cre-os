@@ -20,6 +20,10 @@ const STATUS: Record<string, ["neutral" | "brand" | "ok" | "warn" | "bad" | "acc
   related: ["brand", "Relation proposed"],
   kept_separate: ["neutral", "Kept separate"],
   auto_linked: ["ok", "Auto-linked"],
+  awaiting_source: ["warn", "Source not approved"],
+  proposed: ["brand", "Proposed"],
+  applied: ["ok", "Applied"],
+  rejected: ["neutral", "Rejected"],
 };
 
 export function StatusBadge({ status }: { status: string | null | undefined }) {

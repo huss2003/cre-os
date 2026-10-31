@@ -2,46 +2,140 @@ import "server-only";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
-import { type AiCall, MARKET_DISCLAIMER } from "../common";
-import { gateObservations, annualTrend, comparables, factsFromTrend, metricKind, supplyAbsorptionRatio, deriveVacancy, type Observation, type TxLite, type CompsQuery, type TrendPoint } from "./series";
+import { proposeChange } from "@/lib/services/changes";
+import { notify } from "@/modules/brief/db";
+import type { AiCall } from "../common";
+import { comparables, factsFromTrend, supplyAbsorptionRatio, deriveVacancy, marketDisclaimer, type Observation, type TxLite, type CompsQuery } from "./series";
+import { analyseMarket, caveatsFor, sourceKey, type GeoInfo, type SourceInfo, type SeriesView, type AnalysisFlag } from "./analysis";
 
 type Row = Record<string, unknown>;
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 
-export async function loadObservations(db: Db, workspaceId: string): Promise<{ observations: Observation[]; geoNames: Map<string, string> }> {
+/** Licensed source permits public/marketing use when one of its allowed purposes says so (explicit opt-in only). */
+export function permitsPublication(allowedPurposes: unknown): boolean {
+  return Array.isArray(allowedPurposes) && allowedPurposes.some((p) => typeof p === "string" && /publi|marketing|external/i.test(p));
+}
+
+export interface LoadedMarket {
+  observations: Observation[];
+  geos: GeoInfo[];
+  sources: Map<string, SourceInfo & { licensed_source_id: string | null; licensed_name: string | null; permits_publication: boolean; permits_ai: boolean }>;
+}
+
+export async function loadObservations(db: Db, workspaceId: string): Promise<LoadedMarket & { geoNames: Map<string, string> }> {
   const { data, error } = await db.from("market_observation")
     .select("id, metric, geography_id, geography_raw, period_start, period_end, period_type, unit, value, definition, release_date, source_object_id, source_version")
     .eq("workspace_id", workspaceId).is("archived_at", null).order("period_start").limit(5000);
   if (error) throw error;
   const observations = ((data ?? []) as Row[]).map((o) => ({ ...(o as unknown as Observation), value: num(o.value) }));
-  const geoIds = [...new Set(observations.map((o) => o.geography_id).filter((x): x is string => !!x))];
-  const geoNames = new Map<string, string>();
-  if (geoIds.length) {
-    const { data: g } = await db.from("geography").select("id, name").eq("workspace_id", workspaceId).in("id", geoIds);
-    for (const r of (g ?? []) as Row[]) geoNames.set(String(r.id), String(r.name));
+  const { data: g } = await db.from("geography").select("id, name, aliases").eq("workspace_id", workspaceId).is("archived_at", null).limit(5000);
+  const geos: GeoInfo[] = ((g ?? []) as Row[]).map((r) => ({ id: String(r.id), name: String(r.name), aliases: Array.isArray(r.aliases) ? (r.aliases as string[]) : [] }));
+  const geoNames = new Map(geos.map((x) => [x.id, x.name]));
+  const soIds = [...new Set(observations.map((o) => o.source_object_id).filter((x): x is string => !!x))];
+  const sources: LoadedMarket["sources"] = new Map();
+  if (soIds.length) {
+    const { data: so } = await db.from("source_object").select("id, file_name, uri, licensed_source_id").eq("workspace_id", workspaceId).in("id", soIds);
+    const lsIds = [...new Set(((so ?? []) as Row[]).map((r) => r.licensed_source_id).filter(Boolean) as string[])];
+    const { data: ls } = lsIds.length ? await db.from("licensed_source").select("id, name, allowed_purposes, permits_ai_processing").eq("workspace_id", workspaceId).in("id", lsIds) : { data: [] };
+    const lsBy = new Map(((ls ?? []) as Row[]).map((r) => [String(r.id), r]));
+    for (const r of (so ?? []) as Row[]) {
+      const l = r.licensed_source_id ? lsBy.get(String(r.licensed_source_id)) : undefined;
+      sources.set(String(r.id), {
+        name: l ? `${String(l.name)} — ${String(r.file_name ?? "file")}` : String(r.file_name ?? r.uri ?? "uploaded file"),
+        licensed: !!r.licensed_source_id, licensed_source_id: (r.licensed_source_id as string | null) ?? null, licensed_name: l ? String(l.name) : null,
+        permits_publication: l ? permitsPublication(l.allowed_purposes) : !r.licensed_source_id, permits_ai: l ? !!l.permits_ai_processing : true,
+      });
+    }
   }
-  return { observations, geoNames };
+  for (const o of observations) if (!o.source_object_id && o.source_version) {
+    const k = sourceKey(o);
+    if (!sources.has(k)) sources.set(k, { name: o.source_version, licensed: false, licensed_source_id: null, licensed_name: null, permits_publication: true, permits_ai: true });
+  }
+  return { observations, geos, sources, geoNames };
 }
 
-export interface SeriesView { metric: string; kind: string; geography: string; geographyLabel: string; points: TrendPoint[] }
+export type { SeriesView };
 
-/** Gated annual trends per metric × geography, plus excluded observations with reasons (shown, never hidden). */
+/**
+ * Gated series (metric × geography × unit × period family) with period/unit/source per chart, excluded and superseded
+ * observations with reasons (shown, never hidden), inconsistency flags and supply/absorption ratios on matched series only.
+ */
 export async function marketOverview(db: Db, workspaceId: string) {
-  const { observations, geoNames } = await loadObservations(db, workspaceId);
-  const gate = gateObservations(observations);
-  const keys = new Map<string, { metric: string; geo: string }>();
-  for (const o of gate.accepted) { const geo = o.geography_id ?? o.geography_raw ?? "Unspecified"; keys.set(`${o.metric}|${geo}`, { metric: o.metric, geo }); }
-  const series: SeriesView[] = [...keys.values()].map(({ metric, geo }) => ({
-    metric, kind: metricKind(metric), geography: geo, geographyLabel: geoNames.get(geo) ?? geo,
-    points: annualTrend(gate.accepted.map((o) => ({ ...o, geography_id: o.geography_id ?? null, geography_raw: o.geography_id ? null : o.geography_raw ?? "Unspecified" })), metric, geo),
-  })).sort((a, b) => a.metric.localeCompare(b.metric) || a.geographyLabel.localeCompare(b.geographyLabel));
-  const ratios = series.filter((s) => /supply/i.test(s.metric)).map((s) => {
-    const abs = series.find((x) => /absorption/i.test(x.metric) && x.geography === s.geography);
-    return abs ? { geography: s.geographyLabel, rows: supplyAbsorptionRatio(s.points, abs.points) } : null;
-  }).filter(Boolean) as { geography: string; rows: ReturnType<typeof supplyAbsorptionRatio> }[];
-  const hasVacancy = gate.accepted.some((o) => /vacancy|available_inventory/i.test(o.metric));
+  const loaded = await loadObservations(db, workspaceId);
+  const a = analyseMarket(loaded.observations, loaded.geos, loaded.sources);
+  const ratios = a.series.filter((s) => /supply/i.test(s.metric) && s.family === "annual").map((s) => {
+    const abs = a.series.find((x) => /absorption/i.test(x.metric) && x.geography === s.geography && x.family === "annual" && x.unit === s.unit);
+    return abs ? { geography: s.geographyLabel, unit: s.unit, rows: supplyAbsorptionRatio(s.points, abs.points), sources: [...s.sources, ...abs.sources] } : null;
+  }).filter(Boolean) as { geography: string; unit: string; rows: ReturnType<typeof supplyAbsorptionRatio>; sources: SeriesView["sources"] }[];
+  const hasVacancy = a.series.some((s) => /vacancy|available_inventory/i.test(s.metric));
   const vacancy = hasVacancy ? null : deriveVacancy({});
-  return { series, excluded: gate.excluded, ratios, vacancyNote: vacancy?.reason ?? null, disclaimer: MARKET_DISCLAIMER, total: observations.length };
+  return { series: a.series, excluded: a.excluded, flags: a.flags, ratios, vacancyNote: vacancy?.reason ?? null, disclaimer: marketDisclaimer(a.hasForecast), hasForecast: a.hasForecast, total: a.total, sources: loaded.sources, geos: loaded.geos };
+}
+
+/** Raw geography name → geography id: proposed as an approved alias on the geography (S4: goes through proposeChange). */
+export const GeoMappingInput = z.object({ raw: z.string().min(1).max(200), geographyId: z.string().uuid() });
+export async function proposeGeographyMapping(db: Db, workspaceId: string, raw: z.input<typeof GeoMappingInput>, userId: string) {
+  const i = GeoMappingInput.parse(raw);
+  const { data: g, error } = await db.from("geography").select("id, name, aliases, row_version").eq("workspace_id", workspaceId).eq("id", i.geographyId).maybeSingle();
+  if (error) throw error;
+  if (!g) throw new Error("Geography not found or not visible.");
+  const aliases = Array.isArray(g.aliases) ? (g.aliases as string[]) : [];
+  if (aliases.some((a) => a.trim().toLowerCase() === i.raw.trim().toLowerCase())) return { status: "already_mapped" as const, proposal: null };
+  const proposal = await proposeChange(db, workspaceId, {
+    targetType: "geography", targetId: g.id, operation: "update", expectedVersion: Number(g.row_version),
+    patch: [{ op: "replace", path: "/aliases", value: [...aliases, i.raw.trim()] }],
+    reason: `Market analyst: map raw geography “${i.raw.trim()}” in market releases to “${g.name}”. Once approved, those observations join the ${g.name} series.`,
+    idempotencyKey: `market.geomap:${g.id}:${i.raw.trim().toLowerCase()}`, ownerUserId: userId, proposedByKind: "user",
+  });
+  return { status: "proposed" as const, proposal };
+}
+
+export async function pendingGeographyMappings(db: Db, workspaceId: string): Promise<string[]> {
+  const { data } = await db.from("change_proposal").select("idempotency_key").eq("workspace_id", workspaceId).eq("target_type", "geography").eq("state", "proposed").like("idempotency_key", "market.geomap:%").limit(200);
+  return ((data ?? []) as Row[]).map((r) => String(r.idempotency_key).split(":").slice(2).join(":"));
+}
+
+// ------------------------------------------------------------------ analysis runs (job + manual)
+export interface AnalysisRunInput { trigger: "release" | "scheduled" | "manual"; triggerKey?: string | null; ownerUserId?: string | null }
+
+/**
+ * Refresh trends and flag inconsistencies. Writes one market_analysis row (deduped per trigger key) and an in-app notice to
+ * the importing user when warnings exist. Callers using the service role must pass the workspace explicitly (done here).
+ */
+export async function runMarketAnalysis(db: Db, workspaceId: string, input: AnalysisRunInput) {
+  if (input.triggerKey) {
+    const { data: prior } = await db.from("market_analysis").select("*").eq("workspace_id", workspaceId).eq("trigger_key", input.triggerKey).maybeSingle();
+    if (prior) return { analysis: prior, duplicate: true };
+  }
+  const loaded = await loadObservations(db, workspaceId);
+  const a = analyseMarket(loaded.observations, loaded.geos, loaded.sources);
+  let owner = input.ownerUserId ?? null;
+  if (!owner) {
+    const { data: m } = await db.from("membership").select("user_id").eq("workspace_id", workspaceId).eq("role", "owner").limit(1).maybeSingle();
+    owner = (m?.user_id as string | undefined) ?? null;
+  }
+  const summary = Object.fromEntries(a.series.map((s) => {
+    const last = [...s.points].reverse().find((p) => p.value !== null);
+    return [s.key, { label: `${s.metric} · ${s.geographyLabel} · ${s.unit} · ${s.family}`, latest: last ? { period: last.label, value: last.value, release_date: last.release_date, forecast: last.is_forecast } : null, sample: s.sampleSize, sources: s.sources.map((x) => `${x.name} (${x.release_date ?? "undated"})`) }];
+  }));
+  const sources = [...new Map(a.series.flatMap((s) => s.sources).map((x) => [`${x.key}@${x.release_date}`, x])).values()];
+  const { data, error } = await db.from("market_analysis").insert({
+    workspace_id: workspaceId, owner_user_id: owner ?? undefined, trigger_kind: input.trigger, trigger_key: input.triggerKey ?? null,
+    observation_count: a.total, series_count: a.series.length, excluded_count: a.excluded.length, sources, flags: a.flags, summary,
+  }).select().single();
+  if (error) throw error;
+  const warns = a.flags.filter((f) => f.severity === "warn");
+  if (warns.length && owner) {
+    await notify(db, workspaceId, owner, "market.analysis", `market.analysis:${data.id}`, {
+      title: `Market data check: ${warns.length} issue(s) to review`, reason: warns.slice(0, 5).map((f) => `${f.series ? `${f.series}: ` : ""}${f.detail}`).join("\n"), href: "/market",
+    });
+  }
+  return { analysis: data, duplicate: false };
+}
+
+export async function latestAnalysis(db: Db, workspaceId: string) {
+  const { data } = await db.from("market_analysis").select("id, trigger_kind, ran_at, observation_count, series_count, excluded_count, flags").eq("workspace_id", workspaceId).is("archived_at", null).order("ran_at", { ascending: false }).limit(1).maybeSingle();
+  return data as (Row & { flags: AnalysisFlag[] }) | null;
 }
 
 export async function marketComparables(db: Db, workspaceId: string, q: CompsQuery) {
@@ -67,7 +161,9 @@ export async function marketComparables(db: Db, workspaceId: string, q: CompsQue
 // ------------------------------------------------------------------ market notes
 export const MarketNoteInput = z.object({
   metric: z.string().min(1).max(80),
-  geography: z.string().min(1).max(120),
+  geography: z.string().min(1).max(200),
+  /** Exact series (metric|geography|unit|family) when the metric/geography pair has several units or period families. */
+  seriesKey: z.string().max(400).optional().nullable(),
   title: z.string().min(2).max(200).optional().nullable(),
   audience: z.string().max(80).optional().nullable(),
 });
@@ -75,52 +171,64 @@ export const MarketNoteInput = z.object({
 const Commentary = z.object({ commentary: z.string().max(2000) });
 
 /**
- * Draft a market note: facts are computed deterministically from GATED observations; the commentary is AI-drafted (or a
- * deterministic template in mock / budget mode), labelled, descriptive only. Draft status — never published automatically.
+ * Draft a market note: facts are computed deterministically from GATED observations and each names its period, unit,
+ * source and release date; sample size and "not comprehensive" caveats are always included. The commentary is AI-drafted
+ * (or a deterministic template in mock / budget mode), labelled, descriptive only. Draft status — never published automatically.
  */
 export async function draftMarketNote(db: Db, workspaceId: string, raw: z.input<typeof MarketNoteInput>, opts: { userId: string; ai?: AiCall }) {
   const input = MarketNoteInput.parse(raw);
   const overview = await marketOverview(db, workspaceId);
-  const s = overview.series.find((x) => x.metric === input.metric && (x.geography === input.geography || x.geographyLabel === input.geography));
-  if (!s) throw new Error("No gated observations for that metric and geography.");
-  const facts = factsFromTrend(s.metric, s.geographyLabel, s.points);
+  const candidates = input.seriesKey ? overview.series.filter((x) => x.key === input.seriesKey)
+    : overview.series.filter((x) => x.metric === input.metric && (x.geography === input.geography || x.geographyLabel === input.geography));
+  if (!candidates.length) throw new Error("No gated observations for that metric and geography.");
+  if (candidates.length > 1) throw new Error(`Several series match (${candidates.map((c) => `${c.unit}, ${c.family}`).join("; ")}) — choose one series; units and period types are never mixed.`);
+  const s = candidates[0];
+  const srcInfo = (p: { source_object_id?: string | null; source_version?: string | null }) => overview.sources.get(sourceKey({ source_object_id: p.source_object_id ?? null, source_version: p.source_version ?? null }));
+  const facts = factsFromTrend(s.metric, s.geographyLabel, s.points, (p) => srcInfo(p)?.name ?? p.source_version ?? "source on file");
   const gaps = s.points.filter((p) => p.value === null).map((p) => p.label);
   const notComparable = s.points.filter((p) => p.comparable_to_previous === false).map((p) => p.note ?? p.label);
+  const caveats = caveatsFor(s);
   const mock = () => ({
     commentary: [
-      `This note describes ${s.metric.replace(/_/g, " ")} for ${s.geographyLabel} from validated releases only.`,
+      `This note describes ${s.metric.replace(/_/g, " ")} for ${s.geographyLabel} (${s.unit}, ${s.periodLabel}) from validated releases only.`,
       gaps.length ? `No observation exists for ${gaps.join(", ")}; those periods are unknown, not zero.` : "",
       notComparable.length ? `Some periods are not directly comparable: ${notComparable.join(" ")}` : "",
       s.kind === "stock" ? "Stock is a point-in-time snapshot and is not added across years." : "",
-      "This is not a forecast.",
+      s.hasForecast ? "Figures marked forecast are the source's own forecasts; CRE OS does not forecast." : "This is not a forecast.",
     ].filter(Boolean).join(" "),
   });
   let commentary = mock().commentary;
-  let label = "Template commentary (AI not used) — descriptive only, not a forecast. Verify before sharing.";
+  const forecastWord = s.hasForecast ? "descriptive only; forecast points are the source's, labelled as forecasts" : "descriptive only, not a forecast";
+  let label = `Template commentary (AI not used) — ${forecastWord}. Verify before sharing.`;
+  const sourceRows = s.sources.map((x) => { const i = overview.sources.get(x.key); return { source_object_id: x.source_object_id, name: x.name, release_date: x.release_date, licensed_source_id: i?.licensed_source_id ?? null, licensed_name: i?.licensed_name ?? null, permits_publication: i?.permits_publication ?? true }; });
+  const licensedIds = [...new Set(sourceRows.map((r) => r.licensed_source_id).filter((x): x is string => !!x))];
   try {
     const res = await (opts.ai ?? (callStructured as AiCall))({
       workspaceId, workflow: "market.note", tier: "luna",
-      system: "You write short, descriptive commentary on Pune office market data for a CRE adviser. Use ONLY the facts given; do not compute new numbers, do not forecast, do not infer vacancy from absorption, do not sum stock across years. State gaps as unknown.",
-      input: `Metric: ${s.metric}\nGeography: ${s.geographyLabel}\nKind: ${s.kind}\nUnknown periods: ${gaps.join(", ") || "none"}\nNot comparable: ${notComparable.join(" ") || "none"}`,
+      system: "You write short, descriptive commentary on Pune office market data for a CRE adviser. Use ONLY the facts given; do not compute new numbers, do not forecast, label any source forecast as a forecast, do not infer vacancy from absorption, do not sum stock across years. State gaps as unknown. Do not imply the data is comprehensive.",
+      input: `Metric: ${s.metric}\nGeography: ${s.geographyLabel}\nUnit: ${s.unit}\nPeriod: ${s.periodLabel}\nKind: ${s.kind}\nUnknown periods: ${gaps.join(", ") || "none"}\nNot comparable: ${notComparable.join(" ") || "none"}`,
       evidence: facts.map((f) => f.text).join("\n"), schema: Commentary, schemaName: "market_commentary", maxOutputTokens: 600, mock,
+      classification: licensedIds.length ? "licensed_restricted" : undefined, licensedSourceIds: licensedIds.length ? licensedIds : undefined,
     });
     commentary = res.data.commentary;
-    if (!res.mocked) label = "AI-drafted commentary — descriptive only, not a forecast. Verify before sharing.";
+    if (!res.mocked) label = `AI-drafted commentary — ${forecastWord}. Verify before sharing.`;
   } catch (e) {
     if (!(e instanceof AiUnavailableError)) throw e;
-    label = `Template commentary (AI unavailable: ${e.reason}) — descriptive only, not a forecast.`;
+    label = `Template commentary (AI unavailable: ${e.reason}) — ${forecastWord}.`;
   }
-  const body = [...facts.map((f) => `• ${f.text}`), "", commentary, "", MARKET_DISCLAIMER].join("\n");
+  const sourcesLine = `Sources: ${s.sources.map((x) => `${x.name} (released ${x.release_date ?? "date unknown"})`).join("; ")}.`;
+  const body = [...facts.map((f) => `• ${f.text}`), "", commentary, "", sourcesLine, ...caveats.map((c) => `Note: ${c}`), "", marketDisclaimer(s.hasForecast)].join("\n");
   const { data, error } = await db.from("market_note").insert({
-    workspace_id: workspaceId, title: input.title ?? `${s.metric.replace(/_/g, " ")} — ${s.geographyLabel}`, geography_raw: s.geographyLabel, metric: s.metric,
-    period_label: s.points.filter((p) => p.value !== null).map((p) => p.label).join(", "), body, facts, commentary, commentary_label: label,
+    workspace_id: workspaceId, title: input.title ?? `${s.metric.replace(/_/g, " ")} — ${s.geographyLabel} (${s.unit})`, geography_raw: s.geographyLabel, metric: s.metric,
+    period_label: s.periodLabel, body, facts, commentary, commentary_label: label, unit: s.unit,
+    sources: sourceRows, sample_size: s.sampleSize, caveats, has_forecast: s.hasForecast,
     audience: input.audience ?? null, status: "draft", owner_user_id: opts.userId,
   }).select().single();
   if (error) throw error;
   return data;
 }
 
-export async function setMarketNoteStatus(db: Db, workspaceId: string, id: string, status: "draft" | "in_review" | "approved" | "published_manually" | "discarded", confidentialityChecked?: boolean) {
+export async function setMarketNoteStatus(db: Db, workspaceId: string, id: string, status: "draft" | "in_review" | "approved" | "published_manually" | "discarded", confidentialityChecked?: boolean, opts: { userId?: string | null } = {}) {
   const patch: Row = { status };
   if (confidentialityChecked !== undefined) patch.confidentiality_checked = confidentialityChecked;
   if ((status === "approved" || status === "published_manually")) {
@@ -130,11 +238,16 @@ export async function setMarketNoteStatus(db: Db, workspaceId: string, id: strin
   }
   const { data, error } = await db.from("market_note").update(patch).eq("workspace_id", workspaceId).eq("id", id).select().single();
   if (error) throw error;
+  if (status === "approved" && opts.userId) {
+    // Trigger for the content editor: approved public facts are available => one linked content idea (deduped per note).
+    const { ideaFromApprovedNote } = await import("../content/service");
+    await ideaFromApprovedNote(db, workspaceId, id, opts.userId);
+  }
   return data;
 }
 
 export async function listMarketNotes(db: Db, workspaceId: string) {
-  const { data, error } = await db.from("market_note").select("id, title, metric, geography_raw, period_label, status, commentary_label, confidentiality_checked, created_at, body").eq("workspace_id", workspaceId).is("archived_at", null).order("created_at", { ascending: false }).limit(50);
+  const { data, error } = await db.from("market_note").select("id, title, metric, geography_raw, period_label, status, commentary_label, confidentiality_checked, created_at, body, sources, sample_size, caveats, has_forecast, unit").eq("workspace_id", workspaceId).is("archived_at", null).order("created_at", { ascending: false }).limit(50);
   if (error) throw error;
   return (data ?? []) as Row[];
 }

@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
-import { adapterLabel, listBatches } from "@/modules/imports/service";
+import { adapterLabel, listBatches, listSources } from "@/modules/imports/service";
 import { type Counts, Loading, ReconcileLine, StatusBadge, n } from "@/modules/imports/ui";
 import { UploadForm } from "./upload-form";
 
@@ -11,7 +11,8 @@ export const metadata = { title: "Imports" };
 
 async function Body() {
   const ctx = await requirePageContext("editor");
-  const batches = await listBatches(ctx);
+  const [batches, sources] = await Promise.all([listBatches(ctx), listSources(ctx)]);
+  const waiting = sources.reduce((a, s) => a + s.waiting, 0);
   return (
     <>
       <PageHeader
@@ -62,8 +63,8 @@ async function Body() {
           )}
         </div>
         <div className="order-1 lg:order-2">
-          <Card title="Upload">
-            <UploadForm />
+          <Card title="Upload" actions={<Link className="text-sm text-brand" href="/imports/sources">Sources{waiting ? ` (${waiting} waiting)` : ""}</Link>}>
+            <UploadForm sources={sources.map((s) => ({ id: s.id, name: s.name, kind: s.kind, approved: s.approved, is_default: s.is_default }))} />
           </Card>
         </div>
       </div>

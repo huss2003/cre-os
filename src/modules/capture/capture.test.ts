@@ -63,13 +63,15 @@ describe("debrief capture", () => {
     expect(ix).toMatchObject({ channel: "call", capture_id: capture.id });
     const { data: links } = await admin.from("interaction_link").select("entity_type, entity_id").eq("workspace_id", WS1).eq("interaction_id", ix!.id);
     expect(links!.map((l) => l.entity_id).sort()).toEqual([f.person.id, f.org.id].sort());
-    // tentative requirement proposal: area + locality now, occupation date withheld until the year is confirmed
+    // tentative requirement proposal: locality now; "20k" (sq ft or rupees?) and the year of March withheld until answered
     expect(review.proposals).toHaveLength(1);
     const p = review.proposals[0];
     expect(p).toMatchObject({ target_type: "requirement", operation: "create", risk: "material_fact", approval_required: true, state: "proposed" });
     const paths = (p.patch as { path: string; value: unknown }[]).reduce<Record<string, unknown>>((a, x) => ({ ...a, [x.path]: x.value }), {});
-    expect(paths).toMatchObject({ "/org_id": f.org.id, "/area_target_sf": 20000, "/preferred_geography_ids": [f.geo.id], "/status": "draft" });
+    expect(paths).toMatchObject({ "/org_id": f.org.id, "/preferred_geography_ids": [f.geo.id], "/status": "draft" });
     expect(paths["/occupation_date"]).toBeUndefined();
+    expect(paths["/area_target_sf"]).toBeUndefined();
+    expect(paths["/budget_max"]).toBeUndefined();
     // due task + draft (never sent, recipient from resolved person, no invented address)
     expect(review.tasks).toHaveLength(1);
     expect(review.tasks[0].title).toMatch(new RegExp(`^Send options to ${f.personName}`));
@@ -77,11 +79,10 @@ describe("debrief capture", () => {
     expect(review.drafts[0]).toMatchObject({ recipient_person_id: f.person.id, state: "drafted" });
     const { data: draft } = await admin.from("draft").select("recipient_address").eq("id", review.drafts[0].id).single();
     expect(draft!.recipient_address).toBeNull();
-    // open questions: which March, which Friday
-    expect(review.open.map((a) => a.kind).sort()).toEqual(["date", "date"]);
+    // open questions: which March, which Friday, and is "20k" sq ft or rupees
+    expect(review.open.map((a) => a.kind).sort()).toEqual(["date", "date", "unit"]);
     // every claim linked to a span of the note
-    const fact = review.spans.find((s) => s.claim_kind === "fact" && s.excerpt === "20k");
-    expect(fact?.result_id).toBe(p.id);
+    expect(review.spans.find((s) => s.claim_kind === "fact" && s.excerpt === "20k")).toBeTruthy();
 
     // idempotent re-processing (and a forced re-extraction) creates nothing new
     const before = await counts(capture.id);
@@ -93,9 +94,12 @@ describe("debrief capture", () => {
     // answer the ambiguities -> occupation date added to the (still undecided) proposal, task due date confirmed
     const march = review.extraction!.ambiguities.findIndex((a) => /March/.test(a.question));
     const friday = review.extraction!.ambiguities.findIndex((a) => /Friday/.test(a.question));
-    await submitReview(colleague, admin, WS1, USERS.colleague.id, capture.id, { answers: { [march]: "2027-03-31", [friday]: "2026-11-13" } });
+    const unit = review.extraction!.ambiguities.findIndex((a) => a.kind === "unit");
+    await submitReview(colleague, admin, WS1, USERS.colleague.id, capture.id, { answers: { [march]: "2027-03-31", [friday]: "2026-11-13", [unit]: "area_target_sf" } });
     const after = await getReview(colleague, WS1, capture.id);
     expect(after.open).toEqual([]);
+    expect((after.proposals[0].patch as { path: string; value: unknown }[]).find((x) => x.path === "/area_target_sf")?.value).toBe(20000);
+    expect(after.spans.find((s) => s.claim_kind === "fact" && s.excerpt === "20k")?.result_id).toBe(after.proposals[0].id);
     const patch2 = (after.proposals[0].patch as { path: string; value: unknown }[]).find((x) => x.path === "/occupation_date");
     expect(patch2?.value).toBe("2027-03-31");
     expect(new Date(after.tasks[0].due_at!).toISOString()).toBe("2026-11-13T12:30:00.000Z");   // 18:00 IST

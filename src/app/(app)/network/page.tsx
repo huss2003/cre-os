@@ -5,6 +5,8 @@ import { orgOptions, personOptions, recentJobMoves } from "@/modules/intelligenc
 import { threadingGaps, introPathsForOrg } from "@/modules/intelligence/network/service";
 import { Flash, Sev, fmtDay, label } from "@/modules/intelligence/ui";
 import { jobMoveAction, reconnectAction } from "./actions";
+import { verifyMoveAction, introDraftAction } from "@/modules/intelligence/network/actions";
+import { RelationshipForm } from "@/modules/intelligence/network/ui";
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
@@ -40,7 +42,7 @@ export default async function NetworkPage({ searchParams }: { searchParams: Prom
                   <Field label="Source URL"><Input name="source_url" type="url" placeholder="https://" /></Field>
                 </div>
                 <Field label="Note"><Textarea name="source_note" maxLength={2000} /></Field>
-                <p className="text-xs text-ink-soft">Creates evidence and proposals in Approvals: the old employment is closed (kept as history), the new one opened. Old-company deal notes never move with the person.</p>
+                <p className="text-xs text-ink-soft">Creates evidence, a verification task and proposals in Approvals: the old employment is closed (kept as history), the new one opened. The move stays “unverified” until you confirm it. Old-company deal notes never move with the person.</p>
                 <Button type="submit">Record move</Button>
               </form>
             )}
@@ -53,7 +55,12 @@ export default async function NetworkPage({ searchParams }: { searchParams: Prom
               {moves.map((m) => (
                 <li key={String(m.id)} className="py-2 text-sm">
                   <div><span className="font-medium">{m.person}</span>{m.from ? ` · ${m.from} →` : " →"} {m.to ?? "?"}{m.title ? ` (${m.title})` : ""}</div>
-                  <div className="text-xs text-ink-soft">observed {fmtDay(String(m.observed_on))}{m.effective_on ? ` · effective ${fmtDay(String(m.effective_on))}` : ""} · <Badge>{label(String(m.evidence_tier))}</Badge></div>
+                  <div className="flex flex-wrap items-center gap-1 text-xs text-ink-soft">observed {fmtDay(String(m.observed_on))}{m.effective_on ? ` · effective ${fmtDay(String(m.effective_on))}` : ""} · <Badge>{label(String(m.evidence_tier))}</Badge>
+                    {m.verified ? <Badge tone="ok">confirmed</Badge> : <Badge tone="warn">unverified — not a fact yet</Badge>}</div>
+                  {canEdit && !m.verified && (
+                    <form action={verifyMoveAction} className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center"><input type="hidden" name="claim_id" value={String(m.id)} />
+                      <Input name="note" maxLength={300} placeholder="How confirmed (e.g. company page, spoke to them)" aria-label="How confirmed" /><Button variant="secondary">Mark confirmed</Button></form>
+                  )}
                   {canEdit && m.to_org_id && (
                     <form action={reconnectAction} className="mt-1 flex flex-wrap gap-2"><input type="hidden" name="person_id" value={String(m.subject_id)} /><input type="hidden" name="org_id" value={m.to_org_id} />
                       <Button variant="secondary" name="channel" value="email">Draft reconnect email</Button><Button variant="ghost" name="channel" value="linkedin">LinkedIn note draft</Button>
@@ -66,18 +73,28 @@ export default async function NetworkPage({ searchParams }: { searchParams: Prom
         </Card>
       </div>
 
+      {canEdit && people.length > 1 && (
+        <Card title="Record a relationship" className="mt-4">
+          <p className="mb-2 text-xs text-ink-soft">Who knows whom, how well, and when you last spoke. Introduction permission is never assumed — record consent on the person&apos;s page once given.</p>
+          <RelationshipForm back="/network" people={people} />
+        </Card>
+      )}
+
       <Card title="Introduction paths" className="mt-4">
         <form className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end">
           <Field label="Company"><Select name="org" defaultValue={org ?? ""}>{opt(orgs, "Choose a company…")}</Select></Field>
           <Button variant="secondary" type="submit">Show paths</Button>
         </form>
-        {!org ? <p className="text-sm text-ink-soft">Pick a company to see warm paths from you or colleagues to its current people. Paths without recorded intro permission are marked “ask first”.</p>
+        {!org ? <p className="text-sm text-ink-soft">Pick a company to see warm paths from you or colleagues to its current people. Only recorded relationships are used; paths without recorded introduction consent are marked “ask first”, and suppressed people are left out.</p>
           : paths.length === 0 ? <EmptyState title="No paths found">Record relationships (who knows whom, warmth, intro permission) on People to see paths here.</EmptyState> : (
           <ul className="space-y-2 text-sm">
             {paths.map((p, i) => (
-              <li key={i} className="rounded-lg border border-line p-2"><div className="font-medium">{p.target_name}</div>
+              <li key={i} className="rounded-lg border border-line p-2"><div className="font-medium"><Link className="text-brand" href={`/people/${p.target_person_id}`}>{p.target_name}</Link></div>
                 <div className="break-words">{p.hops.join(" → ")}</div>
-                <div className="mt-1 flex flex-wrap gap-1">{p.warmth && <Badge tone="brand">{p.warmth}</Badge>}{p.needs_permission ? <Badge tone="warn">ask first — no intro permission recorded</Badge> : <Badge tone="ok">permission recorded</Badge>}{p.last_contact && <Badge>last contact {p.last_contact}</Badge>}</div></li>
+                <div className="mt-1 flex flex-wrap gap-1">{p.warmth && <Badge tone="brand">{p.warmth}</Badge>}{p.consent_edge_id === null ? <Badge>direct — your relationship</Badge> : p.needs_permission ? <Badge tone="warn">ask first — no intro consent recorded</Badge> : <Badge tone="ok">intro consent recorded</Badge>}{p.last_contact && <Badge>last contact {p.last_contact}</Badge>}</div>
+                {canEdit && p.consent_edge_id && (p.needs_permission
+                  ? <p className="mt-1 text-xs text-ink-soft">Ask {p.hops[p.hops.length - 2]} first, then record their consent on <Link className="text-brand" href={`/people/${p.introducer_person_id ?? p.target_person_id}#relationships`}>their page</Link>. No intro draft is suggested before that.</p>
+                  : p.introducer_person_id ? <form action={introDraftAction} className="mt-1"><input type="hidden" name="back" value={`/network?org=${org}`} /><input type="hidden" name="edge_id" value={p.consent_edge_id} /><Button variant="secondary">Draft intro request to {p.hops[1]}</Button></form> : null)}</li>
             ))}
           </ul>
         )}

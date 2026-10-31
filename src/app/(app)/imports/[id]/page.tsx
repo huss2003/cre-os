@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Button, ButtonLink, Card, PageHeader, StaleBanner, Stat, Table, Td } from "@/components/ui";
 import { hasRole, requirePageContext } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
-import { adapterLabel, batchDetail, mappableRoles } from "@/modules/imports/service";
+import { adapterLabel, batchDetail, batchSteward, mappableRoles } from "@/modules/imports/service";
 import { type Counts, Loading, ReconcileLine, SeverityBadge, StatusBadge, n } from "@/modules/imports/ui";
 import { approveMappingAction, decideMatchAction, reprocessAction, resolveExceptionAction } from "../actions";
 import { MappingForm } from "./mapping-form";
@@ -30,6 +30,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
   const d = await batchDetail(ctx, id);
   if (!d) notFound();
   const { batch, source, exceptions, quarantined, candidates } = d;
+  const steward = await batchSteward(ctx, batch.id, batch.source_object_id ?? null);
   const c = (batch.counts ?? {}) as Counts;
   const sheets = (batch.sheets ?? []) as SheetInfo[];
   const unknown = sheets.filter((s) => s.status === "unknown");
@@ -58,6 +59,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
       />
       {error ? <StaleBanner>{error}</StaleBanner> : null}
       {batch.status === "failed" ? <StaleBanner>Processing failed: {batch.error ?? "unknown error"}. The original is untouched; fix the cause and re-process.</StaleBanner> : null}
+      {batch.status === "awaiting_source" ? <StaleBanner>Quarantined: {batch.error ?? "the source of this file is not approved."} The original is stored read-only; nothing has been read into CRE OS. <Link className="underline" href="/imports/sources">Review import sources</Link>.</StaleBanner> : null}
       {batch.status === "registered" || batch.status === "processing" ? <StaleBanner>This batch is {batch.status === "processing" ? "being processed" : "queued"}; numbers below may be incomplete.{batch.error ? ` ${batch.error}` : ""}</StaleBanner> : null}
 
       <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -198,6 +200,37 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
             ))}
           </ul>
         )}
+      </Card>
+
+      <Card title={`Source vs record conflicts (${steward.conflicts.filter((x: { status: string }) => x.status === "open" || x.status === "proposed").length} open)`} className="mt-4">
+        {steward.conflicts.length === 0 ? <p className="text-sm text-ink-soft">No value in this file disagrees with an existing record. Existing records are never overwritten by an import; disagreements are listed here and in <Link className="underline" href="/approvals/conflicts">Approvals → Conflicts</Link>.</p> : (
+          <Table head={["Record", "Field", "Record says", "File says", "Row", "Status"]}>
+            {steward.conflicts.map((x: { id: string; entity_type: string; entity_id: string; field: string; master_value: unknown; source_value: unknown; material: boolean; source_locator: string; status: string; change_proposal_id: string | null }) => (
+              <tr key={x.id}>
+                <Td><Link className="text-brand underline" href={`/approvals/evidence?type=${x.entity_type}&id=${x.entity_id}`}>{x.entity_type}</Link></Td>
+                <Td>{x.field}{x.material ? <span className="ml-1 text-xs text-warn">material</span> : null}</Td>
+                <Td>{x.master_value === null ? <span className="text-ink-soft">unknown</span> : String(x.master_value)}</Td>
+                <Td>{String(x.source_value)}</Td>
+                <Td className="whitespace-nowrap">{x.source_locator}</Td>
+                <Td><StatusBadge status={x.status} />{x.change_proposal_id ? <Link className="ml-1 text-xs underline" href={`/approvals?tab=records`}>approval</Link> : null}</Td>
+              </tr>
+            ))}
+          </Table>
+        )}
+      </Card>
+
+      <Card title={`People named in this file (${steward.personProposals.length} proposed)`} className="mt-4">
+        {steward.personProposals.length === 0 ? <p className="text-sm text-ink-soft">No representative/contact names were found, or they were already proposed by an earlier import.</p> : (
+          <ul className="divide-y divide-line text-sm">
+            {steward.personProposals.map((p: { id: string; patch: { path: string; value: unknown }[]; state: string; reason: string | null }) => (
+              <li key={p.id} className="py-2">
+                <span className="font-medium">{String(p.patch.find((x) => x.path === "/full_name")?.value ?? "—")}</span> <StatusBadge status={p.state} />
+                <p className="text-xs text-ink-soft">{p.reason}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-2 text-xs text-ink-soft">People are only proposed — never merged with a same-name record. Apply them in <Link className="underline" href="/approvals?tab=records">Approvals</Link>; the company link is then proposed for approval.</p>
       </Card>
 
       <Card title={`Quarantined rows${quarantined.length >= 100 ? " (first 100)" : ""}`} className="mt-4">

@@ -5,7 +5,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
 import { localDate, atLocal } from "@/lib/util/time";
 import type { AiCall } from "./common";
-import { dueForResearch, generateDossier } from "./research/service";
+import { dueForResearch, generateDossier, detectRecentSignals } from "./research/service";
+import { refreshStrategyForEvent } from "./strategy/service";
+import { notify } from "@/modules/brief/db";
 import { runPatrol } from "./research/patrol-service";
 
 /**
@@ -13,7 +15,12 @@ import { runPatrol } from "./research/patrol-service";
  *  - intelligence.patrol    daily evidence conflict & expiry patrol -> evidence_finding (deduped)
  *  - intelligence.research  daily refresh of due watchlist dossiers. Re-runs only on changed evidence or elapsed tier
  *                           interval. Once the AI budget is exhausted, remaining dossiers use the rule synthesis
- *                           (spend cap: non-critical AI research stops, local work continues).
+ *                           (spend cap: non-critical AI research stops, local work continues). Before refreshing, rule-based
+ *                           signal detection runs over evidence changed in the last day.
+ *  - intelligence.research_org  one company's dossier refresh, enqueued by a DB trigger when a rule-detected signal lands on
+ *                           a watchlist company (dedupe key per source evidence item).
+ *  - intelligence.strategy  deal-strategist snapshot re-run, enqueued by DB triggers on opportunity stage change, new quote
+ *                           (revision) and new objection (dedupe key per event). Suggestion-only: never moves stages.
  */
 
 /** Wrap the gateway so that after the first budget/pause refusal no further AI calls are attempted in this run. */
@@ -33,6 +40,7 @@ export function budgetLatch(ai: AiCall = callStructured as AiCall): { ai: AiCall
 
 export async function runResearchRefresh(workspaceId: string, now: Date, opts: { ai?: AiCall; limit?: number } = {}) {
   const db = createAdminClient();
+  const detected = await detectRecentSignals(db, workspaceId, new Date(now.getTime() - 86_400_000));
   const orgIds = await dueForResearch(db, workspaceId, now, opts.limit ?? 50);
   const latch = budgetLatch(opts.ai);
   const out = { due: orgIds.length, generated: 0, skipped: 0, degraded: 0, errors: 0 };
@@ -46,7 +54,21 @@ export async function runResearchRefresh(workspaceId: string, now: Date, opts: {
       console.warn(`[intelligence.research] ${workspaceId}/${orgId}:`, e instanceof Error ? e.message : e);
     }
   }
-  return { ...out, ai_stopped: latch.tripped() };
+  return { ...out, signals_detected: detected.created, ai_stopped: latch.tripped() };
+}
+
+/** Refresh one company's dossier after a detected signal (re-runs only because evidence changed; deduped by the trigger). */
+export async function runOrgResearch(workspaceId: string, orgId: string, now = new Date(), ai?: AiCall, signalClaimId?: string | null) {
+  const db = createAdminClient();
+  const { data: watch } = await db.from("watchlist").select("owner_user_id, active").eq("workspace_id", workspaceId).eq("org_id", orgId).maybeSingle();
+  if (!watch?.active) return { skipped: "not_watched" };
+  const owner = (watch.owner_user_id as string | null) ?? null;
+  const r = await generateDossier(db, workspaceId, orgId, { now, ai: ai ?? budgetLatch().ai, userId: owner });
+  if (owner && signalClaimId) {
+    // in-app only (outbox), deduped per signal; never emailed
+    await notify(db, workspaceId, owner, "research.signal", `research.signal:${signalClaimId}`, { org_id: orgId, signal_claim_id: signalClaimId, href: `/research/${orgId}`, text: "New business-signal hypothesis on a watchlist company — dossier refreshed. Verify before acting." });
+  }
+  return { status: r.status, reason: r.reason, synthesis_status: r.synthesis_status ?? null };
 }
 
 const ownHandlers: Record<string, JobHandler> = {
@@ -57,6 +79,16 @@ const ownHandlers: Record<string, JobHandler> = {
   "intelligence.research": async (job) => {
     if (!job.workspace_id) throw new Error("intelligence.research requires workspace_id");
     return runResearchRefresh(job.workspace_id, new Date());
+  },
+  "intelligence.research_org": async (job) => {
+    const orgId = String(job.payload?.org_id ?? "");
+    if (!job.workspace_id || !orgId) throw new Error("intelligence.research_org requires workspace_id and payload.org_id");
+    return runOrgResearch(job.workspace_id, orgId, new Date(), undefined, (job.payload?.signal_claim_id as string | undefined) ?? null);
+  },
+  "intelligence.strategy": async (job) => {
+    const oppId = String(job.payload?.opportunity_id ?? "");
+    if (!job.workspace_id || !oppId) throw new Error("intelligence.strategy requires workspace_id and payload.opportunity_id");
+    return refreshStrategyForEvent(createAdminClient(), job.workspace_id, oppId);
   },
 };
 

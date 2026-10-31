@@ -5,9 +5,12 @@ import { requirePageContext } from "@/lib/auth/context";
 import { toDealsCtx } from "@/modules/deals/api";
 import { DealsError } from "@/modules/deals/ctx";
 import {
-  crmExportedAction, crmExternalAction, crmProposeAction, feeAction, moveStageAction, objectionAction, seedChecklistAction,
-  setOutcomeAction, updateLabelsAction, updateMilestoneAction,
+  crmExportedAction, crmExternalAction, crmProposeAction, moveStageAction, objectionAction, seedChecklistAction,
+  setOutcomeAction, updateLabelsAction,
 } from "@/modules/deals/actions";
+import { getClosingView } from "@/modules/deals/pipeline/closing-service";
+import { ClosingTimeline, FeeFormB, LedgerTable, OutstandingDocs, ReconExceptions } from "@/modules/deals/closing-ui";
+import { localDate } from "@/lib/util/time";
 import { getOpportunityDetail } from "@/modules/deals/pipeline/service";
 import { LOST_REASONS, OUTCOMES, STAGES, STAGE_LABEL, type Stage } from "@/modules/deals/pipeline/stages";
 import { Flash, KV } from "@/modules/deals/ui";
@@ -17,6 +20,7 @@ export default async function DealDetail({ params, searchParams }: { params: Pro
   const app = await requirePageContext();
   let d: Awaited<ReturnType<typeof getOpportunityDetail>>;
   try { d = await getOpportunityDetail(toDealsCtx(app), id); } catch (e) { if (e instanceof DealsError && e.status === 404) notFound(); throw e; }
+  const cv = await getClosingView(toDealsCtx(app), id, localDate());
   const o = d.opportunity as Record<string, unknown> & { row_version: number; stage: Stage; name: string };
   const req = o.requirement as { id: string; title: string; status: string } | null;
   const canEdit = app.role !== "viewer";
@@ -58,8 +62,10 @@ export default async function DealDetail({ params, searchParams }: { params: Pro
                 <Select name="mandate_status" defaultValue={(o.mandate_status as string) ?? "unknown"}>{["unknown", "none", "non_exclusive", "exclusive", "support"].map((m) => <option key={m}>{m}</option>)}</Select>
                 <Input name="next_action" placeholder="Next action" defaultValue={(o.next_action as string) ?? ""} />
                 <Input type="date" name="next_action_due" defaultValue={(o.next_action_due as string) ?? ""} />
-                <Button variant="secondary" type="submit">Save labels</Button>
+                <Field label="Expected close (changes are kept for slippage)"><Input type="date" name="expected_close" defaultValue={(o.expected_close as string) ?? ""} /></Field>
+                <div className="flex items-end"><Button variant="secondary" type="submit">Save labels</Button></div>
               </form>
+              {cv.closeHistory.length > 1 && <p className="text-xs text-ink-soft">Expected close history: {(cv.closeHistory as { old_expected_close: string | null; new_expected_close: string | null; changed_at: string }[]).map((h) => `${h.old_expected_close ?? "—"} → ${h.new_expected_close ?? "—"} (${h.changed_at.slice(0, 10)})`).join(" · ")}</p>}
               <form action={setOutcomeAction} className="grid grid-cols-2 gap-2">
                 {hid}
                 <Select name="outcome" defaultValue={String(o.outcome ?? "open")}>{OUTCOMES.map((x) => <option key={x}>{x}</option>)}</Select>
@@ -72,56 +78,21 @@ export default async function DealDetail({ params, searchParams }: { params: Pro
       </div>
 
       <Card title="Closing checklist & move dependencies" actions={canEdit ? <form action={seedChecklistAction}><input type="hidden" name="id" value={id} /><Button variant="secondary" type="submit">{d.milestones.length ? "Add missing items" : "Create checklist"}</Button></form> : null}>
-        {d.milestones.length === 0 ? <p className="text-sm text-ink-soft">No checklist yet. Items marked “needed before” block those stages until done (with proof) or waived.</p> : (
-          <ul className="divide-y divide-line text-sm">
-            {(d.milestones as Record<string, unknown>[]).map((m) => (
-              <li key={m.id as string} className="flex flex-col gap-2 py-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="font-medium">{m.title as string}</div>
-                  <div className="text-xs text-ink-soft">{m.required_for_stage ? `needed before ${STAGE_LABEL[m.required_for_stage as Stage]}` : "dependency"}{m.proof_required ? " · proof required" : ""}{m.proof_text ? ` · proof: ${m.proof_text}` : ""}</div>
-                </div>
-                {canEdit ? (
-                  <form action={updateMilestoneAction} className="flex gap-1">
-                    <input type="hidden" name="id" value={id} /><input type="hidden" name="milestone_id" value={m.id as string} />
-                    <Select name="status" defaultValue={m.status as string} className="min-w-28">{["open", "in_progress", "done", "blocked", "waived", "not_applicable"].map((x) => <option key={x}>{x}</option>)}</Select>
-                    <Input name="proof_text" placeholder="proof" defaultValue={(m.proof_text as string) ?? ""} className="w-32" />
-                    <Button variant="ghost" type="submit">Save</Button>
-                  </form>
-                ) : <Badge>{m.status as string}</Badge>}
-              </li>
-            ))}
-          </ul>
-        )}
+        {cv.timeline.length === 0
+          ? <p className="text-sm text-ink-soft">No checklist yet — it is created automatically when the deal reaches LOI, or create it now. Items marked “needed before” block those stages until done (with proof) or waived.</p>
+          : <ClosingTimeline oppId={id} items={cv.timeline} members={cv.members} canEdit={canEdit} />}
       </Card>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card title="Outstanding documents"><OutstandingDocs items={cv.outstanding} /></Card>
+        <Card title="Reconciliation with official finance"><ReconExceptions rows={cv.recon as never} /></Card>
+      </div>
 
       <Card title="Fees (gross / credited / invoiced / recognised / collected)">
         <KV items={[["Gross", inr(d.feeSummary.gross)], ["Credited to you", `${inr(d.feeSummary.credited)}${d.feeSummary.creditShareUnknown ? " (credit share unknown on some rows)" : ""}`], ["Invoiced", inr(d.feeSummary.invoiced)], ["Recognised", inr(d.feeSummary.recognised)], ["Collected", inr(d.feeSummary.collected)], ["Receivable", inr(d.feeSummary.receivable)]]} />
-        {d.fees.length > 0 && (
-          <div className="mt-3"><Table head={["Milestone", "Gross", "Credit", "Invoiced", "Recognised", "Collected", "Evidence"]}>
-            {d.fees.map((f) => (
-              <tr key={f.id}><Td>{f.milestone ?? "—"}</Td><Td>{inr(f.gross_fee)}</Td><Td>{f.credit_share != null ? `${Number(f.credit_share) * 100}%` : "—"}</Td>
-                <Td>{inr(f.invoiced_amount)}{f.invoiced_on ? ` · ${f.invoiced_on}` : ""}</Td><Td>{inr(f.recognised_amount)}{f.recognised_on ? ` · ${f.recognised_on}` : ""}</Td>
-                <Td>{inr(f.collected_amount)}{f.collected_on ? ` · ${f.collected_on}` : ""}</Td><Td className="text-xs">{f.evidence ?? "—"}</Td></tr>
-            ))}
-          </Table></div>
-        )}
-        {canEdit && (
-          <details className="mt-3 rounded-lg border border-line p-3">
-            <summary className="cursor-pointer text-sm font-medium">Record fee / invoice / collection</summary>
-            <form action={feeAction} className="mt-3 grid gap-2 sm:grid-cols-3">
-              <input type="hidden" name="id" value={id} />
-              <Field label="Update existing"><Select name="milestone_id" defaultValue=""><option value="">— new milestone —</option>{d.fees.map((f) => <option key={f.id} value={f.id}>{f.milestone ?? f.id}</option>)}</Select></Field>
-              <Field label="Milestone"><Input name="milestone" placeholder="e.g. on signing" /></Field>
-              <Field label="Gross fee ₹"><Input name="gross_fee" inputMode="decimal" /></Field>
-              <Field label="Credit share %"><Input name="credit_share_pct" inputMode="decimal" /></Field>
-              <Field label="Invoiced ₹ / date"><div className="flex gap-1"><Input name="invoiced_amount" inputMode="decimal" /><Input type="date" name="invoiced_on" /></div></Field>
-              <Field label="Recognised ₹ / date"><div className="flex gap-1"><Input name="recognised_amount" inputMode="decimal" /><Input type="date" name="recognised_on" /></div></Field>
-              <Field label="Collected ₹ / date"><div className="flex gap-1"><Input name="collected_amount" inputMode="decimal" /><Input type="date" name="collected_on" /></div></Field>
-              <Field label="Evidence (invoice no., remittance ref.)"><Input name="evidence" /></Field>
-              <div className="sm:col-span-3"><Button type="submit">Save fee record</Button></div>
-            </form>
-          </details>
-        )}
+        <p className="mt-3 text-xs text-ink-soft">Every amount has its own status and transaction link. Expected fees are a forecast only and never count as invoiced, recognised or collected.</p>
+        <div className="mt-2"><LedgerTable lines={cv.ledger} /></div>
+        {canEdit && <FeeFormB oppId={id} fees={d.fees.map((f) => ({ id: f.id as string, milestone: f.milestone ?? null }))} milestones={cv.timeline.map((t) => ({ id: t.id, title: t.title }))} />}
       </Card>
 
       <Card title="Official CRM" actions={canEdit ? <form action={crmProposeAction}><input type="hidden" name="id" value={id} /><Button variant="secondary" type="submit">Prepare export proposal</Button></form> : null}>

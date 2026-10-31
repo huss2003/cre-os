@@ -4,6 +4,7 @@ import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { Result, type ActionState } from "@/modules/changes/ui/client";
 import { captureAction } from "../actions";
+import { VoiceRecorder } from "./voice-recorder";
 
 function localNow() {
   const d = new Date();
@@ -18,11 +19,16 @@ function localNow() {
 export function QuickCapture({ workspaceId }: { workspaceId: string }) {
   const idem = useMemo(() => crypto.randomUUID(), []);
   const [kind, setKind] = useState<"text" | "audio" | "image">("text");
+  const [recording, setRecording] = useState<File | null>(null);
 
   const [state, action, pending] = useActionState(async (prev: ActionState, fd: FormData): Promise<ActionState> => {
 
-    const file = fd.get("file");
+    let file = fd.get("file");
     fd.delete("file");
+    if ((!file || typeof file === "string" || file.size === 0) && recording && fd.get("kind") === "audio") file = recording;
+    if (fd.get("kind") === "audio" && (!file || typeof file === "string" || file.size === 0) && !String(fd.get("text") ?? "").trim()) {
+      return { error: "Record a voice note, attach a file, or type the note." };
+    }
     if (file && typeof file !== "string" && file.size > 0) {
       if (file.size > 25 * 1024 * 1024) return { error: "File too large (max 25 MB)." };
       const path = `${workspaceId}/captures/${crypto.randomUUID()}/${file.name.replace(/[^A-Za-z0-9._-]/g, "_").slice(-80) || "upload"}`;
@@ -48,9 +54,17 @@ export function QuickCapture({ workspaceId }: { workspaceId: string }) {
         hint={kind === "text" ? 'e.g. "spoke to Raj at Acme; 20k by March; maybe Baner; send options Friday"' : undefined}>
         <Textarea name="text" rows={kind === "text" ? 5 : 3} required={kind === "text"} placeholder="Hindi, English or Hinglish is fine" />
       </Field>
-      {kind !== "text" ? (
-        <Field label={kind === "audio" ? "Voice note" : "Photo"} hint={kind === "image" ? "Photos add context; they are never treated as proof of legal terms." : undefined}>
-          <Input type="file" name="file" accept={kind === "audio" ? "audio/*" : "image/*"} capture={kind === "audio" ? undefined : "environment"} required />
+      {kind === "audio" ? (
+        <>
+          <VoiceRecorder onChange={setRecording} />
+          <Field label="…or attach a recording" hint="Used only if you did not record above.">
+            <Input type="file" name="file" accept="audio/*" />
+          </Field>
+        </>
+      ) : null}
+      {kind === "image" ? (
+        <Field label="Photo" hint="The photo's visible text is read as context; it is never treated as proof of legal or commercial terms.">
+          <Input type="file" name="file" accept="image/*" capture="environment" required />
         </Field>
       ) : null}
       <div className="grid gap-3 sm:grid-cols-3">

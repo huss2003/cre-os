@@ -271,6 +271,21 @@ function snapshotAsOf(audit: Row[]): Row | null {
 const sortTrail = (items: TrailItem[]) => items.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
 
 // ------------------------------------------------------------------ Company
+/** Open tasks for a company: linked directly, or linked via related_entities (capture follow-ups link to the interaction). */
+async function companyTasks(db: Client, id: string) {
+  const cols = "id, title, due_at, status, assigned_user_id";
+  const [direct, related] = await Promise.all([
+    db.from("task").select(cols).eq("linked_entity_type", "organisation").eq("linked_entity_id", id).in("status", ["open", "snoozed"]),
+    db.from("task").select(cols).contains("related_entities", [{ type: "organisation", id }]).in("status", ["open", "snoozed"]),
+  ]);
+  const seen = new Map<string, Row>();
+  for (const t of [...((direct.data ?? []) as Row[]), ...((related.data ?? []) as Row[])]) seen.set(String(t.id), t);
+  const data = [...seen.values()]
+    .sort((a, b) => (a.due_at ? String(a.due_at) : "9999").localeCompare(b.due_at ? String(b.due_at) : "9999"))
+    .slice(0, 10);
+  return { data, error: direct.error ?? related.error };
+}
+
 export async function getCompany(db: Client, workspaceId: string, id: string, asOf?: string | null) {
   const cutoff = asOfCutoff(asOf);
   const { data: org } = await db.from("organisation").select("*").eq("workspace_id", workspaceId).eq("id", id).maybeSingle();
@@ -286,8 +301,7 @@ export async function getCompany(db: Client, workspaceId: string, id: string, as
     db.from("asset").select("id, name, asset_kind, owner_org_id, developer_org_id, operator_org_id")
       .or(`owner_org_id.eq.${id},developer_org_id.eq.${id},operator_org_id.eq.${id}`).is("archived_at", null),
     signalsFor(db, workspaceId, "organisation", id),
-    db.from("task").select("id, title, due_at, status, assigned_user_id").eq("linked_entity_type", "organisation").eq("linked_entity_id", id)
-      .in("status", ["open", "snoozed"]).order("due_at", { ascending: true, nullsFirst: false }).limit(10),
+    companyTasks(db, id),
     auditFor(db, workspaceId, "organisation", id, cutoff),
     interactionsFor(db, workspaceId, "organisation", id, cutoff),
     db.from("lead_score").select("*").eq("subject_type", "organisation").eq("subject_id", id).eq("is_current", true).maybeSingle(),

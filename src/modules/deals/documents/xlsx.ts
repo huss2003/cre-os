@@ -91,6 +91,7 @@ export async function buildComparisonXlsx(m: DocModel): Promise<{ buffer: Buffer
   block("Assumptions", m.assumptions);
   block("Data freshness", m.freshness);
   block("Template", [`${m.template.name} (id ${m.template.id ?? "built-in"}, version ${m.template.version ?? 0})`, `Generated ${m.generatedAt}`]);
+  block("Sources and calculation versions", [...(m.sources ?? []), ...(m.templateCarryOver ?? [])]);
   if (m.brand.disclaimer) block("Disclaimer", [m.brand.disclaimer]);
   summary.getColumn(1).width = 34; for (let k = 2; k <= 9; k++) summary.getColumn(k).width = 18;
 

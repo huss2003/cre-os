@@ -10,6 +10,17 @@ import {
 
 export interface ClaimSource { kind: "signal_claim" | "organisation" | "organisation_relation" | "employment" | "lease" | "lease_event" | "market_transaction" | "interaction" | "stakeholder" | "relationship_edge" | "rule"; id?: string | null; url?: string | null; locator?: string | null }
 
+/**
+ * How a claim is dated (acceptance: every material claim has a source and a date, and internal records are labelled
+ * distinctly from dated external sources):
+ *  - source           external evidence with its own observation / publication date
+ *  - internal_record  our own CRM record — dated by when the record was last updated (NOT an observation of the world)
+ *  - event            a dated event in our records (interaction, transaction period, lease event)
+ *  - generated        rule/AI output generated on that day
+ *  - unknown          no date on file — left unknown, never stamped with today
+ */
+export type DateBasis = "source" | "internal_record" | "event" | "generated" | "unknown";
+
 export interface DossierClaim {
   text: string;
   value?: unknown;
@@ -20,6 +31,19 @@ export interface DossierClaim {
   published_on: string | null;
   expires_on: string | null;
   expired: boolean;
+  date_basis?: DateBasis;               // absent on dossiers generated before round 2
+  record_updated_on?: string | null;    // internal records: last update of the record
+}
+
+/** Human label for a claim's date ("internal record (last updated …)" vs "observed …"). */
+export function claimDateLabel(c: DossierClaim): string {
+  switch (c.date_basis) {
+    case "internal_record": return c.record_updated_on ? `internal record (last updated ${c.record_updated_on})` : "internal record (date unknown)";
+    case "event": return c.observed_on ? `internal record (event dated ${c.observed_on})` : "internal record (event date unknown)";
+    case "generated": return `generated ${c.observed_on ?? "date unknown"}`;
+    case "unknown": return `date unknown${c.record_updated_on ? ` (recorded ${c.record_updated_on})` : ""}`;
+    default: return [c.observed_on ? `observed ${c.observed_on}` : "observed unknown", c.published_on ? `published ${c.published_on}` : null].filter(Boolean).join(" · ");
+  }
 }
 
 export type SectionKey =
@@ -61,7 +85,7 @@ export interface ClaimRow {
   id: string; claim_type: string; predicate: string | null; value_json: Record<string, unknown> | null; status: FactStatus;
   evidence_tier: EvidenceTier | null; evidence_excerpt: string | null; source_url: string | null; source_locator: string | null;
   published_on: string | null; observed_on: string | null; effective_on: string | null; expires_on: string | null;
-  created_at: string; row_version: number;
+  created_at: string; row_version: number; classification?: string | null;
 }
 export interface RelationRow { id: string; relation_type: string; other_name: string; direction: "from" | "to"; valid_from: string | null; valid_to: string | null; updated_at: string; row_version: number }
 export interface EmploymentRow {
@@ -82,8 +106,11 @@ export interface InteractionRow {
   id: string; occurred_at: string; channel: string; direction: string | null; subject: string | null;
   objections: unknown; is_meaningful: boolean; row_version: number;
 }
-export interface StakeholderRow { id: string; person_name: string; role: string; requirement_title: string; row_version: number }
-export interface IntroPathSummary { target_person_id: string; target_name: string; hops: string[]; warmth: string | null; needs_permission: boolean; last_contact: string | null }
+export interface StakeholderRow { id: string; person_name: string; role: string; requirement_title: string; row_version: number; updated_at?: string | null }
+export interface IntroPathSummary {
+  target_person_id: string; target_name: string; hops: string[]; warmth: string | null; needs_permission: boolean; last_contact: string | null;
+  consent_edge_id?: string | null; consent_recorded?: boolean | null; introducer_person_id?: string | null;
+}
 
 export interface DossierInputs {
   org: OrgRow;
@@ -165,7 +192,10 @@ export function nextRefreshAt(tier: ResearchTier, now: Date, cadenceDays?: numbe
 // ------------------------------------------------------------------ section builder
 function mk(today: string, text: string, opts: Partial<DossierClaim> & { source: ClaimSource; claimType?: string; observed?: string | null }): DossierClaim {
   const observed = opts.observed_on ?? opts.observed ?? null;
-  const expires = opts.expires_on ?? expiryFor(opts.claimType ?? "default", observed);
+  const recordUpdated = opts.record_updated_on ?? null;
+  const basis: DateBasis = opts.date_basis ?? (observed || opts.published_on ? "source" : "unknown");
+  // Refresh need is computed from whatever date we really have; with no date at all expiry stays unknown.
+  const expires = opts.expires_on ?? expiryFor(opts.claimType ?? "default", observed ?? opts.published_on ?? recordUpdated);
   return {
     text,
     value: opts.value,
@@ -176,19 +206,29 @@ function mk(today: string, text: string, opts: Partial<DossierClaim> & { source:
     published_on: opts.published_on ?? null,
     expires_on: expires,
     expired: isExpired(expires, today),
+    date_basis: basis,
+    record_updated_on: recordUpdated,
   };
 }
 
+/** Internal CRM record: dated by its last update, never presented as an observation date. */
+const internal = (updatedAt: string | null | undefined) => ({ date_basis: "internal_record" as const, record_updated_on: isoDate(updatedAt ?? null), observed: null });
+
 function claimFromSignal(c: ClaimRow, today: string, text?: string): DossierClaim {
-  const observed = c.observed_on ?? isoDate(c.created_at);
+  // The observation date is the source's; when the evidence carries no date the claim is "date unknown" (recorded on …),
+  // and its refresh need is counted from when it was recorded.
+  const dated = !!(c.observed_on || c.published_on);
+  const recorded = isoDate(c.created_at);
   return mk(today, text ?? describeSignal(c), {
     value: c.value_json ?? undefined,
     status: c.status,
     evidence_tier: c.evidence_tier ?? "single_unverified",
     source: { kind: "signal_claim", id: c.id, url: c.source_url, locator: c.source_locator },
-    observed_on: observed,
+    observed_on: c.observed_on,
     published_on: c.published_on,
-    expires_on: expiryFor(c.claim_type, observed, c.expires_on),
+    date_basis: dated ? "source" : "unknown",
+    record_updated_on: dated ? null : recorded,
+    expires_on: expiryFor(c.claim_type, c.observed_on ?? c.published_on ?? recorded, c.expires_on),
   });
 }
 
@@ -221,6 +261,7 @@ const CLAIM_GROUPS: Record<string, SectionKey> = {
   hiring: "hiring",
   funding: "funding", financial: "funding", results: "funding",
   rto: "rto_gcc", consolidation: "rto_gcc", gcc_plan: "rto_gcc", expansion: "rto_gcc", relocation: "rto_gcc",
+  leadership_change: "decision_committee",
 };
 
 export interface BuiltDossier { sections: DossierSection[]; expiredCount: number; evidenceCount: number }
@@ -228,23 +269,22 @@ export interface BuiltDossier { sections: DossierSection[]; expiredCount: number
 export function buildDossierSections(i: DossierInputs, today: string): BuiltDossier {
   const byKey = new Map<SectionKey, DossierClaim[]>();
   const push = (k: SectionKey, c: DossierClaim) => byKey.set(k, [...(byKey.get(k) ?? []), c]);
-  const orgObserved = isoDate(i.org.updated_at);
 
   // identity
   const idParts: [string, string | null][] = [["Legal name", i.org.legal_name], ["CIN", i.org.cin], ["GSTIN", i.org.gstin], ["Domain", i.org.domain], ["Sector", i.org.sector], ["HQ country", i.org.hq_country]];
   for (const [label, v] of idParts) {
-    if (v) push("identity", mk(today, `${label}: ${v}`, { source: { kind: "organisation", id: i.org.id, locator: label }, observed: orgObserved, claimType: "identity", evidence_tier: "credible_reported", status: "reported" }));
+    if (v) push("identity", mk(today, `${label}: ${v}`, { source: { kind: "organisation", id: i.org.id, locator: label }, ...internal(i.org.updated_at), claimType: "identity", evidence_tier: "credible_reported", status: "reported" }));
   }
   for (const r of i.relations) {
     const txt = r.direction === "from" ? `${i.org.display_name} ${r.relation_type.replace(/_/g, " ")} ${r.other_name}` : `${r.other_name} ${r.relation_type.replace(/_/g, " ")} ${i.org.display_name}`;
-    push("identity", mk(today, txt, { source: { kind: "organisation_relation", id: r.id }, observed: isoDate(r.updated_at), claimType: "identity", evidence_tier: "credible_reported" }));
+    push("identity", mk(today, txt, { source: { kind: "organisation_relation", id: r.id }, ...internal(r.updated_at), claimType: "identity", evidence_tier: "credible_reported" }));
   }
-  if (i.org.is_gcc === true) push("rto_gcc", mk(today, "Recorded as a Global Capability Centre (GCC)", { source: { kind: "organisation", id: i.org.id, locator: "is_gcc" }, observed: orgObserved, claimType: "gcc_plan" }));
+  if (i.org.is_gcc === true) push("rto_gcc", mk(today, "Recorded as a Global Capability Centre (GCC)", { source: { kind: "organisation", id: i.org.id, locator: "is_gcc" }, ...internal(i.org.updated_at), claimType: "gcc_plan" }));
 
   // headcount (ranges only, never a point estimate)
   if (i.org.headcount_min !== null || i.org.headcount_max !== null) {
     const range = `${i.org.headcount_min ?? "?"}–${i.org.headcount_max ?? "?"}`;
-    push("headcount", mk(today, `Headcount range ${range} (as recorded)`, { value: { min: i.org.headcount_min, max: i.org.headcount_max }, source: { kind: "organisation", id: i.org.id, locator: "headcount" }, observed: orgObserved, claimType: "headcount" }));
+    push("headcount", mk(today, `Headcount range ${range} (as recorded)`, { value: { min: i.org.headcount_min, max: i.org.headcount_max }, source: { kind: "organisation", id: i.org.id, locator: "headcount" }, ...internal(i.org.updated_at), claimType: "headcount" }));
   }
 
   // signals
@@ -257,11 +297,10 @@ export function buildDossierSections(i: DossierInputs, today: string): BuiltDoss
   for (const l of i.leases) {
     const where = [l.asset_name, l.locality].filter(Boolean).join(", ") || "Unnamed premises";
     const area = l.area_sf !== null ? `${l.area_sf} sf${l.area_basis ? ` (${l.area_basis})` : ""}` : "area unknown";
-    const obs = isoDate(l.updated_at);
-    push("footprint", mk(today, `${where} — ${area}`, { source: { kind: "lease", id: l.id }, observed: obs, claimType: "footprint", status: l.fact_status, evidence_tier: "documentary_current" }));
+    push("footprint", mk(today, `${where} — ${area}`, { source: { kind: "lease", id: l.id }, ...internal(l.updated_at), claimType: "footprint", status: l.fact_status, evidence_tier: "documentary_current" }));
     const evText = l.events.filter((e) => e.event_date).map((e) => `${e.event_type.replace(/_/g, " ")} ${e.event_date} (${e.date_basis}${e.confirmed ? ", confirmed" : ", unconfirmed"})`);
     push("sites_leases", mk(today, `${where}: ${evText.length ? evText.join("; ") : "no dated events on file"}${l.landlord ? ` — landlord ${l.landlord}` : ""}`, {
-      value: { contractual_expiry: l.contractual_expiry, events: l.events }, source: { kind: "lease", id: l.id }, observed: obs, claimType: "lease", status: l.fact_status, evidence_tier: "documentary_current",
+      value: { contractual_expiry: l.contractual_expiry, events: l.events }, source: { kind: "lease", id: l.id }, ...internal(l.updated_at), claimType: "lease", status: l.fact_status, evidence_tier: "documentary_current",
     }));
   }
 
@@ -269,37 +308,38 @@ export function buildDossierSections(i: DossierInputs, today: string): BuiltDoss
   for (const e of i.employments) {
     const title = [e.title, e.function].filter(Boolean).join(", ") || "role unknown";
     const dates = `${e.start_date ?? "start unknown"} → ${e.is_current ? "present" : e.end_date ?? "end unknown"}`;
-    const c = mk(today, `${e.person_name} — ${title} (${dates})`, { source: { kind: "employment", id: e.id }, observed: isoDate(e.updated_at), claimType: "employment", status: e.fact_status, evidence_tier: e.fact_status === "currently_confirmed" ? "documentary_current" : "single_unverified" });
+    const c = mk(today, `${e.person_name} — ${title} (${dates})`, { source: { kind: "employment", id: e.id }, ...internal(e.updated_at), claimType: "employment", status: e.fact_status, evidence_tier: e.fact_status === "currently_confirmed" ? "documentary_current" : "single_unverified" });
     push(e.is_current ? "contacts_current" : "contacts_former", c);
     if (e.is_current && (DECISION_FUNCTIONS.test(title) || SENIOR.test(`${e.seniority ?? ""} ${title}`))) {
-      push("decision_committee", mk(today, `${e.person_name} — possible role in decision (${title}); role hypothesis, verify`, { source: { kind: "employment", id: e.id }, observed: isoDate(e.updated_at), claimType: "employment", status: "ai_inference", evidence_tier: "inference" }));
+      push("decision_committee", mk(today, `${e.person_name} — possible role in decision (${title}); role hypothesis, verify`, { source: { kind: "employment", id: e.id }, ...internal(e.updated_at), claimType: "employment", status: "ai_inference", evidence_tier: "inference" }));
     }
   }
   for (const s of i.stakeholders) {
-    push("decision_committee", mk(today, `${s.person_name} — ${s.role} on “${s.requirement_title}”`, { source: { kind: "stakeholder", id: s.id }, observed: today, claimType: "contact", status: "reported", evidence_tier: "credible_reported" }));
+    // Undated stakeholder records stay "date unknown" — never stamped with today's date.
+    push("decision_committee", mk(today, `${s.person_name} — ${s.role} on “${s.requirement_title}”`, { source: { kind: "stakeholder", id: s.id }, ...internal(s.updated_at), claimType: "contact", status: "reported", evidence_tier: "credible_reported" }));
   }
 
   for (const p of i.introPaths) {
     push("intro_paths", mk(today, `${p.hops.join(" → ")}${p.warmth ? ` (${p.warmth})` : ""}${p.needs_permission ? " — intro permission not recorded; ask first" : ""}`, {
-      source: { kind: "relationship_edge", locator: p.target_person_id }, observed: p.last_contact ?? today, claimType: "contact", status: "reported", evidence_tier: p.needs_permission ? "single_unverified" : "credible_reported",
+      source: { kind: "relationship_edge", locator: p.target_person_id }, ...internal(p.last_contact), claimType: "contact", status: "reported", evidence_tier: p.needs_permission ? "single_unverified" : "credible_reported",
     }));
   }
 
   for (const t of i.transactions) {
     const rent = t.rent_min !== null || t.rent_max !== null ? `rent ${t.rent_min ?? "?"}${t.rent_max !== null && t.rent_max !== t.rent_min ? `–${t.rent_max}` : ""}${t.rent_basis ? ` (${t.rent_basis})` : ""}` : "rent unknown";
     push("prior_transactions", mk(today, `${t.period_start ? `${t.period_start.slice(0, 7)} (${t.period_precision})` : "date unknown"} — ${t.deal_type ?? "deal"} at ${t.asset_name ?? "unknown building"}, ${t.area_sf ?? "?"} sf, ${rent}`, {
-      source: { kind: "market_transaction", id: t.id }, observed: t.period_start, claimType: "transaction", status: "historical_observed", evidence_tier: t.source_object_id ? "documentary_current" : "credible_reported",
+      source: { kind: "market_transaction", id: t.id }, observed: t.period_start, date_basis: t.period_start ? "event" : "unknown", record_updated_on: t.period_start ? null : isoDate(t.updated_at), claimType: "transaction", status: "historical_observed", evidence_tier: t.source_object_id ? "documentary_current" : "credible_reported",
     }));
   }
 
   const ints = [...i.interactions].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
   if (ints[0]) {
     const it = ints[0];
-    push("last_interaction", mk(today, `${it.occurred_at.slice(0, 10)} — ${it.channel}${it.direction ? ` (${it.direction})` : ""}${it.subject ? `: ${it.subject}` : ""}`, { source: { kind: "interaction", id: it.id }, observed: it.occurred_at.slice(0, 10), claimType: "interaction", status: "historical_observed", evidence_tier: "documentary_current" }));
+    push("last_interaction", mk(today, `${it.occurred_at.slice(0, 10)} — ${it.channel}${it.direction ? ` (${it.direction})` : ""}${it.subject ? `: ${it.subject}` : ""}`, { source: { kind: "interaction", id: it.id }, observed: it.occurred_at.slice(0, 10), date_basis: "event", claimType: "interaction", status: "historical_observed", evidence_tier: "documentary_current" }));
   }
   for (const it of ints) {
     for (const o of objectionTexts(it.objections)) {
-      push("open_objections", mk(today, o, { source: { kind: "interaction", id: it.id }, observed: it.occurred_at.slice(0, 10), claimType: "objection", status: "reported", evidence_tier: "credible_reported" }));
+      push("open_objections", mk(today, o, { source: { kind: "interaction", id: it.id }, observed: it.occurred_at.slice(0, 10), date_basis: "event", claimType: "objection", status: "reported", evidence_tier: "credible_reported" }));
     }
   }
 
@@ -353,11 +393,11 @@ export function ruleSynthesis(i: DossierInputs, built: BuiltDossier, today: stri
 
 export function synthesisSections(s: Synthesis, today: string, aiLabel: string): DossierSection[] {
   const timingClaims: DossierClaim[] = s.timing_hypothesis
-    ? [{ text: s.timing_hypothesis, status: "ai_inference", evidence_tier: "inference", source: { kind: "rule", locator: s.timing_basis ?? aiLabel }, observed_on: today, published_on: null, expires_on: addDays(today, 30), expired: false }]
+    ? [{ text: s.timing_hypothesis, status: "ai_inference", evidence_tier: "inference", source: { kind: "rule", locator: s.timing_basis ?? aiLabel }, observed_on: today, published_on: null, expires_on: addDays(today, 30), expired: false, date_basis: "generated", record_updated_on: null }]
     : [];
   return [
     { key: "timing_hypothesis", title: SECTION_TITLES.timing_hypothesis, status: timingClaims.length ? "known" : "unknown", claims: timingClaims, note: timingClaims.length ? "Hypothesis only — verify with the client before any material update." : "Unknown — no dated lease event or live signal on file." },
-    { key: "next_best_question", title: SECTION_TITLES.next_best_question, status: "known", claims: [{ text: s.next_best_question, status: "ai_inference", evidence_tier: "inference", source: { kind: "rule", locator: aiLabel }, observed_on: today, published_on: null, expires_on: addDays(today, 30), expired: false }] },
+    { key: "next_best_question", title: SECTION_TITLES.next_best_question, status: "known", claims: [{ text: s.next_best_question, status: "ai_inference", evidence_tier: "inference", source: { kind: "rule", locator: aiLabel }, observed_on: today, published_on: null, expires_on: addDays(today, 30), expired: false, date_basis: "generated", record_updated_on: null }] },
   ];
 }
 
