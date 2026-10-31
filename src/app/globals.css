@@ -1,26 +1,21 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* CRE OS design tokens — deep teal + warm accent (from the spec document palette), neutral surfaces. */
+@theme {
+  --color-ink: #13303b;
+  --color-ink-soft: #3d5a66;
+  --color-brand: #0f7c86;
+  --color-brand-soft: #e6f2f3;
+  --color-accent: #c08a4a;
+  --color-surface: #ffffff;
+  --color-canvas: #f5f7f8;
+  --color-line: #dfe5e8;
+  --color-ok: #1d7a46;
+  --color-warn: #b7791f;
+  --color-bad: #b42318;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+html, body { background: var(--color-canvas); color: var(--color-ink); }
+body { font-family: var(--font-sans); }
+:focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }

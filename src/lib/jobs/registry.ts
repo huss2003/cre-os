@@ -1,0 +1,14 @@
+import "server-only";
+import type { JobHandler } from "./queue";
+import * as imports from "@/modules/imports/jobs";
+import * as capture from "@/modules/capture/jobs";
+import * as brief from "@/modules/brief/jobs";
+import * as deals from "@/modules/deals/jobs";
+import * as integrations from "@/modules/integrations/jobs";
+import * as intelligence from "@/modules/intelligence/jobs";
+import * as admin from "@/modules/admin/jobs";
+
+const modules = [imports, capture, brief, deals, integrations, intelligence, admin];
+
+export const handlers: Record<string, JobHandler> = Object.assign({}, ...modules.map((m) => m.handlers));
+export const schedulers: ((now: Date) => Promise<void>)[] = modules.map((m) => m.schedule);
