@@ -130,7 +130,12 @@ export async function restoreSampleCheck(admin: Admin, workspaceId: string, opts
     const rest = all.filter((t) => !must.includes(t));
     const picked = opts.sample === undefined ? all : [...must, ...rest.sort(() => Math.random() - 0.5).slice(0, opts.sample)];
     const exported: Record<string, Row[]> = {};
-    for (const table of picked) {
+    // Bounded parallel downloads (serial reads of ~100 files overran the 60s serverless limit).
+    const queue = [...picked];
+    const reader = async () => {
+      for (let table = queue.shift(); table !== undefined; table = queue.shift()) await verifyTable(table);
+    };
+    const verifyTable = async (table: string) => {
       const meta = manifest.tables[table];
       const raw = await download(admin, `${exp.storage_prefix}/${meta.file}`);
       const text = manifest.encrypted ? decryptSecret(raw) : raw;
@@ -142,7 +147,9 @@ export async function restoreSampleCheck(admin: Admin, workspaceId: string, opts
       if (stableHash(parsed.rows) !== meta.sha256) mismatches.push({ table, problem: "hash mismatch" });
       verifiedCounts[table] = parsed.rows.length;
       exported[table] = parsed.rows;
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(8, picked.length) }, reader));
+    mismatches.sort((a, b) => a.table.localeCompare(b.table));
 
     if (exported.contact_method) {
       const exportedSupp = new Map(exported.contact_method.map((r) => [r.id, !!r.suppressed]));
