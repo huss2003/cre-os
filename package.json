@@ -11,7 +11,9 @@
     "test": "vitest run",
     "db:start": "supabase start -x vector,imgproxy,studio,realtime,edge-runtime,logflare,postgres-meta",
     "db:reset": "supabase db reset",
-    "worker": "tsx --env-file=.env.local scripts/worker.ts"
+    "worker": "tsx --env-file=.env.local scripts/worker.ts",
+    "demo:seed": "tsx --env-file=.env.local scripts/demo-seed.ts",
+    "demo:reset": "tsx --env-file=.env.local scripts/demo-reset.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

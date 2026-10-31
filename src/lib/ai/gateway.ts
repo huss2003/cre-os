@@ -118,7 +118,10 @@ export async function transcribe(opts: {
   await guard(opts.workspaceId);
   const api = openai();
   if (!api) {
-    if (opts.mockText !== undefined) return { text: opts.mockText, mocked: true };
+    if (opts.mockText !== undefined) {
+      await logUsage({ workspaceId: opts.workspaceId, workflow: "transcribe", model: `mock:${MODELS.transcribe}`, audioSeconds: opts.durationSeconds ?? 0, ok: true });
+      return { text: opts.mockText, mocked: true };
+    }
     throw new AiUnavailableError("no_api_key");
   }
   const res = await api.audio.transcriptions.create({
@@ -143,9 +146,9 @@ async function guard(workspaceId: string | null) {
 
 export async function monthSpendUsd(workspaceId: string): Promise<number> {
   const db = createAdminClient();
-  const start = new Date();
-  start.setUTCDate(1);
-  start.setUTCHours(0, 0, 0, 0);
+  // Budget month follows India time (IST, UTC+05:30): the month starts at 00:00 IST on the 1st.
+  const ist = new Date(Date.now() + 330 * 60_000);
+  const start = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - 330 * 60_000);
   const { data } = await db.from("model_usage").select("estimated_usd").eq("workspace_id", workspaceId).gte("occurred_at", start.toISOString());
   return (data ?? []).reduce((s, r) => s + Number(r.estimated_usd), 0);
 }
