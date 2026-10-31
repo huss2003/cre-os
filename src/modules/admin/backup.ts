@@ -65,17 +65,23 @@ export async function exportWorkspace(admin: Admin, workspaceId: string, opts: {
     const tables = opts.tables ?? (await exportTables(admin));
     const manifest: ExportManifest = { version: 1, workspace_id: workspaceId, stamp, exported_at: now.toISOString(), encrypted, tables: {} };
     let bytes = 0;
-    for (const table of tables) {
-      const { data, error } = await admin.schema("mudar_app").rpc("export_table", { p_workspace: workspaceId, p_table: table });
-      if (error) throw new Error(`export ${table}: ${error.message}`);
-      const rows = (data ?? []) as Row[];
-      const plain = JSON.stringify({ table, workspace_id: workspaceId, stamp, rows });
-      const body = encrypted ? encryptSecret(plain) : plain;
-      const file = `${table}.json${encrypted ? ".enc" : ""}`;
-      await upload(admin, `${prefix}/${file}`, body, encrypted ? "application/octet-stream" : "application/json");
-      manifest.tables[table] = { rows: rows.length, sha256: stableHash(rows), file, bytes: body.length };
-      bytes += body.length;
-    }
+    // Bounded parallelism: ~100 tables x (RPC + upload) done serially overran the 60s serverless limit.
+    const queue = [...tables];
+    const worker = async () => {
+      for (let table = queue.shift(); table !== undefined; table = queue.shift()) {
+        const { data, error } = await admin.schema("mudar_app").rpc("export_table", { p_workspace: workspaceId, p_table: table });
+        if (error) throw new Error(`export ${table}: ${error.message}`);
+        const rows = (data ?? []) as Row[];
+        const plain = JSON.stringify({ table, workspace_id: workspaceId, stamp, rows });
+        const body = encrypted ? encryptSecret(plain) : plain;
+        const file = `${table}.json${encrypted ? ".enc" : ""}`;
+        await upload(admin, `${prefix}/${file}`, body, encrypted ? "application/octet-stream" : "application/json");
+        manifest.tables[table] = { rows: rows.length, sha256: stableHash(rows), file, bytes: body.length };
+        bytes += body.length;
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(8, tables.length) }, worker));
+    manifest.tables = Object.fromEntries(Object.keys(manifest.tables).sort().map((t) => [t, manifest.tables[t]]));
     const manifestText = stableStringify(manifest);
     await upload(admin, `${prefix}/manifest.json`, manifestText, "application/json");
     const counts = Object.fromEntries(Object.entries(manifest.tables).map(([t, v]) => [t, v.rows]));

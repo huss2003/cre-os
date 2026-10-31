@@ -17,7 +17,8 @@ export async function tick(opts: { budgetMs?: number; worker?: string } = {}) {
   }
   let ran = 0, failed = 0;
   while (Date.now() - started < budget) {
-    const jobs = await claim(worker, 5);
+    // One job per claim so the time budget is checked before every job; unclaimed work waits for the next tick.
+    const jobs = await claim(worker, 1);
     if (jobs.length === 0) break;
     for (const job of jobs) {
       const h = handlers[job.job_type];
