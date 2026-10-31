@@ -4,6 +4,16 @@ import { createServerClient } from "@supabase/ssr";
 const PUBLIC = ["/login", "/auth", "/api/cron", "/api/oauth", "/api/health"];
 
 export async function proxy(request: NextRequest) {
+  // Deployed before Supabase is configured: keep health check working, show a clear message elsewhere.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    if (request.nextUrl.pathname.startsWith("/api/health")) return NextResponse.next({ request });
+    return new NextResponse(
+      "<!doctype html><meta name=viewport content='width=device-width'><title>CRE OS</title>" +
+        "<body style='font-family:system-ui;padding:2rem;color:#13303b'><h1>CRE OS is deployed</h1>" +
+        "<p>The database connection is not configured yet. An administrator needs to add the Supabase settings in Vercel.</p></body>",
+      { status: 503, headers: { "content-type": "text/html; charset=utf-8" } },
+    );
+  }
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
