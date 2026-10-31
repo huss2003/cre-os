@@ -160,6 +160,21 @@ const SUPERLATIVE = /\b(record|highest|lowest|largest|smallest|biggest|most acti
 const METRIC_WORDS = ["rent", "rental", "absorption", "take-up", "leasing", "supply", "completions", "vacancy", "stock", "inventory", "transactions", "demand", "occupancy", "cam"];
 
 const numVal = (s: string): number | null => { const m = s.replace(/,/g, "").match(/\d+(?:\.\d+)?/); return m ? Number(m[0]) : null; };
+/** Unit class of a matched number ("" = bare number). Currency and magnitude/measure are both part of the class. */
+const numUnit = (s: string): string => {
+  const t = s.toLowerCase();
+  const cur = /^(?:₹|rs\.?|inr)/.test(t.trim()) ? "inr" : "";
+  const u = /%|per\s?cent/.test(t) ? "pct" : /msf/.test(t) ? "msf" : /\b(?:mn|million)\b/.test(t) ? "mn"
+    : /lakh/.test(t) ? "lakh" : /\b(?:crore|cr)\b/.test(t) ? "crore" : /sq\.?\s?ft|\bsft?\b/.test(t) ? "sqft" : "";
+  return [cur, u].filter(Boolean).join(":");
+};
+/** A draft number is supported only by an evidence number with the same value AND the same unit; a bare draft number matches any unit. */
+const numSupports = (draft: string, ev: string): boolean => {
+  const dv = numVal(draft), evv = numVal(ev);
+  if (dv === null || evv === null || dv !== evv) return false;
+  const du = numUnit(draft);
+  return du === "" || du === numUnit(ev);
+};
 const normD = (s: string) => s.toLowerCase().replace(/[.,']/g, "").replace(/\s+/g, " ").trim();
 
 /**
@@ -172,8 +187,7 @@ export function factCheck(body: string, evidence: EvidenceFact[], knownOrgs: str
   const CITE = /\(Source:[^)]*\)/gi;
   const evText = evidence.map((e) => e.text.replace(CITE, "")).join("\n");
   const evLower = evText.toLowerCase();
-  const evNums = new Set<number>();
-  for (const m of evText.matchAll(NUM_RE)) { const v = numVal(m[0]); if (v !== null) evNums.add(v); }
+  const evNumTokens = [...evText.matchAll(NUM_RE)].map((m) => m[0]);
   const evNorm = normD(evText);
   const sentences = body.replace(CITE, "").replace(/^\s*\d{1,2}[.)]\s+/gm, "").split(/(?<=[.!?])\s+|\n+/).map((x) => x.trim()).filter(Boolean);
   const claims: Claim[] = [];
@@ -192,8 +206,8 @@ export function factCheck(body: string, evidence: EvidenceFact[], knownOrgs: str
       if (dateSpans.some(([a, b]) => m.index! >= a && m.index! < b)) continue;
       const v = numVal(m[0]);
       if (v === null) continue;
-      const ok = evNums.has(v);
-      const ev = ok ? support((e) => [...e.text.matchAll(NUM_RE)].some((x) => numVal(x[0]) === v)) : null;
+      const ok = evNumTokens.some((t) => numSupports(m[0], t));
+      const ev = ok ? support((e) => [...e.text.matchAll(NUM_RE)].some((x) => numSupports(m[0], x[0]))) : null;
       claims.push({ kind: "number", text: m[0].trim(), sentence, matched: ok, evidence: ev ? `${ev.source}${ev.date ? ` (${ev.date})` : ""}` : null });
     }
     const companies = new Set<string>();
