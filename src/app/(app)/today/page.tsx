@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
+import { GettingStarted } from "./getting-started";
 import { Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Select, StaleBanner, Stat, inr } from "@/components/ui";
 import { fmt } from "@/lib/util/time";
 import { buildBrief, type BriefContent, type TargetView } from "@/modules/brief/builder";
@@ -67,6 +68,8 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
         </>}
         actions={canEdit ? <form action={generateBriefAction}><Button type="submit" variant="secondary">{stored ? "Refresh brief" : "Generate brief now"}</Button></form> : null}
       />
+
+      <Suspense fallback={null}><GettingStarted ctx={ctx} /></Suspense>
 
       {typeof sp.ok === "string" ? <div className="rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{sp.ok}</div> : null}
       {typeof sp.error === "string" ? <div className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{sp.error}</div> : null}

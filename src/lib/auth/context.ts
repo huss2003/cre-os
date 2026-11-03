@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createUserClient, type Db } from "@/lib/supabase/server";
@@ -28,14 +29,23 @@ export class HttpError extends Error {
   }
 }
 
-/** Load the signed-in user's context for the selected workspace. Returns null when signed out / no membership. */
-export async function getContext(): Promise<AppContext | null> {
+/**
+ * Load the signed-in user's context for the selected workspace. Returns null when signed out / no membership.
+ * Speed: memoised per request with React cache() (layout + page used to repeat these lookups), the session is verified
+ * with getClaims() (local JWT signature check where the project uses asymmetric keys; falls back to the Auth server
+ * otherwise), and the two membership lookups run in parallel. Data access stays authorised by RLS on the JWT itself.
+ */
+export const getContext = cache(async function getContext(): Promise<AppContext | null> {
   const db = await createUserClient();
-  const { data: u } = await db.auth.getUser();
-  if (!u.user) return null;
-  const { data: rows } = await db.from("my_workspaces").select("*").order("name");
+  const { data: claimsData } = await db.auth.getClaims();
+  const claims = claimsData?.claims;
+  if (!claims?.sub) return null;
+  const u = { user: { id: String(claims.sub), email: typeof claims.email === "string" ? claims.email : null } };
+  const [{ data: rows }, { data: pa }] = await Promise.all([
+    db.from("my_workspaces").select("*").order("name"),
+    db.from("platform_admin").select("user_id").eq("user_id", u.user.id).maybeSingle(),
+  ]);
   const list = (rows ?? []) as { id: string; name: string; role: Role; timezone: string; allowed_classifications: Classification[] }[];
-  const { data: pa } = await db.from("platform_admin").select("user_id").eq("user_id", u.user.id).maybeSingle();
   if (list.length === 0) {
     return {
       db, userId: u.user.id, email: u.user.email ?? null, workspaceId: "", workspaceName: "", timezone: "Asia/Kolkata",
@@ -56,7 +66,7 @@ export async function getContext(): Promise<AppContext | null> {
     isPlatformAdmin: !!pa,
     workspaces: list.map((w) => ({ id: w.id, name: w.name, role: w.role })),
   };
-}
+});
 
 /** For pages: redirect to /login when signed out. */
 export async function requirePageContext(minRole: Role = "viewer"): Promise<AppContext> {

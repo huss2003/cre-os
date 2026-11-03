@@ -30,9 +30,10 @@ export async function proxy(request: NextRequest) {
       },
     },
   );
-  const { data } = await supabase.auth.getUser();
+  // getClaims(): verifies the session JWT (locally with asymmetric signing keys) and refreshes cookies when needed.
+  const { data } = await supabase.auth.getClaims();
   const path = request.nextUrl.pathname;
-  if (!data.user && !PUBLIC.some((p) => path.startsWith(p))) {
+  if (!data?.claims?.sub && !PUBLIC.some((p) => path.startsWith(p))) {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
     const url = request.nextUrl.clone();
     url.pathname = "/login";
