@@ -15,6 +15,7 @@ import { deliverBrief, generateDailyBrief, latestBrief, noAiCaller, saveBriefVer
 import { stableHash } from "@/lib/util/crypto";
 import { addDays, isoWeekKey } from "./dates";
 import { loadMemberAccess, loadSettings, loadWorkspace, notify } from "./db";
+import { chunkKeys, rowsByKeys } from "./keys";
 import { loadApproaches, loadMeetings, loadOpenTasks, loadPipeline, loadSources, toTaskLite, type LoadCtx } from "./data";
 import { buildPreMeetingBrief, buildReconciliation, buildWeekly } from "./other-briefs";
 import { buildDailyPlan } from "./plan";
@@ -63,8 +64,9 @@ export async function schedule(now: Date, admin: Db = createAdminClient()): Prom
 
   // skip keys that already exist in ANY state (a dead/cancelled job is not silently re-created every tick)
   const existing = new Set<string>();
-  for (const part of chunk(specs.map((s) => s.dedupeKey))) {
-    const { data } = await admin.from("job").select("dedupe_key").in("workspace_id", ids).in("dedupe_key", part);
+  for (const part of chunkKeys(specs.map((s) => s.dedupeKey))) { // long dedupe keys: length-bounded (see keys.ts)
+    const { data, error } = await admin.from("job").select("dedupe_key").in("workspace_id", ids).in("dedupe_key", part);
+    if (error) throw new Error(`job dedupe lookup failed: ${error.message}`);
     for (const r of data ?? []) existing.add(r.dedupe_key);
   }
   let enqueued = 0;
@@ -212,11 +214,7 @@ export async function runDeadlineWatch(admin: Db, workspaceId: string, now = new
     .not("status", "in", "(done,waived,not_applicable)").gte("due_date", today).lte("due_date", horizonDate).limit(2000);
   for (const m of ms ?? []) items.push({ key: `deadline48:milestone:${m.id}:${m.due_date}`, user: m.owner_user_id ?? owner, title: m.title, due: m.due_date, href: `/deals/${m.opportunity_id}` });
   if (!items.length) return { entered: 0 };
-  const have = new Set<string>();
-  for (const part of chunk(items.map((i) => i.key))) {
-    const { data } = await admin.from("outbox").select("dedupe_key").eq("workspace_id", workspaceId).in("dedupe_key", part);
-    for (const r of data ?? []) have.add(r.dedupe_key);
-  }
+  const have = new Set<string>((await rowsByKeys<{ dedupe_key: string }>(admin, "outbox", workspaceId, "dedupe_key", items.map((i) => i.key), "dedupe_key")).map((r) => r.dedupe_key));
   let entered = 0;
   for (const it of items) {
     if (have.has(it.key) || !it.user) continue;

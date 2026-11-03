@@ -115,6 +115,13 @@ export function sameValue(a: unknown, b: unknown): boolean {
   return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 }
 
+/** Round a numeric source value to the DB column scale before comparing with the stored master value. */
+export function atScale(v: unknown, scale: number): unknown {
+  if (typeof v !== "number" || !Number.isFinite(v)) return v;
+  const f = 10 ** scale;
+  return Math.round(v * f) / f;
+}
+
 /** A representative cell that plausibly names a person (not "NA", "-", a number, an email or a company). */
 export function plausiblePersonName(s: string): boolean {
   const t = s.trim();
@@ -128,11 +135,30 @@ export function plausiblePersonName(s: string): boolean {
 /** Proposal keys used by the steward (stable across re-imports => zero duplicates). */
 export const personProposalKey = (ws: string, name: string, orgId: string) => `imports.person:${detId(ws, "person_candidate", `${exactKey(name)}|${orgId}`)}|${orgId}`;
 
+/**
+ * Split long string keys so each `.in()` URL stays small. 150 person-proposal keys (~95 chars each) exceeded the gateway
+ * URI limit (HTTP 414) and the error was ignored, so a re-import looked up nothing and re-attempted every proposal
+ * (no duplicate rows thanks to idempotency keys, but ~860 needless RPCs and wrong "person_proposals" counts).
+ */
+export function keyChunks(keys: string[], budget = 4_000): string[][] {
+  const out: string[][] = [];
+  let cur: string[] = [];
+  let len = 0;
+  for (const k of keys) {
+    const l = encodeURIComponent(`"${k}"`).length + 3;
+    if (cur.length && len + l > budget) { out.push(cur); cur = []; len = 0; }
+    cur.push(k);
+    len += l;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
 async function existingProposalKeys(db: Db, ws: string, keys: string[]): Promise<Map<string, AnyRow>> {
   const out = new Map<string, AnyRow>();
-  for (const part of chunk([...new Set(keys)], 150)) {
-    if (!part.length) continue;
-    const { data } = await db.from("change_proposal").select("id, idempotency_key, state").eq("workspace_id", ws).in("idempotency_key", part);
+  for (const part of keyChunks([...new Set(keys)])) {
+    const { data, error } = await db.from("change_proposal").select("id, idempotency_key, state").eq("workspace_id", ws).in("idempotency_key", part);
+    if (error) throw new Error(`change_proposal lookup failed: ${error.message}`);
     for (const r of data ?? []) out.set(r.idempotency_key as string, r);
   }
   return out;
@@ -688,7 +714,8 @@ async function writeRecords(ctx: Ctx, staged: StagedRowDraft[]): Promise<{ targe
         const rec = r.record;
         const src: Record<string, unknown> = rec.eventKind === "lockin_end" ? { lockin_months_raw: rec.tenure_months } : { rent_per_sf: rec.rent_per_sf, tenure_months_raw: rec.tenure_months };
         for (const [field, v] of Object.entries(src)) {
-          if (v === null || v === undefined || sameValue(v, m[field])) continue;
+          // lease numerics are stored at scale 2 (numeric(8,2)/(10,2)): 52.866 is held as 52.87 — not a conflict
+          if (v === null || v === undefined || sameValue(atScale(v, 2), m[field])) continue;
           conflicts.push({ entity_type: "lease", entity_id: m.id, label: `${m.tenant_name_raw} lease`, field, master_value: m[field] ?? null, source_value: v, row_version: Number(m.row_version), r });
         }
         const ev = oldEvents.get(detId(ctx.ws, "lease_event", `${k}|${rec.eventKind}`));

@@ -4,6 +4,7 @@ import { createTask } from "@/lib/services/tasks";
 import { stableHash } from "@/lib/util/crypto";
 import { daysBetween } from "./dates";
 import { fetchAll, notify } from "./db";
+import { rowsByKeys } from "./keys";
 import { analyseLease, planMilestones, RADAR_ENGINE_VERSION, upcomingEventFacts, type EscalationTerm, type LeaseEventInput, type LeaseInput, type RadarItem } from "./lease-radar";
 import type { BriefSettings } from "./settings";
 import { visible, type MemberAccess } from "./visibility";
@@ -165,10 +166,9 @@ export async function raiseRadarTasks(db: Db, workspaceId: string, load: RadarLo
   }
   if (todo.length === 0) return { created: 0, deferred: 0, moved: 0 };
   const existing = new Map<string, { id: string; due_at: string | null; status: string; title: string }>();
-  for (const part of chunk(todo.map((t) => t.key))) {
-    const { data } = await db.from("task").select("id, idempotency_key, due_at, status, title").eq("workspace_id", workspaceId).in("idempotency_key", part);
-    for (const r of data ?? []) existing.set(r.idempotency_key, r);
-  }
+  // length-bounded chunks + thrown errors (200 long keys => HTTP 414 that used to be ignored; see keys.ts)
+  for (const r of await rowsByKeys<{ id: string; idempotency_key: string; due_at: string | null; status: string; title: string }>(
+    db, "task", workspaceId, "idempotency_key", todo.map((t) => t.key), "id, idempotency_key, due_at, status, title")) existing.set(r.idempotency_key, r);
   // reproducible re-run: an open plan task whose milestone moved gets its due date/title updated (no duplicate)
   let moved = 0;
   for (const t of todo.filter((x) => x.group === "plan" && existing.has(x.key))) {

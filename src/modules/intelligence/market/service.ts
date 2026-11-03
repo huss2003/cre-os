@@ -138,9 +138,20 @@ export async function latestAnalysis(db: Db, workspaceId: string) {
   return data as (Row & { flags: AnalysisFlag[] }) | null;
 }
 
+/**
+ * Locality of a transaction for comparables: the linked building's locality, else the locality label recorded on the
+ * source row (imports keep it in extras.locality_raw). Tracker rows link to a building only on an exact name|locality
+ * key, so without the fallback most real deals had no locality (Pune 2022/2023 trackers: 2 of 40 Kharadi deals matched).
+ */
+export function txLocality(assetLocality: string | null, extras: unknown): string | null {
+  if (assetLocality) return assetLocality;
+  const raw = extras && typeof extras === "object" ? (extras as Record<string, unknown>).locality_raw : null;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
 export async function marketComparables(db: Db, workspaceId: string, q: CompsQuery) {
   const { data, error } = await db.from("market_transaction")
-    .select("id, asset_id, tenant_org_id, tenant_name_raw, period_start, deal_type, area_sf, rent_min, rent_max, rent_basis, source_object_id")
+    .select("id, asset_id, tenant_org_id, tenant_name_raw, period_start, deal_type, area_sf, rent_min, rent_max, rent_basis, source_object_id, extras")
     .eq("workspace_id", workspaceId).is("archived_at", null).order("period_start", { ascending: false, nullsFirst: false }).limit(2000);
   if (error) throw error;
   const txs = (data ?? []) as Row[];
@@ -152,7 +163,7 @@ export async function marketComparables(db: Db, workspaceId: string, q: CompsQue
   const assetBy = new Map(assets.map((a) => [String(a.id), { name: String(a.name), locality: a.locality_id ? locName.get(String(a.locality_id)) ?? null : null }]));
   const lite: TxLite[] = txs.map((t) => ({
     id: String(t.id), asset_id: t.asset_id as string | null, asset_name: t.asset_id ? assetBy.get(String(t.asset_id))?.name ?? null : null,
-    locality: t.asset_id ? assetBy.get(String(t.asset_id))?.locality ?? null : null, period_start: t.period_start as string | null, deal_type: t.deal_type as string | null,
+    locality: txLocality(t.asset_id ? assetBy.get(String(t.asset_id))?.locality ?? null : null, t.extras), period_start: t.period_start as string | null, deal_type: t.deal_type as string | null,
     area_sf: num(t.area_sf), rent_min: num(t.rent_min), rent_max: num(t.rent_max), rent_basis: t.rent_basis as string | null, tenant: (t.tenant_name_raw as string | null) ?? null, source_object_id: t.source_object_id as string | null,
   }));
   return { ...comparables(lite, q), localities: [...new Set(lite.map((t) => t.locality).filter(Boolean) as string[])].sort() };

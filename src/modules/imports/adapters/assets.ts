@@ -16,6 +16,8 @@ const ASSET_FIELDS = [
   f("transactions", "Transactions", ["transactions"], true),
 ];
 
+/** A floor-plate range whose max is more than this multiple of its min is treated as a typo (min/max unknown). */
+export const FLOOR_RANGE_MAX_SPREAD = 10;
 /** Areas above this need campus-vs-tower scope verification (Part V: 11,395,916 SF observation). */
 export const AREA_SCOPE_REVIEW_SF = 5_000_000;
 
@@ -31,6 +33,18 @@ function mapAssetRow(rec: RowRecord, sheet: string, label: string, opts: Adapter
   const flags: string[] = [];
   const fs = range(rec.get("floor_size"));
   if (!fs.ok) flags.push("floor_size_unparsed");
+  // Real data: "45,000 - 35,000" (reversed) and "7,420 - 8" (typo) were silently sorted into min/max (an 8 sf floor plate).
+  // Reversed ranges are flagged for review; an implausible spread (> 10x) keeps the raw text but leaves min/max unknown.
+  const fsNums = (fs.text ?? "").replace(/,/g, "").match(/\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+  if (fs.ok && fs.min !== null && fs.max !== null && fsNums.length === 2) {
+    const implausible = fs.min > 0 && fs.max / fs.min > FLOOR_RANGE_MAX_SPREAD;
+    if (fsNums[0] > fsNums[1] || implausible) {
+      flags.push("floor_size_range_suspect");
+      issues.push(issue("floor_size_range_suspect", `Floor size "${fs.text}" is ${implausible ? "implausible (min/max spread > " + FLOOR_RANGE_MAX_SPREAD + "x) — kept as text, min/max left unknown" : "reversed (larger value first) — verify"}`, "review",
+        { floor_size_text: fs.text, parsed_min: fs.min, parsed_max: fs.max }));
+      if (implausible) { fs.min = null; fs.max = null; }
+    }
+  }
   const ta = num(rec.get("total_area"));
   let total: number | null = null;
   let sourceZero = false;

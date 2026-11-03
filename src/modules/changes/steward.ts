@@ -193,6 +193,9 @@ export async function loadWindows(db: Db, ws: string): Promise<Windows> {
   return out;
 }
 
+/** Page size for the stale-candidate RPC (must not exceed PostgREST max_rows = 1000). */
+export const STALE_PAGE = 1000;
+
 const TYPE_LABEL: Record<string, string> = { organisation: "company", person: "person", asset: "building", availability: "availability" };
 
 /**
@@ -204,10 +207,25 @@ export async function runStaleDetector(admin: Db, ws: string, opts: { now?: Date
   const now = opts.now ?? new Date();
   const windows = opts.windows ?? await loadWindows(admin, ws);
   const limit = opts.limit ?? 2000;
-  const { data, error } = await admin.schema("mudar_app").rpc("steward_stale_candidates", { p_ws: ws, p_windows: windows, p_now: now.toISOString(), p_limit: limit });
-  if (error) throw error;
-  const cands = (data ?? []) as { entity_type: string; entity_id: string; label: string; owner_user_id: string | null; classification: string; last_verified_at: string; basis: string; window_days: number }[];
-  const { data: prev } = await admin.from("record_freshness").select("id, entity_type, entity_id, status, stale_since, task_id").eq("workspace_id", ws);
+  // PostgREST returns at most max_rows (1000) rows per response: page through the (totally ordered) candidates, otherwise
+  // records beyond the first 1000 are never flagged and the "refreshed" pass below wrongly marks them fresh.
+  type Cand = { entity_type: string; entity_id: string; label: string; owner_user_id: string | null; classification: string; last_verified_at: string; basis: string; window_days: number };
+  const cands: Cand[] = [];
+  for (let from = 0; from < limit; from += STALE_PAGE) {
+    const to = Math.min(from + STALE_PAGE, limit) - 1;
+    const { data, error } = await admin.schema("mudar_app").rpc("steward_stale_candidates", { p_ws: ws, p_windows: windows, p_now: now.toISOString(), p_limit: limit }).range(from, to);
+    if (error) throw error;
+    cands.push(...((data ?? []) as Cand[]));
+    if ((data ?? []).length < to - from + 1) break;
+  }
+  const prev: AnyRow[] = []; // paged too: one response is capped at 1000 rows
+  for (let from = 0; ; from += STALE_PAGE) {
+    const { data, error: pe } = await admin.from("record_freshness").select("id, entity_type, entity_id, status, stale_since, task_id").eq("workspace_id", ws)
+      .order("id").range(from, from + STALE_PAGE - 1);
+    if (pe) throw pe;
+    prev.push(...(data ?? []));
+    if ((data ?? []).length < STALE_PAGE) break;
+  }
   const prevBy = new Map((prev ?? []).map((p: AnyRow) => [`${p.entity_type}:${p.entity_id}`, p]));
   const nowIso = now.toISOString();
   const rows = cands.map((c) => {

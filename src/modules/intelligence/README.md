@@ -137,3 +137,7 @@ Tests: `intel-a.round2.test.ts` (pure) and `intel-a.round2.db.test.ts` (DB).
 Known gaps (round 2): no UI for colleagues as introducers (relationships are “me” or a person); concession NPV values are
 not computed here (the deals finance engine must fill `npv_equivalent`); signal detection is English keyword rules only
 (no Hindi/Marathi); triggers enqueue a strategy job for every open opportunity on the quote’s requirement.
+
+## Real-data fix — comparables locality (`market/comps-locality.test.ts`)
+`marketComparables` used only the linked building's locality; tracker deals link to a building only on an exact key, so
+2 of 40 Kharadi deals were comparables. Falls back to the source row's `extras.locality_raw` (`txLocality`).

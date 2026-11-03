@@ -71,3 +71,9 @@ Round-2 known gaps: no per-person relationship timeline view; deal-milestone `de
 - Cohort count = distinct orgs whose first outbound by this user (last 2 years) falls in the month, from logged interactions.
 - Light/weekend mode is a flag only; no separate holiday list. Weekly/reconciliation content is deterministic only (no AI).
 - Push/email delivery of outbox notifications is out of scope (in-app only, S3).
+
+## Real-data fix — long-key lookups (`keys.ts`, test `__tests__/radar-keys.db.test.ts`)
+Existing-task / outbox / job lookups by long idempotency keys were sent 200 per URL => HTTP 414, error ignored => every
+radar run re-selected the same capped batch (deferred tasks never raised, moved milestones never updated). Now
+`chunkKeys`/`rowsByKeys` bound each request by encoded length and throw on failure (radar tasks, caretaker tasks,
+deadline-watch outbox, scheduler job dedupe).

@@ -85,3 +85,11 @@ schema, admin-only mapping guard, restricted storage, kill switch), volume (`sca
 - Fractional-tenure rows create the lease with a dateless `needs_review` event; there is no in-app "confirm intended tenure" editor yet.
 - `import_entity_key` is re-pointed to the merge winner lazily (on the next import that touches it).
 - No watched-folder/connector intake; uploads only.
+
+## Real-data fixes (scripts/real-data-e2e.ts on the tenant's six Pune workbooks) — tests `real-data.test.ts`
+- `normalize.quarter()` read "Q1 2023" as 2020 (2-digit year branch matched first): every 2023-tracker deal was dated 2020. Fixed (4-digit first).
+- Footer summary lines under the 2022 deal table ("Net Absorption", "Pre-Commitments", "Total Transactions with PC") are excluded as `summary_or_total` instead of quarantined.
+- Lease numerics are compared at the stored scale (numeric(8,2)): tenure 52.866 vs stored 52.87 no longer raises a false conflict + approval.
+- Person-proposal key lookups use URL-length-bounded chunks (`keyChunks`) and throw on error (150 keys/request hit HTTP 414; re-imports re-attempted ~860 proposals).
+- Asset floor-size ranges: reversed ("45,000 - 35,000") => `floor_size_range_suspect` review; implausible spread (> 10x, "7,420 - 8") => text kept, min/max unknown.
+- `scripts/real-data-e2e.ts` (+ `real-data-workflows.ts`) re-runs the whole real-data import + downstream workflows in workspace `pune-real-test`.

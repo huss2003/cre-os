@@ -11,6 +11,7 @@ import { applyRestrictions, isRestrictive, parsePromises, promiseSuggestions, re
   type InteractionCtx, type RelSuggestion, type Restrictions, type VisitFeedbackCtx, type WonDealCtx } from "./caretaker";
 import { addDays } from "./dates";
 import { fetchAll, notify } from "./db";
+import { rowsByKeys } from "./keys";
 import type { RadarItem } from "./lease-radar";
 import { visible, type MemberAccess } from "./visibility";
 
@@ -163,11 +164,7 @@ export async function runCaretaker(admin: Db, workspaceId: string, today: string
   const { suggestions, withheld } = await computeRelationshipSuggestions(admin, workspaceId, today, radar);
   let tasks = 0, alerts = 0;
   const keys = suggestions.filter((s) => s.createTask).map((s) => `brief.${s.key}`);
-  const existing = new Set<string>();
-  for (const part of chunk(keys)) {
-    const { data } = await admin.from("task").select("idempotency_key").eq("workspace_id", workspaceId).in("idempotency_key", part);
-    for (const r of data ?? []) existing.add(r.idempotency_key);
-  }
+  const existing = new Set<string>((await rowsByKeys<{ idempotency_key: string }>(admin, "task", workspaceId, "idempotency_key", keys, "idempotency_key")).map((r) => r.idempotency_key));
   for (const s of suggestions) {
     const owner = s.ownerUserId ?? fallbackOwner;
     if (s.createTask && !existing.has(`brief.${s.key}`)) {

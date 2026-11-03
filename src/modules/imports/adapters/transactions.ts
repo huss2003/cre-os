@@ -50,6 +50,8 @@ export function resolvePeriod(qText: string | null, mText: string | null, opts: 
   return { start: b.start, end: b.end, precision: "year", basis, flags, extras };
 }
 
+const SUMMARY_LABEL_RE = /\b(net\s+absorption|absorption|pre-?\s*commitments?|fresh\s*\+\s*expansion|seater\s+deals)\b/i;
+
 function txKey(parts: (string | number | null | undefined)[]) {
   return parts.map((p) => (p === null || p === undefined ? "" : String(p))).join("|");
 }
@@ -61,6 +63,11 @@ function conventionalRow(rec: RowRecord, sheet: string, opts: AdapterOptions, v2
   const hasEntity = !!(project || lessee);
   if (looksLikeTotal(rec) && (!project || !lessee)) return exclude(sheet, rec.row, "summary_or_total");
   if (!hasEntity) return exclude(sheet, rec.row, "summary_or_note");
+  // Footer summary lines below the deal table ("Net Absorption | 4561522 | 4.61 Mn", "Total Transactions with PC", "Pre-Commitments"):
+  // no serial number, no typed area, and a summary label => derived figures, deliberately excluded (not a deal to review).
+  if (rec.get("sr_no").v === null && area.value === null && (looksLikeTotal(rec) || SUMMARY_LABEL_RE.test(project ?? "") || SUMMARY_LABEL_RE.test(lessee ?? ""))) {
+    return exclude(sheet, rec.row, "summary_or_total");
+  }
   if (!project || !lessee || area.value === null || !area.ok) {
     const missing = [!project && "project", !lessee && "lessee", (area.value === null || !area.ok) && "area"].filter(Boolean);
     return quarantine(sheet, rec.row, area.ok ? "missing_required" : "type_error", [

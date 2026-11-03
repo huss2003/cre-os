@@ -157,7 +157,8 @@ export function range(c: Cell | undefined): RangeParse {
 /** Quarter text like "Q1", "Q1 2023", "Q1-23", "Jan-Mar 2023". Returns quarter number and optional year. */
 export function quarter(s: string | null): { q: number; year: number | null } | null {
   if (!s) return null;
-  const m = s.match(/q\s*([1-4])(?:[\s\-'’/,]*(?:fy)?\s*(\d{2}|\d{4}))?/i);
+  // 4-digit year first: with (\d{2}|\d{4}) the 2-digit branch matched "20" of "Q1 2023" => 2020 (real-data bug)
+  const m = s.match(/q\s*([1-4])(?:[\s\-'’/,]*(?:fy)?\s*(\d{4}|\d{2})(?!\d))?/i);
   if (m) return { q: +m[1], year: m[2] ? (m[2].length === 2 ? 2000 + +m[2] : +m[2]) : null };
   return null;
 }
@@ -165,7 +166,7 @@ export function quarter(s: string | null): { q: number; year: number | null } | 
 /** Month text like "Jan", "January", "Jan-23", "Jan 2023". */
 export function month(s: string | null): { m: number; year: number | null } | null {
   if (!s) return null;
-  const m = s.trim().match(/^([A-Za-z]{3,9})\.?(?:[\s\-'’/,]*(\d{2}|\d{4}))?$/);
+  const m = s.trim().match(/^([A-Za-z]{3,9})\.?(?:[\s\-'’/,]*(\d{4}|\d{2}))?$/);
   if (m && MONTHS[m[1].toLowerCase()]) return { m: MONTHS[m[1].toLowerCase()], year: m[2] ? (m[2].length === 2 ? 2000 + +m[2] : +m[2]) : null };
   return null;
 }
