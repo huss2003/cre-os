@@ -4,6 +4,7 @@
  * notify + a deduped task); nothing is sent externally (S3).
  */
 import type { Db } from "@/lib/supabase/server";
+import { chunkKeys } from "@/modules/brief/keys";
 import { notify } from "@/modules/brief/db";
 import { type DealsCtx, DealsError, dbError, must } from "../ctx";
 import { closingAlerts, dependencyTimeline, isCleared, outstandingDocuments, wouldCycle, type MilestoneLite } from "./closing";
@@ -71,9 +72,9 @@ export async function runClosingAlerts(admin: Db, workspaceId: string, asOf: str
   const oppById = new Map(opps.map((o: { id: string }) => [o.id, o as { id: string; name: string; classification: string; owner_user_id: string | null; account_owner_user_id: string | null }]));
   const ms: MilestoneLite[] = [];
   const ids = [...oppById.keys()];
-  for (let i = 0; i < ids.length; i += 200) {
+  for (let i = 0; i < ids.length; i += 100) { // UUID lists travel in the URL: 100 per request stays under the gateway URI limit
     const { data, error: e2 } = await admin.from("deal_milestone").select("id, opportunity_id, title, kind, status, due_date, depends_on, required_for_stage, proof_required, assignee_user_id, sort_order")
-      .eq("workspace_id", workspaceId).is("archived_at", null).in("opportunity_id", ids.slice(i, i + 200));
+      .eq("workspace_id", workspaceId).is("archived_at", null).in("opportunity_id", ids.slice(i, i + 100));
     if (e2) throw e2;
     ms.push(...((data ?? []) as MilestoneLite[]));
   }
@@ -83,8 +84,10 @@ export async function runClosingAlerts(admin: Db, workspaceId: string, asOf: str
   if (!alerts.length) return { alerts: 0, tasksCreated: 0 };
   const existing = new Set<string>();
   const keys = alerts.map((a) => a.dedupeKey);
-  for (let i = 0; i < keys.length; i += 200) {
-    const { data } = await admin.from("task").select("idempotency_key").eq("workspace_id", workspaceId).in("idempotency_key", keys.slice(i, i + 200));
+  // Long dedupe keys: split by encoded length (a fixed 200-key chunk exceeds the URI limit), and fail loudly on error.
+  for (const part of chunkKeys(keys)) {
+    const { data, error: e3 } = await admin.from("task").select("idempotency_key").eq("workspace_id", workspaceId).in("idempotency_key", part);
+    if (e3) throw e3;
     for (const r of data ?? []) existing.add(r.idempotency_key as string);
   }
   let tasksCreated = 0;

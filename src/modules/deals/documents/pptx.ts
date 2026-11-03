@@ -3,14 +3,16 @@
  * from the tenant template (brand_json, plus theme colours / fonts / logo extracted from an uploaded master).
  * The location map is a schematic drawn with shapes from stored coordinates (no map tiles, no network).
  */
-import PptxGenJS from "pptxgenjs";
+// Type-only import: the library is loaded lazily inside the builder so pages that never build a deck never load it.
+import type PptxGenJS from "pptxgenjs";
 import type { DocModel } from "./model";
 import { chartSpecs, fitBox } from "./visuals";
 
 const inr = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? "—" : `₹${Number(v).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`);
 
 export async function buildShortlistPptx(m: DocModel): Promise<Buffer> {
-  const p = new PptxGenJS();
+  const { default: Pptx } = await import("pptxgenjs");
+  const p = new Pptx();
   p.layout = "LAYOUT_WIDE";
   p.author = m.brand.name;
   p.company = m.brand.name;

@@ -20,9 +20,9 @@ async function all<T = Row>(p: PromiseLike<{ data: unknown; error: unknown }>): 
 async function namesOf(db: Db, workspaceId: string, table: "organisation" | "asset", ids: string[]) {
   const m = new Map<string, string>();
   const u = [...new Set(ids.filter(Boolean))];
-  for (let i = 0; i < u.length; i += 200) {
+  for (let i = 0; i < u.length; i += 100) {
     const col = table === "organisation" ? "display_name" : "name";
-    for (const r of await all<Row>(db.from(table).select(`id, ${col}`).eq("workspace_id", workspaceId).in("id", u.slice(i, i + 200)))) m.set(String(r.id), String(r[col]));
+    for (const r of await all<Row>(db.from(table).select(`id, ${col}`).eq("workspace_id", workspaceId).in("id", u.slice(i, i + 100)))) m.set(String(r.id), String(r[col]));
   }
   return m;
 }
@@ -36,7 +36,7 @@ export async function funnelData(db: Db, workspaceId: string, since: string) {
   ]);
   const ids = ints.map((i) => String(i.id));
   const links: Row[] = [];
-  for (let i = 0; i < ids.length; i += 300) links.push(...await all<Row>(db.from("interaction_link").select("interaction_id, entity_type, entity_id").eq("workspace_id", workspaceId).in("interaction_id", ids.slice(i, i + 300)).in("entity_type", ["organisation", "person"])));
+  for (let i = 0; i < ids.length; i += 100) links.push(...await all<Row>(db.from("interaction_link").select("interaction_id, entity_type, entity_id").eq("workspace_id", workspaceId).in("interaction_id", ids.slice(i, i + 100)).in("entity_type", ["organisation", "person"])));
   const oppOrg = new Map(opps.map((o) => [String(o.id), String(o.org_id)]));
   const touches: Touch[] = [];
   for (const it of ints) {
@@ -59,7 +59,7 @@ export async function leaseData(db: Db, workspaceId: string, today: string) {
   const leases = await all<Row>(db.from("lease").select("id, tenant_org_id, tenant_name_raw, landlord_org_id, asset_id, area_sf, contractual_expiry, status").eq("workspace_id", workspaceId).is("archived_at", null).limit(5000));
   const ids = leases.map((l) => String(l.id));
   const events: Row[] = [];
-  for (let i = 0; i < ids.length; i += 300) events.push(...await all<Row>(db.from("lease_event").select("lease_id, event_type, event_date, confirmed").eq("workspace_id", workspaceId).in("lease_id", ids.slice(i, i + 300)).is("archived_at", null)));
+  for (let i = 0; i < ids.length; i += 100) events.push(...await all<Row>(db.from("lease_event").select("lease_id, event_type, event_date, confirmed").eq("workspace_id", workspaceId).in("lease_id", ids.slice(i, i + 100)).is("archived_at", null)));
   const orgNames = await namesOf(db, workspaceId, "organisation", leases.flatMap((l) => [l.tenant_org_id as string, l.landlord_org_id as string]));
   const assetNames = await namesOf(db, workspaceId, "asset", leases.map((l) => l.asset_id as string));
   const lite: LeaseLite[] = leases.map((l) => ({

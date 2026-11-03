@@ -16,6 +16,8 @@ for (const vp of [{ width: 390, height: 844, name: "phone" }, { width: 1366, hei
   await page.fill('input[name="email"]', "owner@cre-os.local");
   await page.fill('input[name="password"]', "password123");
   await Promise.all([page.waitForURL(/\/today/, { timeout: 60000 }), page.click('button:has-text("Sign in")')]);
+  // Optional: run the pass inside another workspace the user belongs to (e.g. the real-data test workspace).
+  if (process.env.SMOKE_WS) await page.context().addCookies([{ name: "cre_ws", value: process.env.SMOKE_WS, url: BASE }]);
   for (const r of routes) {
     errors.length = 0;
     const res = await page.goto(BASE + r, { waitUntil: "networkidle", timeout: 90000 }).catch((e) => ({ status: () => "ERR " + e.message }));

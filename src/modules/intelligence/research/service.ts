@@ -153,8 +153,8 @@ export async function introPathSummaries(db: Db, workspaceId: string, me: string
 /** Edge ids with an active introduction consent (not revoked, not expired, given on or before today). */
 export async function activeIntroConsentEdges(db: Db, workspaceId: string, edgeIds: string[], today: string): Promise<Set<string>> {
   const out = new Set<string>();
-  for (let i = 0; i < edgeIds.length; i += 300) {
-    const chunk = edgeIds.slice(i, i + 300);
+  for (let i = 0; i < edgeIds.length; i += 100) {
+    const chunk = edgeIds.slice(i, i + 100);
     const data = await rows<Row>(db.from("introduction_consent").select("edge_id, given_on, expires_on, revoked_at").eq("workspace_id", workspaceId).in("edge_id", chunk).is("revoked_at", null).is("archived_at", null));
     for (const c of data) if (String(c.given_on) <= today && (!c.expires_on || String(c.expires_on) >= today)) out.add(String(c.edge_id));
   }
@@ -165,8 +165,8 @@ export async function activeIntroConsentEdges(db: Db, workspaceId: string, edgeI
 export async function suppressedPeople(db: Db, workspaceId: string, edges: Edge[]): Promise<Set<string>> {
   const ids = [...new Set(edges.flatMap((e) => [e.from_person_id, e.to_person_id]).filter((x): x is string => !!x))];
   const out = new Set<string>();
-  for (let i = 0; i < ids.length; i += 300) {
-    const chunk = ids.slice(i, i + 300);
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
     const data = await rows<Row>(db.from("consent_permission").select("person_id, suppressed, revoked_at, channel").eq("workspace_id", workspaceId).in("person_id", chunk).is("archived_at", null));
     for (const c of data) if (c.suppressed || (c.revoked_at && !c.channel)) out.add(String(c.person_id));
   }

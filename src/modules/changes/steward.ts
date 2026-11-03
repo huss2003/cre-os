@@ -258,8 +258,8 @@ export async function runStaleDetector(admin: Db, ws: string, opts: { now?: Date
   if (cands.length < limit) {
     const staleNow = new Set(cands.map((c) => `${c.entity_type}:${c.entity_id}`));
     const back = (prev ?? []).filter((p: AnyRow) => p.status === "stale" && !staleNow.has(`${p.entity_type}:${p.entity_id}`)).map((p: AnyRow) => p.id);
-    for (let i = 0; i < back.length; i += 150) {
-      await admin.from("record_freshness").update({ status: "fresh", stale_since: null }).eq("workspace_id", ws).in("id", back.slice(i, i + 150));
+    for (let i = 0; i < back.length; i += 100) {
+      await admin.from("record_freshness").update({ status: "fresh", stale_since: null }).eq("workspace_id", ws).in("id", back.slice(i, i + 100));
     }
     refreshed = back.length;
   }
