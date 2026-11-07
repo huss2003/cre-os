@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth/context";
+import { proposeChange } from "@/lib/services/changes";
 import { addLinked, LINKED, LinkedError } from "../linked";
 import { errorMessage } from "../http";
 import type { ActionState } from "../ui/client";
@@ -25,13 +26,17 @@ export async function endEmploymentAction(id: string, backPath: string, _prev: A
     const ctx = await requireContext("editor");
     const end = String(form.get("end_date") ?? "");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return { error: "Pick the date the role ended." };
-    const { data: row } = await ctx.db.from("employment").select("start_date").eq("id", id).eq("workspace_id", ctx.workspaceId).maybeSingle();
+    const { data: row } = await ctx.db.from("employment").select("start_date, row_version, classification").eq("id", id).eq("workspace_id", ctx.workspaceId).maybeSingle();
     if (!row) return { error: "Role not found." };
     if (row.start_date && end < row.start_date) return { error: "End date cannot be before the start date." };
-    const { error } = await ctx.db.from("employment").update({ end_date: end, end_precision: "day", is_current: false }).eq("id", id).eq("workspace_id", ctx.workspaceId);
-    if (error) throw error;
-    revalidatePath(backPath);
-    return { ok: true, message: "Role ended. History kept." };
+    // End date / current flag are material (rule S4): route through Approvals, never a direct write.
+    await proposeChange(ctx.db, ctx.workspaceId, {
+      targetType: "employment", targetId: id, operation: "update", expectedVersion: Number(row.row_version),
+      patch: [{ op: "replace", path: "/end_date", value: end }, { op: "replace", path: "/end_precision", value: "day" }, { op: "replace", path: "/is_current", value: false }],
+      reason: String(form.get("reason") ?? "") || "Role ended (recorded from person page)", proposedByKind: "user", classification: row.classification,
+    });
+    revalidatePath(backPath); revalidatePath("/approvals");
+    return { ok: true, message: "Sent to Approvals. Once approved the role is marked previous; the record and its history are kept." };
   } catch (e) {
     return { error: errorMessage(e) };
   }
