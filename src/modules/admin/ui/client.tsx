@@ -1,5 +1,7 @@
 "use client";
-import { useActionState, useState, type ReactNode } from "react";
+import { createContext, startTransition, useActionState, useContext, useState, type ReactNode } from "react";
+
+const PendingCtx = createContext<boolean | null>(null);
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui";
@@ -16,10 +18,17 @@ export type FormAction = (prev: ActionState, form: FormData) => Promise<ActionSt
 
 /** Form bound to a server action; shows the result inline (errors, confirmations, one-time secrets). */
 export function ActionForm({ action, children, className }: { action: FormAction; children: ReactNode; className?: string }) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction, isPending] = useActionState(action, null);
+  // Submit manually so React does not reset the form: a failed save keeps everything the user typed.
   return (
-    <form action={formAction} className={className}>
-      {children}
+    <form className={className} onSubmit={(e) => {
+      e.preventDefault();
+      const fd = new FormData(e.currentTarget);
+      const sub = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+      if (sub?.name) fd.set(sub.name, sub.value);
+      startTransition(() => formAction(fd));
+    }}>
+      <PendingCtx.Provider value={isPending}>{children}</PendingCtx.Provider>
       <ActionResult state={state} />
     </form>
   );
@@ -44,7 +53,9 @@ export function ActionResult({ state }: { state: ActionState }) {
 export function Submit({ children, variant = "primary", confirm, className, name, value }: {
   children: ReactNode; variant?: "primary" | "secondary" | "danger" | "ghost"; confirm?: string; className?: string; name?: string; value?: string;
 }) {
-  const { pending } = useFormStatus();
+  const ctxPending = useContext(PendingCtx);
+  const { pending: formPending } = useFormStatus();
+  const pending = ctxPending ?? formPending;
   return (
     <Button type="submit" variant={variant} disabled={pending} className={className} name={name} value={value}
       onClick={confirm ? (e) => { if (!window.confirm(confirm)) e.preventDefault(); } : undefined}>

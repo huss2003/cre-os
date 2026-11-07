@@ -20,7 +20,7 @@ export const EDITABLE: Record<EntityTable, string[]> = {
   organisation: ["display_name", "legal_name", "domain", "cin", "gstin", "sector", "hq_country", "headcount_min", "headcount_max",
     "is_gcc", "crm_external_id", "account_owner_note", "contact_restrictions", "classification"],
   person: ["full_name", "aliases", "public_profile_url", "preferred_language", "preferred_channel", "contact_restrictions", "personal_notes", "classification"],
-  asset: ["name", "asset_kind", "parent_asset_id", "address", "status", "grade", "total_area_sf", "floors", "floor_size_text",
+  asset: ["name", "asset_kind", "parent_asset_id", "locality_id", "address", "status", "grade", "total_area_sf", "floors", "floor_size_text",
     "completion_date", "completion_precision", "lat", "lon", "classification"],
 };
 
@@ -470,8 +470,16 @@ export async function getBuilding(db: Client, workspaceId: string, id: string, a
   const snapshots = ((avail ?? []) as Row[]).filter((a) => !asOf || a.as_of <= asOf);
   const leaseRows = (leases.data ?? []) as Row[];
   const orgNames = await namesById(db, "organisation", [asset.owner_org_id, asset.developer_org_id, asset.operator_org_id,
-    ...leaseRows.map((l) => l.tenant_org_id), ...((txns.data ?? []) as Row[]).map((t) => t.tenant_org_id)]);
+    ...leaseRows.map((l) => l.tenant_org_id), ...leaseRows.map((l) => l.landlord_org_id), ...((txns.data ?? []) as Row[]).map((t) => t.tenant_org_id)]);
   const today = asOf ?? new Date().toISOString().slice(0, 10);
+  // Locality path: locality › micro-market › corridor › city (walks parents; max 4 levels)
+  const geoPath: string[] = [];
+  let geoId = (asset.locality_id ?? asset.micro_market_id) as string | null;
+  for (let i = 0; geoId && i < 4; i++) {
+    const { data: g } = await db.from("geography").select("name, parent_id").eq("id", geoId).maybeSingle();
+    if (!g) break;
+    geoPath.push(g.name as string); geoId = g.parent_id as string | null;
+  }
 
   const spacesOut = spaceRows.map((s): Row & { history: Row[]; latest: Row | null; lastVerified: string | null; state: VacancyState } => {
     const history = snapshots.filter((a) => a.space_id === s.id);
@@ -495,7 +503,8 @@ export async function getBuilding(db: Client, workspaceId: string, id: string, a
     children: (children.data ?? []) as Row[],
     spaces: spacesOut,
     lastVerification,
-    leases: leaseRows.map((l): Row => ({ ...l, tenant_name: orgNames[l.tenant_org_id] ?? l.tenant_name_raw ?? null })),
+    locality: geoPath.length ? geoPath.join(" › ") : null,
+    leases: leaseRows.map((l): Row => ({ ...l, tenant_name: orgNames[l.tenant_org_id] ?? l.tenant_name_raw ?? null, landlord_name: orgNames[l.landlord_org_id] ?? null })),
     transactions: ((txns.data ?? []) as Row[]).map((t): Row => ({ ...t, tenant_name: orgNames[t.tenant_org_id] ?? t.tenant_name_raw ?? null })),
     orgNames,
     signals,
@@ -505,6 +514,12 @@ export async function getBuilding(db: Client, workspaceId: string, id: string, a
 }
 
 /** Campus/project parents for the building form ([id, label]). */
+/** Localities/micro-markets for the building form (label shows level). */
+export async function localityOptions(db: Client, workspaceId: string): Promise<[string, string][]> {
+  const { data } = await db.from("geography").select("id, name, level").eq("workspace_id", workspaceId).is("archived_at", null).in("level", ["locality", "micro_market"]).order("name").limit(500);
+  return (data ?? []).map((g: any) => [g.id as string, `${g.name} (${String(g.level).replace("_", "-")})`]);
+}
+
 export async function parentAssetOptions(db: Client, workspaceId: string): Promise<[string, string][]> {
   const { data } = await db.from("asset").select("id, name, asset_kind").eq("workspace_id", workspaceId)
     .in("asset_kind", ["campus", "project"]).is("archived_at", null).order("name").limit(500);

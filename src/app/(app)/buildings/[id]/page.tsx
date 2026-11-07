@@ -6,6 +6,7 @@ import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { getBuilding, type VacancyState } from "@/modules/admin/entities";
 import { ArchiveCard, ShareCard } from "@/modules/admin/ui/entity";
 import { RecordTrust } from "@/modules/admin/ui/trust";
+import { LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, fmtDate } from "@/modules/admin/ui/parts";
 
 export const metadata = { title: "Building" };
@@ -46,9 +47,19 @@ async function Body({ params, searchParams }: Props) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <Section title="Building">
+          <Section title="Building" footer={<>
+            <h3 className="mt-3 text-xs font-semibold uppercase text-ink-soft">Specifications</h3>
+            <LinkedRows table="asset_spec" hostColumn="asset_id" hostId={id} backPath={`/buildings/${id}`} empty="No specifications recorded." cols={[{ key: "spec_key" }, { key: "value_text" }, { key: "value_num", fmt: "num" }, { key: "unit" }, { key: "verification" }]} />
+            <LinkedAdd kind="asset_spec" hostId={id} backPath={`/buildings/${id}`} />
+            <h3 className="mt-3 text-xs font-semibold uppercase text-ink-soft">Sourced values (observations)</h3>
+            <LinkedRows table="observation" hostColumn="entity_id" hostId={id} backPath={`/buildings/${id}`} filter={{ entity_type: "asset" }} empty="No observations. Conflicting values are kept side by side." cols={[{ key: "field" }, { key: "value_raw" }, { key: "unit" }, { key: "source_location", label: "from" }, { key: "observed_on", label: "on", fmt: "date" }, { key: "verification" }]} />
+            <LinkedAdd kind="observation" hostId={id} backPath={`/buildings/${id}`} />
+            <h3 className="mt-3 text-xs font-semibold uppercase text-ink-soft">Alternative names</h3>
+            <LinkedRows table="entity_alias" hostColumn="entity_id" hostId={id} backPath={`/buildings/${id}`} filter={{ entity_type: "asset" }} cols={[{ key: "raw_alias" }]} />
+            <LinkedAdd kind="asset_alias" hostId={id} backPath={`/buildings/${id}`} />
+          </>}>
             <Facts items={[
-              ["Address", a.address], ["Status (source wording)", a.status], ["Grade", a.grade],
+              ["Locality", b.locality ?? null], ["Address", a.address], ["Status (source wording)", a.status], ["Grade", a.grade],
               ["Total area", a.total_area_sf !== null && a.total_area_sf !== undefined ? sf(a.total_area_sf) : a.total_area_source_zero ? "source said 0 (treated as unknown)" : null],
               ["Floors", a.floors], ["Floor plate", a.floor_size_text ?? (a.floor_size_min_sf ? `${sf(a.floor_size_min_sf)}–${sf(a.floor_size_max_sf)}` : null)],
               ["Completion", a.completion_date ? `${fmtDate(a.completion_date)} (${a.completion_precision} precision)` : null],
@@ -63,7 +74,7 @@ async function Body({ params, searchParams }: Props) {
             </Section>
           ) : null}
 
-          <Section title="Spaces & availability" empty="No spaces recorded. Availability is only shown from dated snapshots — nothing is assumed vacant.">
+          <Section title="Spaces & availability" empty="No spaces recorded. Availability is only shown from dated snapshots — nothing is assumed vacant." footer={<><LinkedAdd kind="space" hostId={id} backPath={`/buildings/${id}`} />{b.spaces.length ? <LinkedAdd kind="availability" hostId={id} backPath={`/buildings/${id}`} /> : null}</>}>
             {b.spaces.length ? (
               <ul className="space-y-3">{b.spaces.map((s) => {
                 const [label, tone] = STATE[s.state];
@@ -86,12 +97,18 @@ async function Body({ params, searchParams }: Props) {
             ) : null}
           </Section>
 
-          <Section title="Leases" empty="No leases recorded for this building.">
+          <Section title="Leases" empty="No leases recorded for this building." footer={<LinkedAdd kind="lease" hostId={id} backPath={`/buildings/${id}`} />}>
             {b.leases.length ? (
               <ul className="space-y-1 text-sm">{b.leases.map((l) => (
                 <li key={l.id} className="flex flex-wrap items-center gap-1.5">
                   {l.tenant_org_id ? <Link className="text-brand" href={`/companies/${l.tenant_org_id}`}>{l.tenant_name ?? "hidden tenant"}</Link> : <span>{l.tenant_name ?? "tenant unknown"}</span>}
-                  <span className="text-ink-soft">{l.area_sf ? sf(l.area_sf) : "area unknown"} · expiry {l.contractual_expiry ? fmtDate(l.contractual_expiry) : "unknown"}</span><FactBadge status={l.fact_status} />
+                  <span className="text-ink-soft">{l.landlord_name ? `landlord ${l.landlord_name} · ` : ""}{l.start_date ? `from ${fmtDate(l.start_date)} · ` : ""}{l.area_sf ? sf(l.area_sf) : "area unknown"} · expiry {l.contractual_expiry ? fmtDate(l.contractual_expiry) : "unknown"}</span><FactBadge status={l.fact_status} />
+                  <div className="w-full pl-3">
+                    <LinkedRows table="lease_space" hostColumn="lease_id" hostId={l.id} backPath={`/buildings/${id}`} cols={[{ key: "space_id", label: "space" }, { key: "area_sf", fmt: "num" }]} joins={{ space_id: { table: "space", label: "floor_text" } }} />
+                    <LinkedRows table="lease_event" hostColumn="lease_id" hostId={l.id} backPath={`/buildings/${id}`} order="event_date" cols={[{ key: "event_type" }, { key: "event_date", fmt: "date" }, { key: "date_basis" }, { key: "notice_days", label: "notice days" }]} />
+                    <LinkedAdd kind="lease_space" hostId={l.id} backPath={`/buildings/${id}`} />
+                    <LinkedAdd kind="lease_event" hostId={l.id} backPath={`/buildings/${id}`} />
+                  </div>
                 </li>))}</ul>
             ) : null}
           </Section>

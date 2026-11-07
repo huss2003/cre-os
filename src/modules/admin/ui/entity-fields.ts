@@ -49,6 +49,7 @@ export const ENTITY_FIELDS: Record<EntityTable, FieldDef[]> = {
     { name: "asset_kind", label: "Kind", type: "select", options: [["building", "Building"], ["tower", "Tower"], ["campus", "Campus"], ["project", "Project"]],
       hint: "Towers in one campus stay separate records — never collapse them." },
     { name: "parent_asset_id", label: "Part of campus / project", type: "select" },
+    { name: "locality_id", label: "Locality", type: "select", hint: "Add places under Setup › Geography first." },
     { name: "address", label: "Address", type: "textarea" },
     { name: "status", label: "Status (source wording)", hint: "e.g. ready, under construction, planned" },
     { name: "grade", label: "Grade" },

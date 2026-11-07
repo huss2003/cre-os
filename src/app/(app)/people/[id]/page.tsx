@@ -6,6 +6,7 @@ import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { getPerson } from "@/modules/admin/entities";
 import { ArchiveCard, ShareCard } from "@/modules/admin/ui/entity";
 import { RecordTrust } from "@/modules/admin/ui/trust";
+import { EndRole, LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, TierBadge, fmtDate } from "@/modules/admin/ui/parts";
 import { RelationshipPanel } from "@/modules/intelligence/network/ui";
 import { Flash } from "@/modules/intelligence/ui";
@@ -43,17 +44,18 @@ async function Body({ params, searchParams }: Props) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <Section title="Employment timeline" empty="No employment recorded. Imports, captures or research add roles with a fact status.">
+          <Section title="Employment timeline" empty="No employment recorded. Imports, captures or research add roles with a fact status." footer={<LinkedAdd kind="employment" hostId={id} backPath={`/people/${id}`} />}>
             {p.employment.length ? (
               <ol className="space-y-2">{p.employment.map((e) => (
                 <li key={e.id} className={`text-sm ${e.current_at_as_of ? "" : "text-ink-soft"}`}>
                   <div className="flex flex-wrap items-center gap-1.5"><span className="font-medium">{e.title ?? "Role unknown"}</span> at <Link className="text-brand" href={`/companies/${e.org_id}`}>{e.org_name ?? "hidden organisation"}</Link> <FactBadge status={e.fact_status} />{e.current_at_as_of ? <Badge tone="ok">{asOf ? "valid then" : "current"}</Badge> : null}</div>
                   <div className="text-xs text-ink-soft">{e.start_date ? fmtDate(e.start_date) : "start unknown"} – {e.end_date ? fmtDate(e.end_date) : e.is_current ? "present" : "end unknown"}{e.function ? ` · ${e.function}` : ""}{e.seniority ? ` · ${e.seniority}` : ""}</div>
+                  {e.is_current && !e.end_date && !asOf ? <EndRole id={e.id} backPath={`/people/${id}`} /> : null}
                 </li>))}</ol>
             ) : null}
           </Section>
 
-          <Section title="Relationship context" empty="No relationships recorded.">
+          <Section title="Relationship context" empty="No relationships recorded." footer={<><LinkedRows table="relationship_context" hostColumn="person_id" hostId={id} backPath={`/people/${id}`} cols={[{ key: "strength" }, { key: "org_id" }, { key: "context" }, { key: "last_verified_on", label: "verified", fmt: "date" }]} joins={{ org_id: { table: "organisation", label: "display_name" } }} /><LinkedAdd kind="relationship_context" hostId={id} backPath={`/people/${id}`} /><LinkedAdd kind="relationship_edge" hostId={id} backPath={`/people/${id}`} /><LinkedRows table="entity_alias" hostColumn="entity_id" hostId={id} backPath={`/people/${id}`} filter={{ entity_type: "person" }} cols={[{ key: "raw_alias", label: "also known as" }]} /><LinkedAdd kind="person_alias" hostId={id} backPath={`/people/${id}`} /></>}>
             {p.relationships.length ? (
               <ul className="space-y-1 text-sm">{p.relationships.map((r) => (
                 <li key={r.id}>{r.direction === "in" ? <>{r.counterpart_person_id ? <Link className="text-brand" href={`/people/${r.counterpart_person_id}`}>{r.counterpart ?? "Contact"}</Link> : r.counterpart ?? "Team member"} → this person</> : <>this person → {r.counterpart_person_id ? <Link className="text-brand" href={`/people/${r.counterpart_person_id}`}>{r.counterpart ?? "Contact"}</Link> : "Contact"}</>}
@@ -89,7 +91,7 @@ async function Body({ params, searchParams }: Props) {
         </div>
 
         <div className="space-y-4">
-          <Section title="Contact methods" empty="No contact methods. Never guess or invent an email or number.">
+          <Section title="Contact methods" empty="No contact methods. Never guess or invent an email or number." footer={<LinkedAdd kind="contact_method" hostId={id} backPath={`/people/${id}`} />}>
             {p.contacts.length ? (
               <ul className="space-y-2 text-sm">{p.contacts.map((c) => (
                 <li key={c.id} className={c.effectively_suppressed ? "text-ink-soft line-through" : ""}>

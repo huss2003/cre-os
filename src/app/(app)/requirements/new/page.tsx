@@ -19,7 +19,7 @@ export default async function NewRequirementPage({ searchParams }: { searchParam
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Title" hint="e.g. Acme Pune consolidation 2027"><Input name="title" required maxLength={300} /></Field>
             <Field label="Objective"><Select name="objective" defaultValue=""><option value="">Unknown</option>{opts("objective").map((o) => <option key={o} value={o}>{o}</option>)}</Select></Field>
-            <Field label="Existing company"><Select name="org_id" defaultValue=""><option value="">— choose —</option>{(orgs ?? []).map((o) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</Select></Field>
+            <Field label="Existing company"><Select name="org_id" defaultValue={typeof sp.org === "string" ? sp.org : ""}><option value="">— choose —</option>{(orgs ?? []).map((o) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</Select></Field>
             <Field label="…or new company name"><Input name="org_name" maxLength={300} /></Field>
           </div>
         </Card>

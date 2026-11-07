@@ -6,6 +6,9 @@ import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { getCompany, memberDirectory } from "@/modules/admin/entities";
 import { ArchiveCard, ShareCard } from "@/modules/admin/ui/entity";
 import { RecordTrust } from "@/modules/admin/ui/trust";
+import { LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
+
+const INVERSE: Record<string, string> = { parent_of: "subsidiary of", subsidiary_of: "parent of", owner_of: "owned by", developer_of: "developed by", operator_of: "operated by", acquired: "acquired by", affiliate: "affiliate of" };
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, TierBadge, fmtDate } from "@/modules/admin/ui/parts";
 
 export const metadata = { title: "Company" };
@@ -68,7 +71,7 @@ async function Body({ params, searchParams }: Props) {
             ) : null}
           </Section>
 
-          <Section title="Requirements & opportunities" empty="No open requirement or opportunity for this company.">
+          <Section title="Requirements & opportunities" empty="No open requirement or opportunity for this company." footer={hasRole(ctx, "editor") ? <div className="mt-2"><ButtonLink variant="secondary" href={`/requirements/new?org=${id}`}>+ New requirement</ButtonLink></div> : null}>
             {c.requirements.length || c.opportunities.length ? (
               <ul className="space-y-1 text-sm">
                 {c.requirements.map((r) => <li key={r.id}><Badge>Requirement</Badge> <Link className="text-brand" href={`/requirements/${r.id}`}>{r.title}</Link> <span className="text-ink-soft">{r.status}{r.area_target_sf ? ` · ${sf(r.area_target_sf)}` : ""}</span></li>)}
@@ -103,7 +106,7 @@ async function Body({ params, searchParams }: Props) {
             ) : null}
           </Section>
 
-          <Section title="People" empty="No people linked yet.">
+          <Section title="People" empty="No people linked yet." footer={<LinkedAdd kind="org_employment" hostId={id} backPath={`/companies/${id}`} />}>
             {c.people.length ? (
               <ul className="space-y-1 text-sm">{c.people.map((e) => (
                 <li key={e.id} className={e.current_at_as_of ? "" : "text-ink-soft"}>
@@ -119,9 +122,9 @@ async function Body({ params, searchParams }: Props) {
             ) : null}
           </Section>
 
-          <Section title="Related organisations" empty="No parent, subsidiary or affiliate links.">
+          <Section title="Related organisations" empty="No parent, subsidiary or affiliate links." footer={<><LinkedAdd kind="org_relation" hostId={id} backPath={`/companies/${id}`} /><div className="mt-3"><LinkedRows table="entity_alias" hostColumn="entity_id" hostId={id} backPath={`/companies/${id}`} filter={{ entity_type: "organisation" }} cols={[{ key: "raw_alias", label: "alias" }]} /></div><LinkedAdd kind="org_alias" hostId={id} backPath={`/companies/${id}`} /></>}>
             {c.relations.length ? (
-              <ul className="space-y-1 text-sm">{c.relations.map((r) => <li key={r.id}>{r.direction === "from" ? r.relation_type.replace(/_/g, " ") : `(${r.relation_type.replace(/_/g, " ")})`} <Link className="text-brand" href={`/companies/${r.other_id}`}>{r.other_name ?? "hidden organisation"}</Link></li>)}</ul>
+              <ul className="space-y-1 text-sm">{c.relations.map((r) => <li key={r.id}>{r.direction === "from" ? r.relation_type.replace(/_/g, " ") : INVERSE[r.relation_type] ?? r.relation_type} <Link className="text-brand" href={`/companies/${r.other_id}`}>{r.other_name ?? "hidden organisation"}</Link></li>)}</ul>
             ) : null}
           </Section>
 

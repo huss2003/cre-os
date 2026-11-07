@@ -30,7 +30,7 @@ function FieldInput({ f, row, options }: { f: FieldDef; row: Row | null; options
 }
 
 /** Create (row = null) or edit form for a company/person/building. Material fields are labelled. */
-export function EntityForm({ table, row, parentOptions }: { table: EntityTable; row: Row | null; parentOptions?: [string, string][] }) {
+export function EntityForm({ table, row, parentOptions, localityOptions }: { table: EntityTable; row: Row | null; parentOptions?: [string, string][]; localityOptions?: [string, string][] }) {
   const action = row ? saveEntityAction.bind(null, table, row.id as string) : createEntityAction.bind(null, table);
   return (
     <ActionForm action={action} className="space-y-4">
@@ -39,7 +39,7 @@ export function EntityForm({ table, row, parentOptions }: { table: EntityTable; 
         {ENTITY_FIELDS[table].map((f) => (
           <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : undefined}>
             <Field label={`${f.label}${f.required ? " *" : ""}`} hint={<>{f.hint}{row && f.material ? <span className="block text-warn">Changes go to Approvals before they apply.</span> : null}</>}>
-              <FieldInput f={f} row={row} options={f.name === "parent_asset_id" ? [["", "— none —"], ...(parentOptions ?? [])] : undefined} />
+              <FieldInput f={f} row={row} options={f.name === "parent_asset_id" ? [["", "— none —"], ...(parentOptions ?? [])] : f.name === "locality_id" ? [["", "— unknown —"], ...(localityOptions ?? [])] : undefined} />
             </Field>
           </div>
         ))}

@@ -86,7 +86,7 @@ export function AsOfForm({ asOf, action }: { asOf?: string | null; action: strin
   );
 }
 
-export function Section({ title, children, empty, actions }: { title: string; children?: ReactNode; empty?: ReactNode; actions?: ReactNode }) {
+export function Section({ title, children, empty, actions, footer }: { title: string; children?: ReactNode; empty?: ReactNode; actions?: ReactNode; footer?: ReactNode }) {
   const hasContent = Array.isArray(children) ? children.some(Boolean) : !!children;
   return (
     <section className="rounded-xl border border-line bg-surface p-4">
@@ -95,6 +95,7 @@ export function Section({ title, children, empty, actions }: { title: string; ch
         {actions}
       </div>
       {hasContent ? children : <p className="text-sm text-ink-soft">{empty ?? "Nothing recorded yet."}</p>}
+      {footer}
     </section>
   );
 }

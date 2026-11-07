@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, StaleBanner, Stat, Table, Td, Textarea, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
+import { LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
 import { toDealsCtx } from "@/modules/deals/api";
 import { DealsError } from "@/modules/deals/ctx";
 import {
@@ -109,6 +110,14 @@ export default async function RequirementDetail({ params, searchParams }: { para
           )}
         </div>
       </div>
+
+      <Card title="Locations & required features">
+        <LinkedRows table="requirement_location" hostColumn="requirement_id" hostId={id} backPath={`/requirements/${id}`} empty="No location preferences yet." cols={[{ key: "geography_id" }, { key: "preference" }]} joins={{ geography_id: { table: "geography", label: "name" } }} />
+        <LinkedAdd kind="requirement_location" hostId={id} backPath={`/requirements/${id}`} />
+        <div className="mt-3" />
+        <LinkedRows table="requirement_feature" hostColumn="requirement_id" hostId={id} backPath={`/requirements/${id}`} empty="No required features yet." cols={[{ key: "feature_key" }, { key: "operator" }, { key: "value_text" }, { key: "value_num", fmt: "num" }, { key: "unit" }, { key: "is_hard_constraint", label: "hard:", fmt: "bool" }]} />
+        <LinkedAdd kind="requirement_feature" hostId={id} backPath={`/requirements/${id}`} />
+      </Card>
 
       <Card title={`Hard constraints (${d.hardConstraints.length})`}>
         <p className="mb-2 text-xs text-ink-soft">Applied as eligibility filters before any ranking — a high score can never override them. Missing building data under a constraint means “needs verification”, never a match.</p>

@@ -43,6 +43,7 @@ export const NAV: NavSection[] = [
   ]},
   { key: "setup", label: "Setup", hint: "Database, imports, settings", href: "/database", minRole: "editor", tabs: [
     { href: "/database", label: "Database", minRole: "editor" },
+    { href: "/geography", label: "Geography", minRole: "editor" },
     { href: "/imports", label: "Imports", minRole: "editor" },
     { href: "/settings", label: "Settings", minRole: "admin" },
     { href: "/admin", label: "Health", minRole: "admin" },
