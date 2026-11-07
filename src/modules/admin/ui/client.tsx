@@ -1,5 +1,5 @@
 "use client";
-import { createContext, startTransition, useActionState, useContext, useState, type ReactNode } from "react";
+import { createContext, startTransition, useActionState, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 
 const PendingCtx = createContext<boolean | null>(null);
 import { createBrowserSupabase } from "@/lib/supabase/browser";
@@ -19,9 +19,12 @@ export type FormAction = (prev: ActionState, form: FormData) => Promise<ActionSt
 /** Form bound to a server action; shows the result inline (errors, confirmations, one-time secrets). */
 export function ActionForm({ action, children, className }: { action: FormAction; children: ReactNode; className?: string }) {
   const [state, formAction, isPending] = useActionState(action, null);
+  const ref = useRef<HTMLFormElement>(null);
+  // Clear only after a successful save; on error everything typed stays.
+  useEffect(() => { if (state?.ok) ref.current?.reset(); }, [state]);
   // Submit manually so React does not reset the form: a failed save keeps everything the user typed.
   return (
-    <form className={className} onSubmit={(e) => {
+    <form ref={ref} className={className} onSubmit={(e) => {
       e.preventDefault();
       const fd = new FormData(e.currentTarget);
       const sub = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;

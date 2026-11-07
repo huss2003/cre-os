@@ -46,3 +46,6 @@ begin
 end $$;
 drop trigger if exists fee_allocation_total on mudar.fee_allocation;
 create trigger fee_allocation_total before insert or update on mudar.fee_allocation for each row execute function mudar_app.fee_allocation_total();
+
+-- DB-144: a known floor+unit is unique per building (active rows only). Existing duplicates must be archived first.
+create unique index if not exists space_unit_uq on mudar.space(workspace_id, asset_id, lower(floor_text), lower(unit)) where archived_at is null and unit is not null;

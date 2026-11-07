@@ -14,7 +14,7 @@ export async function LinkedAdd({ kind, hostId, backPath, open = false }: { kind
   const action = addLinkedAction.bind(null, kind, hostId, backPath);
   const fid = (n: string) => `${kind}-${hostId ?? "ws"}-${n}`;
   return (
-    <details className="mt-2 rounded-lg border border-dashed border-line px-3 py-2" open={open}>
+    <details className="mt-2 rounded-lg border border-dashed border-line px-3 py-2" open={open || undefined}>
       <summary className="cursor-pointer text-sm font-medium text-brand">+ {spec.title}</summary>
       <ActionForm action={action} className="mt-2 grid gap-2 sm:grid-cols-2">
         {spec.fields.map((f) => (

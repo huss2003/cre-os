@@ -6,7 +6,7 @@ import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { getBuilding, type VacancyState } from "@/modules/admin/entities";
 import { ArchiveCard, ShareCard } from "@/modules/admin/ui/entity";
 import { RecordTrust } from "@/modules/admin/ui/trust";
-import { LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
+import { ArchiveLinked, LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, fmtDate } from "@/modules/admin/ui/parts";
 
 export const metadata = { title: "Building" };
@@ -80,7 +80,7 @@ async function Body({ params, searchParams }: Props) {
                 const [label, tone] = STATE[s.state];
                 return (
                   <li key={s.id} className="rounded-lg border border-line p-3 text-sm">
-                    <div className="flex flex-wrap items-center gap-1.5"><span className="font-medium">{[s.floor_text, s.unit].filter(Boolean).join(" · ") || "Space"}</span><Badge tone={tone}>{label}</Badge>{s.latest ? <FactBadge status={s.latest.fact_status} /> : null}</div>
+                    <div className="flex flex-wrap items-center gap-1.5"><span className="font-medium">{[s.floor_text, s.unit].filter(Boolean).join(" · ") || "Space"}</span><Badge tone={tone}>{label}</Badge>{s.latest ? <FactBadge status={s.latest.fact_status} /> : null}{hasRole(ctx, "editor") && !asOf ? <ArchiveLinked table="space" id={s.id} backPath={`/buildings/${id}`} /> : null}</div>
                     <div className="text-xs text-ink-soft">
                       {s.carpet_sf ? `${sf(s.carpet_sf)} carpet` : "carpet unknown"} · {s.chargeable_sf ? `${sf(s.chargeable_sf)} chargeable` : "chargeable unknown"}{s.configuration ? ` · ${s.configuration.replace(/_/g, " ")}` : ""}
                     </div>

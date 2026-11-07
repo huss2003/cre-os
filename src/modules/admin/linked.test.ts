@@ -51,3 +51,15 @@ describe("database integrity rules (DB-076, DB-104, DB-417)", () => {
     expect(over.error?.message).toMatch(/exceeds 1/);
   });
 });
+
+describe("space duplicate (DB-144)", () => {
+  it("blocks the same floor + unit twice in one building", async () => {
+    const { addLinked } = await import("./linked");
+    const db = await userClient("owner");
+    const t = tag("sp");
+    const asset = (await db.from("asset").insert({ workspace_id: WS1, name: `B ${t}` }).select("id").single()).data!.id;
+    const owner = "00000000-0000-4000-8000-000000000001";
+    await addLinked(db, WS1, owner, "space", asset, fd({ floor_text: "5", unit: "A", carpet_sf: "1000" }));
+    await expect(addLinked(db, WS1, owner, "space", asset, fd({ floor_text: "5", unit: "a" }))).rejects.toThrow(/already exists/);
+  });
+});

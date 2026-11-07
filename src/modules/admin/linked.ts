@@ -227,6 +227,13 @@ export async function addLinked(db: Client, ws: string, userId: string, kind: st
     const { data: sp } = await db.from("space").select("asset_id").eq("id", row.space_id as string).maybeSingle();
     if (!sp || sp.asset_id !== hostId) throw new LinkedError("That space belongs to another building.");
   }
+  if (spec.table === "space") {
+    // Same floor + unit in the same building = the same known space (DB-144). Floor without unit is allowed once.
+    let q = db.from("space").select("id").eq("workspace_id", ws).eq("asset_id", hostId!).is("archived_at", null).ilike("floor_text", String(row.floor_text));
+    q = row.unit ? q.ilike("unit", String(row.unit)) : q.is("unit", null);
+    const { data: dup } = await q.limit(1);
+    if (dup?.length) throw new LinkedError(`Floor ${row.floor_text}${row.unit ? `, unit ${row.unit}` : ""} already exists in this building. Edit that space instead of adding it twice.`);
+  }
   if (spec.table === "organisation_relation" && row.to_org_id === hostId) throw new LinkedError("A company cannot be linked to itself.");
   if (spec.table === "relationship_edge" && row.to_person_id === hostId) throw new LinkedError("A person cannot be connected to themselves.");
   if (spec.table === "geography" && row.parent_id) {
