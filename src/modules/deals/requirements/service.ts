@@ -227,6 +227,8 @@ export async function addStakeholder(ctx: DealsCtx, requirementId: string, input
     if (!name) throw new DealsError(400, "choose a person or enter a name");
     personId = (must(await ctx.db.from("person").insert({ ...owned(ctx, req.classification), full_name: name }).select("id").single(), "person") as { id: string }).id;
   }
+  const dup = await ctx.db.from("stakeholder").select("id").eq("requirement_id", requirementId).eq("person_id", personId).eq("role", input.role).is("archived_at", null).limit(1);
+  if (dup.data?.length) throw new DealsError(409, "This person already has that role on this requirement.");
   return must(await ctx.db.from("stakeholder").insert({
     ...owned(ctx, req.classification), requirement_id: requirementId, person_id: personId, role: input.role,
     influence_basis: input.influenceBasis ?? null, access_status: input.accessStatus ?? null,

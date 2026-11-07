@@ -29,6 +29,13 @@ export default async function RequirementDetail({ params, searchParams }: { para
   const options = (d.shortlist?.options ?? []) as Record<string, unknown>[];
   const currentQuotes = (d.quotes as Record<string, unknown>[]).filter((q) => !q.superseded_by);
   const canEdit = app.role !== "viewer";
+  // Existing people for the stakeholder picker, labelled with current employer so same-name people are distinguishable.
+  const [{ data: ppl }, { data: emps }] = canEdit ? await Promise.all([
+    app.db.from("person").select("id, full_name").eq("workspace_id", app.workspaceId).is("archived_at", null).order("full_name").limit(500),
+    app.db.from("employment").select("person_id, title, organisation:org_id(display_name)").eq("workspace_id", app.workspaceId).eq("is_current", true).is("archived_at", null).limit(2000),
+  ]) : [{ data: [] }, { data: [] }];
+  const empBy = new Map(((emps ?? []) as unknown as { person_id: string; title: string | null; organisation: { display_name: string } | null }[]).map((e) => [e.person_id, `${e.title ?? "role ?"} @ ${e.organisation?.display_name ?? "?"}`]));
+  const people = ((ppl ?? []) as { id: string; full_name: string }[]).map((p) => ({ id: p.id, label: `${p.full_name}${empBy.get(p.id) ? ` — ${empBy.get(p.id)}` : ""} · ${p.id.slice(0, 4)}` }));
   const today = new Date().toISOString().slice(0, 10);
   const hidden = (<><input type="hidden" name="id" value={id} /><input type="hidden" name="row_version" value={r.row_version} /><input type="hidden" name="nonce" value={nonce()} /></>);
   const geoName = (gid: string) => d.geographies.find((g) => g.id === gid)?.name ?? `unknown (${gid.slice(0, 8)})`;
@@ -191,7 +198,10 @@ export default async function RequirementDetail({ params, searchParams }: { para
         {canEdit && (
           <form action={addStakeholderAction} className="grid gap-2 sm:grid-cols-4">
             <input type="hidden" name="id" value={id} />
-            <Input name="person_name" placeholder="Name" required />
+            <label className="sr-only" htmlFor="sh-person">Existing person</label>
+            <Select id="sh-person" name="person_id" defaultValue=""><option value="">— existing person —</option>{people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</Select>
+            <label className="sr-only" htmlFor="sh-name">Or new person name</label>
+            <Input id="sh-name" name="person_name" placeholder="…or new person name" />
             <Select name="role" defaultValue="sponsor">{STAKEHOLDER_ROLES.map((x) => <option key={x} value={x}>{x}</option>)}</Select>
             <Input name="influence_basis" placeholder="Why they matter" />
             <Button type="submit" variant="secondary">Add</Button>
