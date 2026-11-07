@@ -56,3 +56,24 @@ export async function archiveLinkedAction(table: string, id: string, backPath: s
     return { error: errorMessage(e) };
   }
 }
+
+/** Propose one observation as the current (canonical) value for its field. Others stay as history. Needs a reason. */
+export async function proposeCurrentObservationAction(id: string, backPath: string, _prev: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const reason = String(form.get("reason") ?? "").trim();
+    if (reason.length < 5) return { error: "Say why this value is the right one (at least a few words)." };
+    const { data: o } = await ctx.db.from("observation").select("row_version, classification, verification").eq("id", id).eq("workspace_id", ctx.workspaceId).maybeSingle();
+    if (!o) return { error: "Observation not found." };
+    if (o.verification === "currently_confirmed") return { error: "This value is already the current one." };
+    await proposeChange(ctx.db, ctx.workspaceId, {
+      targetType: "observation", targetId: id, operation: "update", expectedVersion: Number(o.row_version),
+      patch: [{ op: "replace", path: "/verification", value: "currently_confirmed" }],
+      reason, proposedByKind: "user", classification: o.classification,
+    });
+    revalidatePath(backPath); revalidatePath("/approvals");
+    return { ok: true, message: "Sent to Approvals. The other values stay on record as history." };
+  } catch (e) {
+    return { error: errorMessage(e) };
+  }
+}

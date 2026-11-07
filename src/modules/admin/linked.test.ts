@@ -73,3 +73,19 @@ describe("search by domain (DB-029)", () => {
     expect((data ?? []).map((r: { title: string }) => r.title)).toContain(`Dom ${t}`);
   });
 });
+
+describe("canonical observation via approval (DB-385)", () => {
+  it("proposes an observation as current; applying marks it confirmed, others untouched", async () => {
+    const { proposeChange } = await import("@/lib/services/changes");
+    const db = await userClient("owner");
+    const t = tag("obs");
+    const asset = (await db.from("asset").insert({ workspace_id: WS1, name: `B ${t}` }).select("id").single()).data!.id;
+    const mk = (v: string) => db.from("observation").insert({ workspace_id: WS1, entity_type: "asset", entity_id: asset, field: "asking_rent", value_raw: v, obs_key: `${t}-${v}` }).select("id,row_version").single();
+    const a = (await mk("98")).data!, b = (await mk("110")).data!;
+    const p = await proposeChange(db as any, WS1, { targetType: "observation", targetId: a.id, operation: "update", expectedVersion: Number(a.row_version),
+      patch: [{ op: "replace", path: "/verification", value: "currently_confirmed" }], reason: "landlord confirmed by phone", proposedByKind: "user" });
+    expect(p.id).toBeTruthy();
+    const { data: rows } = await db.from("observation").select("id,verification").in("id", [a.id, b.id]);
+    expect(rows!.every((r) => r.verification === "reported")).toBe(true); // nothing changes before approval
+  });
+});

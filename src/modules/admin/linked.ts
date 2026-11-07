@@ -98,7 +98,7 @@ export const LINKED: Record<string, LinkedSpec> = {
   asset_alias: { kind: "asset_alias", table: "entity_alias", title: "Add alternative name", host: "asset", hostColumn: "entity_id", submit: "Add name", fixed: { entity_type: "asset" }, fields: [
     { name: "raw_alias", label: "Alternative name", kind: "text", required: true },
   ]},
-  lease: { kind: "lease", table: "lease", title: "Add lease", host: "asset", hostColumn: "asset_id", submit: "Add lease", fields: [
+  lease: { kind: "lease", table: "lease", title: "Add lease", host: "asset", hostColumn: "asset_id", submit: "Add lease", fixed: { fact_status: "reported" }, fields: [
     { name: "tenant_org_id", label: "Tenant", kind: "ref", ref: ORG, required: true },
     { name: "landlord_org_id", label: "Landlord", kind: "ref", ref: ORG },
     { name: "start_date", label: "Commencement", kind: "date" },

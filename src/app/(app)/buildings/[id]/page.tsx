@@ -52,7 +52,7 @@ async function Body({ params, searchParams }: Props) {
             <LinkedRows table="asset_spec" hostColumn="asset_id" hostId={id} backPath={`/buildings/${id}`} empty="No specifications recorded." cols={[{ key: "spec_key" }, { key: "value_text" }, { key: "value_num", fmt: "num" }, { key: "unit" }, { key: "verification" }]} />
             <LinkedAdd kind="asset_spec" hostId={id} backPath={`/buildings/${id}`} />
             <h3 className="mt-3 text-xs font-semibold uppercase text-ink-soft">Sourced values (observations)</h3>
-            <LinkedRows table="observation" hostColumn="entity_id" hostId={id} backPath={`/buildings/${id}`} filter={{ entity_type: "asset" }} empty="No observations. Conflicting values are kept side by side." cols={[{ key: "field" }, { key: "value_raw" }, { key: "unit" }, { key: "source_location", label: "from" }, { key: "observed_on", label: "on", fmt: "date" }, { key: "verification" }]} />
+            <LinkedRows table="observation" hostColumn="entity_id" hostId={id} backPath={`/buildings/${id}`} filter={{ entity_type: "asset" }} proposeCurrent empty="No observations. Conflicting values are kept side by side." cols={[{ key: "field" }, { key: "value_raw" }, { key: "unit" }, { key: "source_location", label: "from" }, { key: "observed_on", label: "on", fmt: "date" }, { key: "verification" }]} />
             <LinkedAdd kind="observation" hostId={id} backPath={`/buildings/${id}`} />
             <h3 className="mt-3 text-xs font-semibold uppercase text-ink-soft">Alternative names</h3>
             <LinkedRows table="entity_alias" hostColumn="entity_id" hostId={id} backPath={`/buildings/${id}`} filter={{ entity_type: "asset" }} cols={[{ key: "raw_alias" }]} />
