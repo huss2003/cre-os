@@ -51,6 +51,23 @@ export const NAV: NavSection[] = [
   ]},
 ];
 
+/**
+ * FOCUS MODE (owner request, Nov 2026): only the Module 1 database screens are shown. Every other screen still exists
+ * in the code but is hidden from the menu, and direct visits are redirected to /database (see src/proxy.ts).
+ * Set NEXT_PUBLIC_FULL_APP=1 in Vercel to show the whole app again.
+ */
+export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
+export const HIDDEN_PREFIXES = ["/today", "/tasks", "/calendar", "/drafts", "/leases", "/finance", "/documents", "/fees",
+  "/market", "/research", "/network", "/legal", "/content", "/insights", "/settings", "/admin", "/platform"];
+/** Kept reachable inside hidden areas because the Database screen links to them. */
+const ALLOWED_INSIDE_HIDDEN = ["/admin/audit"];
+export function isHiddenPath(path: string): boolean {
+  if (!FOCUS_MODE) return false;
+  if (ALLOWED_INSIDE_HIDDEN.some((a) => path === a || path.startsWith(a + "/"))) return false;
+  return HIDDEN_PREFIXES.some((h) => path === h || path.startsWith(h + "/"));
+}
+export const HOME = FOCUS_MODE ? "/database" : "/today";
+
 /** The section a path belongs to: the tab with the longest matching prefix wins. */
 export function sectionFor(path: string, sections: NavSection[] = NAV): NavSection | null {
   let best: { s: NavSection; len: number } | null = null;
@@ -61,4 +78,4 @@ export function sectionFor(path: string, sections: NavSection[] = NAV): NavSecti
 }
 
 /** Mobile bottom bar: the five daily sections. */
-export const MOBILE_BAR = ["today", "capture", "review", "records", "deals"] as const;
+export const MOBILE_BAR = ["today", "capture", "review", "records", "deals", "setup"] as const;

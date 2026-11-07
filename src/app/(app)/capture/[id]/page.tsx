@@ -1,3 +1,4 @@
+import { FOCUS_MODE } from "@/lib/nav";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -138,7 +139,7 @@ async function Body({ params }: Props) {
             {r.tasks.length === 0 ? <p className="text-sm text-ink-soft">No tasks.</p> : (
               <ul className="space-y-1 text-sm">{r.tasks.map((t) => <li key={t.id}>• {t.title} <span className="text-ink-soft">{t.due_at ? `due ${fmt(t.due_at, "EEE dd MMM")}` : "no due date"} · {t.status}</span></li>)}</ul>
             )}
-            <Link className="mt-2 inline-block text-sm text-brand" href="/tasks">Open tasks</Link>
+            {FOCUS_MODE ? null : <Link className="mt-2 inline-block text-sm text-brand" href="/tasks">Open tasks</Link>}
           </Card>
 
           <Card title="Drafts (you send them yourself)">

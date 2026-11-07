@@ -1,3 +1,4 @@
+import { FOCUS_MODE } from "@/lib/nav";
 import { Suspense } from "react";
 import Link from "next/link";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
@@ -34,7 +35,7 @@ async function Body() {
                 </div>
                 <p className="text-xs text-ink-soft">Basis: {String(r.basis ?? "—").replace(/_/g, " ")} · window {r.window_days} days · stale since {fmtDate(r.stale_since)}
                   {" · "}<Link className="underline" href={`/approvals/evidence?type=${r.entity_type}&id=${r.entity_id}`}>why do we believe this?</Link>
-                  {r.task_id ? <> · <Link className="underline" href="/tasks">review task</Link></> : null}</p>
+                  {r.task_id && !FOCUS_MODE ? <> · <Link className="underline" href="/tasks">review task</Link></> : null}</p>
                 {editor ? (
                   <ActionForm action={markVerifiedAction} className="mt-2 flex flex-wrap items-center gap-2">
                     <input type="hidden" name="id" value={r.entity_id} /><input type="hidden" name="type" value={r.entity_type} />

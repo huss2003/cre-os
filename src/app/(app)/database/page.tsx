@@ -50,7 +50,7 @@ async function Body() {
         <Tile label="Spaces (floors/units)" value={o?.spaces} href="/buildings" />
         <Tile label="Requirements" value={o?.requirements} href="/requirements" />
         <Tile label="Opportunities" value={o?.opportunities} href="/deals" />
-        <Tile label="Leases" value={o?.leases} href="/leases" />
+        <Tile label="Leases" value={o?.leases} href="/buildings" />
         <Tile label="Interactions" value={o?.interactions} href="/search" />
         <Tile label="Source files" value={o?.sources} href="/imports" />
         <Tile label="Imports in progress" value={o?.pending_imports} href="/imports" />

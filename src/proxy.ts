@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { isHiddenPath } from "@/lib/nav";
 
 // /api/webhooks: Microsoft Graph / Gmail push — authenticated by clientState hash / verification token, not a session.
 const PUBLIC = ["/login", "/auth", "/api/cron", "/api/oauth", "/api/health", "/api/webhooks"];
@@ -38,6 +39,12 @@ export async function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = process.env.OPEN_ACCESS_EMAIL ? "/auth/open" : "/login";
     url.searchParams.set("next", path);
+    return NextResponse.redirect(url);
+  }
+  // Focus mode: hidden screens redirect to the Database screen (code kept; see src/lib/nav.ts).
+  if (data?.claims?.sub && !path.startsWith("/api/") && ((path === "/" && isHiddenPath("/today")) || isHiddenPath(path))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/database"; url.search = "";
     return NextResponse.redirect(url);
   }
   return response;

@@ -1,3 +1,4 @@
+import { FOCUS_MODE } from "@/lib/nav";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, StaleBanner, Stat, Table, Td, Textarea, inr } from "@/components/ui";
@@ -55,7 +56,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
   return (
     <div className="space-y-5">
       <PageHeader title={r.title} subtitle={<>{org?.display_name ?? "—"} · <RequirementStatusBadge status={r.status} /></>}
-        actions={<><ButtonLink variant="secondary" href={`/documents?requirement=${id}`}>Documents</ButtonLink><ButtonLink variant="secondary" href={`/finance?requirement=${id}`}>Financials</ButtonLink></>} />
+        actions={FOCUS_MODE ? null : <><ButtonLink variant="secondary" href={`/documents?requirement=${id}`}>Documents</ButtonLink><ButtonLink variant="secondary" href={`/finance?requirement=${id}`}>Financials</ButtonLink></>} />
       <Flash sp={sp} />
       {d.pendingProposals.length > 0 && <StaleBanner>{d.pendingProposals.length} change proposal(s) to confirmed fields await approval — <Link className="underline" href="/approvals">open approvals</Link>.</StaleBanner>}
 
@@ -84,7 +85,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
                 {d.missing.slice(0, 15).map((q) => <li key={q.key}>{q.question} {q.reason === "estimated_needs_confirmation" ? <Badge tone="warn">confirm with client</Badge> : q.priority === "mandatory" ? <Badge tone="bad">mandatory</Badge> : null}</li>)}
               </ol>
             )}
-            <p className="mt-2 text-xs text-ink-soft">Mandatory questions become follow-up tasks automatically and close as answers are confirmed — {openTasks.filter((t) => t.source === "deals.requirement_question").length} open. <Link className="underline" href="/tasks">Tasks</Link></p>
+            <p className="mt-2 text-xs text-ink-soft">Mandatory questions become follow-up tasks automatically and close as answers are confirmed — {openTasks.filter((t) => t.source === "deals.requirement_question").length} open.{FOCUS_MODE ? null : <> <Link className="underline" href="/tasks">Tasks</Link></>}</p>
           </Card>
           {canEdit && (
             <Card title="Update a field">
@@ -256,7 +257,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
         )}
       </Card>
 
-      <Card title={`Follow-up & verification tasks (${openTasks.length} open)`} actions={<ButtonLink variant="ghost" href="/tasks">All tasks</ButtonLink>}>
+      <Card title={`Follow-up & verification tasks (${openTasks.length} open)`} actions={FOCUS_MODE ? null : <ButtonLink variant="ghost" href="/tasks">All tasks</ButtonLink>}>
         {d.tasks.length === 0 ? <p className="text-sm text-ink-soft">None yet. Missing mandatory answers and shortlist verification items create tasks here automatically (deduped).</p> : (
           <ul className="divide-y divide-line text-sm">
             {d.tasks.slice(0, 30).map((t) => (
