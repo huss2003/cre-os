@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
   if (!data?.claims?.sub && !PUBLIC.some((p) => path.startsWith(p))) {
     if (path.startsWith("/api/")) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = process.env.OPEN_ACCESS_EMAIL ? "/auth/open" : "/login";
     url.searchParams.set("next", path);
     return NextResponse.redirect(url);
   }
