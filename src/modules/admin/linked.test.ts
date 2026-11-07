@@ -63,3 +63,13 @@ describe("space duplicate (DB-144)", () => {
     await expect(addLinked(db, WS1, owner, "space", asset, fd({ floor_text: "5", unit: "a" }))).rejects.toThrow(/already exists/);
   });
 });
+
+describe("search by domain (DB-029)", () => {
+  it("finds a company by its website domain", async () => {
+    const db = await userClient("owner");
+    const t = tag("dom");
+    await db.from("organisation").insert({ workspace_id: WS1, display_name: `Dom ${t}`, domain: `${t}.example.com` });
+    const { data } = await db.schema("mudar_app").rpc("search_entities", { p_workspace: WS1, p_query: `${t}.example.com`, p_types: null, p_as_of: null, p_limit: 10, p_include_archived: false });
+    expect((data ?? []).map((r: { title: string }) => r.title)).toContain(`Dom ${t}`);
+  });
+});
