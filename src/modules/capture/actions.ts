@@ -1,4 +1,5 @@
 "use server";
+import { atLocal } from "@/lib/util/time";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
 import { requireContext } from "@/lib/auth/context";
@@ -19,7 +20,8 @@ export async function captureAction(_prev: ActionState, form: FormData): Promise
     const { capture, duplicate } = await createCapture(ctx.db, ctx.workspaceId, ctx.userId, {
       kind: KINDS.includes(kind) ? kind : "text",
       text: String(form.get("text") ?? ""),
-      sourceAt: sourceLocal ? new Date(sourceLocal).toISOString() : null,
+      // datetime-local has no zone: interpret as the business timezone (IST), not the server's UTC.
+      sourceAt: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(sourceLocal) ? atLocal(sourceLocal.slice(0, 10), sourceLocal.slice(11, 16)).toISOString() : null,
       languageHint: String(form.get("language_hint") ?? "") || null,
       consentReference: String(form.get("consent_reference") ?? "") || null,
       storagePath: String(form.get("storage_path") ?? "") || null,

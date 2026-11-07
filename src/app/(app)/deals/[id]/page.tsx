@@ -145,7 +145,7 @@ export default async function DealDetail({ params, searchParams }: { params: Pro
           )}
         </Card>
         <Card title="Stage history">
-          <ul className="space-y-1 text-xs">{(d.history as Record<string, unknown>[]).map((h, i) => <li key={i}>{new Date(h.changed_at as string).toLocaleString("en-IN")}: {h.from_stage ? `${STAGE_LABEL[h.from_stage as Stage]} → ` : ""}{STAGE_LABEL[h.to_stage as Stage]}{h.evidence ? ` — ${h.evidence}` : ""}</li>)}</ul>
+          <ul className="space-y-1 text-xs">{(d.history as Record<string, unknown>[]).map((h, i) => <li key={i}>{new Date(h.changed_at as string).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}: {h.from_stage ? `${STAGE_LABEL[h.from_stage as Stage]} → ` : ""}{STAGE_LABEL[h.to_stage as Stage]}{h.evidence ? ` — ${h.evidence}` : ""}</li>)}</ul>
         </Card>
       </div>
     </div>

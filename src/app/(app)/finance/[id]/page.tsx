@@ -63,7 +63,7 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
       {!r.complete && (
         <StaleBanner>
           <strong>Incomplete — unknown costs are not zero.</strong> Totals below cover known items only and exclude: {r.gaps.map((g) => g.label).join(", ")}.
-          {ack ? ` Approved with these gaps acknowledged on ${new Date(ack.at ?? "").toLocaleString("en-IN")}${ack.note ? ` (“${ack.note}”)` : ""}.` : " Fill them in, mark them none, or acknowledge them explicitly when approving."}
+          {ack ? ` Approved with these gaps acknowledged on ${new Date(ack.at ?? "").toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}${ack.note ? ` (“${ack.note}”)` : ""}.` : " Fill them in, mark them none, or acknowledge them explicitly when approving."}
         </StaleBanner>
       )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -125,7 +125,7 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
       </Card>
 
       <Card title="Approval">
-        {sc.approved_at ? <p className="text-sm">Approved {new Date(sc.approved_at as string).toLocaleString("en-IN")}{ack ? ` with acknowledged gaps: ${(ack.gaps ?? []).map((g) => g.label).join(", ")}` : ""}.</p> : (
+        {sc.approved_at ? <p className="text-sm">Approved {new Date(sc.approved_at as string).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}{ack ? ` with acknowledged gaps: ${(ack.gaps ?? []).map((g) => g.label).join(", ")}` : ""}.</p> : (
           <>
             {blockers.length > 0 && <ul className="mb-2 list-disc pl-5 text-sm text-warn">{blockers.map((b) => <li key={b}>{b}</li>)}</ul>}
             {isAdmin ? (

@@ -61,7 +61,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
               <tr key={d.id}>
                 <Td>
                   <div className="font-medium">{(iv.title as string) ?? d.purpose} <span className="text-xs text-ink-soft">v{d.version_no ?? 1}</span></div>
-                  <div className="text-xs text-ink-soft">{String(d.kind).toUpperCase()} · sha {String(d.sha256).slice(0, 10)} · {new Date(d.created_at).toLocaleString("en-IN")}{iv.released_to ? ` · released to ${iv.released_to}` : ""}</div>
+                  <div className="text-xs text-ink-soft">{String(d.kind).toUpperCase()} · sha {String(d.sha256).slice(0, 10)} · {new Date(d.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}{iv.released_to ? ` · released to ${iv.released_to}` : ""}</div>
                   {d.status === "stale" && reasons.length > 0 && <div className="mt-1 text-xs text-bad">{wasReleased ? "Was shared — inputs changed, re-review before sharing again: " : "Stale: "}{[...new Set(reasons.map((r) => r.reason))].join("; ")}</div>}
                   {Array.isArray(iv.sources) && (
                     <details className="mt-1 text-xs"><summary className="cursor-pointer text-brand">Sources &amp; calculation versions</summary>

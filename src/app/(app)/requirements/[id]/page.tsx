@@ -358,7 +358,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
       </Card>
 
       <Card title="History">
-        <ul className="space-y-1 text-xs text-ink-soft">{(d.versions as Record<string, unknown>[]).map((v) => <li key={v.version as number}>v{String(v.version)} · {new Date(v.created_at as string).toLocaleString("en-IN")} · {String(v.change_reason ?? "")}</li>)}</ul>
+        <ul className="space-y-1 text-xs text-ink-soft">{(d.versions as Record<string, unknown>[]).map((v) => <li key={v.version as number}>v{String(v.version)} · {new Date(v.created_at as string).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} · {String(v.change_reason ?? "")}</li>)}</ul>
       </Card>
     </div>
   );
