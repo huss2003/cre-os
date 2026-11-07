@@ -102,6 +102,18 @@ export interface CreateRequirementInput {
   classification?: string;
 }
 
+/** DB-214/215: ranges and date windows must be in order. Blank stays allowed (unknown). */
+export function assertRequirementRanges(r: Record<string, unknown>) {
+  const n = (k: string) => (r[k] === null || r[k] === undefined || r[k] === "" ? null : Number(r[k]));
+  const pairs: [string, string, string][] = [["area_min_sf", "area_max_sf", "Minimum area cannot be more than maximum area."],
+    ["seats_min", "seats_max", "Minimum seats cannot be more than maximum seats."], ["budget_min", "budget_max", "Minimum budget cannot be more than maximum budget."]];
+  for (const [a, b, msg] of pairs) { const x = n(a), y = n(b); if (x !== null && y !== null && x > y) throw new DealsError(400, msg); }
+  for (const k of ["area_min_sf", "area_target_sf", "area_max_sf", "seats_min", "seats_target", "seats_max", "budget_min", "budget_max"]) {
+    const v = n(k); if (v !== null && v < 0) throw new DealsError(400, "Area, seats and budget cannot be negative. Leave blank if unknown.");
+  }
+  if (r.decision_date && r.occupation_date && String(r.occupation_date) < String(r.decision_date)) throw new DealsError(400, "Move-in (occupation) date cannot be before the decision date.");
+}
+
 export async function createRequirement(ctx: DealsCtx, input: CreateRequirementInput) {
   if (!input.title?.trim()) throw new DealsError(400, "title is required");
   let orgId = input.orgId ?? null;
@@ -113,6 +125,7 @@ export async function createRequirement(ctx: DealsCtx, input: CreateRequirementI
     else orgId = (must(await ctx.db.from("organisation").insert({ ...owned(ctx, input.classification), display_name: name }).select("id").single(), "organisation") as { id: string }).id;
   }
   const { columns, constraints } = buildPatch({ constraints: {} }, input.changes ?? []);
+  assertRequirementRanges(columns);
   const anyValue = Object.values(columns).some((v) => v !== null && !(Array.isArray(v) && v.length === 0)) || Object.keys(constraints.values ?? {}).length > 0;
   const row = must(await ctx.db.from("requirement").insert({
     ...owned(ctx, input.classification), org_id: orgId, title: input.title.trim(), ...columns, constraints,
@@ -144,6 +157,7 @@ export async function updateRequirementFields(ctx: DealsCtx, id: string, expecte
   const specNotes: string[] = [];
   if (directChanges.length) {
     const { columns, constraints, specNotes: notes } = buildPatch(req, directChanges);
+    assertRequirementRanges({ ...req, ...columns });
     specNotes.push(...notes);
     // a confirmed field's status may never be changed through the direct path
     // controlled write path (SQL re-checks role, row access, version and confirmed-field locks)

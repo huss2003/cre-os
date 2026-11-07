@@ -49,3 +49,9 @@ create trigger fee_allocation_total before insert or update on mudar.fee_allocat
 
 -- DB-144: a known floor+unit is unique per building (active rows only). Existing duplicates must be archived first.
 create unique index if not exists space_unit_uq on mudar.space(workspace_id, asset_id, lower(floor_text), lower(unit)) where archived_at is null and unit is not null;
+
+-- DB-214: min ≤ max even when target is unknown.
+alter table mudar.requirement drop constraint if exists requirement_area_minmax_chk;
+alter table mudar.requirement add constraint requirement_area_minmax_chk check (area_min_sf is null or area_max_sf is null or area_min_sf <= area_max_sf) not valid;
+alter table mudar.requirement drop constraint if exists requirement_budget_minmax_chk;
+alter table mudar.requirement add constraint requirement_budget_minmax_chk check (budget_min is null or budget_max is null or budget_min <= budget_max) not valid;

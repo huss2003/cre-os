@@ -89,3 +89,12 @@ describe("canonical observation via approval (DB-385)", () => {
     expect(rows!.every((r) => r.verification === "reported")).toBe(true); // nothing changes before approval
   });
 });
+
+describe("requirement ranges (DB-214)", () => {
+  it("rejects min area above max even with no target", async () => {
+    const { assertRequirementRanges } = await import("@/modules/deals/requirements/service");
+    expect(() => assertRequirementRanges({ area_min_sf: 30000, area_max_sf: 10000 })).toThrow(/Minimum area/);
+    expect(() => assertRequirementRanges({ decision_date: "2027-02-01", occupation_date: "2027-01-01" })).toThrow(/Move-in/);
+    expect(() => assertRequirementRanges({ area_min_sf: 10000, area_max_sf: null })).not.toThrow();
+  });
+});
