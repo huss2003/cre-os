@@ -4,7 +4,7 @@ const { chromium } = createRequire(import.meta.url)("playwright");
 const BASE = process.env.APP_URL ?? "http://localhost:3000";
 const routes = ["/today","/capture","/approvals","/tasks","/calendar","/drafts","/search","/companies","/people","/buildings","/leases",
   "/requirements","/deals","/finance","/documents","/fees","/research","/network","/market","/legal","/content","/insights",
-  "/imports","/settings","/settings/connections","/settings/security","/admin","/platform",
+  "/database","/imports","/settings","/settings/connections","/settings/security","/admin","/platform",
   "/approvals/conflicts","/approvals/stale","/content/calendar","/fees/reconcile","/finance/compare","/imports/sources","/research/sources","/drafts?tab=sequences"];
 const browser = await chromium.launch();
 const results = [];
