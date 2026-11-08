@@ -145,8 +145,9 @@ describe("prompt injection", () => {
     await processCapture(admin, WS1, capture.id, { commit: true, extractor: evil });
     const review = await getReview(colleague, WS1, capture.id);
     expect(Object.values(review.resolved)).not.toContain(hidden!.id);
-    expect(review.proposals).toEqual([]);                 // company unresolved -> no material proposal at all
-    expect(review.open.some((a) => a.kind === "entity")).toBe(true);
+    // the only same-name company this user can see is chosen by exact name; the hidden one is never used
+    expect(Object.values(review.resolved)).toContain(f.org.id);
+    expect(review.proposals.every((p) => p.target_id !== hidden!.id)).toBe(true);
     const { data: mem } = await admin.from("membership").select("role").eq("workspace_id", WS1).eq("user_id", USERS.colleague.id).single();
     expect(mem!.role).toBe("editor");
     const { data: drafts } = await admin.from("draft").select("state, recipient_address").eq("workspace_id", WS1).like("purpose", `capture:${capture.id}:draft:%`);
