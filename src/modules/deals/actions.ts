@@ -62,6 +62,33 @@ export async function createRequirementAction(f: FormData) {
   }, "Requirement created — answer the open questions next");
 }
 
+/** Edit a saved requirement: only fields that changed are written; client-confirmed fields become change proposals. */
+export async function editRequirementAction(f: FormData) {
+  const id = s(f, "id");
+  await run(`/requirements/${id}/edit`, "editor", async (ctx) => {
+    const { data: cur, error } = await ctx.db.from("requirement").select("*").eq("id", id).maybeSingle();
+    if (error || !cur) throw new DealsError(404, "Requirement not found");
+    const str = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+    const num = (v: unknown) => (v === null || v === undefined || v === "" ? "" : String(Number(v)));
+    const title = s(f, "title");
+    if (title && title !== cur.title) {
+      const u = await ctx.db.from("requirement").update({ title }).eq("id", id).eq("row_version", cur.row_version).select("row_version").single();
+      if (u.error) throw new DealsError(409, "Someone else changed this requirement. Reload and try again.");
+      cur.row_version = u.data.row_version;
+    }
+    const changes: FieldChange[] = [];
+    for (const k of NEW_FIELDS) if (s(f, k) !== str(cur[k]).slice(0, k.endsWith("_date") ? 10 : undefined)) changes.push({ key: k, value: s(f, k) });
+    const area = [s(f, "area_min"), s(f, "area_target"), s(f, "area_max")];
+    if (area.join("|") !== [num(cur.area_min_sf), num(cur.area_target_sf), num(cur.area_max_sf)].join("|")) changes.push({ key: "area", value: area });
+    const budget = [s(f, "budget_min"), s(f, "budget_max")];
+    if (budget.join("|") !== [num(cur.budget_min), num(cur.budget_max)].join("|")) changes.push({ key: "budget", value: budget });
+    if (s(f, "seats_target") !== num(cur.seats_target)) changes.push({ key: "seats", value: [num(cur.seats_min), s(f, "seats_target"), num(cur.seats_max)] });
+    if (!changes.length) return { to: `/requirements/${id}`, msg: title !== cur.title ? "Title updated" : "Nothing changed" };
+    const r = await updateRequirementFields(ctx, id, Number(cur.row_version), changes, s(f, "reason") || "Edited on requirement page", null);
+    return { to: `/requirements/${id}`, msg: r.proposals.length ? `Saved. ${r.proposals.length} client-confirmed field(s) sent to Approvals.` : "Requirement updated" };
+  }, "Requirement updated");
+}
+
 export async function updateRequirementFieldAction(f: FormData) {
   const id = s(f, "id");
   await run(`/requirements/${id}`, "editor", async (ctx) => {

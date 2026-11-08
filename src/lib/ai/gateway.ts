@@ -1,7 +1,7 @@
 import "server-only";
 import OpenAI, { toFile } from "openai";
 import { zodTextFormat } from "openai/helpers/zod";
-import type { z, ZodType } from "zod";
+import { z, type ZodType } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PRICING, PRICING_VERSION, MODELS, type ModelTier } from "./pricing";
 
@@ -29,7 +29,7 @@ function openai(): OpenAI | null {
   return client;
 }
 export function aiConfigured() {
-  return !!process.env.OPENAI_API_KEY;
+  return !!process.env.OPENAI_API_KEY || !!process.env.ANTHROPIC_API_KEY;
 }
 
 const INJECTION_GUARD =
@@ -70,6 +70,8 @@ export async function callStructured<S extends ZodType>(call: StructuredCall<S>)
   const model = MODELS[tier];
   await guard(call.workspaceId);
   await assertProcessingAllowed(call.workspaceId, call.classification ?? "corporate_confidential", call.licensedSourceIds ?? []);
+
+  if (process.env.ANTHROPIC_API_KEY) return callClaude(call);
 
   const api = openai();
   if (!api) {
@@ -255,5 +257,58 @@ async function logUsage(u: {
     });
   } catch {
     /* usage logging must never break the workflow */
+  }
+}
+
+/* ---------------- Claude (Anthropic) provider ----------------
+ * Used when ANTHROPIC_API_KEY is set (Vercel env; never in code). Kept deliberately small so one user action
+ * costs well under one credit: cheapest model, input capped at ~6k chars + evidence ~4k chars, output capped at 600 tokens,
+ * no web search. Structured output via a forced tool call whose input_schema is the Zod schema.
+ */
+const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
+const CLAUDE_PRICE = { inputPerM: 1, outputPerM: 5 }; // USD per million tokens (estimate; update if pricing changes)
+const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600;
+
+async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
+  const redact = call.redact ?? ((s: string) => s);
+  const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + "\n[…truncated]" : s);
+  const user = call.evidence
+    ? `${clip(redact(call.input), CAP_INPUT)}\n\n<evidence>\n${clip(redact(call.evidence), CAP_EVIDENCE)}\n</evidence>`
+    : clip(redact(call.input), CAP_INPUT);
+  let schema: Record<string, unknown>;
+  try { schema = z.toJSONSchema(call.schema as never, { target: "draft-7" }) as Record<string, unknown>; delete schema.$schema; }
+  catch { schema = { type: "object" }; }
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT),
+        system: `${call.system}\n\n${INJECTION_GUARD}\nAnswer briefly. Return only the tool call.`,
+        messages: [{ role: "user", content: user }],
+        tools: [{ name: call.schemaName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60), description: "Return the structured result.", input_schema: schema }],
+        tool_choice: { type: "tool", name: call.schemaName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60) },
+      }),
+      signal: AbortSignal.timeout(25_000),
+    });
+    const body = (await res.json()) as { content?: { type: string; input?: unknown }[]; usage?: { input_tokens?: number; output_tokens?: number }; error?: { message?: string } };
+    if (!res.ok) throw new Error(`${res.status} ${body.error?.message ?? ""}`);
+    const tool = body.content?.find((c) => c.type === "tool_use");
+    const parsed = call.schema.safeParse(tool?.input);
+    const inTok = body.usage?.input_tokens ?? 0, outTok = body.usage?.output_tokens ?? 0;
+    const usd = (inTok / 1e6) * CLAUDE_PRICE.inputPerM + (outTok / 1e6) * CLAUDE_PRICE.outputPerM;
+    if (!parsed.success) {
+      // Output cut short or off-schema: fall back to the deterministic result rather than retrying (keeps cost bounded).
+      await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, inTok, outTok, usd, ok: false, error: "schema_mismatch", requestId: call.requestId });
+      if (call.mock) return { data: call.schema.parse(call.mock()), mocked: true, model: `fallback:${CLAUDE_MODEL}`, usage: { input: inTok, output: outTok, usd } };
+      throw new Error("Claude returned an unexpected shape");
+    }
+    await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, inTok, outTok, usd, ok: true, requestId: call.requestId });
+    return { data: parsed.data, mocked: false, model: CLAUDE_MODEL, usage: { input: inTok, output: outTok, usd } };
+  } catch (e) {
+    await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, ok: false, error: String(e).slice(0, 500), requestId: call.requestId });
+    if (call.mock) return { data: call.schema.parse(call.mock()), mocked: true, model: `fallback:${CLAUDE_MODEL}`, usage: { input: 0, output: 0, usd: 0 } };
+    throw new AiUnavailableError("provider_error", String(e));
   }
 }

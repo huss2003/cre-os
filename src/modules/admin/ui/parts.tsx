@@ -1,3 +1,5 @@
+import { Help } from "@/components/ui";
+import { helpFor } from "@/components/ui/help-text";
 import type { ReactNode } from "react";
 import { Badge, FactBadge } from "@/components/ui";
 import type { TrailItem } from "../entities";
@@ -89,9 +91,9 @@ export function AsOfForm({ asOf, action }: { asOf?: string | null; action: strin
 export function Section({ title, children, empty, actions, footer }: { title: string; children?: ReactNode; empty?: ReactNode; actions?: ReactNode; footer?: ReactNode }) {
   const hasContent = Array.isArray(children) ? children.some(Boolean) : !!children;
   return (
-    <section className="rounded-xl border border-line bg-surface p-4">
+    <section className="rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-soft">{title}</h2>
+        <h2 className="flex items-center text-base font-semibold">{title}{helpFor(title) ? <Help>{helpFor(title)}</Help> : null}</h2>
         {actions}
       </div>
       {hasContent ? children : <p className="text-sm text-ink-soft">{empty ?? "Nothing recorded yet."}</p>}

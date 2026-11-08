@@ -89,14 +89,15 @@ export async function LinkedRows({ table, hostColumn, hostId, cols, backPath, fi
     names[col] = new Map(((jd ?? []) as unknown as Record<string, string>[]).map((x) => [x.id, x[j.label]]));
   }
   if (!rows.length) return empty ? <p className="text-sm text-ink-soft">{empty}</p> : null;
-  const show = (c: Col, v: unknown) => v === null || v === undefined || v === "" ? <span className="text-ink-soft italic">unknown</span>
+  const LABEL: Record<string, string> = { gte: "at least", lte: "at most", eq: "equals", has: "must have", in: "one of" };
+  const show = (c: Col, v: unknown) => typeof v === "string" && LABEL[v] && c.key === "operator" ? LABEL[v] : v === null || v === undefined || v === "" ? <span className="text-ink-soft italic">unknown</span>
     : names[c.key]?.get(String(v)) ?? (c.fmt === "date" ? new Date(String(v)).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
     : c.fmt === "num" ? Number(v).toLocaleString("en-IN") : c.fmt === "bool" ? (v ? "yes" : "no") : String(v).replace(/_/g, " "));
   return (
     <ul className="divide-y divide-line text-sm" data-linked={table}>
       {rows.map((r) => (
         <li key={String(r.id)} className="flex items-start justify-between gap-2 py-1.5">
-          <span className="min-w-0 flex-1">{cols.map((c, i) => <span key={c.key}>{i ? <span className="text-ink-soft"> · </span> : null}{c.label ? <span className="text-ink-soft">{c.label} </span> : null}{show(c, r[c.key])}</span>)}
+          <span className="min-w-0 flex-1">{cols.filter((c, i) => i === 0 || (r[c.key] !== null && r[c.key] !== undefined && r[c.key] !== "")).map((c, i) => <span key={c.key}>{i ? <span className="text-ink-soft"> · </span> : null}{c.label ? <span className="text-ink-soft">{c.label} </span> : null}{show(c, r[c.key])}</span>)}
             {proposeCurrent && ctx.role !== "viewer" && r.verification !== "currently_confirmed" && rows.filter((x) => x.field === r.field).length > 1 ? <ProposeCurrent id={String(r.id)} backPath={backPath} /> : null}
             {proposeCurrent && r.verification === "currently_confirmed" ? <span className="ml-1 rounded bg-ok/10 px-1 text-xs text-ok">current value</span> : null}</span>
           {ctx.role !== "viewer" ? <ArchiveLinked table={table} id={String(r.id)} backPath={backPath} /> : null}

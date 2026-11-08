@@ -63,7 +63,7 @@ async function Body() {
         <Tile label="Imports in progress" value={o?.pending_imports} href="/imports" />
       </section>
 
-      <Card title={<span>Needs review {reviewTotal !== undefined ? <Badge tone={reviewTotal ? "warn" : "ok"}>{reviewTotal}</Badge> : null}</span>}
+      <Card help="Things the system was not sure about — possible duplicates, import problems, conflicting values and proposed changes. Nothing is merged or overwritten until someone reviews it." title={<span>Needs review {reviewTotal !== undefined ? <Badge tone={reviewTotal ? "warn" : "ok"}>{reviewTotal}</Badge> : null}</span>}
         actions={<ButtonLink variant="secondary" href="/imports">Upload a file</ButtonLink>}>
         {o ? (
           <div className="mb-3 flex flex-wrap gap-2 text-xs">

@@ -63,7 +63,8 @@ export const LINKED: Record<string, LinkedSpec> = {
     { name: "valid_from", label: "From", kind: "date" },
   ]},
   org_employment: { kind: "org_employment", table: "employment", title: "Add employee", host: "organisation", hostColumn: "org_id", submit: "Add employee", fields: [
-    { name: "person_id", label: "Person", kind: "ref", ref: PERSON, required: true },
+    { name: "new_person_name", label: "New person's full name", kind: "text", hint: "Type a name to create a new person…" },
+    { name: "person_id", label: "…or pick someone already saved", kind: "ref", ref: PERSON },
     { name: "title", label: "Designation", kind: "text" },
     { name: "start_date", label: "Start date", kind: "date" },
     { name: "is_current", label: "Current role?", kind: "select", options: [["true", "Current"], ["false", "Previous"]], required: true },
@@ -233,6 +234,17 @@ export async function addLinked(db: Client, ws: string, userId: string, kind: st
     q = row.unit ? q.ilike("unit", String(row.unit)) : q.is("unit", null);
     const { data: dup } = await q.limit(1);
     if (dup?.length) throw new LinkedError(`Floor ${row.floor_text}${row.unit ? `, unit ${row.unit}` : ""} already exists in this building. Edit that space instead of adding it twice.`);
+  }
+  if (kind === "org_employment") {
+    const name = row.new_person_name as string | null; delete row.new_person_name;
+    if (!row.person_id && !name) throw new LinkedError("Type the new person's name, or pick someone already saved.");
+    if (row.person_id && name) throw new LinkedError("Either type a new name or pick an existing person — not both.");
+    if (name) {
+      const { data: p, error } = await db.from("person").insert({ workspace_id: ws, owner_user_id: userId, full_name: name }).select("id").single();
+      if (error) throw error;
+      row.person_id = p.id;
+      warnings.push(`New person "${name}" created.`);
+    }
   }
   if (spec.table === "organisation_relation" && row.to_org_id === hostId) throw new LinkedError("A company cannot be linked to itself.");
   if (spec.table === "relationship_edge" && row.to_person_id === hostId) throw new LinkedError("A person cannot be connected to themselves.");

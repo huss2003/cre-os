@@ -56,7 +56,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
   return (
     <div className="space-y-5">
       <PageHeader title={r.title} subtitle={<>{org?.display_name ?? "—"} · <RequirementStatusBadge status={r.status} /></>}
-        actions={FOCUS_MODE ? null : <><ButtonLink variant="secondary" href={`/documents?requirement=${id}`}>Documents</ButtonLink><ButtonLink variant="secondary" href={`/finance?requirement=${id}`}>Financials</ButtonLink></>} />
+        actions={FOCUS_MODE ? (canEdit ? <ButtonLink href={`/requirements/${id}/edit`}>Edit requirement</ButtonLink> : null) : <>{canEdit ? <ButtonLink href={`/requirements/${id}/edit`}>Edit requirement</ButtonLink> : null}<ButtonLink variant="secondary" href={`/documents?requirement=${id}`}>Documents</ButtonLink><ButtonLink variant="secondary" href={`/finance?requirement=${id}`}>Financials</ButtonLink></>} />
       <Flash sp={sp} />
       {d.pendingProposals.length > 0 && <StaleBanner>{d.pendingProposals.length} change proposal(s) to confirmed fields await approval — <Link className="underline" href="/approvals">open approvals</Link>.</StaleBanner>}
 
@@ -123,7 +123,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
         <LinkedRows table="requirement_location" hostColumn="requirement_id" hostId={id} backPath={`/requirements/${id}`} empty="No location preferences yet." cols={[{ key: "geography_id" }, { key: "preference" }]} joins={{ geography_id: { table: "geography", label: "name" } }} />
         <LinkedAdd kind="requirement_location" hostId={id} backPath={`/requirements/${id}`} />
         <div className="mt-3" />
-        <LinkedRows table="requirement_feature" hostColumn="requirement_id" hostId={id} backPath={`/requirements/${id}`} empty="No required features yet." cols={[{ key: "feature_key" }, { key: "operator" }, { key: "value_text" }, { key: "value_num", fmt: "num" }, { key: "unit" }, { key: "is_hard_constraint", label: "hard:", fmt: "bool" }]} />
+        <LinkedRows table="requirement_feature" hostColumn="requirement_id" hostId={id} backPath={`/requirements/${id}`} empty="No required features yet." cols={[{ key: "feature_key" }, { key: "operator" }, { key: "value_text" }, { key: "value_num", fmt: "num" }, { key: "unit" }, { key: "is_hard_constraint", label: "hard constraint:", fmt: "bool" }]} />
         <LinkedAdd kind="requirement_feature" hostId={id} backPath={`/requirements/${id}`} />
       </Card>
 

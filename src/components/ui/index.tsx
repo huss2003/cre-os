@@ -1,6 +1,7 @@
 import Link from "next/link";
 import clsx from "clsx";
 import type { ComponentProps, ReactNode } from "react";
+import { helpFor } from "./help-text";
 
 /* Shared, dependency-free UI primitives. Mobile-first: everything must work at 375px width. */
 
@@ -16,12 +17,24 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   );
 }
 
-export function Card({ title, actions, children, className }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string }) {
+/** "?" icon that explains a section on hover, keyboard focus or tap. */
+export function Help({ children }: { children: ReactNode }) {
+  return (
+    <span className="group relative inline-flex align-middle">
+      <button type="button" aria-label="What is this?" className="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-line bg-canvas text-[11px] font-bold text-ink-soft transition hover:border-brand hover:text-brand focus:border-brand focus:text-brand">?</button>
+      <span role="tooltip" className="pointer-events-none invisible absolute left-1/2 top-7 z-30 w-72 -translate-x-1/2 rounded-xl bg-ink px-3 py-2.5 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-white opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        {children}
+      </span>
+    </span>
+  );
+}
+
+export function Card({ title, actions, children, className, help }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; help?: ReactNode }) {
   return (
     <section className={clsx("rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]", className)}>
       {(title || actions) && (
         <div className="mb-3 flex items-center justify-between gap-2">
-          {title ? <h2 className="text-base font-semibold">{title}</h2> : <span />}
+          {title ? <h2 className="flex items-center text-base font-semibold">{title}{(help ?? helpFor(title)) ? <Help>{help ?? helpFor(title)}</Help> : null}</h2> : <span />}
           {actions}
         </div>
       )}
