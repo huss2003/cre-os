@@ -26,7 +26,7 @@ export function NavLinks({ sections }: { sections: NavSection[] }) {
   return (
     <nav className="mt-6 space-y-1">
       {sections.map((s) => (
-        <Link key={s.key} href={s.href} prefetch
+        <Link key={s.key} href={s.href}
           className={clsx("flex items-center gap-3 rounded-xl px-3 py-2.5 transition",
             active === s.key ? "bg-brand-soft text-brand" : "text-ink hover:bg-canvas")}>
           <SectionIcon k={s.key} />
@@ -50,7 +50,7 @@ export function SectionTabs({ sections }: { sections: NavSection[] }) {
     <div className="-mx-4 mb-6 overflow-x-auto px-4 sm:mx-0 sm:px-0">
       <div className="inline-flex min-w-max gap-1 rounded-xl border border-line bg-surface p-1 shadow-sm">
         {s.tabs.map((t) => (
-          <Link key={t.href} href={t.href} prefetch
+          <Link key={t.href} href={t.href}
             className={clsx("whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition", current === t.href ? "bg-brand text-white shadow-sm" : "text-ink-soft hover:bg-canvas hover:text-ink")}>
             {t.label}
           </Link>
@@ -67,7 +67,7 @@ export function MobileBar({ sections }: { sections: NavSection[] }) {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 grid border-t border-line bg-surface/95 text-center text-[11px] backdrop-blur lg:hidden" style={{ gridTemplateColumns: `repeat(${sections.length}, minmax(0, 1fr))` }}>
       {sections.map((s) => (
-        <Link key={s.key} href={s.href} prefetch className={clsx("flex flex-col items-center gap-0.5 py-2 font-medium", active === s.key ? "text-brand" : "text-ink-soft")}>
+        <Link key={s.key} href={s.href} className={clsx("flex flex-col items-center gap-0.5 py-2 font-medium", active === s.key ? "text-brand" : "text-ink-soft")}>
           <SectionIcon k={s.key} className="h-5 w-5" />{s.label}
         </Link>
       ))}

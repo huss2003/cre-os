@@ -22,6 +22,7 @@ interface SheetInfo {
   extra_columns: string[]; rows_considered: number; layout_rows: number;
 }
 
+const TYPE_PLAIN: Record<string, string> = { organisation: "Companies", person: "People", asset: "Buildings", geography: "Locations", lease: "Lease updates", employment: "Job links (person ↔ company)" };
 const ENTITY_LINK: Record<string, string> = { organisation: "/companies", asset: "/buildings", person: "/people" };
 
 async function Body({ params, searchParams }: { params: Params; searchParams: SP }) {
@@ -64,43 +65,70 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
       {batch.status === "awaiting_source" ? <StaleBanner>Quarantined: {batch.error ?? "the source of this file is not approved."} The original is stored read-only; nothing has been read into CRE OS. <Link className="underline" href="/imports/sources">Review import sources</Link>.</StaleBanner> : null}
       {batch.status === "registered" || batch.status === "processing" ? <StaleBanner>This batch is {batch.status === "processing" ? "being processed" : "queued"}; numbers below may be incomplete.{batch.error ? ` ${batch.error}` : ""}</StaleBanner> : null}
 
-      <section className="mb-6 rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-        <h2 className="text-lg font-bold">What this file contains</h2>
-        <p className="mt-1 text-sm text-ink-soft">{n(c.rows_considered)} rows read → {n(c.accepted)} accepted · {n(c.quarantined)} problem rows · {n(c.excluded)} skipped (blank or not data).</p>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          {sum.tiles.length === 0 ? <p className="text-sm text-ink-soft">No records found yet.</p> : sum.tiles.map((t) => (
-            <div key={t.type} className="rounded-2xl border border-line bg-canvas p-4">
-              <div className="text-xs font-medium text-ink-soft">{t.label}</div>
-              <div className="mt-1 text-3xl font-bold tabular-nums">{t.total.toLocaleString("en-IN")}</div>
-              <div className="mt-1 text-xs text-ink-soft">{[t.added ? `${t.added.toLocaleString("en-IN")} new` : null, t.linked ? `${t.linked.toLocaleString("en-IN")} matched existing` : null, t.pending ? `${t.pending.toLocaleString("en-IN")} waiting` : null].filter(Boolean).join(" · ") || "—"}</div>
+      {(() => {
+        const addedTiles = sum.tiles.filter((t) => t.added + t.linked > 0);
+        const checkItems = [
+          { n: sum.check.identity, href: "#identity", text: "possible duplicates — same company, person or building twice?" },
+          { n: sum.check.conflicts, href: "#conflicts", text: "values that differ from what you already have" },
+          { n: sum.check.duplicatePeople, href: "#people", text: "new people whose name already exists" },
+        ].filter((x) => x.n > 0);
+        const problemItems = [
+          { n: sum.problems.quarantined, href: "#quarantined", text: "rows could not be read" },
+          { n: sum.problems.issues, href: "#issues", text: "rows have a problem to fix" },
+        ].filter((x) => x.n > 0);
+        const step = (num: number, title: string, tone: string) => (
+          <div className="mb-3 flex items-center gap-3"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold text-white ${tone}`}>{num}</span><h3 className="text-base font-semibold">{title}</h3></div>
+        );
+        return (
+          <section className="mb-6 space-y-5 rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+            <p className="text-sm text-ink-soft">This file had <b className="text-ink">{n(c.rows_considered)} rows</b>. Here is what happened to them, in three steps.</p>
+
+            <div>
+              {step(1, "Already added to your records", "bg-ok")}
+              {addedTiles.length === 0 ? <p className="text-sm text-ink-soft">Nothing was added directly.</p> : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {addedTiles.map((t) => (
+                    <div key={t.type} className="rounded-2xl bg-canvas p-4">
+                      <div className="text-3xl font-bold tabular-nums">{(t.added + t.linked).toLocaleString("en-IN")}</div>
+                      <div className="text-sm font-medium">{t.label}</div>
+                      <div className="mt-1 text-xs text-ink-soft">{t.added.toLocaleString("en-IN")} new · {t.linked.toLocaleString("en-IN")} you already had</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
-        </div>
-        <div className="mt-5 grid gap-3 lg:grid-cols-3">
-          <div className="rounded-2xl border-2 border-ok/30 bg-ok/5 p-4">
-            <div className="text-sm font-semibold text-ok">Safe to add · {sum.safe.count.toLocaleString("en-IN")}</div>
-            <p className="mt-1 text-xs text-ink-soft">{Object.entries(sum.safe.byType).map(([k, v]) => `${v.toLocaleString("en-IN")} ${(k === "person" ? "people" : k).replace(/_/g, " ")}`).join(" · ") || "Nothing waiting — new companies, buildings, locations and leases were already added."}</p>
-            <div className="mt-3">{isAdmin ? <ApplySafeButton batchId={batch.id} total={sum.safe.count} /> : <p className="text-xs text-ink-soft">An owner or admin approves these in one click.</p>}</div>
-          </div>
-          <div className="rounded-2xl border-2 border-warn/30 bg-warn/5 p-4">
-            <div className="text-sm font-semibold text-warn">Check yourself · {(sum.check.conflicts + sum.check.duplicatePeople + sum.check.identity).toLocaleString("en-IN")}</div>
-            <ul className="mt-1 space-y-0.5 text-xs text-ink-soft">
-              <li><a className="underline" href="#identity">{sum.check.identity} possible duplicate record(s)</a></li>
-              <li><a className="underline" href="#people">{sum.check.duplicatePeople} new people whose name already exists</a></li>
-              <li><a className="underline" href="#conflicts">{sum.check.conflicts} value(s) that differ from your records</a></li>
-            </ul>
-            <p className="mt-2 text-xs text-ink-soft">Never added automatically. Decide each one below.</p>
-          </div>
-          <div className="rounded-2xl border-2 border-bad/20 bg-bad/5 p-4">
-            <div className="text-sm font-semibold text-bad">Problems · {(sum.problems.quarantined + sum.problems.issues).toLocaleString("en-IN")}</div>
-            <ul className="mt-1 space-y-0.5 text-xs text-ink-soft">
-              <li><a className="underline" href="#quarantined">{sum.problems.quarantined} row(s) could not be read</a></li>
-              <li><a className="underline" href="#issues">{sum.problems.issues} open issue(s)</a></li>
-            </ul>
-            <p className="mt-2 text-xs text-ink-soft">Kept with the reason — nothing is lost.</p>
-          </div>
-        </div>
-      </section>
+
+            <div>
+              {step(2, "Needs your OK", sum.safe.count + checkItems.length ? "bg-brand" : "bg-ok")}
+              {sum.safe.count === 0 && checkItems.length === 0 ? <p className="text-sm text-ok">✓ Nothing waiting — everything from this file is in your records.</p> : null}
+              {sum.safe.count > 0 ? (
+                <div className="rounded-2xl border border-ok/30 bg-ok/5 p-4">
+                  <p className="text-sm"><b>{sum.safe.count.toLocaleString("en-IN")} rows are safe to add</b> — {Object.entries(sum.safe.byType).map(([k, v]) => `${v.toLocaleString("en-IN")} ${(TYPE_PLAIN[k] ?? k).toLowerCase()}`).join(", ")}. No duplicates, no conflicts.</p>
+                  <div className="mt-3">{isAdmin ? <ApplySafeButton batchId={batch.id} total={sum.safe.count} /> : <p className="text-xs text-ink-soft">An owner or admin can add these in one click.</p>}</div>
+                </div>
+              ) : null}
+              {checkItems.length ? (
+                <div className="mt-3 rounded-2xl border border-warn/30 bg-warn/5 p-4">
+                  <p className="text-sm font-semibold">Decide these yourself (never added automatically):</p>
+                  <ul className="mt-2 space-y-1.5">{checkItems.map((x) => (
+                    <li key={x.href}><a href={x.href} className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-1.5 text-sm hover:border-brand"><b>{x.n}</b> {x.text} <span className="text-brand">Review →</span></a></li>
+                  ))}</ul>
+                </div>
+              ) : null}
+            </div>
+
+            {problemItems.length ? (
+              <div>
+                {step(3, "Could not be imported", "bg-bad")}
+                <ul className="space-y-1.5">{problemItems.map((x) => (
+                  <li key={x.href}><a href={x.href} className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-1.5 text-sm hover:border-brand"><b>{x.n}</b> {x.text} <span className="text-brand">See why →</span></a></li>
+                ))}</ul>
+                <p className="mt-2 text-xs text-ink-soft">These rows are kept with the reason, so nothing is lost. Fix the file and re-import, or ignore them.</p>
+              </div>
+            ) : null}
+          </section>
+        );
+      })()}
 
       <details className="mb-4"><summary className="cursor-pointer text-sm font-medium text-ink-soft">Technical details (reconciliation, sheets, mapping)</summary><div className="mt-3">
       <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -194,12 +222,16 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
       </div></details>
 
       <div id="issues" />
-      <Card title={`Review queue (${open.length} open${closed ? `, ${closed} closed` : ""})`} className="mt-4">
+      <Card title={`Rows with a problem (${open.length} open${closed ? `, ${closed} fixed` : ""})`} className="mt-4">
         {open.length === 0 ? <p className="text-sm text-ink-soft">Nothing waiting. Fractional tenures, stale formula caches, size boundaries, unknown layouts and failed controls appear here.</p> : (
+          <div className="space-y-2">
+          {Object.entries(Object.groupBy(open as { id: string; kind: string; severity: string; message: string; locator: string | null; sheet: string | null }[], (e) => e.kind)).map(([kind, rows]) => (
+          <details key={kind} className="rounded-xl border border-line px-4 py-2">
+            <summary className="cursor-pointer py-1 text-sm"><b>{kind.replace(/_/g, " ").replace(/^./, (x) => x.toUpperCase())}</b> · {rows!.length} row{rows!.length > 1 ? "s" : ""} <span className="text-ink-soft">— e.g. {rows![0].message.slice(0, 110)}</span></summary>
           <ul className="divide-y divide-line">
-            {open.map((e: { id: string; kind: string; severity: string; message: string; locator: string | null; sheet: string | null }) => (
+            {rows!.slice(0, 50).map((e) => (
               <li key={e.id} className="py-3">
-                <div className="flex flex-wrap items-center gap-2 text-sm"><SeverityBadge severity={e.severity} /><span className="font-medium">{e.kind}</span><span className="text-xs text-ink-soft">{e.locator ?? e.sheet}</span></div>
+                <div className="flex flex-wrap items-center gap-2 text-sm"><SeverityBadge severity={e.severity} /><span className="text-xs text-ink-soft">{e.locator ?? e.sheet}</span></div>
                 <p className="mt-1 text-sm">{e.message}</p>
                 <form action={resolveExceptionAction} className="mt-2 flex flex-wrap gap-2">
                   <input type="hidden" name="batch_id" value={batch.id} />
@@ -211,11 +243,15 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
               </li>
             ))}
           </ul>
+          {rows!.length > 50 ? <p className="py-2 text-xs text-ink-soft">Showing the first 50 of {rows!.length}.</p> : null}
+          </details>
+          ))}
+          </div>
         )}
       </Card>
 
       <div id="identity" />
-      <Card title={`Identity review (${pending.length} pending)`} className="mt-4">
+      <Card title={`Possible duplicates (${pending.length} to decide)`} className="mt-4">
         {candidates.length === 0 ? <p className="text-sm text-ink-soft">No similar-but-not-identical names were found. Exact building/locality and company-name matches link automatically; anything fuzzier waits here. People are never merged on name alone and towers are never collapsed.</p> : (
           <ul className="divide-y divide-line">
             {candidates.map((m: { id: string; entity_type: string; left_id: string; right_id: string; right_raw: Record<string, string>; score: number; suggested: string; decision: string; change_proposal_id: string | null; evidence: Record<string, unknown> }) => (
@@ -248,7 +284,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
       </Card>
 
       <div id="conflicts" />
-      <Card title={`Source vs record conflicts (${steward.conflicts.filter((x: { status: string }) => x.status === "open" || x.status === "proposed").length} open)`} className="mt-4">
+      <Card title={`Values that differ from your records (${steward.conflicts.filter((x: { status: string }) => x.status === "open" || x.status === "proposed").length} open)`} className="mt-4">
         {steward.conflicts.length === 0 ? <p className="text-sm text-ink-soft">No value in this file disagrees with an existing record. Existing records are never overwritten by an import; disagreements are listed here and in <Link className="underline" href="/approvals/conflicts">Approvals → Conflicts</Link>.</p> : (
           <Table head={["Record", "Field", "Record says", "File says", "Row", "Status"]}>
             {steward.conflicts.map((x: { id: string; entity_type: string; entity_id: string; field: string; master_value: unknown; source_value: unknown; material: boolean; source_locator: string; status: string; change_proposal_id: string | null }) => (
@@ -266,7 +302,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
       </Card>
 
       <div id="people" />
-      <Card title={`People named in this file (${steward.personProposals.length} proposed)`} className="mt-4">
+      <Card title={`New people from this file (${steward.personProposals.length})`} className="mt-4">
         {steward.personProposals.length === 0 ? <p className="text-sm text-ink-soft">No representative/contact names were found, or they were already proposed by an earlier import.</p> : (
           <ul className="divide-y divide-line text-sm">
             {steward.personProposals.map((p: { id: string; patch: { path: string; value: unknown }[]; state: string; reason: string | null }) => (
@@ -281,7 +317,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
       </Card>
 
       <div id="quarantined" />
-      <Card title={`Quarantined rows${quarantined.length >= 100 ? " (first 100)" : ""}`} className="mt-4">
+      <Card title={`Rows that could not be read${quarantined.length >= 100 ? " (first 100)" : ""}`} className="mt-4">
         {quarantined.length === 0 ? <p className="text-sm text-ink-soft">No rows are quarantined.</p> : (
           <Table head={["Row", "Reason", "Source cells (value / formula)"]}>
             {quarantined.map((q: { id: string; locator: string; reason: string | null; raw_json: Record<string, { v: unknown; f?: string }> }) => (

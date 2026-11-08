@@ -43,11 +43,13 @@ async function Body({ searchParams }: Props) {
   // Imports with rows still waiting (counted per source file); reviewed in bulk on the import summary page.
   const { data: batches } = await ctx.db.from("import_batch").select("id, file_name, created_at, source_object_id, counts").eq("workspace_id", ctx.workspaceId)
     .is("archived_at", null).order("created_at", { ascending: false }).limit(20);
-  const importsWaiting = (await Promise.all(((batches ?? []) as AnyRow[]).filter((b) => b.source_object_id).map(async (b) => {
-    const { count } = await ctx.db.from("change_proposal").select("id", { count: "exact", head: true }).eq("workspace_id", ctx.workspaceId)
-      .contains("evidence_ids", [b.source_object_id]).in("state", ["proposed", "approved", "clarify"]).is("reversal_of", null);
-    return { ...b, waiting: count ?? 0 } as AnyRow;
-  }))).filter((b) => b.waiting > 0);
+  // One query for all files' waiting rows (was one count query per import).
+  const srcIds = ((batches ?? []) as AnyRow[]).map((b) => b.source_object_id).filter(Boolean) as string[];
+  const { data: waitRows } = srcIds.length ? await ctx.db.from("change_proposal").select("evidence_ids").eq("workspace_id", ctx.workspaceId)
+    .overlaps("evidence_ids", srcIds).in("state", ["proposed", "approved", "clarify"]).is("reversal_of", null).limit(10000) : { data: [] };
+  const waitBy = new Map<string, number>();
+  for (const r of (waitRows ?? []) as { evidence_ids: string[] }[]) for (const id of r.evidence_ids) if (srcIds.includes(id)) waitBy.set(id, (waitBy.get(id) ?? 0) + 1);
+  const importsWaiting = ((batches ?? []) as AnyRow[]).map((b) => ({ ...b, waiting: waitBy.get(b.source_object_id) ?? 0 }) as AnyRow).filter((b) => b.waiting > 0);
   const editor = hasRole(ctx, "editor");
   return (
     <div className="space-y-4">

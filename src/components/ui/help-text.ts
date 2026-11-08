@@ -12,6 +12,11 @@ export const HELP_TEXT: Record<string, string> = {
   "Identity review": "Rows that might be an existing company, person or building. Confirm the match or keep them separate — nothing is merged automatically.",
   "Mapping review": "How each column in the file maps to a field in CRE OS. Check this when a file has new or renamed columns.",
   "Quarantined rows": "Rows that could not be imported safely (missing or invalid values). They are kept with the reason so nothing is silently lost.",
+  "Rows with a problem": "Rows that were read but have something to fix, like a missing value or an odd date. Mark each as fixed or ignored.",
+  "Possible duplicates": "Rows that look like a record you already have. Say 'same' to link them or 'different' to keep them separate. Nothing is merged automatically.",
+  "Values that differ from your records": "The file says something different from what is saved (for example a new area). Approve to update the record, or keep yours.",
+  "New people from this file": "People named in the file. They are added when you approve, and linked to their company.",
+  "Rows that could not be read": "Rows skipped because they could not be understood. They are kept with the reason so you can fix the file.",
   // Company
   "Identity": "The company's official details: legal name, website, CIN and GSTIN. CIN and GSTIN must be unique, which prevents duplicate companies.",
   "Next action": "The next step agreed on this company's open deal. Set it on the deal page.",
