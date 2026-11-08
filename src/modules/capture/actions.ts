@@ -48,10 +48,14 @@ export async function reviewAction(_prev: ActionState, form: FormData): Promise<
       if (k.startsWith("answer:")) answers[k.slice(7)] = /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
     }
     const text = String(form.get("text") ?? "");
-    await submitReview(ctx.db, createAdminClient(), ctx.workspaceId, ctx.userId, id, {
+    const r = (await submitReview(ctx.db, createAdminClient(), ctx.workspaceId, ctx.userId, id, {
       resolutions, answers, text: text || null, done: form.get("done") === "1",
-    });
+    })) as { applied?: number; failed?: string[] };
     refresh();
-    return { ok: true, message: form.get("done") === "1" ? "Marked as reviewed." : "Saved. Proposals and tasks were updated." };
+    if (form.get("done") === "1") {
+      const extra = r.failed?.length ? ` ${r.failed.length} change(s) could not be applied and are waiting in Approvals.` : "";
+      return { ok: true, message: `Reviewed. The meeting, tasks and ${r.applied ?? 0} record change(s) are now in their sections.${extra}` };
+    }
+    return { ok: true, message: "Answers saved. Press Reviewed when everything looks right." };
   } catch (e) { return { error: actionError(e) }; }
 }

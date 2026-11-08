@@ -16,7 +16,7 @@ export const NAV: NavSection[] = [
     { href: "/capture", label: "Capture" },
   ]},
   { key: "review", label: "Review", hint: "Check changes before they apply", href: "/approvals", tabs: [
-    { href: "/approvals", label: "Approvals" },
+    { href: "/approvals", label: "Review" },
     { href: "/drafts", label: "Drafts & messages" },
   ]},
   { key: "records", label: "Records", hint: "Companies, people, buildings", href: "/search", tabs: [

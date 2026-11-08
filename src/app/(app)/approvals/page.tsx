@@ -34,11 +34,35 @@ async function Body({ searchParams }: Props) {
   const sp = await searchParams;
   const tab = (TABS.find((t) => t.key === sp.tab)?.key ?? "records") as QueueTab;
   const ctx = await requirePageContext();
-  const q = await listQueue(ctx.db, ctx.workspaceId, tab);
+  const [q, { data: caps }] = await Promise.all([
+    listQueue(ctx.db, ctx.workspaceId, tab),
+    ctx.db.from("capture").select("id, kind, raw_text, transcript, source_at, extraction").eq("workspace_id", ctx.workspaceId)
+      .eq("status", "needs_review").is("archived_at", null).order("created_at", { ascending: false }).limit(50),
+  ]);
+  const pendingCaptures = (caps ?? []) as AnyRow[];
   const editor = hasRole(ctx, "editor");
   return (
     <div className="space-y-4">
-      <PageHeader title="Approvals" subtitle="Review before/after, approve, reject, ask to clarify, edit or undo. Approvals bind to the exact content and record version." />
+      <PageHeader title="Review" subtitle="Everything waiting for your OK. Captures appear first — open one, check it, press Reviewed and it is added to the right sections." />
+      <Card title={`Captures to review (${pendingCaptures.length})`} help="Every call, meeting or visit you capture lands here first. Nothing is added to companies, people, requirements or tasks until you open it and press Reviewed.">
+        {pendingCaptures.length === 0 ? <p className="text-sm text-ink-soft">No captures waiting. New captures from the Capture screen show up here.</p> : (
+          <ul className="divide-y divide-line">
+            {pendingCaptures.map((c) => {
+              const ex = c.extraction as AnyRow | null;
+              const counts = ex ? [ex.tasks?.length ? `${ex.tasks.length} task(s)` : null, (ex.facts?.length ?? 0) + (ex.details?.length ?? 0) ? `${(ex.facts?.length ?? 0) + (ex.details?.length ?? 0)} requirement detail(s)` : null].filter(Boolean).join(" · ") : "still reading…";
+              return (
+                <li key={c.id} className="flex items-center justify-between gap-3 py-3">
+                  <Link href={`/capture/${c.id}`} className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft"><Badge tone="brand">{c.kind === "image" ? "photo" : "note"}</Badge>{fmt(c.source_at)}{counts ? <span>· {counts}</span> : null}</div>
+                    <p className="mt-1 line-clamp-2 text-sm">{(c.transcript ?? c.raw_text ?? "").slice(0, 220)}</p>
+                  </Link>
+                  <Link href={`/capture/${c.id}`} className="shrink-0 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-strong">Review</Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
       <nav className="-mx-1 flex gap-1 overflow-x-auto pb-1" aria-label="Approval queues">
         {TABS.map((t) => (
           <Link key={t.key} href={`/approvals?tab=${t.key}`} aria-current={t.key === tab ? "page" : undefined}

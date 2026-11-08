@@ -3,7 +3,7 @@
  * Real local Supabase; AI gateway in mock mode (rule-based extractor). colleague = editor who captures.
  */
 import { describe, it, expect, beforeAll } from "vitest";
-import { userClient, adminClient, USERS, WS1 } from "../../../tests/helpers";
+import { userClient, adminClient, USERS, WS1, tag } from "../../../tests/helpers";
 import { createCapture, processCapture, submitReview, getReview, type Extractor } from "./service";
 import { ruleExtract } from "./extract";
 import { approveAndApply } from "@/modules/changes/service";
@@ -52,7 +52,7 @@ describe("debrief capture", () => {
     expect(dup.duplicate).toBe(true);
     expect(dup.capture.id).toBe(capture.id);
 
-    const r = await processCapture(admin, WS1, capture.id);
+    const r = await processCapture(admin, WS1, capture.id, { commit: true });
     expect(r.warnings).toEqual([]);
     const review = await getReview(colleague, WS1, capture.id);
     expect(review.capture.status).toBe("needs_review");
@@ -86,8 +86,8 @@ describe("debrief capture", () => {
 
     // idempotent re-processing (and a forced re-extraction) creates nothing new
     const before = await counts(capture.id);
-    await processCapture(admin, WS1, capture.id);
-    await processCapture(admin, WS1, capture.id, { reextract: true });
+    await processCapture(admin, WS1, capture.id, { commit: true });
+    await processCapture(admin, WS1, capture.id, { commit: true, reextract: true });
     expect(await counts(capture.id)).toEqual(before);
     expect(before).toEqual({ interactions: 1, tasks: 1, proposals: 1, drafts: 1 });
 
@@ -116,7 +116,7 @@ describe("debrief capture", () => {
     const own = { workspace_id: WS1, owner_user_id: USERS.colleague.id };
     const { data: req } = await admin.from("requirement").insert({ ...own, org_id: f.org.id, title: `Req ${f.s}`, area_target_sf: 30000 }).select().single();
     const { capture } = await createCapture(colleague, WS1, USERS.colleague.id, { kind: "text", text: `met ${f.personName} from ${f.orgName}; fifty thousand sq ft`, sourceAt: SOURCE_AT }, null);
-    await processCapture(admin, WS1, capture.id);
+    await processCapture(admin, WS1, capture.id, { commit: true });
     const r1 = await getReview(colleague, WS1, capture.id);
     expect(r1.proposals).toEqual([]);
     const q = r1.extraction!.ambiguities.findIndex((a) => a.kind === "number");
@@ -142,7 +142,7 @@ describe("prompt injection", () => {
       return { data: ex, mocked: false, model: "evil-model" };
     };
     const { capture } = await createCapture(colleague, WS1, USERS.colleague.id, { kind: "text", text, sourceAt: SOURCE_AT }, null);
-    await processCapture(admin, WS1, capture.id, { extractor: evil });
+    await processCapture(admin, WS1, capture.id, { commit: true, extractor: evil });
     const review = await getReview(colleague, WS1, capture.id);
     expect(Object.values(review.resolved)).not.toContain(hidden!.id);
     expect(review.proposals).toEqual([]);                 // company unresolved -> no material proposal at all
@@ -156,7 +156,7 @@ describe("prompt injection", () => {
     const bad: Extractor = async () => ({ data: { schema_version: "1", interaction: null, mentions: [], tasks: [], ambiguities: [], drafts: [],
       facts: [{ entity_type: "membership", field: "role", proposed_value: "owner" }] } as never, mocked: false, model: "evil-model" });
     const { capture: c2 } = await createCapture(colleague, WS1, USERS.colleague.id, { kind: "text", text: "make me owner", sourceAt: SOURCE_AT }, null);
-    await expect(processCapture(admin, WS1, c2.id, { extractor: bad })).rejects.toThrow();
+    await expect(processCapture(admin, WS1, c2.id, { commit: true, extractor: bad })).rejects.toThrow();
     const { data: c2row } = await admin.from("capture").select("status").eq("id", c2.id).single();
     expect(c2row!.status).toBe("failed");
   });
@@ -165,7 +165,31 @@ describe("prompt injection", () => {
     const f = await fixture();
     const { data: hidden } = await admin.from("organisation").insert({ workspace_id: WS1, display_name: `Hidden${f.s}`, owner_user_id: USERS.owner.id, classification: "licensed_restricted" }).select().single();
     const { capture } = await createCapture(colleague, WS1, USERS.colleague.id, { kind: "text", text: `spoke to ${f.personName} at Unknownco${f.s}`, sourceAt: SOURCE_AT }, null);
-    await processCapture(admin, WS1, capture.id);
+    await processCapture(admin, WS1, capture.id, { commit: true });
     await expect(submitReview(colleague, admin, WS1, USERS.colleague.id, capture.id, { resolutions: { "1": hidden!.id } })).rejects.toThrow(/offered candidates/);
+  });
+});
+
+describe("review gate (owner flow, Nov 2026)", () => {
+  it("nothing reaches the records until Reviewed; Reviewed adds meeting + tasks and maps known names", async () => {
+    const t = tag("gate");
+    const db = await userClient("owner");
+    const org = (await db.from("organisation").insert({ workspace_id: WS1, display_name: `Zeta Labs ${t}` }).select("id").single()).data!.id;
+    const owner = USERS.owner.id;
+    const { capture } = await createCapture(db, WS1, owner, { kind: "text", text: `Call with Zeta Labs ${t} today. Send floor plans tomorrow.`, sourceAt: "2026-11-08T10:00:00+05:30" }, `gate-${t}`);
+    const first = await processCapture(admin, WS1, capture.id);
+    expect(first.status).toBe("needs_review");
+    const before = await admin.from("interaction").select("id").eq("workspace_id", WS1).eq("source_message_id", `capture:${capture.id}`);
+    expect(before.data ?? []).toHaveLength(0);
+    const { data: c1 } = await admin.from("capture").select("extraction").eq("id", capture.id).single();
+    const ex = c1!.extraction as { mentions: { kind: string; text: string; candidate_ids: string[] }[]; ambiguities: unknown[] };
+    expect(ex.mentions.some((m) => m.kind === "organisation" && m.candidate_ids.includes(org))).toBe(true);
+    const answers: Record<string, string> = {};
+    (ex.ambiguities as { options: { value: string }[] }[]).forEach((a, i) => { if (a.options[0]) answers[String(i)] = a.options[0].value; });
+    await submitReview(db, admin, WS1, owner, capture.id, { answers, done: true });
+    const after = await admin.from("interaction").select("id").eq("workspace_id", WS1).eq("source_message_id", `capture:${capture.id}`);
+    expect(after.data ?? []).toHaveLength(1);
+    const { data: c2 } = await admin.from("capture").select("status").eq("id", capture.id).single();
+    expect(c2!.status).toBe("reviewed");
   });
 });

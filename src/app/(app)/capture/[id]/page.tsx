@@ -95,11 +95,32 @@ async function Body({ params }: Props) {
                   {rid ? (href ? <Link className="text-brand" href={href}>{label}</Link> : <span>{label}</span>) : <Badge tone="warn">unresolved</Badge>}</li>;
               })}</ul>
             )}
-            <p className="mt-2 text-xs text-ink-soft">Logged as a {ex.interaction?.channel ?? "note"} interaction.</p>
+            <p className="mt-2 text-xs text-ink-soft">{c.status === "reviewed" ? "Logged" : "Will be logged"} as a {ex.interaction?.channel ?? "note"}.</p>
             {r.inferredOrg ? <p className="mt-1 text-xs text-ink-soft">No company was named: using <Link className="underline" href={`/companies/${r.inferredOrg.org_id}`}>{r.inferredOrg.label}</Link>, the confirmed person&apos;s only current employer. Proposals still need approval.</p> : null}
             {r.ocr ? <p className="mt-1 text-xs text-ink-soft">{r.ocr.length ? `Photo text read (${r.ocr.mocked ? "mock — no OCR configured" : r.ocr.model}). It is evidence for context only, never proof of legal or commercial terms; facts from it are tentative.` : "No legible text was read from the photo (or OCR is not configured); the caption is the content."}</p> : null}
           </Card>
 
+          {c.status !== "reviewed" ? (
+            <Card title="What will be added when you press Reviewed" help="Nothing has been saved to your records yet. Check this list, answer any questions above, then press Reviewed — the meeting, tasks and record changes are added to their sections in one go.">
+              <ul className="space-y-2 text-sm">
+                <li className="flex gap-2"><Badge tone="brand">Meeting log</Badge><span>{ex.interaction?.channel ?? "note"} — {(ex.interaction?.summary ?? "").slice(0, 160) || "summary of your note"}</span></li>
+                {ex.facts.map((f, i) => <li key={`f${i}`} className="flex gap-2"><Badge tone="accent">Requirement</Badge><span>{FIELD_LABEL[f.field] ?? f.field}: <b>{f.proposed_value ?? "?"}</b>{f.unit ? ` ${f.unit}` : ""} <span className="text-ink-soft">(from “{f.raw_text}”)</span></span></li>)}
+                {ex.details.map((d, i) => <li key={`d${i}`} className="flex gap-2"><Badge tone="accent">Requirement</Badge><span>{d.key.replace(/_/g, " ")}: <b>{String(d.value ?? "—")}</b></span></li>)}
+                {ex.stakeholders.map((st, i) => <li key={`s${i}`} className="flex gap-2"><Badge>Stakeholder</Badge><span>{ex.mentions[st.mention_index]?.text} as {st.role}</span></li>)}
+                {ex.tasks.map((t, i) => <li key={`t${i}`} className="flex gap-2"><Badge tone="ok">Task</Badge><span>{t.description}{t.due_date ? <span className="text-ink-soft"> · due {t.due_date}</span> : null}</span></li>)}
+                {ex.promises.map((pr, i) => <li key={`p${i}`} className="flex gap-2"><Badge tone="ok">Promise</Badge><span>{pr.who === "me" ? "You" : pr.who}: {pr.what}</span></li>)}
+                {ex.objections.map((o, i) => <li key={`o${i}`} className="flex gap-2"><Badge tone="warn">Objection</Badge><span>“{o.text}”</span></li>)}
+              </ul>
+              {r.open.length ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Answer the {r.open.length} question(s) above first.</p> : null}
+              {editor ? (
+                <ActionForm action={reviewAction} className="mt-4">
+                  <input type="hidden" name="capture_id" value={c.id} />
+                  <input type="hidden" name="done" value="1" />
+                  <Submit>Reviewed — add to records</Submit>
+                </ActionForm>
+              ) : null}
+            </Card>
+          ) : (<>
           {ex.promises.length || ex.objections.length ? (
             <Card title="Promises and objections">
               {ex.promises.length ? (
@@ -151,18 +172,14 @@ async function Body({ params }: Props) {
             )}
           </Card>
 
-          {editor && c.status !== "reviewed" ? (
-            <ActionForm action={reviewAction}>
-              <input type="hidden" name="capture_id" value={c.id} />
-              <input type="hidden" name="done" value="1" />
-              <Submit variant="secondary">Mark capture reviewed</Submit>
-            </ActionForm>
-          ) : null}
+          </>)}
         </>
       )}
     </div>
   );
 }
+
+const FIELD_LABEL: Record<string, string> = { area_target_sf: "Area needed (sq ft)", seats_target: "Seats", budget_max: "Budget (max)", occupation_date: "Move-in date", decision_date: "Decision date", preferred_geography: "Preferred location" };
 
 export default function Page(props: Props) {
   return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body {...props} /></Suspense>;
