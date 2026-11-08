@@ -15,18 +15,18 @@ export const NAV: NavSection[] = [
   { key: "capture", label: "Capture", hint: "Log a call, meeting or visit", href: "/capture", tabs: [
     { href: "/capture", label: "Capture" },
   ]},
-  { key: "review", label: "Review", hint: "Approve changes and messages", href: "/approvals", tabs: [
+  { key: "review", label: "Review", hint: "Check changes before they apply", href: "/approvals", tabs: [
     { href: "/approvals", label: "Approvals" },
     { href: "/drafts", label: "Drafts & messages" },
   ]},
-  { key: "records", label: "Records", hint: "Companies, people, buildings, leases", href: "/search", tabs: [
+  { key: "records", label: "Records", hint: "Companies, people, buildings", href: "/search", tabs: [
     { href: "/search", label: "Search" },
     { href: "/companies", label: "Companies" },
     { href: "/people", label: "People" },
     { href: "/buildings", label: "Buildings" },
     { href: "/leases", label: "Lease radar" },
   ]},
-  { key: "deals", label: "Deals", hint: "Requirement to closing", href: "/deals", tabs: [
+  { key: "deals", label: "Deals", hint: "Requirements and opportunities", href: "/deals", tabs: [
     { href: "/deals", label: "Pipeline" },
     { href: "/requirements", label: "Requirements" },
     { href: "/finance", label: "Financials" },
@@ -41,7 +41,7 @@ export const NAV: NavSection[] = [
     { href: "/content", label: "Content" },
     { href: "/insights", label: "Reports" },
   ]},
-  { key: "setup", label: "Setup", hint: "Database, imports, settings", href: "/database", minRole: "editor", tabs: [
+  { key: "setup", label: "Setup", hint: "Database, places, imports", href: "/database", minRole: "editor", tabs: [
     { href: "/database", label: "Database", minRole: "editor" },
     { href: "/geography", label: "Geography", minRole: "editor" },
     { href: "/imports", label: "Imports", minRole: "editor" },

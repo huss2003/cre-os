@@ -14,9 +14,9 @@ async function Body() {
   const recent = await listCaptures(ctx.db, ctx.workspaceId);
   return (
     <div className="space-y-4">
-      <PageHeader title="Capture" subtitle="Debrief in under five minutes. Material facts go to Approvals; tasks are created for you; messages become drafts you send yourself." />
+      <PageHeader title="Capture" subtitle="Tell CRE OS what happened after a call, meeting or site visit. It files the meeting, creates follow-up tasks and asks before changing any record." />
       {hasRole(ctx, "editor") ? (
-        <Card title="Quick capture"><QuickCapture workspaceId={ctx.workspaceId} /></Card>
+        <Card title="New capture"><QuickCapture workspaceId={ctx.workspaceId} /></Card>
       ) : (
         <Card><p className="text-sm text-ink-soft">Viewers can read captures but not create them. Ask an admin for editor access.</p></Card>
       )}

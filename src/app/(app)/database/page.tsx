@@ -10,7 +10,14 @@ export const metadata = { title: "Database" };
 
 const TONE: Record<ReviewItem["kind"], "warn" | "bad" | "brand" | "accent"> = { identity: "accent", exception: "warn", conflict: "bad", change: "brand" };
 const KIND: Record<ReviewItem["kind"], string> = { identity: "Duplicate?", exception: "Import issue", conflict: "Contradiction", change: "Change" };
-const show = (v: unknown) => { if (v === null || v === undefined || v === "") return "—"; const t = typeof v === "object" ? JSON.stringify(v) : String(v); return t.length > 80 ? t.slice(0, 77) + "…" : t; };
+const show = (v: unknown) => {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "object") return "(details)";
+  const t = String(v);
+  if (/^\d{4}-\d{2}-\d{2}T/.test(t)) return new Date(t).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
+  return t.length > 60 ? t.slice(0, 57) + "…" : t;
+};
+const TECH = new Set(["finished_at", "processing_started_at", "attempt", "counts", "extraction", "lease_until", "transcript_confidence", "related_entities", "depends_on", "meta"]);
 /** Same issue many times (e.g. 400 person proposals from one file) → one row with a count. */
 function group(items: ReviewItem[]) {
   const m = new Map<string, { it: ReviewItem; n: number }>();
@@ -100,8 +107,8 @@ async function Body() {
                 </div>
                 {r.changes.length ? (
                   <table className="mt-1 w-full text-xs"><tbody>
-                    {r.changes.slice(0, 6).map((c) => (
-                      <tr key={c.field} className="align-top"><td className="w-1/4 pr-2 text-ink-soft">{c.field}</td>
+                    {r.changes.filter((c) => !TECH.has(c.field)).slice(0, 4).map((c) => (
+                      <tr key={c.field} className="align-top"><td className="w-1/4 pr-2 text-ink-soft">{c.field.replace(/_/g, " ")}</td>
                         <td className="w-3/8 pr-2 break-all line-through decoration-bad/60">{show(c.before)}</td><td className="break-all">{show(c.after)}</td></tr>
                     ))}
                   </tbody></table>

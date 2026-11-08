@@ -5,7 +5,7 @@ export const metadata = { title: "Sign in" };
 export default async function Login({ searchParams }: { searchParams: Promise<{ next?: string; error?: string }> }) {
   const sp = await searchParams;
   return (
-    <div className="flex min-h-screen items-center justify-center bg-ink p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-soft via-canvas to-white p-4">
       <form action={signIn} className="w-full max-w-sm rounded-2xl bg-surface p-6 shadow-xl">
         <h1 className="text-xl font-semibold">CRE OS</h1>
         <p className="mb-5 text-sm text-ink-soft">Sign in to your workspace</p>

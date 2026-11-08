@@ -14,31 +14,33 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const mobile = sections.filter((s) => (MOBILE_BAR as readonly string[]).includes(s.key));
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
-      <aside className="hidden border-r border-line bg-ink text-white lg:block">
+      <aside className="hidden border-r border-line bg-surface lg:block">
         <div className="sticky top-0 flex h-screen flex-col overflow-y-auto p-4">
-          <Link href={HOME} className="mb-4 text-lg font-semibold tracking-tight">CRE OS</Link>
+          <Link href={HOME} className="mb-5 flex items-center gap-2 px-1 text-lg font-bold tracking-tight">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sm text-white">C</span>CRE OS
+          </Link>
           <WorkspaceSwitcher current={ctx.workspaceId} workspaces={ctx.workspaces} />
           <NavLinks sections={sections} />
-          <div className="mt-auto border-t border-white/10 pt-3 text-xs text-white/60">
-            <div className="truncate">{ctx.email}</div>
+          <div className="mt-auto rounded-xl bg-canvas p-3 text-xs text-ink-soft">
+            <div className="truncate font-medium text-ink">{ctx.email}</div>
             <div className="capitalize">{ctx.role}{ctx.isPlatformAdmin ? " · platform admin" : ""}</div>
-            <form action="/auth/signout" method="post"><button className="mt-2 text-white/80 hover:text-white">Sign out</button></form>
+            <form action="/auth/signout" method="post"><button className="mt-2 font-semibold text-brand hover:underline">Sign out</button></form>
           </div>
         </div>
       </aside>
       <div className="min-w-0">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-ink px-4 py-3 text-white lg:hidden">
-          <Link href={HOME} className="font-semibold">CRE OS</Link>
+        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-3 backdrop-blur lg:hidden">
+          <Link href={HOME} className="flex items-center gap-2 font-bold"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-xs text-white">C</span>CRE OS</Link>
           <details className="relative">
-            <summary className="cursor-pointer list-none rounded-lg border border-white/20 px-3 py-1.5 text-sm">Menu</summary>
-            <div className="absolute right-0 mt-2 w-64 rounded-xl bg-ink p-3 shadow-xl">
+            <summary className="cursor-pointer list-none rounded-xl border border-line px-3 py-1.5 text-sm font-medium">Menu</summary>
+            <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-line bg-surface p-3 shadow-xl">
               <WorkspaceSwitcher current={ctx.workspaceId} workspaces={ctx.workspaces} />
               <NavLinks sections={sections} />
-              <form action="/auth/signout" method="post"><button className="mt-2 text-sm text-white/80">Sign out</button></form>
+              <form action="/auth/signout" method="post"><button className="mt-2 px-3 text-sm font-semibold text-brand">Sign out</button></form>
             </div>
           </details>
         </header>
-        <main className="mx-auto w-full max-w-6xl p-4 pb-24 sm:p-6"><SectionTabs sections={sections} />{children}</main>
+        <main className="mx-auto w-full max-w-6xl p-4 pb-24 sm:p-8"><SectionTabs sections={sections} />{children}</main>
         <MobileBar sections={mobile} />
       </div>
     </div>
