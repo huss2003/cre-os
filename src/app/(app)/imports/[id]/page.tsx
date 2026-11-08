@@ -8,6 +8,8 @@ import { adapterLabel, batchDetail, batchSteward, mappableRoles } from "@/module
 import { type Counts, Loading, ReconcileLine, SeverityBadge, StatusBadge, n } from "@/modules/imports/ui";
 import { approveMappingAction, decideMatchAction, reprocessAction, resolveExceptionAction } from "../actions";
 import { MappingForm } from "./mapping-form";
+import { importSummary } from "@/modules/imports/summary";
+import { ApplySafeButton } from "@/modules/imports/apply-safe-button";
 
 export const metadata = { title: "Import batch" };
 
@@ -30,7 +32,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
   const d = await batchDetail(ctx, id);
   if (!d) notFound();
   const { batch, source, exceptions, quarantined, candidates } = d;
-  const steward = await batchSteward(ctx, batch.id, batch.source_object_id ?? null);
+  const [steward, sum] = await Promise.all([batchSteward(ctx, batch.id, batch.source_object_id ?? null), importSummary(ctx.db, ctx.workspaceId, batch)]);
   const c = (batch.counts ?? {}) as Counts;
   const sheets = (batch.sheets ?? []) as SheetInfo[];
   const unknown = sheets.filter((s) => s.status === "unknown");
@@ -62,6 +64,45 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
       {batch.status === "awaiting_source" ? <StaleBanner>Quarantined: {batch.error ?? "the source of this file is not approved."} The original is stored read-only; nothing has been read into CRE OS. <Link className="underline" href="/imports/sources">Review import sources</Link>.</StaleBanner> : null}
       {batch.status === "registered" || batch.status === "processing" ? <StaleBanner>This batch is {batch.status === "processing" ? "being processed" : "queued"}; numbers below may be incomplete.{batch.error ? ` ${batch.error}` : ""}</StaleBanner> : null}
 
+      <section className="mb-6 rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <h2 className="text-lg font-bold">What this file contains</h2>
+        <p className="mt-1 text-sm text-ink-soft">{n(c.rows_considered)} rows read → {n(c.accepted)} accepted · {n(c.quarantined)} problem rows · {n(c.excluded)} skipped (blank or not data).</p>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {sum.tiles.length === 0 ? <p className="text-sm text-ink-soft">No records found yet.</p> : sum.tiles.map((t) => (
+            <div key={t.type} className="rounded-2xl border border-line bg-canvas p-4">
+              <div className="text-xs font-medium text-ink-soft">{t.label}</div>
+              <div className="mt-1 text-3xl font-bold tabular-nums">{t.total.toLocaleString("en-IN")}</div>
+              <div className="mt-1 text-xs text-ink-soft">{[t.added ? `${t.added.toLocaleString("en-IN")} new` : null, t.linked ? `${t.linked.toLocaleString("en-IN")} matched existing` : null, t.pending ? `${t.pending.toLocaleString("en-IN")} waiting` : null].filter(Boolean).join(" · ") || "—"}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+          <div className="rounded-2xl border-2 border-ok/30 bg-ok/5 p-4">
+            <div className="text-sm font-semibold text-ok">Safe to add · {sum.safe.count.toLocaleString("en-IN")}</div>
+            <p className="mt-1 text-xs text-ink-soft">{Object.entries(sum.safe.byType).map(([k, v]) => `${v.toLocaleString("en-IN")} ${(k === "person" ? "people" : k).replace(/_/g, " ")}`).join(" · ") || "Nothing waiting — new companies, buildings, locations and leases were already added."}</p>
+            <div className="mt-3">{isAdmin ? <ApplySafeButton batchId={batch.id} total={sum.safe.count} /> : <p className="text-xs text-ink-soft">An owner or admin approves these in one click.</p>}</div>
+          </div>
+          <div className="rounded-2xl border-2 border-warn/30 bg-warn/5 p-4">
+            <div className="text-sm font-semibold text-warn">Check yourself · {(sum.check.conflicts + sum.check.duplicatePeople + sum.check.identity).toLocaleString("en-IN")}</div>
+            <ul className="mt-1 space-y-0.5 text-xs text-ink-soft">
+              <li><a className="underline" href="#identity">{sum.check.identity} possible duplicate record(s)</a></li>
+              <li><a className="underline" href="#people">{sum.check.duplicatePeople} new people whose name already exists</a></li>
+              <li><a className="underline" href="#conflicts">{sum.check.conflicts} value(s) that differ from your records</a></li>
+            </ul>
+            <p className="mt-2 text-xs text-ink-soft">Never added automatically. Decide each one below.</p>
+          </div>
+          <div className="rounded-2xl border-2 border-bad/20 bg-bad/5 p-4">
+            <div className="text-sm font-semibold text-bad">Problems · {(sum.problems.quarantined + sum.problems.issues).toLocaleString("en-IN")}</div>
+            <ul className="mt-1 space-y-0.5 text-xs text-ink-soft">
+              <li><a className="underline" href="#quarantined">{sum.problems.quarantined} row(s) could not be read</a></li>
+              <li><a className="underline" href="#issues">{sum.problems.issues} open issue(s)</a></li>
+            </ul>
+            <p className="mt-2 text-xs text-ink-soft">Kept with the reason — nothing is lost.</p>
+          </div>
+        </div>
+      </section>
+
+      <details className="mb-4"><summary className="cursor-pointer text-sm font-medium text-ink-soft">Technical details (reconciliation, sheets, mapping)</summary><div className="mt-3">
       <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Rows considered" value={n(c.rows_considered)} hint={`${n(c.layout_rows)} header/title rows not counted`} />
         <Stat label="Accepted" value={n(c.accepted)} hint={`${n(c.duplicates)} duplicate observations`} />
@@ -150,6 +191,9 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
         </Card>
       ) : null}
 
+      </div></details>
+
+      <div id="issues" />
       <Card title={`Review queue (${open.length} open${closed ? `, ${closed} closed` : ""})`} className="mt-4">
         {open.length === 0 ? <p className="text-sm text-ink-soft">Nothing waiting. Fractional tenures, stale formula caches, size boundaries, unknown layouts and failed controls appear here.</p> : (
           <ul className="divide-y divide-line">
@@ -170,6 +214,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
         )}
       </Card>
 
+      <div id="identity" />
       <Card title={`Identity review (${pending.length} pending)`} className="mt-4">
         {candidates.length === 0 ? <p className="text-sm text-ink-soft">No similar-but-not-identical names were found. Exact building/locality and company-name matches link automatically; anything fuzzier waits here. People are never merged on name alone and towers are never collapsed.</p> : (
           <ul className="divide-y divide-line">
@@ -202,6 +247,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
         )}
       </Card>
 
+      <div id="conflicts" />
       <Card title={`Source vs record conflicts (${steward.conflicts.filter((x: { status: string }) => x.status === "open" || x.status === "proposed").length} open)`} className="mt-4">
         {steward.conflicts.length === 0 ? <p className="text-sm text-ink-soft">No value in this file disagrees with an existing record. Existing records are never overwritten by an import; disagreements are listed here and in <Link className="underline" href="/approvals/conflicts">Approvals → Conflicts</Link>.</p> : (
           <Table head={["Record", "Field", "Record says", "File says", "Row", "Status"]}>
@@ -219,6 +265,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
         )}
       </Card>
 
+      <div id="people" />
       <Card title={`People named in this file (${steward.personProposals.length} proposed)`} className="mt-4">
         {steward.personProposals.length === 0 ? <p className="text-sm text-ink-soft">No representative/contact names were found, or they were already proposed by an earlier import.</p> : (
           <ul className="divide-y divide-line text-sm">
@@ -233,6 +280,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
         <p className="mt-2 text-xs text-ink-soft">People are only proposed — never merged with a same-name record. Apply them in <Link className="underline" href="/approvals?tab=records">Approvals</Link>; the company link is then proposed for approval.</p>
       </Card>
 
+      <div id="quarantined" />
       <Card title={`Quarantined rows${quarantined.length >= 100 ? " (first 100)" : ""}`} className="mt-4">
         {quarantined.length === 0 ? <p className="text-sm text-ink-soft">No rows are quarantined.</p> : (
           <Table head={["Row", "Reason", "Source cells (value / formula)"]}>

@@ -234,7 +234,9 @@ export async function listQueue(db: Db, workspaceId: string, tab: QueueTab, limi
     return { documents: pending };
   }
   let q = db.from("change_proposal").select("*").eq("workspace_id", workspaceId).is("archived_at", null).is("reversal_of", null);
-  if (tab === "records") q = q.neq("operation", "merge").in("state", ["proposed", "approved", "clarify"]);
+  // Bulk import proposals are reviewed on the import's summary page, not one card at a time.
+  if (tab === "records") q = q.neq("operation", "merge").in("state", ["proposed", "approved", "clarify"])
+    .or("idempotency_key.is.null,and(idempotency_key.not.like.imports.conflict:*,idempotency_key.not.like.imports.person:*)");
   else if (tab === "merges") q = q.eq("operation", "merge").in("state", ["proposed", "approved", "clarify"]);
   else q = q.in("state", ["applied", "reversed", "conflict", "rejected"]);
   const { data, error } = await q.order(tab === "history" ? "updated_at" : "created_at", { ascending: false }).limit(limit);

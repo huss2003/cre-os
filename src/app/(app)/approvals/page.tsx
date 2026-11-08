@@ -40,10 +40,31 @@ async function Body({ searchParams }: Props) {
       .eq("status", "needs_review").is("archived_at", null).order("created_at", { ascending: false }).limit(50),
   ]);
   const pendingCaptures = (caps ?? []) as AnyRow[];
+  // Imports with rows still waiting (counted per source file); reviewed in bulk on the import summary page.
+  const { data: batches } = await ctx.db.from("import_batch").select("id, file_name, created_at, source_object_id, counts").eq("workspace_id", ctx.workspaceId)
+    .is("archived_at", null).order("created_at", { ascending: false }).limit(20);
+  const importsWaiting = (await Promise.all(((batches ?? []) as AnyRow[]).filter((b) => b.source_object_id).map(async (b) => {
+    const { count } = await ctx.db.from("change_proposal").select("id", { count: "exact", head: true }).eq("workspace_id", ctx.workspaceId)
+      .contains("evidence_ids", [b.source_object_id]).in("state", ["proposed", "approved", "clarify"]).is("reversal_of", null);
+    return { ...b, waiting: count ?? 0 } as AnyRow;
+  }))).filter((b) => b.waiting > 0);
   const editor = hasRole(ctx, "editor");
   return (
     <div className="space-y-4">
       <PageHeader title="Review" subtitle="Everything waiting for your OK. Captures appear first — open one, check it, press Reviewed and it is added to the right sections." />
+      {importsWaiting.length ? (
+        <Card title={`Imports to review (${importsWaiting.length})`} help="Large files are reviewed in one place: open the import to see what it contains, add all safe rows in one click, and check only the doubtful ones.">
+          <ul className="divide-y divide-line">
+            {importsWaiting.map((b) => (
+              <li key={b.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0"><p className="truncate text-sm font-medium">{b.file_name}</p>
+                  <p className="text-xs text-ink-soft">{fmt(b.created_at)} · {Number(b.counts?.rows_considered ?? 0).toLocaleString("en-IN")} rows · {b.waiting.toLocaleString("en-IN")} waiting for review</p></div>
+                <Link href={`/imports/${b.id}`} className="shrink-0 rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white hover:bg-brand-strong">Open summary</Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
       <Card title={`Captures to review (${pendingCaptures.length})`} help="Every call, meeting or visit you capture lands here first. Nothing is added to companies, people, requirements or tasks until you open it and press Reviewed.">
         {pendingCaptures.length === 0 ? <p className="text-sm text-ink-soft">No captures waiting. New captures from the Capture screen show up here.</p> : (
           <ul className="divide-y divide-line">
