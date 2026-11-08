@@ -33,6 +33,9 @@ export const NAV: NavSection[] = [
     { href: "/documents", label: "Documents" },
     { href: "/fees", label: "Fees" },
   ]},
+  { key: "signals", label: "Signals", hint: "Events that may need action", href: "/signals", tabs: [
+    { href: "/signals", label: "Signals" },
+  ]},
   { key: "intel", label: "Intelligence", hint: "Market, research, network", href: "/market", tabs: [
     { href: "/market", label: "Market" },
     { href: "/research", label: "Research" },
@@ -78,4 +81,4 @@ export function sectionFor(path: string, sections: NavSection[] = NAV): NavSecti
 }
 
 /** Mobile bottom bar: the five daily sections. */
-export const MOBILE_BAR = ["today", "capture", "review", "records", "deals", "setup"] as const;
+export const MOBILE_BAR = ["today", "capture", "review", "records", "deals", "signals", "setup"] as const;
