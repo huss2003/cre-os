@@ -310,7 +310,11 @@ function resolveMention(stored: StoredExtraction, i: number): string | null {
   const allowed = allowedIds(stored.meta.candidates, m);
   const chosen = stored.meta.review.resolutions[String(i)];
   if (chosen && (allowed.has(chosen) || stored.meta.review.resolutions[`created:${i}`] === chosen)) return chosen;
-  return m.candidate_ids.length === 1 && allowed.has(m.candidate_ids[0]) ? m.candidate_ids[0] : null;
+  if (m.candidate_ids.length === 1 && allowed.has(m.candidate_ids[0])) return m.candidate_ids[0];
+  // Exactly one saved record has this exact name (case-insensitive) → that is the one. Similar names don't count.
+  const offered = stored.meta.candidates.find((x) => x.kind === m.kind && x.text.toLowerCase() === m.text.toLowerCase())?.candidates ?? [];
+  const exact = offered.filter((o) => o.label.trim().toLowerCase() === m.text.trim().toLowerCase());
+  return exact.length === 1 && allowed.has(exact[0].id) ? exact[0].id : null;
 }
 
 function answeredValue(stored: StoredExtraction, ambiguityIndex: number) {
