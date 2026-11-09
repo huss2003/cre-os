@@ -14,6 +14,7 @@ export function SectionIcon({ k, className = "h-5 w-5" }: { k: string; className
     records: <><path d="M4 20V8l8-4 8 4v12" /><path d="M9 20v-6h6v6" /></>,
     deals: <><path d="M4 7h16M4 12h10M4 17h6" /></>,
     signals: <><path d="M3 12h4l3-7 4 14 3-7h4" /></>,
+    scoring: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></>,
     intelligence: <><path d="M4 19l5-6 4 3 7-9" /></>,
     setup: <><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" /></>,
   };

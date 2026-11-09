@@ -8,8 +8,9 @@ import * as integrations from "@/modules/integrations/jobs";
 import * as intelligence from "@/modules/intelligence/jobs";
 import * as admin from "@/modules/admin/jobs";
 import * as signals from "@/modules/signals/jobs";
+import * as scoring from "@/modules/scoring/jobs";
 
-const modules = [imports, capture, brief, deals, integrations, intelligence, admin, signals];
+const modules = [imports, capture, brief, deals, integrations, intelligence, admin, signals, scoring];
 
 export const handlers: Record<string, JobHandler> = Object.assign({}, ...modules.map((m) => m.handlers));
 export const schedulers: ((now: Date) => Promise<unknown>)[] = modules.map((m) => (now: Date) => m.schedule(now));

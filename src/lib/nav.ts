@@ -36,6 +36,9 @@ export const NAV: NavSection[] = [
   { key: "signals", label: "Signals", hint: "Events that may need action", href: "/signals", tabs: [
     { href: "/signals", label: "Signals" },
   ]},
+  { key: "scoring", label: "Scoring", hint: "Who to focus on first", href: "/scoring", tabs: [
+    { href: "/scoring", label: "Scores" },
+  ]},
   { key: "intel", label: "Intelligence", hint: "Market, research, network", href: "/market", tabs: [
     { href: "/market", label: "Market" },
     { href: "/research", label: "Research" },
@@ -62,7 +65,7 @@ export const NAV: NavSection[] = [
  */
 export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
 /** Screens shown in the menu while in focus mode. */
-export const FOCUS_MENU = ["/signals", "/research"];
+export const FOCUS_MENU = ["/signals", "/research", "/scoring"];
 /** Reachable by link from a signal, but not shown in the menu. */
 const FOCUS_LINKED = ["/companies", "/people", "/buildings", "/requirements", "/tasks", "/approvals", "/search"];
 export const HIDDEN_PREFIXES: string[] = [];
@@ -87,4 +90,4 @@ export function sectionFor(path: string, sections: NavSection[] = NAV): NavSecti
 }
 
 /** Mobile bottom bar: the five daily sections. */
-export const MOBILE_BAR = ["today", "capture", "review", "records", "deals", "signals", "intel", "setup"] as const;
+export const MOBILE_BAR = ["today", "capture", "review", "records", "deals", "signals", "scoring", "intel", "setup"] as const;
