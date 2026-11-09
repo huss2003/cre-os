@@ -76,7 +76,7 @@ export async function discoverAction(_prev: ActionState): Promise<ActionState> {
     const r = await discoverMarket(ctx.db, ctx.workspaceId, { actorUserId: ctx.userId });
     revalidatePath("/research"); revalidatePath("/signals");
     if (r.skipped) return { error: `Scan didn't run: ${r.skipped}` };
-    if (!r.picked) return { ok: true, message: "No new company found this time — everyone in the news is already in your records." };
+    if (!r.picked) return { ok: true, message: "No new company picked — see the reason on the run below." };
     return { ok: true, message: `New prospect: ${r.picked} — ${r.score}/100. Open it in Live research.` };
   } catch (e) { return { error: errorMessage(e) }; }
 }

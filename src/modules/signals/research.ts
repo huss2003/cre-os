@@ -34,9 +34,20 @@ const okUrl = (v: string) => /^https?:\/\/\S+$/i.test(v);
 
 /** Model output is untrusted: keep only well-formed findings, trim text, drop bad dates/kinds instead of failing the run. */
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** Model "kind" labels vary (new_office, office_lease, leasing…): map them to our list instead of dropping the finding. */
+const KIND_ALIAS: [RegExp, (typeof KINDS)[number]][] = [
+  [/gcc|capability|captive/, "gcc_plan"], [/lease|leasing|office|campus|expan|open|new_/, "expansion"], [/hir|recruit|job/, "hiring"],
+  [/fund|invest|rais/, "funding"], [/consolid/, "consolidation"], [/layoff|cut|reduc/, "layoff"], [/relocat|shift|move/, "relocation"],
+  [/merg/, "merger"], [/acqui/, "acquisition"], [/leader|appoint|ceo|head/, "leadership_change"], [/rto|return/, "rto"],
+];
+function normKind(k: string): (typeof KINDS)[number] {
+  const l = (k ?? "").toLowerCase();
+  if ((KINDS as readonly string[]).includes(l)) return l as (typeof KINDS)[number];
+  return KIND_ALIAS.find(([re]) => re.test(l))?.[1] ?? "expansion";
+}
 function clean<T extends { kind: string; summary: string; location: string | null; published_on: string | null; source_url: string; source_name: string; event_date?: string | null }>(f: T) {
-  if (!(KINDS as readonly string[]).includes(f.kind) || !/^https?:\/\//.test(f.source_url)) return null;
-  return { ...f, kind: f.kind as (typeof KINDS)[number], summary: f.summary.slice(0, 400), location: f.location?.slice(0, 100) ?? null,
+  if (!/^https?:\/\//.test(f.source_url ?? "")) return null;
+  return { ...f, kind: normKind(f.kind), summary: f.summary.slice(0, 400), location: f.location?.slice(0, 100) ?? null,
     source_name: f.source_name.slice(0, 120), published_on: f.published_on && DATE.test(f.published_on) ? f.published_on : null,
     event_date: f.event_date && DATE.test(f.event_date) ? f.event_date : null };
 }
@@ -169,7 +180,7 @@ export async function discoverMarket(db: Db, ws: string, opts: { actorUserId?: s
       workspaceId: ws, workflow: "signals.discover", tier: "luna", webSearch: true, classification: "public",
       schema: DiscoverSchema, schemaName: "market_findings",
       system: "You scan Indian business news for a commercial real-estate adviser. Report only named companies and events stated in sources you found, each with its URL. Skip landlords, developers, brokers and co-working operators. Never guess area, headcount or dates. Never use LinkedIn.",
-      input: `Find news since ${since} naming specific companies (occupiers) that are opening, expanding, leasing, relocating or setting up GCCs/offices in ${city}, or running large hiring drives there. One finding per company per event; up to 10.`,
+      input: `Use kind values only from: ${KINDS.join(", ")}.\nFind news since ${since} naming specific companies (occupiers) that are opening, expanding, leasing, relocating or setting up GCCs/offices in ${city}, or running large hiring drives there. One finding per company per event; up to 10.`,
       mock: () => ({ findings: [] }),
     });
   } catch (e) {
@@ -203,7 +214,8 @@ export async function discoverMarket(db: Db, ws: string, opts: { actorUserId?: s
   const allUsed = [...groups.values()].flatMap((g) => g.items.map((i) => i.source_url));
   if (!pick) {
     await finishRun(db, ws, runId, { status: "done", queries: r.web?.queries ?? [], sources: sourcesOf(r.web, allUsed), findings: 0, new_companies: 0, usd: r.usage.usd,
-      error: groups.size ? `All ${groups.size} companies found are already in your records.` : "No named companies found in recent news." });
+      error: groups.size ? `All ${groups.size} companies found (${[...groups.values()].map((g) => g.name).slice(0, 5).join(", ")}) are already in your records.`
+        : r.data.findings.length ? `${r.data.findings.length} findings came back but none had a usable source link.` : "No named companies found in recent news." });
     return { runId, found: 0, newCompanies: 0, skipped: undefined, picked: null, assessRunId: null };
   }
   await finishRun(db, ws, runId, { status: "done", label: `New prospect in ${city}: ${pick.name}`, queries: r.web?.queries ?? [], sources: sourcesOf(r.web, pick.items.map((i) => i.source_url)),
