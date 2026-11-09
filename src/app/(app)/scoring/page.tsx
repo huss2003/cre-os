@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { Loading } from "@/modules/admin/ui/parts";
 import { ensureModels } from "@/modules/scoring/service";
-import { BulkScore } from "@/modules/scoring/ui/bulk";
+import { BulkScore, AutoRefresh } from "@/modules/scoring/ui/bulk";
 import { MODELS } from "@/modules/scoring/models";
 import { ScoreBar, Completeness, CONF_LABEL } from "@/modules/scoring/ui/parts";
 import type { ModelKey } from "@/modules/scoring/engine";
@@ -69,26 +69,30 @@ async function filterOptions(db: Row, ws: string) {
   };
 }
 
+/** Exact counts straight from the database (no row limit), so the tiles always match reality. */
 async function Stats({ db, ws }: { db: Row; ws: string }) {
-  const { data } = await db.from("score_result").select("model_key, band, confidence, previous_score, calculated_at").eq("workspace_id", ws).eq("is_current", true).limit(20000);
-  const rows = (data ?? []) as Row[];
-  const by = (k: string) => rows.filter((r) => r.model_key === k);
-  const [{ count: matches }, { count: queued }] = await Promise.all([
-    db.from("shortlist_option").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null),
-    db.from("job").select("id", { count: "exact", head: true }).eq("workspace_id", ws).like("job_type", "scoring.%").in("state", ["queued", "running"]),
+  const base = () => db.from("score_result").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("is_current", true);
+  const week = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const c = async (q: PromiseLike<{ count: number | null }>) => (await q).count ?? 0;
+  const [companies, hiCo, hiLead, hiOpp, reqs, contacts, insufficient, changed, matches, queued] = await Promise.all([
+    c(base().eq("model_key", "company")), c(base().eq("model_key", "company").in("band", HIGH)), c(base().eq("model_key", "lead").in("band", HIGH)),
+    c(base().eq("model_key", "opportunity").in("band", HIGH)), c(base().eq("model_key", "requirement")), c(base().eq("model_key", "contact")),
+    c(base().eq("confidence", "insufficient")), c(base().not("previous_score", "is", null).gte("calculated_at", week)),
+    c(db.from("shortlist_option").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null)),
+    c(db.from("job").select("id", { count: "exact", head: true }).eq("workspace_id", ws).like("job_type", "scoring.%").in("state", ["queued", "running"])),
   ]);
-  const week = Date.now() - 7 * 86_400_000;
-  const tiles: [string, number | string][] = [
-    ["Companies scored", by("company").length], ["High-priority companies", by("company").filter((r) => HIGH.includes(r.band)).length],
-    ["High-priority leads", by("lead").filter((r) => HIGH.includes(r.band)).length], ["Attractive opportunities", by("opportunity").filter((r) => HIGH.includes(r.band)).length],
-    ["Requirements scored", by("requirement").length], ["Property matches", matches ?? 0], ["Contacts ranked", by("contact").length],
-    ["Waiting to recalculate", queued ?? 0], ["Not enough data", rows.filter((r) => r.confidence === "insufficient").length],
-    ["Changed this week", rows.filter((r) => r.previous_score !== null && Date.parse(r.calculated_at) >= week).length],
+  const tiles: [string, number][] = [
+    ["Companies scored", companies], ["High-priority companies", hiCo], ["High-priority leads", hiLead], ["Attractive opportunities", hiOpp],
+    ["Requirements scored", reqs], ["Property matches", matches], ["Contacts ranked", contacts],
+    ["Waiting to recalculate", queued], ["Not enough data", insufficient], ["Changed this week", changed],
   ];
   return (
-    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-5">
-      {tiles.map(([l, n]) => <div key={l} className="bg-surface p-4"><dt className="text-xs text-ink-soft">{l}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{n}</dd></div>)}
-    </dl>
+    <>
+      <AutoRefresh busy={queued > 0} />
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-5">
+        {tiles.map(([l, n]) => <div key={l} className="bg-surface p-4"><dt className="text-xs text-ink-soft">{l}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{n.toLocaleString("en-IN")}</dd></div>)}
+      </dl>
+    </>
   );
 }
 

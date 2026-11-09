@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { bulkStep } from "../actions";
 
@@ -15,6 +15,7 @@ export function BulkScore() {
       if (r.error) { setState((s) => ({ ...s, running: false, error: r.error })); return; }
       done += r.scoredNow; cursor = r.cursor;
       setState({ running: true, done: Math.min(done, r.total), total: r.total });
+      router.refresh(); // tiles and rankings update after every batch
       if (r.finished || r.scoredNow === 0) break;
     }
     setState((s) => ({ ...s, running: false, finished: true }));
@@ -39,4 +40,14 @@ export function BulkScore() {
       ) : null}
     </div>
   );
+}
+
+/** Refreshes the dashboard every 10 s while recalculation jobs are waiting, every 60 s otherwise. */
+export function AutoRefresh({ busy }: { busy: boolean }) {
+  const router = useRouter();
+  useEffect(() => {
+    const t = setInterval(() => { if (document.visibilityState === "visible") router.refresh(); }, busy ? 10_000 : 60_000);
+    return () => clearInterval(t);
+  }, [busy, router]);
+  return null;
 }
