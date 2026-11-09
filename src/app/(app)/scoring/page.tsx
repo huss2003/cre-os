@@ -134,15 +134,18 @@ async function Ranking({ sp, db, ws }: { sp: SP; db: Row; ws: string }) {
   if (sp.complete) q = q.gte("completeness", Number(sp.complete));
   const sort = sp.sort ?? "high";
   q = sort === "low" ? q.order("score", { ascending: true }) : sort === "recent" ? q.order("calculated_at", { ascending: false }) : sort === "confidence" ? q.order("completeness", { ascending: false }) : q.order("score", { ascending: false });
-  let rows = ((await q.limit(1000)).data ?? []) as Row[];
-  const allow = await entityFilter(db, ws, tab, sp);
+  const [res, allow, ovRes, opts] = await Promise.all([
+    q.limit(1000), entityFilter(db, ws, tab, sp),
+    db.from("score_override").select("entity_id, value").eq("workspace_id", ws).eq("model_key", tab).eq("kind", "priority").eq("active", true),
+    filterOptions(db, ws),
+  ]);
+  let rows = (res.data ?? []) as Row[];
   if (allow) rows = rows.filter((r) => allow.has(r.entity_id));
   rows = rows.slice(0, 300);
   const nm = await names(db, ws, entity, rows.map((r) => r.entity_id));
   if (sp.q) rows = rows.filter((r) => `${nm.get(r.entity_id)?.name ?? ""} ${nm.get(r.entity_id)?.sub ?? ""}`.toLowerCase().includes(sp.q!.toLowerCase()));
-  const ovs = new Map(((await db.from("score_override").select("entity_id, value").eq("workspace_id", ws).eq("model_key", tab).eq("kind", "priority").eq("active", true)).data ?? []).map((o: Row) => [o.entity_id, o.value]));
+  const ovs = new Map(((ovRes.data ?? []) as Row[]).map((o) => [o.entity_id, o.value]));
   const bands = MODELS[tab].version.bands.map((b) => b.label);
-  const opts = await filterOptions(db, ws);
   return (
     <div className="space-y-3">
       <p className="text-sm text-ink-soft">{MODELS[tab].purpose}</p>
