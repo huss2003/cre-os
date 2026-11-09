@@ -14,7 +14,7 @@
     "worker": "tsx --env-file=.env.local scripts/worker.ts",
     "demo:seed": "tsx --env-file=.env.local scripts/demo-seed.ts",
     "demo:reset": "tsx --env-file=.env.local scripts/demo-reset.ts",
-    "fast": "next build && next start"
+    "fast": "node scripts/fast.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

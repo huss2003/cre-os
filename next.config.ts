@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   // pptxgenjs is bundled, not external: its ESM build is a .js file without "type": "module", which the
   // Vercel Node runtime refuses to import ("Cannot use import statement outside a module").
   serverExternalPackages: ["exceljs", "docx"],
+  // `npm run fast` on low-memory PCs skips the build-time type check (run `npx tsc --noEmit` separately). Vercel still checks.
+  typescript: { ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1" },
   // LinkedIn Connections.csv uploads go through a server action (up to 5 MB).
   experimental: { serverActions: { bodySizeLimit: "6mb" } },
   turbopack: {
