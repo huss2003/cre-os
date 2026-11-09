@@ -18,10 +18,10 @@ async function Horizon({ ws, db }: { ws: string; db: Awaited<ReturnType<typeof r
   const start = new Date(); start.setDate(1);
   const end = new Date(start); end.setMonth(end.getMonth() + 12);
   const { data } = await db.from("signal").select("id, category, event_date, title").eq("workspace_id", ws).is("archived_at", null)
-    .not("status", "in", "(dismissed,rejected,known)").gte("event_date", start.toISOString().slice(0, 10)).lt("event_date", end.toISOString().slice(0, 10)).limit(500);
+    .not("status", "in", "(dismissed,rejected,known)").gte("event_date", start.toISOString().slice(0, 10)).lt("event_date", end.toISOString().slice(0, 10)).limit(5000);
   const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(start); d.setMonth(d.getMonth() + i); return d; });
   const by = months.map((m) => (data ?? []).filter((s) => s.event_date.slice(0, 7) === m.toISOString().slice(0, 7)));
-  const max = Math.max(4, ...by.map((b) => b.length));
+  const max = Math.max(5, ...by.map((b) => b.length));
   return (
     <section aria-label="Dated events over the next 12 months" className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
       <div className="flex items-baseline justify-between">
@@ -29,16 +29,26 @@ async function Horizon({ ws, db }: { ws: string; db: Awaited<ReturnType<typeof r
         <p className="text-xs text-ink-soft">{(data ?? []).length ? `${(data ?? []).length} dated events` : "No dated events yet"}</p>
       </div>
       <div className="mt-4 grid grid-cols-12 gap-1 sm:gap-2">
-        {months.map((m, i) => (
-          <div key={i} className="flex flex-col items-center">
-            <div className="flex h-20 w-full flex-col-reverse items-center gap-1 rounded-lg bg-canvas p-1.5" style={{ justifyContent: "flex-start" }}>
-              {by[i].slice(0, max).map((s) => (
-                <Link key={s.id} href={`/signals/${s.id}`} title={s.title} aria-label={s.title} className={`h-2.5 w-2.5 shrink-0 rounded-full ${CAT_COLOR[s.category]?.dot ?? "bg-stone-400"} hover:ring-2 hover:ring-ink/30`} />
-              ))}
+        {months.map((m, i) => {
+          const list = by[i];
+          // Up to 5 dots per month; beyond that a bar + number so a busy month never spills out.
+          const cats = [...new Set(list.map((s) => s.category))];
+          return (
+            <div key={i} className="flex flex-col items-center">
+              <div className="flex h-20 w-full flex-col-reverse items-center justify-start gap-1 overflow-hidden rounded-lg bg-canvas p-1.5">
+                {list.length <= 5 ? list.map((s) => (
+                  <Link key={s.id} href={`/signals/${s.id}`} title={s.title} aria-label={s.title} className={`h-2.5 w-2.5 shrink-0 rounded-full ${CAT_COLOR[s.category]?.dot ?? "bg-stone-400"} hover:ring-2 hover:ring-ink/30`} />
+                )) : (
+                  <Link href={`/signals?view=${cats.length === 1 ? cats[0] : "all"}`} className="flex h-full w-full flex-col-reverse items-center gap-1" title={`${list.length} events`}>
+                    <span className={`w-2.5 rounded-full ${CAT_COLOR[cats[0]]?.dot ?? "bg-stone-400"}`} style={{ height: `${Math.max(20, (list.length / max) * 100)}%` }} />
+                    <span className="text-[11px] font-semibold text-ink">{list.length}</span>
+                  </Link>
+                )}
+              </div>
+              <span className={`mt-1.5 text-[11px] ${i === 0 ? "font-semibold text-ink" : "text-ink-soft"}`}>{m.toLocaleString("en-IN", { month: "short" })}</span>
             </div>
-            <span className={`mt-1.5 text-[11px] ${i === 0 ? "font-semibold text-ink" : "text-ink-soft"}`}>{m.toLocaleString("en-IN", { month: "short" })}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
