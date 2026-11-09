@@ -10,6 +10,7 @@ import { approveMappingAction, decideMatchAction, reprocessAction, resolveExcept
 import { MappingForm } from "./mapping-form";
 import { importSummary } from "@/modules/imports/summary";
 import { ApplySafeButton } from "@/modules/imports/apply-safe-button";
+import { DuplicatesPanel, type Dup } from "@/modules/imports/duplicates-panel";
 
 export const metadata = { title: "Import batch" };
 
@@ -250,43 +251,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
         )}
       </Card>
 
-      <div id="identity" />
-      <Card title={`Possible duplicates (${pending.length} to decide)`} className="mt-4">
-        {candidates.length === 0 ? <p className="text-sm text-ink-soft">No look-alike names found.</p> : (() => {
-          type M = { id: string; entity_type: string; left_id: string; right_id: string; right_raw: Record<string, string>; score: number; suggested: string; decision: string; change_proposal_id: string | null };
-          const NOUN: Record<string, string> = { organisation: "company", asset: "building", person: "person", geography: "place" };
-          const open = (candidates as M[]).filter((m) => m.decision === "pending");
-          const done = (candidates as M[]).filter((m) => m.decision !== "pending");
-          const Pair = ({ m }: { m: M }) => {
-            const href = (id: string) => `${ENTITY_LINK[m.entity_type] ?? "/search"}/${id}`;
-            const related = m.suggested === "relate_group" || m.suggested === "relate_campus";
-            return (
-              <li className="rounded-2xl border border-line bg-surface p-4">
-                <p className="text-sm font-medium text-ink">{related ? (m.suggested === "relate_campus" ? "Is this tower part of the campus?" : "Are these in the same group?") : `Are these the same ${NOUN[m.entity_type] ?? "record"}?`}</p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                  <Link href={href(m.left_id)} className="rounded-xl bg-canvas px-3 py-2.5 text-sm font-medium hover:text-brand">{m.right_raw?.left_name ?? "Saved record"}</Link>
-                  <span className="text-center text-ink-soft" aria-hidden>≈</span>
-                  <Link href={href(m.right_id)} className="rounded-xl bg-canvas px-3 py-2.5 text-sm font-medium hover:text-brand">{m.right_raw?.name ?? "From file"}{m.right_raw?.locality ? <span className="block text-xs font-normal text-ink-soft">{m.right_raw.locality}</span> : null}</Link>
-                </div>
-                {m.decision === "pending" ? (
-                  <form action={decideMatchAction} className="mt-3 flex gap-2">
-                    <input type="hidden" name="batch_id" value={batch.id} />
-                    <input type="hidden" name="candidate_id" value={m.id} />
-                    <Button type="submit" name="decision" value={related ? "related" : "link"} className="flex-1 sm:flex-none">{related ? "Yes, link them" : "Yes, same"}</Button>
-                    <Button variant="secondary" type="submit" name="decision" value="keep_separate" className="flex-1 sm:flex-none">No, different</Button>
-                  </form>
-                ) : <p className="mt-2 text-xs text-ink-soft">{m.decision === "keep_separate" ? "Kept separate." : m.change_proposal_id ? <>Sent to <Link className="underline" href="/approvals">Review</Link>.</> : "Decided."}</p>}
-              </li>
-            );
-          };
-          return (
-            <div className="space-y-4">
-              {open.length ? <ul className="space-y-3">{open.map((m) => <Pair key={m.id} m={m} />)}</ul> : <p className="text-sm text-ok">All decided.</p>}
-              {done.length ? <details><summary className="cursor-pointer text-sm text-ink-soft">Already decided ({done.length})</summary><ul className="mt-3 space-y-3">{done.map((m) => <Pair key={m.id} m={m} />)}</ul></details> : null}
-            </div>
-          );
-        })()}
-      </Card>
+      <DuplicatesPanel all={candidates as Dup[]} batchId={batch.id} sp={sp as Record<string, string | string[] | undefined>} basePath={`/imports/${batch.id}`} />
 
       <div id="conflicts" />
       <Card title={`Values that differ from your records (${steward.conflicts.filter((x: { status: string }) => x.status === "open" || x.status === "proposed").length} open)`} className="mt-4">
