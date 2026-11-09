@@ -13,40 +13,52 @@ export async function LinkedAdd({ kind, hostId, backPath, open = false }: { kind
   const opts = await refOptions(ctx.db, ctx.workspaceId, spec, hostId);
   const action = addLinkedAction.bind(null, kind, hostId, backPath);
   const fid = (n: string) => `${kind}-${hostId ?? "ws"}-${n}`;
+  // Essentials first (required + first two fields); everything optional sits behind "More details".
+  const main = spec.fields.filter((f, i) => f.required || i < 2);
+  const more = spec.fields.filter((f) => !main.includes(f));
+  const field = (f: (typeof spec.fields)[number]) => (
+    <div key={f.name}>
+      {f.kind === "checkbox" ? (
+        <label className="flex min-h-10 items-center gap-2 text-sm" htmlFor={fid(f.name)}><input id={fid(f.name)} type="checkbox" name={f.name} /> {f.label}</label>
+      ) : (
+        <>
+          <label className="mb-1.5 block text-sm font-medium text-ink" htmlFor={fid(f.name)}>{f.label}{f.required ? <span className="text-bad"> *</span> : null}</label>
+          {f.kind === "select" ? (
+            <select id={fid(f.name)} name={f.name} required={f.required} className={inputCls} defaultValue={f.options?.[0]?.[0]}>
+              {f.options!.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          ) : f.kind === "ref" ? (
+            <select id={fid(f.name)} name={f.name} required={f.required} className={inputCls} defaultValue="">
+              <option value="">{(opts[f.name] ?? []).length ? "Choose…" : "None saved yet"}</option>
+              {(opts[f.name] ?? []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </select>
+          ) : f.kind === "textarea" ? (
+            <textarea id={fid(f.name)} name={f.name} required={f.required} rows={2} placeholder={f.hint} className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm" />
+          ) : (
+            <input id={fid(f.name)} name={f.name} required={f.required} className={inputCls} placeholder={f.kind === "date" ? undefined : f.hint}
+              type={f.kind === "number" ? "number" : f.kind === "date" ? "date" : "text"} step={f.kind === "number" ? "any" : undefined}
+              min={f.min} maxLength={f.kind === "text" ? 300 : undefined} />
+          )}
+        </>
+      )}
+    </div>
+  );
   return (
-    <details className="mt-2 rounded-lg border border-dashed border-line px-3 py-2" open={open || undefined}>
-      <summary className="cursor-pointer text-sm font-medium text-brand">+ {spec.title}</summary>
-      <ActionForm action={action} className="mt-2 grid gap-2 sm:grid-cols-2">
-        {spec.fields.map((f) => (
-          <div key={f.name} className={f.kind === "textarea" ? "sm:col-span-2" : ""}>
-            {f.kind === "checkbox" ? (
-              <label className="flex min-h-10 items-center gap-2 text-sm" htmlFor={fid(f.name)}><input id={fid(f.name)} type="checkbox" name={f.name} /> {f.label}</label>
-            ) : (
-              <>
-                <label className="mb-1 block text-xs font-medium text-ink-soft" htmlFor={fid(f.name)}>{f.label}{f.required ? " *" : ""}</label>
-                {f.kind === "select" ? (
-                  <select id={fid(f.name)} name={f.name} required={f.required} className={inputCls} defaultValue={f.options?.[0]?.[0]}>
-                    {f.options!.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                ) : f.kind === "ref" ? (
-                  <select id={fid(f.name)} name={f.name} required={f.required} className={inputCls} defaultValue="">
-                    <option value="">{(opts[f.name] ?? []).length ? "— choose —" : "— none yet: add one first —"}</option>
-                    {(opts[f.name] ?? []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                  </select>
-                ) : f.kind === "textarea" ? (
-                  <textarea id={fid(f.name)} name={f.name} required={f.required} rows={2} className="w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm" />
-                ) : (
-                  <input id={fid(f.name)} name={f.name} required={f.required} className={inputCls}
-                    type={f.kind === "number" ? "number" : f.kind === "date" ? "date" : "text"} step={f.kind === "number" ? "any" : undefined}
-                    min={f.min} maxLength={f.kind === "text" ? 300 : undefined} />
-                )}
-                {f.hint ? <p className="mt-0.5 text-xs text-ink-soft">{f.hint}</p> : null}
-              </>
-            )}
-          </div>
-        ))}
-        <div className="sm:col-span-2"><Submit>{spec.submit}</Submit></div>
-      </ActionForm>
+    <details className="group" open={open || undefined}>
+      <summary className="inline-flex min-h-10 cursor-pointer list-none items-center rounded-xl border border-line px-4 text-sm font-semibold text-brand hover:border-brand/40 group-open:hidden">+ {spec.title}</summary>
+      <div className="rounded-xl border border-line bg-canvas/40 p-4">
+        <p className="mb-4 text-sm font-semibold">{spec.title}</p>
+        <ActionForm action={action} className="max-w-md space-y-4">
+          {main.map(field)}
+          {more.length ? (
+            <details className="rounded-lg">
+              <summary className="cursor-pointer text-sm text-ink-soft">More details (optional)</summary>
+              <div className="mt-3 space-y-4">{more.map(field)}</div>
+            </details>
+          ) : null}
+          <Submit>{spec.submit}</Submit>
+        </ActionForm>
+      </div>
     </details>
   );
 }

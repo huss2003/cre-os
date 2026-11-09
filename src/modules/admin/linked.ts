@@ -30,7 +30,7 @@ export const LINKED: Record<string, LinkedSpec> = {
     { name: "title", label: "Designation", kind: "text" },
     { name: "start_date", label: "Start date", kind: "date" },
     { name: "end_date", label: "End date", kind: "date", hint: "Leave blank if still there." },
-    { name: "is_current", label: "Current role?", kind: "select", options: [["true", "Current"], ["false", "Previous"]], required: true },
+    { name: "is_current", label: "Works here now?", kind: "select", options: [["true", "Yes"], ["false", "No, previously"]], required: true },
   ]},
   contact_method: { kind: "contact_method", table: "contact_method", title: "Add contact method", host: "person", hostColumn: "person_id", submit: "Add contact", fields: [
     { name: "method_type", label: "Type", kind: "select", required: true, options: [["email", "Email"], ["phone", "Phone"], ["whatsapp", "WhatsApp"], ["linkedin", "LinkedIn"], ["other", "Other"]] },
@@ -63,11 +63,11 @@ export const LINKED: Record<string, LinkedSpec> = {
     { name: "valid_from", label: "From", kind: "date" },
   ]},
   org_employment: { kind: "org_employment", table: "employment", title: "Add employee", host: "organisation", hostColumn: "org_id", submit: "Add employee", fields: [
-    { name: "new_person_name", label: "New person's full name", kind: "text", hint: "Type a name to create a new person…" },
-    { name: "person_id", label: "…or pick someone already saved", kind: "ref", ref: PERSON },
+    { name: "new_person_name", label: "Name of new person", kind: "text", hint: "e.g. Rahul Sharma" },
+    { name: "person_id", label: "Or choose a saved person", kind: "ref", ref: PERSON },
     { name: "title", label: "Designation", kind: "text" },
     { name: "start_date", label: "Start date", kind: "date" },
-    { name: "is_current", label: "Current role?", kind: "select", options: [["true", "Current"], ["false", "Previous"]], required: true },
+    { name: "is_current", label: "Works here now?", kind: "select", options: [["true", "Yes"], ["false", "No, previously"]], required: true },
   ]},
   // ---- building page
   space: { kind: "space", table: "space", title: "Add floor / unit", host: "asset", hostColumn: "asset_id", submit: "Add space", fields: [

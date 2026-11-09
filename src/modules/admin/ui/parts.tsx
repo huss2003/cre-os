@@ -90,14 +90,27 @@ export function AsOfForm({ asOf, action }: { asOf?: string | null; action: strin
 
 export function Section({ title, children, empty, actions, footer }: { title: string; children?: ReactNode; empty?: ReactNode; actions?: ReactNode; footer?: ReactNode }) {
   const hasContent = Array.isArray(children) ? children.some(Boolean) : !!children;
+  // Empty sections fold into one quiet line so the page shows only what has data. Click to see why / add something.
+  if (!hasContent) return (
+    <details className="group rounded-2xl border border-line bg-surface px-5 py-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm">
+        <span className="font-medium text-ink">{title}</span>
+        <span className="text-xs text-ink-soft group-open:hidden">{footer ? "Empty · add" : "Empty"} ▸</span>
+      </summary>
+      <div className="mt-3 space-y-3">
+        <p className="text-sm text-ink-soft">{empty ?? "Nothing recorded yet."}</p>
+        {footer}
+      </div>
+    </details>
+  );
   return (
     <section className="rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="mb-3 flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center justify-between gap-2">
         <h2 className="flex items-center text-base font-semibold">{title}{helpFor(title) ? <Help>{helpFor(title)}</Help> : null}</h2>
         {actions}
       </div>
-      {hasContent ? children : <p className="text-sm text-ink-soft">{empty ?? "Nothing recorded yet."}</p>}
-      {footer}
+      {children}
+      {footer ? <div className="mt-4">{footer}</div> : null}
     </section>
   );
 }
