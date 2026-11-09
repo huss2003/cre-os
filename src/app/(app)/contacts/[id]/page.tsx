@@ -53,6 +53,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <span className="rounded-full bg-canvas px-2.5 py-1">Next check {d(p.next_review_on)}</span>
             {p.do_not_contact ? <span className="rounded-full bg-rose-50 px-2.5 py-1 font-medium text-rose-700">Do not contact</span> : null}
           </div>
+          {!p.do_not_contact ? <Link href={`/outreach/new?person=${p.id}`} className="mt-3 inline-flex min-h-10 items-center rounded-xl bg-brand px-4 text-sm font-semibold text-white">Plan outreach</Link> : null}
         </div>
         <div className="flex shrink-0 flex-col gap-2">
           {score ? <Link href={`/scoring/contact/${id}`} className="rounded-xl bg-canvas px-4 py-2 text-center"><span className="text-2xl font-bold tabular-nums">{score.score}</span><span className="text-ink-soft">/100</span><span className="block text-xs text-ink-soft">Contact relevance · {score.band}</span></Link> : null}

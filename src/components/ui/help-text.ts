@@ -120,6 +120,21 @@ export const HELP_TEXT: Record<string, string> = {
   "Registry": "Approved sources research is allowed to use, and how reliable each is.",
   "Add an approved source": "Add a website or feed research may use, with its reliability.",
   "Evidence on file": "Facts already saved about this company, each with its source.",
+  // Module 5
+  "Outreach": "Prepares personal, record-based messages for the right people at the right time. Nothing is ever sent by CRE OS: you approve, open your own email/WhatsApp/LinkedIn, send, then record it.",
+  "New conversations to start": "People at companies with a new reason to talk \u2014 a recent signal or an upcoming lease date \u2014 ranked by lead score. People already being contacted are left out.",
+  "Follow-ups due": "Planned next steps from messages you sent. Each is only drafted when you ask, and pauses itself if they reply, decline, or a colleague gets in touch.",
+  "Results": "What outreach actually produced. Drafts don't count as outreach; only messages you marked sent do.",
+  "Prepare drafts": "Pick the situation and channels. Each channel gets its own draft in the right length and style, built only from what's on record.",
+  "Warm introduction": "People who know this contact, from your recorded relationships. Asking them creates a request to them \u2014 nothing implies they've agreed.",
+  "What we know": "The facts the draft is allowed to use, from your records. Anything not here stays unknown.",
+  "Call script": "An opener, the reason for calling, questions to ask, replies to common objections and a close.",
+  "Message": "Edit freely. Every save keeps the earlier version. Changing the text or recipient after approval cancels the approval.",
+  "Approval": "Approval covers this exact recipient and text. Any later change needs a new approval.",
+  "Send it yourself": "Confirm the recipient and text. CRE OS checks the person isn't suppressed, opens your own app with the message, and you send it. Then press I sent it.",
+  "Did they reply?": "Paste their reply. It's saved to their history, promises become tasks, deal changes go to Review, and other follow-ups pause.",
+  "Why now": "The business reason for this message and the records it's based on.",
+  "Ask them": "The few questions most useful for the next conversation.",
 };
 
 export function helpFor(title: unknown): string | undefined {

@@ -39,6 +39,9 @@ export const NAV: NavSection[] = [
   { key: "contacts", label: "Contacts", hint: "Find and verify decision-makers", href: "/contacts", tabs: [
     { href: "/contacts", label: "Contacts" },
   ]},
+  { key: "outreach", label: "Outreach", hint: "Who to contact today and what to say", href: "/outreach", tabs: [
+    { href: "/outreach", label: "Outreach" },
+  ]},
   { key: "scoring", label: "Scoring", hint: "Who to focus on first", href: "/scoring", tabs: [
     { href: "/scoring", label: "Scores" },
   ]},
@@ -77,9 +80,11 @@ export const FOCUS_MENU = [
   "/scoring",
   // Module 4 — Contact enrichment
   "/contacts",
+  // Module 5 — Outreach
+  "/outreach",
 ];
 /** Reachable by link from a signal, but not shown in the menu. */
-const FOCUS_LINKED = ["/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search"];
+const FOCUS_LINKED = ["/drafts", "/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search"];
 export const HIDDEN_PREFIXES: string[] = [];
 const under = (path: string, list: string[]) => list.some((h) => path === h || path.startsWith(h + "/"));
 export function isHiddenPath(path: string): boolean {
