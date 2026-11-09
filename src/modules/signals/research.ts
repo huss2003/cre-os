@@ -153,49 +153,78 @@ export const DiscoverSchema = z.object({
 });
 
 /**
- * Scans recent news for office / GCC / expansion / leasing activity in the focus cities. Known companies get a normal
- * signal; unknown companies get an "unmatched" signal you can turn into a company with one click. Nothing is auto-created.
+ * Finds ONE new prospect: scans recent news for office / GCC / expansion activity in the focus cities, drops companies
+ * already in your records, picks the company with the most evidence (then most local, then most recent), and runs a
+ * full client assessment on that company only. Nothing is added to your records until you click "Add as company".
  */
-export async function discoverMarket(db: Db, ws: string, opts: { actorUserId?: string; ai?: typeof callStructured } = {}) {
+export async function discoverMarket(db: Db, ws: string, opts: { actorUserId?: string; ai?: typeof callStructured; assessAi?: typeof callStructured } = {}) {
   const ai = opts.ai ?? callStructured;
   const s = await settings(db, ws);
   const city = s.focusCities.join(", ");
-  const runId = await startRun(db, ws, "discover", `New activity in ${city}`, null, opts.actorUserId);
-  const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const runId = await startRun(db, ws, "discover", `New prospect in ${city}`, null, opts.actorUserId);
+  const since = new Date(Date.now() - 60 * 86_400_000).toISOString().slice(0, 10);
   let r;
   try {
     r = await ai({
       workspaceId: ws, workflow: "signals.discover", tier: "luna", webSearch: true, classification: "public",
-      schema: DiscoverSchema, schemaName: "market_findings", maxOutputTokens: 1200,
-      system: "You scan Indian business news for a commercial real-estate adviser. Report only companies and events stated in sources you found, each with its URL. Never guess area, headcount or dates. Never use LinkedIn.",
-      input: `Find news since ${since} about companies opening, expanding, leasing, relocating, consolidating or setting up GCCs/offices in ${city}. Also large hiring drives in ${city}. Return up to 10 distinct companies.`,
+      schema: DiscoverSchema, schemaName: "market_findings",
+      system: "You scan Indian business news for a commercial real-estate adviser. Report only named companies and events stated in sources you found, each with its URL. Skip landlords, developers, brokers and co-working operators. Never guess area, headcount or dates. Never use LinkedIn.",
+      input: `Find news since ${since} naming specific companies (occupiers) that are opening, expanding, leasing, relocating or setting up GCCs/offices in ${city}, or running large hiring drives there. One finding per company per event; up to 10.`,
       mock: () => ({ findings: [] }),
     });
   } catch (e) {
     await finishRun(db, ws, runId, { status: e instanceof AiUnavailableError ? "skipped" : "failed", error: String((e as Error).message).slice(0, 300) });
-    return { runId, found: 0, newCompanies: 0, skipped: (e as Error).message };
+    return { runId, found: 0, newCompanies: 0, skipped: (e as Error).message, picked: null as string | null, assessRunId: null as string | null };
   }
+  if (r.mocked) {
+    await finishRun(db, ws, runId, { status: "skipped", error: aiKind(r.model) ?? "AI not connected" });
+    return { runId, found: 0, newCompanies: 0, skipped: aiKind(r.model) ?? "AI not connected", picked: null, assessRunId: null };
+  }
+  // Group findings by company; keep only companies not already in your records.
+  const groups = new Map<string, { name: string; items: NonNullable<ReturnType<typeof clean>>[] }>();
+  for (const raw of r.data.findings.slice(0, 12)) {
+    const c = clean(raw);
+    if (!c || /linkedin\.com/i.test(c.source_url)) continue;
+    const key = normName(raw.company);
+    if (!key) continue;
+    const g = groups.get(key) ?? { name: raw.company.slice(0, 120), items: [] };
+    g.items.push(c); groups.set(key, g);
+  }
+  const fresh: { name: string; items: NonNullable<ReturnType<typeof clean>>[] }[] = [];
+  for (const g of groups.values()) if (!(await resolveOrg(db, ws, g.name)).orgId) fresh.push(g);
+  const focus = s.focusCities.map((x) => x.toLowerCase());
+  const rank = (g: (typeof fresh)[number]) => [
+    g.items.length,
+    g.items.filter((i) => focus.some((c) => `${i.location ?? ""} ${i.summary}`.toLowerCase().includes(c))).length,
+    Math.max(0, ...g.items.map((i) => (i.published_on ? Date.parse(i.published_on) : 0))),
+  ];
+  fresh.sort((a, b) => { const x = rank(a), y = rank(b); return y[0] - x[0] || y[1] - x[1] || y[2] - x[2]; });
+  const pick = fresh[0];
+  const allUsed = [...groups.values()].flatMap((g) => g.items.map((i) => i.source_url));
+  if (!pick) {
+    await finishRun(db, ws, runId, { status: "done", queries: r.web?.queries ?? [], sources: sourcesOf(r.web, allUsed), findings: 0, new_companies: 0, usd: r.usage.usd,
+      error: groups.size ? `All ${groups.size} companies found are already in your records.` : "No named companies found in recent news." });
+    return { runId, found: 0, newCompanies: 0, skipped: undefined, picked: null, assessRunId: null };
+  }
+  await finishRun(db, ws, runId, { status: "done", label: `New prospect in ${city}: ${pick.name}`, queries: r.web?.queries ?? [], sources: sourcesOf(r.web, pick.items.map((i) => i.source_url)),
+    findings: pick.items.length, new_companies: fresh.length, usd: r.usage.usd,
+    error: null });
+  // Deep dive on that one company.
+  const { assessCompany } = await import("./assess");
+  const deep = await assessCompany(db, ws, { name: pick.name, hints: pick.items.map((i) => `${i.summary} (${i.source_url})`) }, { actorUserId: opts.actorUserId, ai: opts.assessAi ?? opts.ai });
+  // One signal for the prospect, carrying every cited source.
   const today = new Date().toISOString().slice(0, 10);
-  const cache = new Map<string, OrgContext>();
-  let found = 0, unknown = 0;
-  for (const raw of r.data.findings) {
-    const f = { ...raw, published_on: isoDate(raw.published_on) };
-    if (!okUrl(f.source_url) || /linkedin\.com/i.test(f.source_url)) continue;
-    const cat = categoryOf(f.kind);
-    if (!cat) continue;
-    const res = await resolveOrg(db, ws, f.company);
-    if (!res.orgId) unknown++;
-    const entity = res.orgId ?? `name:${normName(f.company)}`;
-    const out = await upsertSignal(db, ws, {
-      category: cat, kind: f.kind, key: dedupeKey(cat, f.kind, entity, f.published_on ?? today),
-      title: `${f.company}: ${f.kind.replace(/_/g, " ")}${f.location ? ` (${f.location})` : ""}`,
-      summary: f.summary, creRelevance: "Found by market scan. Evidence of activity, not proof of a space need.",
-      orgId: res.orgId, nameRaw: res.orgId ? null : f.company, location: f.location, verification: "inference",
-      evidence: [{ role: "support", key: `url:${f.source_url}`, sourceName: f.source_name, url: f.source_url, excerpt: f.summary, tier: "single_unverified", status: "reported", published: f.published_on }],
-      processing: res.orgId ? "review_required" : "entity_unresolved",
-    }, s, today, cache);
-    if (out.created) found++;
-  }
-  await finishRun(db, ws, runId, { status: r.mocked ? "skipped" : "done", queries: r.web?.queries ?? [], sources: sourcesOf(r.web, r.data.findings.map((f) => f.source_url)), findings: found, new_companies: unknown, usd: r.usage.usd, error: r.mocked ? (aiKind(r.model) ?? "AI not connected") : null });
-  return { runId, found, newCompanies: unknown, skipped: r.mocked ? (aiKind(r.model) ?? "AI not connected") : undefined };
+  const top = pick.items[0];
+  const cat = categoryOf(top.kind) ?? "expansion";
+  const ev = [...pick.items.map((i) => ({ url: i.source_url, name: i.source_name, text: i.summary, date: i.published_on })),
+    ...deep.assessment.for.filter((p) => p.source).map((p) => ({ url: p.source!.url, name: p.source!.name, text: p.text, date: p.source!.date }))];
+  await upsertSignal(db, ws, {
+    category: cat, kind: top.kind, key: dedupeKey(cat, top.kind, `name:${normName(pick.name)}`, top.published_on ?? today),
+    title: `${pick.name}: new prospect — score ${deep.assessment.score}/100`, summary: deep.assessment.summary,
+    creRelevance: "Found by market scan and assessed. Evidence of activity, not proof of a space need.",
+    nameRaw: pick.name, location: top.location, verification: "inference",
+    evidence: [...new Map(ev.map((e) => [e.url, e])).values()].map((e) => ({ role: "support" as const, key: `url:${e.url}`, sourceName: e.name, url: e.url, excerpt: e.text, tier: "single_unverified", status: "reported", published: e.date })),
+    processing: "entity_unresolved",
+  }, s, today, new Map<string, OrgContext>());
+  return { runId, found: 1, newCompanies: fresh.length, skipped: undefined, picked: pick.name, assessRunId: deep.runId, score: deep.assessment.score };
 }

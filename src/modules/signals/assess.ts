@@ -31,7 +31,7 @@ const Out = z.object({
 });
 
 export interface Point { text: string; points: number; factor: string; label: string; source?: { url: string; name: string; date: string | null }; from: "web" | "records" }
-export interface Assessment { company: string; orgId: string; score: number; band: "Strong" | "Promising" | "Weak"; summary: string; pune_presence: string | null; for: Point[]; against: Point[]; unknowns: string[]; method: string; at: string }
+export interface Assessment { company: string; orgId: string | null; score: number; band: "Strong" | "Promising" | "Weak"; summary: string; pune_presence: string | null; for: Point[]; against: Point[]; unknowns: string[]; method: string; at: string }
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const monthsAgo = (d: string | null) => (d && DATE.test(d) ? (Date.now() - Date.parse(d)) / (30 * 86_400_000) : null);
@@ -60,14 +60,17 @@ export function score(webFacts: z.infer<typeof Out>["facts"], records: Point[], 
   return { for: pts.filter((p) => p.points > 0).sort((a, b) => b.points - a.points), against: pts.filter((p) => p.points <= 0), score: total };
 }
 
-export async function assessCompany(db: Db, ws: string, orgId: string, opts: { actorUserId?: string; ai?: typeof callStructured } = {}) {
+/** Assess a saved company (orgId) or one found on the web that isn't in your records yet (name). */
+export async function assessCompany(db: Db, ws: string, target: string | { orgId?: string | null; name?: string; hints?: string[] }, opts: { actorUserId?: string; ai?: typeof callStructured } = {}) {
   const ai = opts.ai ?? callStructured;
-  const ctx = await orgContext(db, ws, orgId);
-  if (!ctx.org) throw new Error("Company not found.");
+  const t = typeof target === "string" ? { orgId: target } : target;
+  const orgId = t.orgId ?? null;
+  const empty = { org: null, locations: [], leases: [], leaseEvents: [], requirements: [], contacts: [], lastInteractionOn: null, opportunities: [], openTasks: 0 };
+  const ctx = orgId ? await orgContext(db, ws, orgId) : { ...empty, org: { display_name: t.name ?? "", sector: null } } as Awaited<ReturnType<typeof orgContext>>;
+  if (!ctx.org?.display_name) throw new Error("Company not found.");
   const s = await settings(db, ws);
   const focus = s.focusCities;
   const runId = await startRun(db, ws, "assess", ctx.org.display_name, orgId, opts.actorUserId);
-  if (runId) await db.from("research_run").update({ kind: "assess" }).eq("id", runId);
 
   // Points from your own records (no AI).
   const today = Date.now();
@@ -87,7 +90,7 @@ export async function assessCompany(db: Db, ws: string, orgId: string, opts: { a
       workspaceId: ws, workflow: "signals.assess", tier: "luna", webSearch: true, classification: "public", schema: Out, schemaName: "client_assessment",
       system: "You research one company for a commercial real-estate adviser in India. Extract only facts stated in sources you found, each with its URL and date. Never guess office size, budget, headcount or dates; put what you could not find in unknowns. Do not score or rate. Never use LinkedIn.",
       input: `Company: ${ctx.org.display_name}${ctx.org.sector ? ` (${ctx.org.sector})` : ""}. Focus city: ${focus.join(", ")}.
-Find recent (last 18 months) evidence relevant to whether they may need office space: expansion or new offices (especially in ${focus.join("/")}), GCC/captive centre plans, local hiring, relocation, consolidation, lease activity, funding, new real-estate/facilities/admin/finance leaders, return-to-office policy, and also layoffs or office exits.
+${t.hints?.length ? `Leads already found (verify and expand, do not just repeat): ${t.hints.slice(0, 4).join(" | ")}\n` : ""}Search specifically for this one company. Find recent (last 18 months) evidence relevant to whether they may need office space: expansion or new offices (especially in ${focus.join("/")}), GCC/captive centre plans, local hiring, relocation, consolidation, lease activity, funding, new real-estate/facilities/admin/finance leaders, return-to-office policy, and also layoffs or office exits.
 Use factor values exactly from: ${FACTORS.join(", ")}. Up to 8 facts. summary: 2 sentences on the company's ${focus.join("/")} presence and situation. pune_presence: what is known about their offices in ${focus.join("/")}, or null.`,
       mock: () => ({ summary: "Web research is not connected; only your own records were used.", pune_presence: null, facts: [], unknowns: ["Recent news (AI web search not connected)"] }),
     });
@@ -98,7 +101,7 @@ Use factor values exactly from: ${FACTORS.join(", ")}. Up to 8 facts. summary: 2
     throw e;
   }
   const sc = score(out.facts, records, focus);
-  const unknowns = [...new Set([...out.unknowns.slice(0, 6).map((u) => u.slice(0, 200)), ...(soon ? [] : ["Lease expiry / notice dates (not in your records)"]), ...(cre ? [] : ["A real-estate or facilities contact"]), "Required area, budget and move-in date"])];
+  const unknowns = [...new Set([...out.unknowns.slice(0, 6).map((u) => u.slice(0, 200)), ...(soon ? [] : [orgId ? "Lease expiry / notice dates (not in your records)" : "Their current lease (company not in your records yet)"]), ...(cre ? [] : ["A real-estate or facilities contact"]), "Required area, budget and move-in date"])];
   const a: Assessment = {
     company: ctx.org.display_name, orgId, score: sc.score, band: sc.score >= 70 ? "Strong" : sc.score >= 45 ? "Promising" : "Weak",
     summary: out.summary.slice(0, 600), pune_presence: out.pune_presence?.slice(0, 300) ?? null, for: sc.for, against: sc.against, unknowns,

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
-import { assessAction } from "@/modules/signals/actions";
+import { assessAction, addProspectAction } from "@/modules/signals/actions";
 import type { Assessment, Point } from "@/modules/signals/assess";
 
 export const metadata = { title: "Client potential" };
@@ -64,7 +64,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <header className="flex flex-col gap-6 rounded-2xl border border-line bg-surface p-6 sm:flex-row sm:items-center">
         <Dial score={a.score} band={a.band} />
         <div className="min-w-0">
-          <p className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-semibold ${b.bg} ${b.text}`}>{a.band} potential client</p>
+          <p className="flex flex-wrap gap-2"><span className={`inline-block rounded-full px-2.5 py-0.5 text-sm font-semibold ${b.bg} ${b.text}`}>{a.band} potential client</span>{!a.orgId ? <span className="inline-block rounded-full bg-brand-soft px-2.5 py-0.5 text-sm font-semibold text-brand">New — not in your records</span> : null}</p>
           <h1 className="mt-2 text-2xl font-bold leading-tight">{a.company}</h1>
           <p className="mt-2 text-ink-soft">{a.summary}</p>
           {a.pune_presence ? <p className="mt-2 text-sm"><span className="font-medium">Local presence: </span>{a.pune_presence}</p> : null}
@@ -97,8 +97,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </details>
 
       <div className="flex flex-wrap gap-3">
-        <Link href={`/companies/${a.orgId}`} className="inline-flex min-h-10 items-center rounded-xl border border-line px-4 text-sm font-semibold">Open company</Link>
-        {hasRole(ctx, "editor") ? <ActionForm action={assessAction.bind(null, a.orgId)}><Submit variant="secondary">Assess again</Submit></ActionForm> : null}
+        {a.orgId ? <Link href={`/companies/${a.orgId}`} className="inline-flex min-h-10 items-center rounded-xl border border-line px-4 text-sm font-semibold">Open company</Link> : null}
+        {!a.orgId && hasRole(ctx, "editor") ? <ActionForm action={addProspectAction.bind(null, run.id)}><Submit>Add {a.company} to my companies</Submit></ActionForm> : null}
+        {a.orgId && hasRole(ctx, "editor") ? <ActionForm action={assessAction.bind(null, a.orgId)}><Submit variant="secondary">Assess again</Submit></ActionForm> : null}
       </div>
     </div>
   );

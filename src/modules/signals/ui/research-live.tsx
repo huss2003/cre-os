@@ -62,9 +62,9 @@ export function ResearchLive({ initial }: { initial: Run[] }) {
                 <span className={`relative inline-flex h-3 w-3 rounded-full ${live ? "bg-brand" : r.status === "done" ? "bg-emerald-500" : r.status === "failed" ? "bg-rose-500" : "bg-amber-400"}`} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{r.kind === "discover" ? "Market scan: " : r.kind === "assess" ? "Client score: " : ""}{r.label}</span>
+                <span className="block truncate font-medium">{r.kind === "assess" ? "Client score: " : ""}{r.label}</span>
                 <span className="block text-xs text-ink-soft">
-                  {live ? "Searching the web…" : r.status === "done" ? `${r.sources.length} sites read, ${r.findings} new signal${r.findings === 1 ? "" : "s"}${r.new_companies ? `, ${r.new_companies} new companies` : ""}` : r.error ?? r.status}
+                  {live ? "Searching the web…" : r.status === "done" ? (r.error ?? (r.kind === "discover" ? `${r.sources.length} sites read, ${r.new_companies} new compan${r.new_companies === 1 ? "y" : "ies"} found, best one picked` : `${r.sources.length} sites read${r.kind === "assess" ? "" : `, ${r.findings} new signal${r.findings === 1 ? "" : "s"}`}`)) : r.error ?? r.status}
                   {" "}· {time(r.created_at)}
                 </span>
               </span>

@@ -65,7 +65,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
           <section>
             <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
               <div><h2 className="text-lg font-semibold">Live research</h2><p className="text-sm text-ink-soft">What each run searched and the websites it read. Green sites gave evidence.</p></div>
-              {canEdit ? <ActionForm action={discoverAction}><Submit>Find new activity in {(cfg.focusCities ?? ["Pune"]).join(", ")}</Submit></ActionForm> : null}
+              {canEdit ? <ActionForm action={discoverAction}><Submit>Find a new prospect in {(cfg.focusCities ?? ["Pune"]).join(", ")}</Submit></ActionForm> : null}
             </div>
             <ResearchLive initial={runs} />
           </section>

@@ -76,7 +76,31 @@ export async function discoverAction(_prev: ActionState): Promise<ActionState> {
     const r = await discoverMarket(ctx.db, ctx.workspaceId, { actorUserId: ctx.userId });
     revalidatePath("/research"); revalidatePath("/signals");
     if (r.skipped) return { error: `Scan didn't run: ${r.skipped}` };
-    return { ok: true, message: `Found ${r.found} new signal(s)${r.newCompanies ? `, ${r.newCompanies} from companies not in your records yet` : ""}.` };
+    if (!r.picked) return { ok: true, message: "No new company found this time — everyone in the news is already in your records." };
+    return { ok: true, message: `New prospect: ${r.picked} — ${r.score}/100. Open it in Live research.` };
+  } catch (e) { return { error: errorMessage(e) }; }
+}
+
+/** Saves a prospect found by the market scan as a company, and links its assessment and signals. */
+export async function addProspectAction(runId: string, _prev: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { data: run } = await ctx.db.from("research_run").select("assessment").eq("workspace_id", ctx.workspaceId).eq("id", runId).maybeSingle();
+    const a = run?.assessment as { company: string; orgId: string | null } | null;
+    if (!a || a.orgId) return { error: "Already saved." };
+    const { resolveOrg } = await import("./service");
+    const existing = await resolveOrg(ctx.db, ctx.workspaceId, a.company);
+    let orgId = existing.orgId;
+    if (!orgId) {
+      const { data: org, error } = await ctx.db.from("organisation").insert({ workspace_id: ctx.workspaceId, display_name: a.company, owner_user_id: ctx.userId }).select("id").single();
+      if (error) throw error;
+      orgId = org.id as string;
+    }
+    await ctx.db.from("research_run").update({ org_id: orgId, assessment: { ...a, orgId } }).eq("workspace_id", ctx.workspaceId).eq("id", runId);
+    const { data: sigs } = await ctx.db.from("signal").select("id").eq("workspace_id", ctx.workspaceId).is("org_id", null).ilike("entity_name_raw", a.company);
+    for (const sg of sigs ?? []) await actOnSignal(ctx.db, ctx.workspaceId, ctx.userId, sg.id, "correct_company", { org_id: orgId });
+    revalidatePath(`/research/assessment/${runId}`); revalidatePath("/signals"); revalidatePath("/research");
+    return { ok: true, message: `${a.company} saved to your companies.` };
   } catch (e) { return { error: errorMessage(e) }; }
 }
 
