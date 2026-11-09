@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase rows are untyped (no generated DB types yet) */
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Badge, Card, EmptyState, Field, Input, Select, Textarea } from "@/components/ui";
+import { Badge, Card, EmptyState, Field, Input, MoreFields, Select, Textarea } from "@/components/ui";
 import type { AppContext } from "@/lib/auth/context";
 import { listConfig, type ConfigKind } from "../config";
 import { archiveConfigAction, createConfigAction, updateConfigAction } from "../actions/settings";
@@ -46,12 +46,17 @@ function Input_({ f, row, ws }: { f: ConfigField; row: Row | null; ws: string })
 
 function Fields({ fields, row, ws }: { fields: ConfigField[]; row: Row | null; ws: string }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      {fields.map((f) => (
-        <div key={f.name} className={f.type === "json" || f.type === "textarea" || f.type === "classes" ? "sm:col-span-2" : undefined}>
-          <Field label={`${f.label}${f.required ? " *" : ""}`} hint={f.hint}><Input_ f={f} row={row} ws={ws} /></Field>
-        </div>
+    <div className="max-w-md space-y-4">
+      {fields.filter((f, i) => f.required || i < 2).map((f) => (
+        <Field key={f.name} label={`${f.label}${f.required ? " *" : ""}`} hint={f.hint}><Input_ f={f} row={row} ws={ws} /></Field>
       ))}
+      {fields.some((f, i) => !(f.required || i < 2)) ? (
+        <MoreFields>
+          {fields.filter((f, i) => !(f.required || i < 2)).map((f) => (
+            <Field key={f.name} label={`${f.label}${f.required ? " *" : ""}`} hint={f.hint}><Input_ f={f} row={row} ws={ws} /></Field>
+          ))}
+        </MoreFields>
+      ) : null}
     </div>
   );
 }

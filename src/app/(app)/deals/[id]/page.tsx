@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, Card, Field, Input, PageHeader, Select, Stat, StaleBanner, Table, Td, Textarea, inr } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, MoreFields, PageHeader, Select, Stat, StaleBanner, Table, Td, Textarea, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { toDealsCtx } from "@/modules/deals/api";
 import { DealsError } from "@/modules/deals/ctx";
@@ -55,21 +55,23 @@ export default async function DealDetail({ params, searchParams }: { params: Pro
         <Card title="Labels & outcome">
           <KV items={[["Temperature", String(o.temperature ?? "—")], ["Mandate", String(o.mandate_status ?? "—")], ["Next action", `${o.next_action ?? "—"}${o.next_action_due ? ` · ${o.next_action_due}` : ""}`], ["Expected close", String(o.expected_close ?? "—")], ["Official CRM id", String(o.crm_external_id ?? "— not linked")], ["Outcome reason", String(o.outcome_reason ?? "—")]]} />
           {canEdit && (
-            <div className="mt-3 grid gap-3">
-              <form action={updateLabelsAction} className="grid grid-cols-2 gap-2">
+            <div className="mt-3 space-y-4">
+              <form action={updateLabelsAction} className="max-w-md space-y-4">
                 {hid}
-                <Select name="temperature" defaultValue={(o.temperature as string) ?? ""}><option value="">temperature —</option><option>cold</option><option>warm</option><option>hot</option></Select>
-                <Select name="mandate_status" defaultValue={(o.mandate_status as string) ?? "unknown"}>{["unknown", "none", "non_exclusive", "exclusive", "support"].map((m) => <option key={m}>{m}</option>)}</Select>
-                <Input name="next_action" placeholder="Next action" defaultValue={(o.next_action as string) ?? ""} />
-                <Input type="date" name="next_action_due" defaultValue={(o.next_action_due as string) ?? ""} />
-                <Field label="Expected close (changes are kept for slippage)"><Input type="date" name="expected_close" defaultValue={(o.expected_close as string) ?? ""} /></Field>
-                <div className="flex items-end"><Button variant="secondary" type="submit">Save labels</Button></div>
+                <Field label="Next action"><Input name="next_action" defaultValue={(o.next_action as string) ?? ""} /></Field>
+                <Field label="Due"><Input type="date" name="next_action_due" defaultValue={(o.next_action_due as string) ?? ""} /></Field>
+                <MoreFields>
+                  <Field label="Temperature"><Select name="temperature" defaultValue={(o.temperature as string) ?? ""}><option value="">—</option><option>cold</option><option>warm</option><option>hot</option></Select></Field>
+                  <Field label="Mandate"><Select name="mandate_status" defaultValue={(o.mandate_status as string) ?? "unknown"}>{["unknown", "none", "non_exclusive", "exclusive", "support"].map((m) => <option key={m}>{m}</option>)}</Select></Field>
+                  <Field label="Expected close" hint="Changes are kept for slippage"><Input type="date" name="expected_close" defaultValue={(o.expected_close as string) ?? ""} /></Field>
+                </MoreFields>
+                <Button variant="secondary" type="submit">Save labels</Button>
               </form>
               {cv.closeHistory.length > 1 && <p className="text-xs text-ink-soft">Expected close history: {(cv.closeHistory as { old_expected_close: string | null; new_expected_close: string | null; changed_at: string }[]).map((h) => `${h.old_expected_close ?? "—"} → ${h.new_expected_close ?? "—"} (${h.changed_at.slice(0, 10)})`).join(" · ")}</p>}
-              <form action={setOutcomeAction} className="grid grid-cols-2 gap-2">
+              <form action={setOutcomeAction} className="max-w-md space-y-3">
                 {hid}
-                <Select name="outcome" defaultValue={String(o.outcome ?? "open")}>{OUTCOMES.map((x) => <option key={x}>{x}</option>)}</Select>
-                <Select name="reason" defaultValue=""><option value="">reason (lost / disqualified)</option>{LOST_REASONS.map((x) => <option key={x}>{x}</option>)}</Select>
+                <Select aria-label="Outcome" name="outcome" defaultValue={String(o.outcome ?? "open")}>{OUTCOMES.map((x) => <option key={x}>{x}</option>)}</Select>
+                <Select aria-label="Reason" name="reason" defaultValue=""><option value="">reason (lost / disqualified)</option>{LOST_REASONS.map((x) => <option key={x}>{x}</option>)}</Select>
                 <Button variant="secondary" type="submit">Set outcome</Button>
               </form>
             </div>
@@ -108,8 +110,8 @@ export default async function DealDetail({ params, searchParams }: { params: Pro
                   </Table>
                 )}
                 {canEdit && ["proposed", "conflict", "needs_external_id"].includes(x.status as string) && (
-                  <div className="mt-2 grid gap-2 lg:grid-cols-2">
-                    <form action={crmExternalAction} className="grid grid-cols-2 gap-1">
+                  <div className="mt-2 space-y-3">
+                    <form action={crmExternalAction} className="max-w-md space-y-2">
                       <input type="hidden" name="id" value={id} /><input type="hidden" name="export_id" value={x.id as string} />
                       <Input name="crm_external_id" placeholder="Official CRM id" defaultValue={(x.crm_external_id as string) ?? ""} />
                       <Input name="ext_stage" placeholder="CRM stage now" />

@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Button, Field, Input, Select } from "@/components/ui";
+import { Button, Field, Input, MoreFields, Select } from "@/components/ui";
 
 /** Upload an .xlsx/.csv to POST /api/v1/imports (Idempotency-Key per attempt), then open the batch report. */
 export interface SourceOption { id: string; name: string; kind: string; approved: boolean; is_default: boolean }
@@ -41,26 +41,21 @@ export function UploadForm({ sources = [] }: { sources?: SourceOption[] }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
+    <form onSubmit={onSubmit} className="max-w-md space-y-4">
       <Field label="Spreadsheet" hint=".xlsx or .csv, up to 25 MB. Macros, formulas and external links are never executed.">
         <Input type="file" name="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required />
       </Field>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="As-of date" hint="Needed to keep rents in snapshots">
-          <Input type="date" name="as_of" />
-        </Field>
-        <Field label="Period year" hint="For trackers without dates">
-          <Input type="number" name="period_year" min={1990} max={2100} placeholder="e.g. 2023" />
-        </Field>
-      </div>
-      <Field label="Source / folder" hint="Where the file came from. Files from a source an admin has not approved are stored but quarantined.">
+      <Field label="As-of date" hint="Needed to keep rents in snapshots">
+        <Input type="date" name="as_of" />
+      </Field>
+      <Field label="Source" hint="Where the file came from. Files from a source an admin has not approved are stored but quarantined.">
         <Select name="source_id" value={sourceId} onChange={(e) => setSourceId(e.target.value)}>
           {sources.map((s) => <option key={s.id} value={s.id}>{s.name}{s.approved ? "" : " (not approved)"}</option>)}
           <option value="new">New source…</option>
         </Select>
       </Field>
       {sourceId === "new" ? (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-4">
           <Field label="Source name"><Input name="source_name" placeholder="e.g. Research team export" required /></Field>
           <Field label="Kind">
             <Select name="source_kind" defaultValue="export">
@@ -70,13 +65,18 @@ export function UploadForm({ sources = [] }: { sources?: SourceOption[] }) {
           </Field>
         </div>
       ) : null}
-      <Field label="Classification">
-        <Select name="classification" defaultValue="corporate_confidential">
-          <option value="corporate_confidential">Corporate confidential</option>
-          <option value="licensed_restricted">Licensed / restricted</option>
-          <option value="public">Public</option>
-        </Select>
-      </Field>
+      <MoreFields>
+        <Field label="Period year" hint="For trackers without dates">
+          <Input type="number" name="period_year" min={1990} max={2100} placeholder="e.g. 2023" />
+        </Field>
+        <Field label="Classification">
+          <Select name="classification" defaultValue="corporate_confidential">
+            <option value="corporate_confidential">Corporate confidential</option>
+            <option value="licensed_restricted">Licensed / restricted</option>
+            <option value="public">Public</option>
+          </Select>
+        </Field>
+      </MoreFields>
       <Button type="submit" disabled={busy} className="w-full">{busy ? "Working…" : "Upload and reconcile"}</Button>
       {msg ? <p className="text-sm text-ink-soft" role="status">{msg}</p> : null}
     </form>

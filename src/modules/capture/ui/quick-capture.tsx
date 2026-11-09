@@ -1,7 +1,7 @@
 "use client";
 import { useActionState, useMemo, useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
-import { Button, Field, Input, Select, Textarea } from "@/components/ui";
+import { Button, Field, Input, MoreFields, Select, Textarea } from "@/components/ui";
 import { Result, type ActionState } from "@/modules/changes/ui/client";
 import { captureAction } from "../actions";
 import { LiveDictation } from "./live-dictation";
@@ -85,23 +85,20 @@ export function QuickCapture({ workspaceId }: { workspaceId: string }) {
           <Field label="Photo" hint="Text in the photo is read as context only — never as proof of terms.">
             <Input type="file" name="file" accept="image/*" capture="environment" />
           </Field>
-          <Field label="What is this? (optional)">
+          <Field label="What is this?">
             <Input value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Visiting card of the landlord's leasing head" />
           </Field>
         </div>
       ) : null}
 
-      <details className="rounded-xl border border-line bg-canvas px-4 py-2">
-        <summary className="cursor-pointer text-sm font-medium text-ink-soft">More options</summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Field label="When did it happen?"><Input type="datetime-local" name="source_at" defaultValue={localNow()} /></Field>
+      <MoreFields label="More options">
+          <Field label="When?"><Input type="datetime-local" name="source_at" defaultValue={localNow()} /></Field>
           <Field label="Language">
             <Select name="language_hint" defaultValue="">
               <option value="">Detect automatically</option><option value="en">English</option><option value="hi">Hindi</option><option value="hinglish">Hinglish</option><option value="mr">Marathi</option>
             </Select>
           </Field>
-        </div>
-      </details>
+      </MoreFields>
 
       <Button type="submit" disabled={pending} className="w-full py-3 text-base sm:w-auto sm:px-8">{pending ? "Saving…" : "Save capture"}</Button>
       <Result state={state} />

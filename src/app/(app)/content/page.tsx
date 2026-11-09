@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { PageHeader, Card, Button, ButtonLink, Badge, EmptyState, Field, Select, Input, Textarea } from "@/components/ui";
+import { PageHeader, Card, Button, ButtonLink, Badge, EmptyState, Field, Select, Input, MoreFields, Textarea } from "@/components/ui";
 import { listPosts, voiceSamples, brandRules, confidentialTerms } from "@/modules/intelligence/content/service";
 import { listMarketNotes } from "@/modules/intelligence/market/service";
 import { AUDIENCES, AUDIENCE_LABEL, checklistPasses, type CheckItem, type Claim } from "@/modules/intelligence/content/editor";
@@ -55,7 +55,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
 
                   <div className="mt-2 rounded-lg border border-line p-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Source notes ({refs.length})</p>
-                    {refs.length === 0 ? <p className="text-xs text-ink-soft">No evidence linked. Posts without figures, dates, names or market claims need none; anything factual must come from an approved note or a public source.</p> : (
+                    {refs.length === 0 ? <p className="text-xs text-ink-soft">No evidence linked. Facts need a source.</p> : (
                       <ul className="mt-1 space-y-1 text-xs">
                         {refs.map((r) => {
                           const note = r.type === "market_note" ? noteBy.get(String(r.id)) : null;
@@ -73,15 +73,15 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
                       </ul>
                     )}
                     {open && (
-                      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="mt-2 space-y-2">
                         <form action={linkNoteAction} className="flex flex-col gap-1 sm:flex-row sm:items-end"><input type="hidden" name="id" value={id} />
-                          <Field label="Link an approved market note">{approvedNotes.length ? <Select name="note_id" required defaultValue={String(p.market_note_id ?? "")}>{[<option key="" value="" disabled>Choose…</option>, ...approvedNotes.map((n) => <option key={String(n.id)} value={String(n.id)}>{String(n.title)}</option>)]}</Select> : <p className="text-xs text-ink-soft">No approved notes — approve one on <Link className="text-brand" href="/market">Market</Link>.</p>}</Field>
+                          <Field label="Link a market note">{approvedNotes.length ? <Select name="note_id" required defaultValue={String(p.market_note_id ?? "")}>{[<option key="" value="" disabled>Choose…</option>, ...approvedNotes.map((n) => <option key={String(n.id)} value={String(n.id)}>{String(n.title)}</option>)]}</Select> : <p className="text-xs text-ink-soft">No approved notes — approve one on <Link className="text-brand" href="/market">Market</Link>.</p>}</Field>
                           {approvedNotes.length ? <Button variant="secondary" type="submit">Link</Button> : null}
                         </form>
                         <details><summary className="cursor-pointer text-xs text-brand">Add a public-source fact</summary>
-                          <form action={publicFactAction} className="mt-1 space-y-1"><input type="hidden" name="id" value={id} />
+                          <form action={publicFactAction} className="mt-2 max-w-md space-y-2"><input type="hidden" name="id" value={id} />
                             <Textarea name="text" required minLength={5} maxLength={600} placeholder="Exact fact as published" className="min-h-16" />
-                            <div className="grid grid-cols-1 gap-1 sm:grid-cols-3"><Input name="source_name" required placeholder="Source (e.g. JLL Q3 report)" /><Input name="source_url" type="url" required placeholder="https://…" /><Input name="source_date" type="date" required /></div>
+                            <Input name="source_name" required placeholder="Source (e.g. JLL Q3 report)" /><Input name="source_url" type="url" required placeholder="https://…" /><Input name="source_date" type="date" required aria-label="Source date" />
                             <Button variant="secondary" type="submit">Add fact</Button>
                           </form>
                         </details>
@@ -117,7 +117,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
                         <Button variant="ghost" name="op" value="discard">Discard</Button>
                       </div>
                       {p.status === "approved" && (
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end"><Field label="Published link (after you post it yourself)"><Input name="url" type="url" placeholder="https://www.linkedin.com/posts/…" /></Field><Button name="op" value="published">Mark published</Button></div>
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end"><Field label="Published link" hint="After you post it yourself"><Input name="url" type="url" placeholder="https://www.linkedin.com/posts/…" /></Field><Button name="op" value="published">Mark published</Button></div>
                       )}
                     </form>
                   )}
@@ -132,16 +132,14 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {canEdit && (
           <Card title="Add an idea">
-            <form action={ideaAction} className="space-y-3">
+            <form action={ideaAction} className="max-w-md space-y-4">
               <Field label="Topic"><Input name="topic" required minLength={3} maxLength={300} /></Field>
-              <div className="grid grid-cols-2 gap-3">
+              <MoreFields>
                 <Field label="Audience"><Select name="audience" defaultValue="general">{AUDIENCES.map((a) => <option key={a} value={a}>{AUDIENCE_LABEL[a]}</option>)}</Select></Field>
                 <Field label="Channel"><Select name="channel" defaultValue="linkedin"><option value="linkedin">LinkedIn</option><option value="market_note">Market note</option><option value="newsletter">Newsletter</option></Select></Field>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Planned date"><Input name="planned" type="date" /></Field>
-                <Field label="Approved market note (optional)"><Select name="note_id" defaultValue="">{[<option key="" value="">None</option>, ...approvedNotes.map((n) => <option key={String(n.id)} value={String(n.id)}>{String(n.title)}</option>)]}</Select></Field>
-              </div>
+                <Field label="Market note"><Select name="note_id" defaultValue="">{[<option key="" value="">None</option>, ...approvedNotes.map((n) => <option key={String(n.id)} value={String(n.id)}>{String(n.title)}</option>)]}</Select></Field>
+              </MoreFields>
               <Button type="submit">Add</Button>
             </form>
           </Card>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, Table, Td, inr } from "@/components/ui";
+import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, MoreFields, PageHeader, Select, Table, Td, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { toDealsCtx } from "@/modules/deals/api";
 import { evaluateScenarioAction } from "@/modules/deals/actions";
@@ -45,54 +45,52 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
       )}
       {app.role !== "viewer" && (
         <Card title="New scenario">
-          <form action={evaluateScenarioAction} className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-4">
-              <Field label="Name"><Input name="name" required placeholder="Option A — bare shell" /></Field>
+          <form action={evaluateScenarioAction} className="max-w-lg space-y-4">
+            <Field label="Name"><Input name="name" required placeholder="Option A — bare shell" /></Field>
+            <Field label="Base date"><Input type="date" name="base_date" required defaultValue={today} /></Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Horizon (months)"><Input name="horizon" required defaultValue="60" inputMode="numeric" /></Field>
+              <Field label="Discount % p.a."><Input name="discount" required inputMode="decimal" /></Field>
+            </div>
+            <Field label="Rent ₹/unit/month"><Input name="rent" inputMode="decimal" /></Field>
+            <MoreFields label="Deal details">
               <Field label="Type"><Select name="kind" defaultValue="conventional">{["conventional", "managed", "coworking", "renew", "relocate"].map((k) => <option key={k}>{k}</option>)}</Select></Field>
               <Field label="Requirement"><Select name="requirement_id" defaultValue={requirementId ?? ""}><option value="">—</option>{(reqs ?? []).map((q) => <option key={q.id} value={q.id}>{q.title}</option>)}</Select></Field>
-              <Field label="Base date (period 0)"><Input type="date" name="base_date" required defaultValue={today} /></Field>
-              <Field label="Horizon (months)"><Input name="horizon" required defaultValue="60" inputMode="numeric" /></Field>
-              <Field label="Discount rate % p.a."><Input name="discount" required inputMode="decimal" /></Field>
               <Field label="Tenure (months)"><Input name="tenure" inputMode="numeric" /></Field>
               <Field label="If tenure < horizon"><Select name="after_tenure" defaultValue=""><option value="">(tenure covers horizon)</option><option value="continue_same_terms">Renew on same terms</option><option value="vacate">Vacate</option></Select></Field>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-4">
-              <Field label="Chargeable SF"><Input name="chargeable_sf" inputMode="decimal" /></Field>
-              <Field label="Carpet SF"><Input name="carpet_sf" inputMode="decimal" /></Field>
-              <Field label="Planned seats"><Input name="seats" inputMode="numeric" /></Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Chargeable SF"><Input name="chargeable_sf" inputMode="decimal" /></Field>
+                <Field label="Carpet SF"><Input name="carpet_sf" inputMode="decimal" /></Field>
+              </div>
+              <Field label="Seats"><Input name="seats" inputMode="numeric" /></Field>
               <Field label="Rent basis"><Select name="rent_basis" defaultValue="chargeable"><option>chargeable</option><option>carpet</option><option>seat</option><option>lumpsum</option></Select></Field>
-              <Field label="Rent ₹/unit/month"><Input name="rent" inputMode="decimal" /></Field>
-              <Field label="Escalation % / every months"><div className="flex gap-1"><Input name="esc_pct" inputMode="decimal" /><Input name="esc_every" inputMode="numeric" /></div></Field>
+              <Field label="Escalation % / every months"><div className="grid grid-cols-2 gap-2"><Input name="esc_pct" inputMode="decimal" /><Input name="esc_every" inputMode="numeric" /></div></Field>
               <Field label="Rent-free months"><Input name="rent_free" inputMode="numeric" /></Field>
               <Field label="Rent starts at period"><Input name="start_period" defaultValue="1" inputMode="numeric" /></Field>
-              <Field label="Landlord capex support ₹"><Input name="capex_support" inputMode="decimal" /></Field>
+              <Field label="Landlord capex ₹"><Input name="capex_support" inputMode="decimal" /></Field>
               <Field label="GST"><Select name="gst" defaultValue=""><option value="">not specified</option><option value="excluded">excluded (add)</option><option value="included">included</option><option value="recoverable">recoverable</option></Select></Field>
-              <Field label="GST rate % (from finance)"><Input name="gst_rate" inputMode="decimal" /></Field>
-              <Field label="Parallel rent ₹/month · months"><div className="flex gap-1"><Input name="parallel_rent" inputMode="decimal" /><Input name="parallel_months" inputMode="numeric" /></div></Field>
+              <Field label="GST rate %"><Input name="gst_rate" inputMode="decimal" /></Field>
+              <Field label="Parallel rent ₹/month · months"><div className="grid grid-cols-2 gap-2"><Input name="parallel_rent" inputMode="decimal" /><Input name="parallel_months" inputMode="numeric" /></div></Field>
               <Field label="Move cost ₹"><Input name="move_cost" inputMode="decimal" /></Field>
-            </div>
-            <div className="rounded-lg border border-line p-3">
-              <div className="mb-2 text-sm font-medium">Other costs — each is <em>unknown</em> until you give an amount or mark it none</div>
-              <p className="mb-3 text-xs text-ink-soft">Unknown costs are listed as gaps, excluded from “complete” totals and block approval unless acknowledged. They are never treated as zero.</p>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <CostRow item="cam" label="CAM / maintenance"><Input name="cam_rate" inputMode="decimal" placeholder="₹/SF/month" /><Input name="cam_fixed" inputMode="decimal" placeholder="or fixed ₹/month" /></CostRow>
-                <CostRow item="parking" label="Parking"><Input name="parking_slots" inputMode="numeric" placeholder="slots" /><Input name="parking_rate" inputMode="decimal" placeholder="₹/slot/month" /></CostRow>
-                <CostRow item="deposit" label="Security deposit"><Input name="deposit_months" inputMode="decimal" placeholder="months of rent" /></CostRow>
-                <CostRow item="fitout" label="Fit-out capex"><Input name="fitout" inputMode="decimal" placeholder="₹ total" /></CostRow>
-                <CostRow item="opex" label="Other operating costs"><Input name="opex_monthly" inputMode="decimal" placeholder="₹/month (power, housekeeping…)" /></CostRow>
-                <CostRow item="reinstatement" label="Reinstatement (end of tenure)"><Input name="reinstatement" inputMode="decimal" placeholder="₹" /></CostRow>
-              </div>
-            </div>
-            <Field label="Discount-rate source"><Input name="discount_source" placeholder="e.g. client WACC per CFO email 30 Oct" /></Field>
-            <details className="rounded-lg border border-line p-3"><summary className="cursor-pointer text-sm font-medium">Fit-out financing (optional)</summary>
-              <div className="mt-3 grid gap-3 sm:grid-cols-5">
-                <Field label="Partner"><Input name="fin_partner" placeholder="from your partner list" /></Field>
-                <Field label="Principal ₹"><Input name="fin_principal" inputMode="decimal" /></Field>
+              <Field label="Discount-rate source"><Input name="discount_source" placeholder="e.g. client WACC per CFO email 30 Oct" /></Field>
+            </MoreFields>
+            <MoreFields label="Other costs (unknown until set)">
+              <CostRow item="cam" label="CAM / maintenance"><Input name="cam_rate" inputMode="decimal" placeholder="₹/SF/month" /><Input name="cam_fixed" inputMode="decimal" placeholder="or fixed ₹/month" /></CostRow>
+              <CostRow item="parking" label="Parking"><Input name="parking_slots" inputMode="numeric" placeholder="slots" /><Input name="parking_rate" inputMode="decimal" placeholder="₹/slot/month" /></CostRow>
+              <CostRow item="deposit" label="Security deposit"><Input name="deposit_months" inputMode="decimal" placeholder="months of rent" /></CostRow>
+              <CostRow item="fitout" label="Fit-out capex"><Input name="fitout" inputMode="decimal" placeholder="₹ total" /></CostRow>
+              <CostRow item="opex" label="Other operating costs"><Input name="opex_monthly" inputMode="decimal" placeholder="₹/month (power, housekeeping…)" /></CostRow>
+              <CostRow item="reinstatement" label="Reinstatement"><Input name="reinstatement" inputMode="decimal" placeholder="₹" /></CostRow>
+            </MoreFields>
+            <MoreFields label="Fit-out financing">
+              <Field label="Partner"><Input name="fin_partner" placeholder="from your partner list" /></Field>
+              <Field label="Principal ₹"><Input name="fin_principal" inputMode="decimal" /></Field>
+              <div className="grid grid-cols-2 gap-3">
                 <Field label="Interest % p.a."><Input name="fin_rate" inputMode="decimal" /></Field>
                 <Field label="Term (months)"><Input name="fin_term" inputMode="numeric" /></Field>
-                <Field label="Upfront fee ₹"><Input name="fin_fee" inputMode="decimal" /></Field>
               </div>
-            </details>
+              <Field label="Upfront fee ₹"><Input name="fin_fee" inputMode="decimal" /></Field>
+            </MoreFields>
             <Button type="submit">Calculate & save</Button>
           </form>
         </Card>

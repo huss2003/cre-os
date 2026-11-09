@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase rows are untyped (no generated DB types yet) */
 import Link from "next/link";
-import { Badge, ButtonLink, EmptyState, Field, Input, Select, Textarea } from "@/components/ui";
+import { Badge, ButtonLink, EmptyState, Field, Input, MoreFields, Select, Textarea } from "@/components/ui";
 import type { AppContext } from "@/lib/auth/context";
 import { hasRole } from "@/lib/auth/context";
 import { listEntities, memberDirectory, type EntityTable } from "../entities";
@@ -35,15 +35,23 @@ export function EntityForm({ table, row, parentOptions, localityOptions }: { tab
   return (
     <ActionForm action={action} className="space-y-4">
       {row ? <input type="hidden" name="row_version" value={String(row.row_version)} /> : null}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {ENTITY_FIELDS[table].map((f) => (
-          <div key={f.name} className={f.type === "textarea" ? "sm:col-span-2" : undefined}>
-            <Field label={`${f.label}${f.required ? " *" : ""}`} hint={<>{f.hint}{row && f.material ? <span className="block text-warn">Changes go to Approvals before they apply.</span> : null}</>}>
-              <FieldInput f={f} row={row} options={f.name === "parent_asset_id" ? [["", "— none —"], ...(parentOptions ?? [])] : f.name === "locality_id" ? [["", "— unknown —"], ...(localityOptions ?? [])] : undefined} />
-            </Field>
+      {(() => {
+        // Essentials first (required + first two fields); everything optional sits behind "More details".
+        const all = ENTITY_FIELDS[table];
+        const main = all.filter((f, i) => f.required || i < 2);
+        const more = all.filter((f) => !main.includes(f));
+        const render = (f: (typeof all)[number]) => (
+          <Field key={f.name} label={`${f.label}${f.required ? " *" : ""}`} hint={f.hint || (row && f.material) ? <>{f.hint}{row && f.material ? <span className="block text-warn">Changes go to Approvals before they apply.</span> : null}</> : undefined}>
+            <FieldInput f={f} row={row} options={f.name === "parent_asset_id" ? [["", "— none —"], ...(parentOptions ?? [])] : f.name === "locality_id" ? [["", "— unknown —"], ...(localityOptions ?? [])] : undefined} />
+          </Field>
+        );
+        return (
+          <div className="max-w-md space-y-4">
+            {main.map(render)}
+            {more.length ? <MoreFields>{more.map(render)}</MoreFields> : null}
           </div>
-        ))}
-      </div>
+        );
+      })()}
       <div className="flex flex-wrap gap-2">
         <Submit>{row ? "Save changes" : `Create ${ENTITY_LABEL[table]}`}</Submit>
         <ButtonLink variant="secondary" href={row ? `${ENTITY_ROUTE[table]}/${row.id}` : ENTITY_ROUTE[table]}>Cancel</ButtonLink>

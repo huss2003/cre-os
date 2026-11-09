@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, Textarea, Table, Td, Stat, sf } from "@/components/ui";
+import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, MoreFields, Textarea, Table, Td, Stat, sf } from "@/components/ui";
 import { insightsOverview } from "@/modules/intelligence/insights/service";
 import { Flash, Bars, Sev, fmtDay, label } from "@/modules/intelligence/ui";
 import { playbookAction, experimentAction } from "./actions";
@@ -33,7 +33,7 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
             <div className="mt-3"><Table head={["Cohort", "Approaches", "Inbound-first", "People", "Touches", "Discussions", "Closures", "vs 120", "vs 170"]}>
               {f.cohorts.slice(0, 12).map((c) => <tr key={c.month}><Td>{c.month}</Td><Td>{c.approaches}</Td><Td>{c.inbound_first}</Td><Td>{c.people_touched}</Td><Td>{c.total_touches}</Td><Td>{c.discussions}</Td><Td>{c.closures}</Td><Td>{c.vs_base}%</Td><Td>{c.vs_pace}%</Td></tr>)}
             </Table></div>
-            <p className="mt-1 text-xs text-ink-soft">Discussions/closures are counted once per company in the month it was first approached. Inbound/referral companies are a separate channel. {f.unlinkedInteractions > 0 ? `${f.unlinkedInteractions} interaction(s) aren't linked to a company and can't be counted.` : ""}</p>
+            <p className="mt-1 text-xs text-ink-soft">{f.unlinkedInteractions > 0 ? `${f.unlinkedInteractions} interaction(s) aren't linked to a company and can't be counted.` : ""}</p>
           </>
         )}
       </Card>
@@ -101,15 +101,15 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
             ))}</ul>
           )}
           {canEdit && (
-            <form action={experimentAction} className="space-y-2">
+            <form action={experimentAction} className="max-w-md space-y-4">
               <Field label="Name"><Input name="name" required minLength={2} maxLength={160} /></Field>
               <Field label="Hypothesis"><Input name="hypothesis" required minLength={5} maxLength={1000} /></Field>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <Field label="Variants" hint="comma-separated"><Input name="variants" required placeholder="Lease event, Hiring" /></Field>
+              <MoreFields>
                 <Field label="Compare"><Select name="dimension"><option value="trigger">Trigger</option><option value="persona">Persona</option><option value="channel">Channel</option><option value="message">Message</option><option value="cohort">Cohort</option></Select></Field>
-                <Field label="Variants" hint="comma-separated"><Input name="variants" required placeholder="Lease event, Hiring" /></Field>
                 <Field label="Window (days)"><Input name="window" type="number" min={1} max={365} defaultValue={60} /></Field>
                 <Field label="Min sample"><Input name="min_sample" type="number" min={1} defaultValue={30} /></Field>
-              </div>
+              </MoreFields>
               <Button variant="secondary" type="submit">Design experiment</Button>
             </form>
           )}
@@ -119,21 +119,22 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
             <ul className="mb-3 space-y-2 text-sm">{d.playbook.map((p) => <li key={String(p.id)}><Badge>{String(p.kind)}</Badge> {String(p.prompt_text)}{p.response_text ? <div className="text-xs text-ink-soft">→ {String(p.response_text)}</div> : null}<div className="text-xs text-ink-soft">{label(String(p.source_rights))}{p.persona ? ` · ${String(p.persona)}` : ""}</div></li>)}</ul>
           )}
           {canEdit && (
-            <form action={playbookAction} className="space-y-2">
-              <div className="grid grid-cols-2 gap-2">
+            <form action={playbookAction} className="max-w-md space-y-4">
                 <Field label="Kind"><Select name="kind"><option value="question">Question</option><option value="objection">Objection</option><option value="answer">Answer</option><option value="talk_track">Talk track</option></Select></Field>
-                <Field label="Source rights"><Select name="source_rights"><option value="own_experience">Own experience</option><option value="client_permitted">Client permitted</option><option value="public_source">Public source</option><option value="internal_only">Internal only</option></Select></Field>
-              </div>
               <Field label="Prompt / objection"><Textarea name="prompt" required minLength={3} maxLength={2000} /></Field>
-              <Field label="Response (optional)"><Textarea name="response" maxLength={4000} /></Field>
-              <div className="grid grid-cols-2 gap-2"><Field label="Persona"><Input name="persona" maxLength={80} /></Field><Field label="Tags"><Input name="tags" placeholder="cfo, renewal" /></Field></div>
+              <MoreFields>
+                <Field label="Response"><Textarea name="response" maxLength={4000} /></Field>
+                <Field label="Source rights"><Select name="source_rights"><option value="own_experience">Own experience</option><option value="client_permitted">Client permitted</option><option value="public_source">Public source</option><option value="internal_only">Internal only</option></Select></Field>
+                <Field label="Persona"><Input name="persona" maxLength={80} /></Field>
+                <Field label="Tags"><Input name="tags" placeholder="cfo, renewal" /></Field>
+              </MoreFields>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="anonymised" required /> No client, person or price details (anonymised)</label>
               <Button variant="secondary" type="submit">Save</Button>
             </form>
           )}
         </Card>
       </div>
-      <p className="mt-4 text-xs text-ink-soft"><Sev s="low" /> Descriptive patterns only. The historical deal lists are selected observed transactions without a non-mover universe, so no next-mover probabilities are shown.</p>
+      <p className="mt-4 text-xs text-ink-soft"><Sev s="low" /> Descriptive patterns only — no predictions.</p>
     </div>
   );
 }

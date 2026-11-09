@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Badge, Card, EmptyState, Field, Input, PageHeader, Select, inr } from "@/components/ui";
+import { Badge, Card, EmptyState, Field, Input, MoreFields, PageHeader, Select, inr } from "@/components/ui";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requirePlatformPage } from "@/modules/admin/guard";
 import { listTenants } from "@/modules/admin/platform";
@@ -18,24 +18,24 @@ async function Body() {
   return (
     <div className="space-y-4">
       <Card title="Onboard a tenant">
-        <ActionForm action={createTenantAction} className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <ActionForm action={createTenantAction} className="max-w-md space-y-4">
             <Field label="Tenant name"><Input name="name" required placeholder="e.g. Acme Advisory Pune" /></Field>
             <Field label="Slug" hint="lowercase letters, digits, dashes"><Input name="slug" required pattern="[a-z0-9][a-z0-9-]{1,48}[a-z0-9]" /></Field>
+            <Field label="Owner email"><Input name="owner_email" type="email" required /></Field>
+            <MoreFields>
+            <Field label="Owner name"><Input name="owner_name" /></Field>
             <Field label="Time zone"><Input name="timezone" defaultValue="Asia/Kolkata" /></Field>
             <Field label="Currency"><Input name="currency" defaultValue="INR" maxLength={3} /></Field>
             <Field label="Monthly AI budget (₹)"><Input name="budget" inputMode="numeric" defaultValue="3000" /></Field>
-            <Field label="First owner email"><Input name="owner_email" type="email" required /></Field>
-            <Field label="First owner name"><Input name="owner_name" /></Field>
             <Field label="Owner access" hint="Nothing is emailed. Hand the link or password over yourself.">
               <Select name="method" defaultValue="invite_link"><option value="invite_link">Invite link</option><option value="temp_password">Temporary password</option></Select>
             </Field>
-          </div>
+            </MoreFields>
           <Submit>Create tenant</Submit>
         </ActionForm>
       </Card>
 
-      {tenants.length === 0 ? <EmptyState title="No tenants yet">Create the first tenant above. Tenants are onboarded manually — there is no self-serve signup or billing.</EmptyState> : (
+      {tenants.length === 0 ? <EmptyState title="No tenants yet">Create the first tenant above.</EmptyState> : (
         <ul className="grid gap-3 md:grid-cols-2">
           {tenants.map((t) => (
             <li key={t.id} className="rounded-xl border border-line bg-surface p-4">

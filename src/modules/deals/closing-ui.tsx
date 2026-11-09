@@ -1,6 +1,6 @@
 /** Server-rendered UI blocks for the closing coordinator and revenue view (deals-B). Mobile-first: stacks at 375px. */
 import Link from "next/link";
-import { Badge, Button, Field, Input, Select, Table, Td, inr } from "@/components/ui";
+import { Badge, Button, Field, Input, MoreFields, Select, Table, Td, inr } from "@/components/ui";
 import { feeActionB, updateMilestoneDetailsAction } from "./actions-b";
 import type { OutstandingDoc, TimelineItem } from "./pipeline/closing";
 import { MILESTONE_STATUSES } from "./pipeline/closing-service";
@@ -15,8 +15,7 @@ export function ClosingTimeline({ oppId, items, members, canEdit }: { oppId: str
   return (
     <div className="space-y-2">
       <p className="text-xs text-ink-soft">
-        Dependency timeline — indented items wait on the item above them. {blocked ? <span className="text-bad">{blocked} blocked</span> : "Nothing blocked"} · {overdue ? <span className="text-bad">{overdue} overdue</span> : "nothing overdue"}.
-        Items marked “needed before” block that stage until done (with proof where required) or waived.
+        {blocked ? <span className="text-bad">{blocked} blocked</span> : "Nothing blocked"} · {overdue ? <span className="text-bad">{overdue} overdue</span> : "nothing overdue"}.
       </p>
       <ol className="divide-y divide-line text-sm">
         {items.map((t) => (
@@ -36,15 +35,17 @@ export function ClosingTimeline({ oppId, items, members, canEdit }: { oppId: str
             {canEdit && (
               <details className="mt-1">
                 <summary className="cursor-pointer text-xs text-brand">Edit</summary>
-                <form action={updateMilestoneDetailsAction} className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <form action={updateMilestoneDetailsAction} className="mt-2 max-w-md space-y-4">
                   <input type="hidden" name="id" value={oppId} /><input type="hidden" name="milestone_id" value={t.id} />
                   <Field label="Status"><Select name="status" defaultValue={t.status}>{MILESTONE_STATUSES.map((x) => <option key={x} value={x}>{x.replace(/_/g, " ")}</option>)}</Select></Field>
                   <Field label="Due date"><Input type="date" name="due_date" defaultValue={t.due_date ?? ""} /></Field>
                   <Field label="Owner"><Select name="assignee_user_id" defaultValue={t.assignee_user_id ?? ""}><option value="">— unassigned —</option>{members.map((m) => <option key={m.userId} value={m.userId}>{m.name}</option>)}</Select></Field>
-                  <Field label="External owner (optional)"><Input name="owner_note" placeholder="e.g. client legal, landlord" defaultValue={t.owner_note ?? ""} /></Field>
-                  <Field label="Waits on"><Select name="depends_on" defaultValue={t.depends_on ?? ""}><option value="">— nothing —</option>{items.filter((x) => x.id !== t.id).map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}</Select></Field>
-                  <Field label="Proof (document, email ref, signed copy)"><Input name="proof_text" defaultValue={t.proof_text ?? ""} /></Field>
-                  <div className="sm:col-span-3"><Button variant="secondary" type="submit">Save item</Button></div>
+                  <MoreFields>
+                    <Field label="External owner"><Input name="owner_note" placeholder="e.g. client legal, landlord" defaultValue={t.owner_note ?? ""} /></Field>
+                    <Field label="Waits on"><Select name="depends_on" defaultValue={t.depends_on ?? ""}><option value="">— nothing —</option>{items.filter((x) => x.id !== t.id).map((x) => <option key={x.id} value={x.id}>{x.title}</option>)}</Select></Field>
+                    <Field label="Proof"><Input name="proof_text" placeholder="Document, email ref, signed copy" defaultValue={t.proof_text ?? ""} /></Field>
+                  </MoreFields>
+                  <Button variant="secondary" type="submit">Save item</Button>
                 </form>
               </details>
             )}
@@ -56,7 +57,7 @@ export function ClosingTimeline({ oppId, items, members, canEdit }: { oppId: str
 }
 
 export function OutstandingDocs({ items }: { items: OutstandingDoc[] }) {
-  if (!items.length) return <p className="text-sm text-ink-soft">Nothing outstanding: every document item is done with proof, and client documents are released and current.</p>;
+  if (!items.length) return <p className="text-sm text-ink-soft">Nothing outstanding.</p>;
   return (
     <ul className="divide-y divide-line text-sm">
       {items.map((o) => (
@@ -87,30 +88,31 @@ export function LedgerTable({ lines }: { lines: LedgerLine[] }) {
 export function FeeFormB({ oppId, fees, milestones }: { oppId: string; fees: { id: string; milestone: string | null }[]; milestones: { id: string; title: string }[] }) {
   return (
     <details className="mt-3 rounded-lg border border-line p-3">
-      <summary className="cursor-pointer text-sm font-medium">Record fee terms / attribution / invoice / collection</summary>
-      <p className="mt-2 text-xs text-ink-soft">Each amount is recorded once with its date and evidence; corrections go through an approval. The official finance system stays authoritative — use Fees → Reconcile to compare.</p>
-      <form action={feeActionB} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <summary className="cursor-pointer text-sm font-medium">Record a fee</summary>
+      <form action={feeActionB} className="mt-3 max-w-md space-y-4">
         <input type="hidden" name="id" value={oppId} />
         <Field label="Update existing"><Select name="milestone_id" defaultValue=""><option value="">— new milestone —</option>{fees.map((f) => <option key={f.id} value={f.id}>{f.milestone ?? f.id.slice(0, 8)}</option>)}</Select></Field>
         <Field label="Milestone"><Input name="milestone" placeholder="e.g. on signing" /></Field>
-        <Field label="Linked closing item"><Select name="deal_milestone_id" defaultValue=""><option value="">—</option>{milestones.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}</Select></Field>
         <Field label="Gross fee ₹"><Input name="gross_fee" inputMode="decimal" /></Field>
+        <MoreFields>
+        <Field label="Linked closing item"><Select name="deal_milestone_id" defaultValue=""><option value="">—</option>{milestones.map((m) => <option key={m.id} value={m.id}>{m.title}</option>)}</Select></Field>
         <Field label="Credit share %"><Input name="credit_share_pct" inputMode="decimal" /></Field>
-        <Field label="Contractual ₹ / agreement ref"><div className="flex gap-1"><Input name="contractual_amount" inputMode="decimal" /><Input name="contract_ref" placeholder="EL no." /></div></Field>
-        <Field label="Attributed on / credit memo"><div className="flex gap-1"><Input type="date" name="attributed_on" /><Input name="attribution_ref" placeholder="memo" /></div></Field>
-        <Field label="Invoiced ₹ / date"><div className="flex gap-1"><Input name="invoiced_amount" inputMode="decimal" /><Input type="date" name="invoiced_on" /></div></Field>
-        <Field label="Invoice no. / due date"><div className="flex gap-1"><Input name="invoice_no" /><Input type="date" name="invoice_due_on" /></div></Field>
-        <Field label="Recognised ₹ / date"><div className="flex gap-1"><Input name="recognised_amount" inputMode="decimal" /><Input type="date" name="recognised_on" /></div></Field>
-        <Field label="Collected ₹ / date"><div className="flex gap-1"><Input name="collected_amount" inputMode="decimal" /><Input type="date" name="collected_on" /></div></Field>
-        <Field label="Evidence (invoice no., remittance ref.)"><Input name="evidence" /></Field>
-        <div className="sm:col-span-3"><Button type="submit">Save fee record</Button></div>
+        <Field label="Contractual ₹ / agreement ref"><div className="grid grid-cols-2 gap-2"><Input name="contractual_amount" inputMode="decimal" /><Input name="contract_ref" placeholder="EL no." /></div></Field>
+        <Field label="Attributed on / credit memo"><div className="grid grid-cols-2 gap-2"><Input type="date" name="attributed_on" /><Input name="attribution_ref" placeholder="memo" /></div></Field>
+        <Field label="Invoiced ₹ / date"><div className="grid grid-cols-2 gap-2"><Input name="invoiced_amount" inputMode="decimal" /><Input type="date" name="invoiced_on" /></div></Field>
+        <Field label="Invoice no. / due date"><div className="grid grid-cols-2 gap-2"><Input name="invoice_no" /><Input type="date" name="invoice_due_on" /></div></Field>
+        <Field label="Recognised ₹ / date"><div className="grid grid-cols-2 gap-2"><Input name="recognised_amount" inputMode="decimal" /><Input type="date" name="recognised_on" /></div></Field>
+        <Field label="Collected ₹ / date"><div className="grid grid-cols-2 gap-2"><Input name="collected_amount" inputMode="decimal" /><Input type="date" name="collected_on" /></div></Field>
+        <Field label="Evidence"><Input name="evidence" placeholder="Invoice no., remittance ref." /></Field>
+        </MoreFields>
+        <Button type="submit">Save fee record</Button>
       </form>
     </details>
   );
 }
 
 export function ReconExceptions({ rows }: { rows: { id: string; import_id: string; row_no: number; invoice_no: string | null; status: string; exceptions: string[]; proposal_ids: string[] }[] }) {
-  if (!rows.length) return <p className="text-sm text-ink-soft">No reconciliation exceptions for this deal. Import the finance system&apos;s invoice/collection export under <Link className="text-brand underline" href="/fees/reconcile">Fees → Reconcile</Link>.</p>;
+  if (!rows.length) return <p className="text-sm text-ink-soft">No reconciliation exceptions for this deal. <Link className="text-brand underline" href="/fees/reconcile">Reconcile</Link></p>;
   return (
     <ul className="space-y-1 text-sm">
       {rows.map((r) => (

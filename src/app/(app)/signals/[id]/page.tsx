@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Card, PageHeader, Badge, Field, Input, Textarea, Select } from "@/components/ui";
+import { Card, PageHeader, Badge, Field, Input, MoreFields, Textarea, Select } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { signalDetail } from "@/modules/signals/service";
@@ -72,7 +72,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           <div className="space-y-4">
             <Card title="Decide">
               <ActionForm action={act} className="space-y-2">
-                <Field label="Reason (needed to reject or dismiss)"><Input name="reason" /></Field>
+                <Field label="Reason" hint="Needed to reject or dismiss"><Input name="reason" /></Field>
                 <div className="flex flex-wrap gap-2">
                   <Btn a="approve" v="primary">Approve + task</Btn><Btn a="investigate">Investigate</Btn><Btn a="assign_me">Assign to me</Btn>
                   <Btn a="known">Already known</Btn><Btn a="reject" v="danger">Reject</Btn><Btn a="dismiss">Dismiss</Btn>
@@ -86,7 +86,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </Card>
             <Card title="Deal">
               <ActionForm action={act} className="space-y-2"><Field label="Link to existing deal"><Select name="opportunity_id" defaultValue={s.opportunity_id ?? ""}><option value="">Pick…</option>{opps.map((o: Row) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field><Btn a="link_opportunity">Link</Btn></ActionForm>
-              <ActionForm action={act} className="mt-3 space-y-2"><Field label="Or propose a new deal (goes to Review)"><Input name="name" placeholder={s.title} /></Field><Btn a="propose_opportunity">Propose deal</Btn></ActionForm>
+              <ActionForm action={act} className="mt-3 space-y-2"><Field label="Or propose new deal" hint="Goes to Review"><Input name="name" placeholder={s.title} /></Field><Btn a="propose_opportunity">Propose deal</Btn></ActionForm>
             </Card>
             <Card title="Company">
               <ActionForm action={act} className="space-y-2"><Field label="Correct company"><Select name="org_id" defaultValue={s.org_id ?? ""}><option value="">Pick…</option>{orgs.map((o: Row) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</Select></Field><Btn a="correct_company">Save company</Btn></ActionForm>
@@ -94,15 +94,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <Card title="Evidence">
               <ActionForm action={act} className="space-y-2">
                 <Field label="Text"><Textarea name="text" rows={3} /></Field>
-                <div className="grid grid-cols-2 gap-2"><Field label="Source"><Input name="source" /></Field><Field label="Date"><Input name="published_on" type="date" /></Field></div>
-                <Field label="Link"><Input name="url" type="url" /></Field>
+                <Field label="Source"><Input name="source" /></Field>
+                <MoreFields>
+                  <Field label="Date"><Input name="published_on" type="date" /></Field>
+                  <Field label="Link"><Input name="url" type="url" /></Field>
+                </MoreFields>
                 <div className="flex gap-2"><Btn a="add_evidence">Add supporting</Btn><Btn a="add_counter">Add counter</Btn></div>
               </ActionForm>
             </Card>
             <Card title="Override priority">
               <ActionForm action={act} className="space-y-2">
                 <Field label="Priority"><Select name="band" defaultValue={s.priority_band}><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></Select></Field>
-                <Field label="Reason"><Input name="reason" required /></Field><Field label="Review on"><Input name="review_on" type="date" /></Field>
+                <Field label="Reason"><Input name="reason" required /></Field>
+                <MoreFields><Field label="Review on"><Input name="review_on" type="date" /></Field></MoreFields>
                 <Btn a="override_priority">Save override</Btn>
               </ActionForm>
             </Card>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, inr } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, Input, MoreFields, PageHeader, Select, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { toDealsCtx } from "@/modules/deals/api";
 import { createOpportunityAction } from "@/modules/deals/actions";
@@ -63,17 +63,19 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
       )}
       {app.role !== "viewer" && (
         <Card title="New opportunity" className="mt-6">
-          <form action={createOpportunityAction} className="grid gap-3 sm:grid-cols-3">
+          <form action={createOpportunityAction} className="max-w-md space-y-4">
             <Field label="Name"><Input name="name" required /></Field>
             <Field label="Requirement"><Select name="requirement_id" defaultValue=""><option value="">— none yet —</option>{(reqs ?? []).map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}</Select></Field>
-            <Field label="…or company"><Select name="org_id" defaultValue=""><option value="">— choose —</option>{(orgs ?? []).map((o) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</Select></Field>
+            <Field label="Or company"><Select name="org_id" defaultValue=""><option value="">— choose —</option>{(orgs ?? []).map((o) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</Select></Field>
             <Field label="Stage"><Select name="stage" defaultValue="research">{STAGES.slice(0, 4).map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}</Select></Field>
+            <MoreFields>
             <Field label="Temperature"><Select name="temperature" defaultValue=""><option value="">—</option><option>cold</option><option>warm</option><option>hot</option></Select></Field>
             <Field label="Mandate"><Select name="mandate_status" defaultValue="unknown">{["unknown", "none", "non_exclusive", "exclusive", "support"].map((m) => <option key={m}>{m}</option>)}</Select></Field>
-            <Field label="Expected gross fee ₹"><Input name="expected_fee" inputMode="decimal" /></Field>
-            <Field label="Your credit share %"><Input name="credit_share_pct" inputMode="decimal" /></Field>
-            <Field label="Official CRM id"><Input name="crm_external_id" /></Field>
-            <div className="sm:col-span-3"><Button type="submit">Create</Button></div>
+            <Field label="Expected fee ₹"><Input name="expected_fee" inputMode="decimal" /></Field>
+            <Field label="Credit share %"><Input name="credit_share_pct" inputMode="decimal" /></Field>
+            <Field label="CRM id"><Input name="crm_external_id" /></Field>
+            </MoreFields>
+            <Button type="submit">Create</Button>
           </form>
         </Card>
       )}

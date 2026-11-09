@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, Textarea, FactBadge, StaleBanner } from "@/components/ui";
+import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, MoreFields, Textarea, FactBadge, StaleBanner } from "@/components/ui";
 import { dossierPage } from "@/modules/intelligence/research/queries";
 import { pasteSourceOptions } from "@/modules/intelligence/research/registry";
 import { EVIDENCE_TIER_LABEL, type EvidenceTier } from "@/modules/intelligence/common";
@@ -71,20 +71,20 @@ export default async function DossierPage({ params, searchParams }: { params: Pr
       {canEdit && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card title="Paste evidence">
-            <form action={evidenceAction} className="space-y-3">
+            <form action={evidenceAction} className="max-w-md space-y-4">
               <input type="hidden" name="org_id" value={orgId} />
               <Field label="What does it say?" hint="Stored verbatim as untrusted evidence; it never triggers actions. Business signals in it are added as hypotheses."><Textarea name="text" required minLength={3} maxLength={5000} /></Field>
               <Field label="Source" hint={<>Approved sources come from the <Link className="text-brand" href="/research/sources">registry</Link>. A manual note is capped at “single unverified”.</>}>
                 <Select name="source_id" required defaultValue="">{[<option key="" value="" disabled>Choose…</option>, ...sources.map((s) => <option key={s.id} value={s.id}>{s.name}{s.licensed ? " (licensed)" : ""}</option>), <option key="manual" value="manual">Manual note / unregistered source</option>]}</Select>
               </Field>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <MoreFields>
                 <Field label="Type"><Select name="claim_type" defaultValue="other">{["identity", "footprint", "headcount", "hiring", "funding", "financial", "rto", "consolidation", "gcc_plan", "expansion", "relocation", "leadership_change", "other"].map((t) => <option key={t} value={t}>{label(t)}</option>)}</Select></Field>
                 <Field label="Evidence tier"><Select name="evidence_tier" defaultValue="single_unverified">{Object.entries(EVIDENCE_TIER_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
-                <Field label="Source URL (optional)" hint="Citation only — CRE OS does not fetch it."><Input name="url" type="url" placeholder="https://" /></Field>
+                <Field label="Source URL" hint="Citation only — CRE OS does not fetch it."><Input name="url" type="url" placeholder="https://" /></Field>
                 <Field label="Published on"><Input name="published_on" type="date" /></Field>
                 <Field label="Function (hiring)"><Input name="function" maxLength={80} /></Field>
                 <Field label="Location"><Input name="location" maxLength={80} /></Field>
-              </div>
+              </MoreFields>
               <Button type="submit">Store evidence</Button>
             </form>
           </Card>

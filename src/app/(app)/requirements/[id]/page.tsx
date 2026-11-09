@@ -1,7 +1,7 @@
 import { FOCUS_MODE } from "@/lib/nav";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, PageHeader, Select, StaleBanner, Stat, Table, Td, Textarea, inr } from "@/components/ui";
+import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, MoreFields, PageHeader, Select, StaleBanner, Stat, Table, Td, Textarea, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
 import { toDealsCtx } from "@/modules/deals/api";
@@ -85,7 +85,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
                 {d.missing.slice(0, 15).map((q) => <li key={q.key}>{q.question} {q.reason === "estimated_needs_confirmation" ? <Badge tone="warn">confirm with client</Badge> : q.priority === "mandatory" ? <Badge tone="bad">mandatory</Badge> : null}</li>)}
               </ol>
             )}
-            <p className="mt-2 text-xs text-ink-soft">Mandatory questions become follow-up tasks automatically and close as answers are confirmed — {openTasks.filter((t) => t.source === "deals.requirement_question").length} open.{FOCUS_MODE ? null : <> <Link className="underline" href="/tasks">Tasks</Link></>}</p>
+            <p className="mt-2 text-xs text-ink-soft">{openTasks.filter((t) => t.source === "deals.requirement_question").length} open tasks.{FOCUS_MODE ? null : <> <Link className="underline" href="/tasks">Tasks</Link></>}</p>
           </Card>
           {canEdit && (
             <Card title="Update a field">
@@ -93,12 +93,12 @@ export default async function RequirementDetail({ params, searchParams }: { para
                 {hidden}
                 <Field label="Field"><Select name="key" required defaultValue="">{[<option key="" value="">— choose —</option>, ...d.fields.map((f) => <option key={f.key} value={f.key}>{f.label}{f.status === "client_confirmed" ? " (confirmed → needs approval)" : ""}</option>)]}</Select></Field>
                 <Field label="Value" hint="Ranges (area / seats / budget): fill min · target · max below instead. Lists and locations: comma-separated names. Power / parking / transit text (e.g. “500 kVA”, “40 cars, 120 two-wheelers”, “within 1 km of metro”) also sets the matching spec."><Input name="value" /></Field>
-                <div className="grid grid-cols-3 gap-2"><Input name="v0" placeholder="min" /><Input name="v1" placeholder="target / max" /><Input name="v2" placeholder="max" /></div>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <Field label="Source"><Input name="reason" placeholder="e.g. call with CFO 31 Oct" /></Field>
+                <MoreFields>
+                  <Field label="Range (min · target · max)"><div className="grid grid-cols-3 gap-2"><Input name="v0" placeholder="min" /><Input name="v1" placeholder="target / max" /><Input name="v2" placeholder="max" /></div></Field>
                   <Field label="Status"><Select name="status" defaultValue=""><option value="">Estimated (default)</option><option value="reported">Reported (second-hand)</option><option value="client_confirmed">Client-confirmed</option><option value="unknown">Unknown</option></Select></Field>
-                  <Field label="Only change status?"><Select name="value_mode" defaultValue="value"><option value="value">Set value</option><option value="status_only">Status only</option></Select></Field>
-                </div>
-                <Field label="Reason / source"><Input name="reason" placeholder="e.g. call with CFO 31 Oct" /></Field>
+                  <Field label="Change"><Select name="value_mode" defaultValue="value"><option value="value">Set value</option><option value="status_only">Status only</option></Select></Field>
+                </MoreFields>
                 <Button type="submit">Save</Button>
               </form>
             </Card>
@@ -128,8 +128,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
       </Card>
 
       <Card title={`Hard constraints (${d.hardConstraints.length})`}>
-        <p className="mb-2 text-xs text-ink-soft">Applied as eligibility filters before any ranking — a high score can never override them. Missing building data under a constraint means “needs verification”, never a match.</p>
-        {d.hardConstraints.length === 0 ? <p className="text-sm text-ink-soft">No hard constraints yet. Set area, excluded locations, or the specs below (power, parking, metro, certifications, fit-out).</p> : (
+        {d.hardConstraints.length === 0 ? <p className="text-sm text-ink-soft">No hard constraints yet.</p> : (
           <ul className="divide-y divide-line text-sm">
             {d.hardConstraints.map((h) => (
               <li key={h.key} className="flex flex-wrap items-start justify-between gap-2 py-1.5">
@@ -141,17 +140,19 @@ export default async function RequirementDetail({ params, searchParams }: { para
         )}
         {canEdit && (
           <details className="mt-3 rounded-lg border border-line p-3">
-            <summary className="cursor-pointer text-sm font-medium">Edit matching configuration (specs, hard filters, weights, catchments)</summary>
+            <summary className="cursor-pointer text-sm font-medium">Edit matching settings</summary>
             <form action={saveMatchingConfigAction} className="mt-3 space-y-4">
               {hidden}
               {r.status === "client_confirmed" && <p className="text-xs text-warn">Client-confirmed requirement: spec and hard-filter changes are submitted for approval; weights and catchments apply directly.</p>}
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="max-w-md space-y-4">
                 <Field label="Min power (kVA)"><Input name="spec_min_power_kva" inputMode="decimal" defaultValue={specVal("min_power_kva")} /></Field>
                 <Field label="Min car parks"><Input name="spec_min_car_parks" inputMode="numeric" defaultValue={specVal("min_car_parks")} /></Field>
+                <MoreFields>
                 <Field label="Min two-wheeler parks"><Input name="spec_min_two_wheeler_parks" inputMode="numeric" defaultValue={specVal("min_two_wheeler_parks")} /></Field>
                 <Field label="Max metro distance (km)"><Input name="spec_max_metro_km" inputMode="decimal" defaultValue={specVal("max_metro_km")} /></Field>
                 <Field label="Certifications (any of)" hint="comma-separated, e.g. LEED Gold, IGBC"><Input name="spec_certifications" defaultValue={specVal("certifications")} /></Field>
                 <Field label="Fit-out basis" hint="bare, warm_shell, fitted, managed"><Input name="spec_fitout_basis" defaultValue={specVal("fitout_basis")} /></Field>
+                </MoreFields>
               </div>
               {["min_power_kva", "min_car_parks", "min_two_wheeler_parks", "max_metro_km", "certifications", "fitout_basis"].map((k) => <input key={k} type="hidden" name={`orig_spec_${k}`} value={specVal(k)} />)}
               <input type="hidden" name="orig_spec_operating_24x7" value={String(!!rs.operating_24x7)} />
@@ -166,7 +167,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
               </fieldset>
               <div>
                 <div className="mb-1 text-sm font-medium">Criterion weights (blank = default)</div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {CRITERIA.map((c) => {
                     const cur = cons.weights?.[c];
                     return (
@@ -182,7 +183,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
                 <Textarea name="catchments" rows={3} defaultValue={catchText} />
               </Field>
               <input type="hidden" name="orig_catchments" value={catchText} />
-              <Field label="Reason / source"><Input name="reason" placeholder="e.g. CFO call — 600 kVA confirmed" /></Field>
+              <Field label="Source"><Input name="reason" placeholder="e.g. CFO call — 600 kVA confirmed" /></Field>
               <Button type="submit">Save matching configuration</Button>
             </form>
           </details>
@@ -197,14 +198,12 @@ export default async function RequirementDetail({ params, searchParams }: { para
           </ul>
         )}
         {canEdit && (
-          <form action={addStakeholderAction} className="grid gap-2 sm:grid-cols-4">
+          <form action={addStakeholderAction} className="max-w-md space-y-4">
             <input type="hidden" name="id" value={id} />
-            <label className="sr-only" htmlFor="sh-person">Existing person</label>
-            <Select id="sh-person" name="person_id" defaultValue=""><option value="">— existing person —</option>{people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</Select>
-            <label className="sr-only" htmlFor="sh-name">Or new person name</label>
-            <Input id="sh-name" name="person_name" placeholder="…or new person name" />
-            <Select name="role" defaultValue="sponsor">{STAKEHOLDER_ROLES.map((x) => <option key={x} value={x}>{x}</option>)}</Select>
-            <Input name="influence_basis" placeholder="Why they matter" />
+            <Field label="Person"><Select id="sh-person" name="person_id" defaultValue=""><option value="">— choose —</option>{people.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}</Select></Field>
+            <Field label="Or new person"><Input id="sh-name" name="person_name" /></Field>
+            <Field label="Role"><Select name="role" defaultValue="sponsor">{STAKEHOLDER_ROLES.map((x) => <option key={x} value={x}>{x}</option>)}</Select></Field>
+            <MoreFields><Field label="Why they matter"><Input name="influence_basis" /></Field></MoreFields>
             <Button type="submit" variant="secondary">Add</Button>
           </form>
         )}
@@ -214,7 +213,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
         <form action={runShortlistAction}><input type="hidden" name="id" value={id} /><Button type="submit" variant="secondary">Run shortlist</Button></form>) : null}>
         {r.status !== "client_confirmed" && <StaleBanner>Requirement not client-confirmed: any shortlist is provisional.</StaleBanner>}
         {options.length === 0 ? (
-          <EmptyState title="No shortlist yet">Run the shortlist after buildings, spaces and availability are imported. Spaces without a dated availability snapshot appear as “vacancy unverified”.</EmptyState>
+          <EmptyState title="No shortlist yet">Import buildings and availability, then run the shortlist.</EmptyState>
         ) : (
           <Table head={["#", "Option", "Eligibility", "Fit score", "Data completeness", "Why / flags", "Status"]}>
             {options.slice(0, 40).map((o) => {
@@ -258,7 +257,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
       </Card>
 
       <Card title={`Follow-up & verification tasks (${openTasks.length} open)`} actions={FOCUS_MODE ? null : <ButtonLink variant="ghost" href="/tasks">All tasks</ButtonLink>}>
-        {d.tasks.length === 0 ? <p className="text-sm text-ink-soft">None yet. Missing mandatory answers and shortlist verification items create tasks here automatically (deduped).</p> : (
+        {d.tasks.length === 0 ? <p className="text-sm text-ink-soft">None yet.</p> : (
           <ul className="divide-y divide-line text-sm">
             {d.tasks.slice(0, 30).map((t) => (
               <li key={t.id} className="flex items-start justify-between gap-2 py-1.5">
@@ -271,7 +270,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
       </Card>
 
       <Card title="Quotes (versioned)">
-        {d.quotes.length === 0 ? <p className="mb-3 text-sm text-ink-soft">No quotes recorded. Quotes are immutable: a revision creates a new version and invalidates approvals and documents built on the old one.</p> : (
+        {d.quotes.length === 0 ? <p className="mb-3 text-sm text-ink-soft">No quotes yet.</p> : (
           <div className="mb-4"><Table head={["Version", "Space", "Rent", "CAM", "Valid until", "State"]}>
             {(d.quotes as Record<string, unknown>[]).map((q) => {
               const t = (q.terms_json ?? {}) as Record<string, unknown>;
@@ -292,52 +291,56 @@ export default async function RequirementDetail({ params, searchParams }: { para
         {canEdit && (
           <details className="rounded-lg border border-line p-3">
             <summary className="cursor-pointer text-sm font-medium">Record a quote</summary>
-            <form action={createQuoteAction} className="mt-3 grid gap-2 sm:grid-cols-3">
+            <form action={createQuoteAction} className="mt-3 max-w-md space-y-4">
               <input type="hidden" name="id" value={id} />
               <Field label="Space"><Select name="space_id" defaultValue=""><option value="">— none —</option>{options.filter((o) => (o.score_breakdown as { eligibility?: string }).eligibility !== "ineligible").map((o) => <option key={o.id as string} value={o.space_id as string}>{(o.score_breakdown as { label?: string }).label}</option>)}</Select></Field>
               <Field label="Rent (₹/unit/month)"><Input name="rent" inputMode="decimal" required /></Field>
               <Field label="Rent basis"><Select name="rent_basis" defaultValue="chargeable"><option>chargeable</option><option>carpet</option><option>seat</option></Select></Field>
+              <Field label="Valid until"><Input type="date" name="valid_until" required /></Field>
+              <MoreFields>
               <Field label="CAM ₹/SF/month"><Input name="cam_per_sf" inputMode="decimal" /></Field>
               <Field label="Escalation %"><Input name="escalation_pct" inputMode="decimal" /></Field>
-              <Field label="…every (months)"><Input name="escalation_every_months" inputMode="numeric" /></Field>
+              <Field label="Escalation every (months)"><Input name="escalation_every_months" inputMode="numeric" /></Field>
               <Field label="Rent-free months"><Input name="rent_free_months" inputMode="numeric" /></Field>
               <Field label="Deposit (months)"><Input name="deposit_months" inputMode="decimal" /></Field>
               <Field label="Tenure / lock-in (months)"><div className="flex gap-1"><Input name="tenure_months" inputMode="numeric" placeholder="tenure" /><Input name="lockin_months" inputMode="numeric" placeholder="lock-in" /></div></Field>
               <Field label="GST"><Select name="gst" defaultValue=""><option value="">Not stated</option><option value="excluded">Excluded</option><option value="included">Included</option></Select></Field>
-              <Field label="Valid until"><Input type="date" name="valid_until" required /></Field>
-              <Field label="Source / evidence"><Input name="evidence" placeholder="Landlord email 30 Oct" /></Field>
-              <div className="sm:col-span-3"><Button type="submit">Save quote v1</Button></div>
+              <Field label="Source"><Input name="evidence" placeholder="Landlord email 30 Oct" /></Field>
+              </MoreFields>
+              <Button type="submit">Save quote v1</Button>
             </form>
           </details>
         )}
         {canEdit && currentQuotes.length > 0 && (
-          <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <div className="mt-3 space-y-3">
             <details className="rounded-lg border border-line p-3">
               <summary className="cursor-pointer text-sm font-medium">Revise a quote (new version)</summary>
-              <form action={reviseQuoteAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+              <form action={reviseQuoteAction} className="mt-3 space-y-4">
                 <input type="hidden" name="id" value={id} />
-                <Select name="quote_id" required>{currentQuotes.map((q) => <option key={q.id as string} value={q.id as string}>v{String(q.version)} · {String((q.terms_json as Record<string, unknown>).rent ?? "")}</option>)}</Select>
+                <Select name="quote_id" required aria-label="Quote">{currentQuotes.map((q) => <option key={q.id as string} value={q.id as string}>v{String(q.version)} · {String((q.terms_json as Record<string, unknown>).rent ?? "")}</option>)}</Select>
                 <Input name="rent" inputMode="decimal" placeholder="New rent" />
                 <Input name="rent_free_months" inputMode="numeric" placeholder="Rent-free months" />
                 <Input type="date" name="valid_until" />
-                <Input name="evidence" placeholder="Source of revision" className="sm:col-span-2" />
+                <Input name="evidence" placeholder="Source of revision" />
                 <Button type="submit" variant="secondary">Save new version</Button>
               </form>
             </details>
             <details className="rounded-lg border border-line p-3">
               <summary className="cursor-pointer text-sm font-medium">Calculate a scenario from a quote</summary>
-              <form action={quickScenarioFromQuoteAction} className="mt-3 grid gap-2 sm:grid-cols-2">
+              <form action={quickScenarioFromQuoteAction} className="mt-3 space-y-4">
                 <input type="hidden" name="id" value={id} />
                 <Select name="quote_id" required>{currentQuotes.map((q) => <option key={q.id as string} value={q.id as string}>Quote v{String(q.version)}</option>)}</Select>
                 <Input name="name" placeholder="Scenario name" />
                 <Field label="Base date"><Input type="date" name="base_date" required defaultValue={(r.occupation_date as string) ?? today} /></Field>
                 <Field label="Horizon (months)"><Input name="horizon" defaultValue="60" inputMode="numeric" /></Field>
                 <Field label="Discount rate % p.a."><Input name="discount" required inputMode="decimal" /></Field>
+                <MoreFields>
                 <Field label="Fit-out capex ₹" hint="blank = unknown (a gap, not zero)"><div className="flex gap-1"><Input name="fitout" inputMode="decimal" /><Select name="fitout_state" defaultValue="" aria-label="fit-out state"><option value="">amount / unknown</option><option value="none">none (fitted)</option></Select></div></Field>
                 <Field label="Parking slots" hint="uses the quote's ₹/slot; blank = unknown"><div className="flex gap-1"><Input name="parking_slots" inputMode="numeric" /><Select name="parking_state" defaultValue="" aria-label="parking state"><option value="">count / unknown</option><option value="none">none needed</option></Select></div></Field>
                 <Field label="Other opex ₹/month" hint="blank = unknown"><div className="flex gap-1"><Input name="opex_monthly" inputMode="decimal" /><Select name="opex_state" defaultValue="" aria-label="opex state"><option value="">amount / unknown</option><option value="none">none</option></Select></div></Field>
                 <Field label="If tenure < horizon"><Select name="after_tenure" defaultValue=""><option value="">(tenure covers horizon)</option><option value="continue_same_terms">Renew on same terms</option><option value="vacate">Vacate</option></Select></Field>
                 <Field label="GST rate % (if excluded)"><Input name="gst_rate" inputMode="decimal" /></Field>
+                </MoreFields>
                 <Button type="submit" variant="secondary">Calculate</Button>
               </form>
             </details>

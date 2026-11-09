@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, Table, Td, StaleBanner, sf } from "@/components/ui";
+import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, MoreFields, Table, Td, StaleBanner, sf } from "@/components/ui";
 import { marketOverview, marketComparables, listMarketNotes, latestAnalysis, pendingGeographyMappings } from "@/modules/intelligence/market/service";
 import { MarketChart } from "@/modules/intelligence/market/chart";
 import type { AnalysisFlag } from "@/modules/intelligence/market/analysis";
@@ -26,11 +26,11 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
 
   return (
     <div>
-      <PageHeader title="Market" subtitle="Validated releases only: every chart shows its period, unit and source (name + release date)." actions={canEdit ? <form action={analysisAction}><Button variant="secondary">Re-run checks</Button></form> : null} />
+      <PageHeader title="Market" subtitle="Validated releases only." actions={canEdit ? <form action={analysisAction}><Button variant="secondary">Re-run checks</Button></form> : null} />
       <Disclaimer>{ov.disclaimer} Stock is never summed over time; missing periods stay unknown; no vacancy is inferred from gross absorption; units and period types are never mixed on one chart.</Disclaimer>
       <Flash sp={sp} />
       {ov.excluded.length > 0 && <StaleBanner>{ov.excluded.length} observation(s) not charted (failed the gate or superseded) — every one is listed with its reason at the bottom.</StaleBanner>}
-      {last && <p className="mb-3 text-xs text-ink-soft">Last data check {fmtDay(String(last.ran_at))} ({label(String(last.trigger_kind))}): {String(last.series_count)} series, {String(last.excluded_count)} excluded, {(last.flags ?? []).length} flag(s). New imported releases trigger a check automatically.</p>}
+      {last && <p className="mb-3 text-xs text-ink-soft">Last data check {fmtDay(String(last.ran_at))} ({label(String(last.trigger_kind))}): {String(last.series_count)} series, {String(last.excluded_count)} excluded, {(last.flags ?? []).length} flag(s).</p>}
 
       {ov.flags.length > 0 && (
         <Card title={`Data consistency (${warnFlags.length} to review)`} className="mb-4">
@@ -77,15 +77,19 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
       )}
 
       <Card title="Comparables" className="mb-4">
-        <form className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-6 sm:items-end">
+        <form className="mb-3 max-w-md space-y-3">
           <Field label="Locality"><Select name="locality" defaultValue={sp.locality ?? ""}>{[<option key="" value="">Any</option>, ...comps.localities.map((l) => <option key={l} value={l}>{l}</option>)]}</Select></Field>
-          <Field label="Min sf"><Input name="min" inputMode="numeric" defaultValue={sp.min} /></Field>
-          <Field label="Max sf"><Input name="max" inputMode="numeric" defaultValue={sp.max} /></Field>
-          <Field label="Since"><Input name="since" type="date" defaultValue={sp.since} /></Field>
-          <Field label="Rent basis"><Input name="basis" defaultValue={sp.basis} placeholder="any" /></Field>
+          <MoreFields label="Filters">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Min sf"><Input name="min" inputMode="numeric" defaultValue={sp.min} /></Field>
+              <Field label="Max sf"><Input name="max" inputMode="numeric" defaultValue={sp.max} /></Field>
+            </div>
+            <Field label="Since"><Input name="since" type="date" defaultValue={sp.since} /></Field>
+            <Field label="Rent basis"><Input name="basis" defaultValue={sp.basis} placeholder="any" /></Field>
+          </MoreFields>
           <Button variant="secondary" type="submit">Filter</Button>
         </form>
-        {comps.rows.length === 0 ? <EmptyState title="No comparable transactions">Imported deal lists (market transactions) appear here. They are selected observed deals, not a complete market.</EmptyState> : (
+        {comps.rows.length === 0 ? <EmptyState title="No comparable transactions">Import deal lists to see comparables here.</EmptyState> : (
           <>
             <div className="mb-3 flex flex-wrap gap-2">{comps.stats.map((s) => <Badge key={s.basis} tone="brand">{s.basis}: n={s.n} · median {s.median ?? "—"} · P25 {s.p25 ?? "—"} · P75 {s.p75 ?? "—"}</Badge>)}</div>
             <Table head={["Date", "Building", "Locality", "Area", "Rent", "Basis"]}>
@@ -94,20 +98,20 @@ export default async function MarketPage({ searchParams }: { searchParams: Promi
                   <Td>{t.rent_min === null && t.rent_max === null ? "unknown" : `${t.rent_min ?? "?"}${t.rent_max !== null && t.rent_max !== t.rent_min ? `–${t.rent_max}` : ""}`}</Td><Td>{t.rent_basis ?? "unknown"}</Td></tr>
               ))}
             </Table>
-            <p className="mt-1 text-xs text-ink-soft">Sample of {comps.rows.length} imported transaction(s) — not comprehensive. Statistics are per rent basis — bases are never mixed. {comps.excluded} transaction(s) outside the filter.</p>
+            <p className="mt-1 text-xs text-ink-soft">Sample of {comps.rows.length} — not the whole market. {comps.excluded} outside the filter.</p>
           </>
         )}
       </Card>
 
       <Card title="Market notes" className="mb-4">
         {canEdit && ov.series.length > 0 && (
-          <form action={noteAction} className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3 sm:items-end">
+          <form action={noteAction} className="mb-3 max-w-md space-y-4">
             <Field label="Series"><Select name="series" required>{ov.series.map((s) => <option key={s.key} value={s.key}>{label(s.metric)} · {s.geographyLabel} · {s.unit} · {s.family}</option>)}</Select></Field>
             <Field label="Audience"><Input name="audience" placeholder="e.g. occupier CFOs" maxLength={80} /></Field>
             <Button type="submit">Draft note</Button>
           </form>
         )}
-        {notes.length === 0 ? <p className="text-sm text-ink-soft">No notes yet. Draft one from a series above; approved notes can feed content drafts.</p> : (
+        {notes.length === 0 ? <p className="text-sm text-ink-soft">No notes yet. Draft one above.</p> : (
           <ul className="divide-y divide-line">
             {notes.map((m) => (
               <li key={String(m.id)} className="py-2 text-sm">

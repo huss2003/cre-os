@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase rows are untyped (no generated DB types yet) */
 import { Suspense } from "react";
-import { Badge, Card, EmptyState, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Badge, Card, EmptyState, Field, Input, MoreFields, PageHeader, Select } from "@/components/ui";
 import { hasRole } from "@/lib/auth/context";
 import { requireAdminPage } from "@/modules/admin/guard";
 import { addMemberAction, removeMemberAction, updateMemberAction } from "@/modules/admin/actions/settings";
@@ -38,17 +38,17 @@ async function Body() {
     <div className="space-y-4">
       {isOwner ? (
         <Card title="Add a member">
-          <ActionForm action={addMemberAction} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
+          <ActionForm action={addMemberAction} className="max-w-md space-y-4">
               <Field label="Email"><Input name="email" type="email" required /></Field>
-              <Field label="Display name"><Input name="display_name" /></Field>
               <Field label="Role" hint="Owners/admins see all data classes and accounts."><Select name="role" defaultValue="editor">{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</Select></Field>
               <Field label="How they get access" hint="CRE OS never sends email. You hand over the password or link yourself.">
                 <Select name="method" defaultValue="temp_password"><option value="temp_password">Temporary password</option><option value="invite_link">Invite link</option></Select>
               </Field>
-            </div>
-            <ClassChecks selected={["public", "permitted_personal"]} />
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="see_all_accounts" />See all accounts (otherwise only accounts they own or that are shared with them)</label>
+            <MoreFields>
+              <Field label="Display name"><Input name="display_name" /></Field>
+              <ClassChecks selected={["public", "permitted_personal"]} />
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="see_all_accounts" />See all accounts</label>
+            </MoreFields>
             <Submit>Add member</Submit>
           </ActionForm>
         </Card>
@@ -71,8 +71,8 @@ async function Body() {
                   {isOwner ? (
                     <details className="mt-2">
                       <summary className="cursor-pointer text-sm text-brand">Change access</summary>
-                      <ActionForm action={updateMemberAction.bind(null, m.user_id)} className="mt-2 space-y-3 rounded-lg border border-line p-3">
-                        <div className="grid gap-3 sm:grid-cols-2">
+                      <ActionForm action={updateMemberAction.bind(null, m.user_id)} className="mt-2 max-w-md space-y-4 rounded-lg border border-line p-3">
+                        <div className="space-y-4">
                           <Field label="Display name"><Input name="display_name" defaultValue={m.display_name ?? ""} /></Field>
                           <Field label="Role"><Select name="role" defaultValue={m.role}>{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</Select></Field>
                         </div>

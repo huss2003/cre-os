@@ -23,7 +23,7 @@ async function Body() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card title="Workspace">
           {isOwner ? (
-            <ActionForm action={saveGeneralAction} className="space-y-3">
+            <ActionForm action={saveGeneralAction} className="max-w-md space-y-4">
               <Field label="Name"><Input name="name" defaultValue={ws.name} required /></Field>
               <Field label="Time zone" hint="IANA name, e.g. Asia/Kolkata. Briefs, due dates and 'as of' dates use it."><Input name="timezone" defaultValue={ws.timezone} required /></Field>
               <Field label="Currency" hint="ISO code used for fees and financials, e.g. INR."><Input name="currency" defaultValue={ws.currency} maxLength={3} required /></Field>
@@ -42,18 +42,22 @@ async function Body() {
             ["Spent this month", `${inr(spend.spentInr)}${spend.pctOfBudget !== null ? ` (${spend.pctOfBudget.toFixed(0)}%)` : ""}`],
             ["Model calls", String(spend.calls)], ["Kill switch", ws.ai_paused ? "PAUSED" : "running"],
           ]} />
-          <p className="mt-2 text-xs text-ink-soft">When the budget is reached AI features stop and deterministic fallbacks are used. Pause or resume from <a className="text-brand underline" href="/admin">Health</a>.</p>
+          <p className="mt-2 text-xs text-ink-soft">At budget, AI pauses and fallbacks run. Manage in <a className="text-brand underline" href="/admin">Health</a>.</p>
         </Card>
 
         <Card title="Operating rules" className="lg:col-span-2">
-          <ActionForm action={saveRulesAction} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Minimum requirement size (sf)" hint="Strict boundary; spec default 5,000."><Input name="min_sf" inputMode="numeric" defaultValue={s.sizeRules.min_sf} required /></Field>
-              <Field label="Maximum requirement size (sf)" hint="Strict boundary; spec default 200,000."><Input name="max_sf" inputMode="numeric" defaultValue={s.sizeRules.max_sf} required /></Field>
-              <Field label="New-company approaches / month (minimum)" hint="Spec default 120."><Input name="approaches_per_month_min" inputMode="numeric" defaultValue={s.cohortTargets.approaches_per_month_min} required /></Field>
-              <Field label="New-company approaches / month (pace)" hint="Spec default 170."><Input name="approaches_per_month_pace" inputMode="numeric" defaultValue={s.cohortTargets.approaches_per_month_pace} required /></Field>
-              <Field label="Daily brief time" hint="Local time, HH:MM."><Input name="brief_time" type="time" defaultValue={s.briefTime.time} required /></Field>
-              <Field label="Evening debrief time"><Input name="debrief_time" type="time" defaultValue={s.briefTime.debrief_time} required /></Field>
+          <ActionForm action={saveRulesAction} className="max-w-md space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Min size (sf)" hint="Strict boundary; spec default 5,000."><Input name="min_sf" inputMode="numeric" defaultValue={s.sizeRules.min_sf} required /></Field>
+              <Field label="Max size (sf)" hint="Strict boundary; spec default 200,000."><Input name="max_sf" inputMode="numeric" defaultValue={s.sizeRules.max_sf} required /></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Brief time" hint="Local time, HH:MM."><Input name="brief_time" type="time" defaultValue={s.briefTime.time} required /></Field>
+              <Field label="Debrief time"><Input name="debrief_time" type="time" defaultValue={s.briefTime.debrief_time} required /></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Approaches/month min" hint="New companies. Spec default 120."><Input name="approaches_per_month_min" inputMode="numeric" defaultValue={s.cohortTargets.approaches_per_month_min} required /></Field>
+              <Field label="Approaches/month pace" hint="Spec default 170."><Input name="approaches_per_month_pace" inputMode="numeric" defaultValue={s.cohortTargets.approaches_per_month_pace} required /></Field>
             </div>
             <Submit>Save rules</Submit>
           </ActionForm>

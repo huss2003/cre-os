@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Button, ButtonLink, Card, Field, Input, PageHeader, Select, Stat, StaleBanner, Table, Td, inr } from "@/components/ui";
+import { Badge, Button, ButtonLink, Card, Field, Input, MoreFields, PageHeader, Select, Stat, StaleBanner, Table, Td, inr } from "@/components/ui";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { toDealsCtx } from "@/modules/deals/api";
 import { approveScenarioAction } from "@/modules/deals/actions";
@@ -142,18 +142,18 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
 
       {canEdit && (
         <Card title="Recalculate as a new version">
-          <p className="mb-3 text-xs text-ink-soft">Versions are immutable. Approvals of unchanged assumptions carry over; a changed assumption needs approval again. Leave a box blank to keep the current input.</p>
-          <form action={recalculateScenarioAction} className="space-y-3">
+          <p className="mb-3 text-xs text-ink-soft">Leave blank to keep the current value.</p>
+          <form action={recalculateScenarioAction} className="max-w-md space-y-4">
             <input type="hidden" name="id" value={id} />
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="space-y-4">
               <Field label={`Discount rate % (now ${String(input.annualDiscountRatePct)})`}><Input name="discount" inputMode="decimal" /></Field>
               <Field label="Discount-rate source"><Input name="discount_source" placeholder="e.g. client WACC" /></Field>
-              {input.rent && <Field label={`Escalation % / every (now ${input.rent.escalation ? `${input.rent.escalation.pct}/${input.rent.escalation.everyMonths}` : "none"})`}><div className="flex gap-1"><Input name="esc_pct" inputMode="decimal" /><Input name="esc_every" inputMode="numeric" /></div></Field>}
+              {input.rent && <Field label={`Escalation % / every (now ${input.rent.escalation ? `${input.rent.escalation.pct}/${input.rent.escalation.everyMonths}` : "none"})`}><div className="grid grid-cols-2 gap-2"><Input name="esc_pct" inputMode="decimal" /><Input name="esc_every" inputMode="numeric" /></div></Field>}
               {input.rent && <Field label={`Rent-free months (now ${input.rent.rentFreeMonths ?? 0})`}><Input name="rent_free" inputMode="numeric" /></Field>}
               {input.taxes?.treatment === "excluded" && <Field label={`GST rate % (now ${input.taxes.gstRatePct ?? "unknown"})`}><Input name="gst_rate" inputMode="decimal" /></Field>}
             </div>
             {unknownItems.length > 0 && (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <MoreFields label={`Unknown costs (${unknownItems.length})`}>
                 {unknownItems.map((item) => (
                   <fieldset key={item} className="space-y-1 rounded-lg border border-line p-2">
                     <legend className="px-1 text-sm font-medium">{COST_ITEM_LABEL[item]} — unknown</legend>
@@ -169,9 +169,9 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
                     </div>
                   </fieldset>
                 ))}
-              </div>
+              </MoreFields>
             )}
-            {unknownItems.length > 0 && <Field label="Source for any “none” answers"><Input name="none_source" placeholder="e.g. landlord confirmed CAM included — email 30 Oct" /></Field>}
+            {unknownItems.length > 0 && <Field label="Source for “none” answers"><Input name="none_source" placeholder="e.g. landlord confirmed CAM included — email 30 Oct" /></Field>}
             <Button type="submit" variant="secondary">Recalculate new version</Button>
           </form>
         </Card>

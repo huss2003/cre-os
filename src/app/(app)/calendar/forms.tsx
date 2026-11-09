@@ -1,7 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Field, Input, Select, Textarea } from "@/components/ui";
+import { Button, Field, Input, MoreFields, Select, Textarea } from "@/components/ui";
 import { apiPost } from "@/modules/integrations/client-api";
 
 export function FeedbackForm({ id, initial }: { id: string; initial?: { attended: boolean | null; client_rating: number | null; next_step: string | null } | null }) {
@@ -21,15 +21,17 @@ export function FeedbackForm({ id, initial }: { id: string; initial?: { attended
   return (
     <details className="mt-2 text-sm">
       <summary className="cursor-pointer font-medium text-brand">{initial ? "Edit visit feedback" : "Add visit feedback"}</summary>
-      <form action={submit} className="mt-2 grid gap-3 sm:grid-cols-2">
+      <form action={submit} className="mt-2 max-w-md space-y-4">
         <Field label="Attended?"><Select name="attended" defaultValue={initial?.attended === true ? "yes" : initial?.attended === false ? "no" : ""}><option value="">—</option><option value="yes">Yes</option><option value="no">No</option></Select></Field>
         <Field label="Client interest (1–5)"><Select name="clientRating" defaultValue={initial?.client_rating ?? ""}><option value="">—</option>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}</Select></Field>
-        <Field label="Liked"><Textarea name="liked" rows={2} /></Field>
-        <Field label="Concerns"><Textarea name="concerns" rows={2} /></Field>
-        <Field label="Deal-breakers"><Textarea name="dealbreakers" rows={2} /></Field>
         <Field label="Next step" hint="Creates one follow-up task."><Input name="nextStep" defaultValue={initial?.next_step ?? ""} /></Field>
-        <Field label="Follow up by"><Input type="date" name="followUpDue" /></Field>
-        <div className="flex items-end gap-2"><Button type="submit" disabled={pending}>Save feedback</Button>{msg ? <span className="text-ink-soft" role="status">{msg}</span> : null}</div>
+        <MoreFields>
+          <Field label="Liked"><Textarea name="liked" rows={2} /></Field>
+          <Field label="Concerns"><Textarea name="concerns" rows={2} /></Field>
+          <Field label="Deal-breakers"><Textarea name="dealbreakers" rows={2} /></Field>
+          <Field label="Follow up by"><Input type="date" name="followUpDue" /></Field>
+        </MoreFields>
+        <div className="flex items-center gap-2"><Button type="submit" disabled={pending}>Save feedback</Button>{msg ? <span className="text-ink-soft" role="status">{msg}</span> : null}</div>
       </form>
     </details>
   );
@@ -51,18 +53,19 @@ export function InviteDraftForm({ tz }: { tz: string }) {
     if (r.ok) router.refresh();
   });
   return (
-    <form action={submit} className="grid gap-3">
+    <form action={submit} className="max-w-md space-y-4">
       <Field label="Title"><Input name="title" required placeholder="Site visit — Baner options" /></Field>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="Date"><Input type="date" name="date" required /></Field>
+      <Field label="Date"><Input type="date" name="date" required /></Field>
+      <div className="grid grid-cols-2 gap-3">
         <Field label="From"><Input type="time" name="from" required /></Field>
         <Field label="To"><Input type="time" name="to" required /></Field>
       </div>
-      <Field label="Location"><Input name="location" /></Field>
-      <Field label="Attendee name"><Input name="attendeeName" /></Field>
       <Field label="Attendee email"><Input type="email" name="attendee" /></Field>
+      <MoreFields>
+        <Field label="Attendee name"><Input name="attendeeName" /></Field>
+        <Field label="Location"><Input name="location" /></Field>
+      </MoreFields>
       <div className="flex flex-wrap items-center gap-2"><Button type="submit" disabled={pending}>Draft invite</Button>{msg ? <span className="text-sm text-ink-soft" role="status">{msg}</span> : null}</div>
-      <p className="text-xs text-ink-soft">CRE OS has no calendar write access. The invite becomes a draft you send from your own mail or calendar.</p>
     </form>
   );
 }
@@ -154,23 +157,24 @@ export function PlannedVisitForm({ tz, assets, opportunities }: { tz: string; as
     if (r.ok) router.refresh();
   });
   return (
-    <form action={submit} className="grid gap-3">
+    <form action={submit} className="max-w-md space-y-4">
       <Field label="Title"><Input name="title" required placeholder="Site visit — Baner options" /></Field>
-      <Field label="Type"><Select name="kind" defaultValue="site_visit"><option value="site_visit">Site visit</option><option value="meeting">Meeting</option></Select></Field>
-      <div className="grid grid-cols-3 gap-2">
-        <Field label="Date"><Input type="date" name="date" required /></Field>
+      <Field label="Date"><Input type="date" name="date" required /></Field>
+      <div className="grid grid-cols-2 gap-3">
         <Field label="From"><Input type="time" name="from" required /></Field>
         <Field label="To"><Input type="time" name="to" required /></Field>
       </div>
-      <Field label="Building" hint={assets.length ? "Gives the address and coordinates for travel estimates." : "No buildings yet — add them under Buildings, or type a location below."}>
+      <Field label="Building" hint={assets.length ? "Gives the address and coordinates for travel estimates." : "No buildings yet — add them under Buildings, or type a location."}>
         <Select name="assetId" defaultValue=""><option value="">— none —</option>{assets.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</Select>
       </Field>
-      <Field label="Location (if no building)"><Input name="location" placeholder="e.g. Baner, Pune" /></Field>
-      {opportunities.length ? (
-        <Field label="Opportunity"><Select name="opportunityId" defaultValue=""><option value="">— none —</option>{opportunities.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field>
-      ) : null}
+      <MoreFields>
+        <Field label="Type"><Select name="kind" defaultValue="site_visit"><option value="site_visit">Site visit</option><option value="meeting">Meeting</option></Select></Field>
+        <Field label="Or location"><Input name="location" placeholder="e.g. Baner, Pune" /></Field>
+        {opportunities.length ? (
+          <Field label="Opportunity"><Select name="opportunityId" defaultValue=""><option value="">— none —</option>{opportunities.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field>
+        ) : null}
+      </MoreFields>
       <div className="flex flex-wrap items-center gap-2"><Button type="submit" disabled={pending}>Plan visit</Button>{msg ? <span className="text-sm text-ink-soft" role="status">{msg}</span> : null}</div>
-      <p className="text-xs text-ink-soft">This only adds the visit to CRE OS. To invite the client, use “Draft an invite” — you send it yourself.</p>
     </form>
   );
 }

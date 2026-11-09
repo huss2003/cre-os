@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, Textarea, ButtonLink } from "@/components/ui";
+import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, MoreFields, Textarea, ButtonLink } from "@/components/ui";
 import { orgOptions, personOptions, recentJobMoves } from "@/modules/intelligence/research/queries";
 import { threadingGaps, introPathsForOrg } from "@/modules/intelligence/network/service";
 import { Flash, Sev, fmtDay, label } from "@/modules/intelligence/ui";
@@ -31,18 +31,17 @@ export default async function NetworkPage({ searchParams }: { searchParams: Prom
         {canEdit && (
           <Card title="Record a job move">
             {people.length === 0 || orgs.length === 0 ? <p className="text-sm text-ink-soft">Add people and companies first (<Link className="text-brand" href="/people">People</Link>, <Link className="text-brand" href="/companies">Companies</Link>).</p> : (
-              <form action={jobMoveAction} className="space-y-3">
+              <form action={jobMoveAction} className="max-w-md space-y-4">
                 <Field label="Person" hint="Pick the exact record — same names stay separate people."><Select name="person_id" defaultValue="">{opt(people, "Choose…")}</Select></Field>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field label="From (optional)"><Select name="from_org_id" defaultValue="">{opt(orgs, "Current employer(s)")}</Select></Field>
-                  <Field label="To"><Select name="to_org_id" required defaultValue="">{opt(orgs, "Choose…")}</Select></Field>
+                <Field label="Moved to"><Select name="to_org_id" required defaultValue="">{opt(orgs, "Choose…")}</Select></Field>
+                <MoreFields>
+                  <Field label="From"><Select name="from_org_id" defaultValue="">{opt(orgs, "Current employer(s)")}</Select></Field>
                   <Field label="New title"><Input name="new_title" maxLength={160} /></Field>
                   <Field label="Effective date"><Input name="effective_on" type="date" /></Field>
                   <Field label="Seen via"><Select name="source_kind" defaultValue="native_alert">{["native_alert", "press_release", "company_page", "appointment_notice", "conversation", "user_export", "other"].map((k) => <option key={k} value={k}>{label(k)}</option>)}</Select></Field>
                   <Field label="Source URL"><Input name="source_url" type="url" placeholder="https://" /></Field>
-                </div>
-                <Field label="Note"><Textarea name="source_note" maxLength={2000} /></Field>
-                <p className="text-xs text-ink-soft">Creates evidence, a verification task and proposals in Approvals: the old employment is closed (kept as history), the new one opened. The move stays “unverified” until you confirm it. Old-company deal notes never move with the person.</p>
+                  <Field label="Note"><Textarea name="source_note" maxLength={2000} /></Field>
+                </MoreFields>
                 <Button type="submit">Record move</Button>
               </form>
             )}
@@ -75,7 +74,7 @@ export default async function NetworkPage({ searchParams }: { searchParams: Prom
 
       {canEdit && people.length > 1 && (
         <Card title="Record a relationship" className="mt-4">
-          <p className="mb-2 text-xs text-ink-soft">Who knows whom, how well, and when you last spoke. Introduction permission is never assumed — record consent on the person&apos;s page once given.</p>
+          <p className="mb-2 text-xs text-ink-soft">Record intro consent on the person&apos;s page.</p>
           <RelationshipForm back="/network" people={people} />
         </Card>
       )}

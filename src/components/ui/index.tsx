@@ -87,7 +87,7 @@ export function FactBadge({ status }: { status?: string | null }) {
 
 export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-line bg-canvas/60 px-6 py-10 text-center">
+    <div className="rounded-2xl border border-dashed border-line bg-canvas/60 px-5 py-6 text-center">
       <p className="font-medium">{title}</p>
       {children ? <div className="mx-auto mt-1 max-w-md text-sm text-ink-soft">{children}</div> : null}
       {action ? <div className="mt-4">{action}</div> : null}
@@ -98,9 +98,9 @@ export function EmptyState({ title, children, action }: { title: string; childre
 export function Field({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <label className="block text-sm">
-      <span className="mb-1 block font-medium">{label}</span>
+      {/* Hints live behind the "?" so the form shows only labels and boxes. */}
+      <span className="mb-1.5 flex items-center font-medium">{label}{hint ? <Help>{hint}</Help> : null}</span>
       {children}
-      {hint ? <span className="mt-1 block text-xs text-ink-soft">{hint}</span> : null}
     </label>
   );
 }
@@ -159,4 +159,16 @@ export function inr(n: number | string | null | undefined, opts: { compact?: boo
 export function sf(n: number | string | null | undefined) {
   if (n === null || n === undefined || n === "") return "—";
   return `${new Intl.NumberFormat("en-IN").format(Number(n))} sf`;
+}
+
+/** Optional fields folded away: essentials stay visible, the rest opens on click. Use inside any form. */
+export function MoreFields({ children, label = "More details (optional)" }: { children: ReactNode; label?: string }) {
+  return (
+    <details className="group">
+      <summary className="cursor-pointer list-none py-1 text-sm font-medium text-ink-soft hover:text-brand">
+        <span className="group-open:hidden">＋ </span><span className="hidden group-open:inline">－ </span>{label}
+      </summary>
+      <div className="mt-3 space-y-4">{children}</div>
+    </details>
+  );
 }
