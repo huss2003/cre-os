@@ -5,7 +5,7 @@ import { watchlistView, openFindings, orgOptions } from "@/modules/intelligence/
 import { Flash, fmtDay, label } from "@/modules/intelligence/ui";
 import { aiConfigured, monthSpendUsd } from "@/lib/ai/gateway";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
-import { researchNowAction, saveSettingsAction, discoverAction } from "@/modules/signals/actions";
+import { researchNowAction, saveSettingsAction, discoverAction, assessFormAction, assessAction } from "@/modules/signals/actions";
 import { ResearchLive, type Run } from "@/modules/signals/ui/research-live";
 import { watchAction, findingAction } from "./actions";
 
@@ -30,7 +30,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
     watchlistView(ctx.db, ctx.workspaceId), openFindings(ctx.db, ctx.workspaceId), orgOptions(ctx.db, ctx.workspaceId),
     monthSpendUsd(ctx.workspaceId).catch(() => 0),
     ctx.db.from("workspace_setting").select("value").eq("workspace_id", ctx.workspaceId).eq("key", "signals").maybeSingle().then((r) => (r.data?.value ?? {}) as { weeklyCompanyLimit?: number; focusCities?: string[] }),
-    ctx.db.from("research_run").select("id, kind, label, status, queries, sources, findings, new_companies, usd, error, created_at, finished_at").eq("workspace_id", ctx.workspaceId).order("created_at", { ascending: false }).limit(12).then((r) => (r.data ?? []) as Run[]),
+    ctx.db.from("research_run").select("id, kind, label, status, queries, sources, findings, new_companies, usd, error, created_at, finished_at, assessment").eq("workspace_id", ctx.workspaceId).order("created_at", { ascending: false }).limit(12).then((r) => (r.data ?? []) as Run[]),
   ]);
   const ai = aiConfigured();
   const weekly = cfg.weeklyCompanyLimit ?? 25;
@@ -90,7 +90,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
                           <p className="text-sm text-ink-soft">{ago(w.last_researched_at as string | null)}{overdue ? <span className="text-amber-700"> — due</span> : <> — next {fmtDay(String(w.next_due_at))}</>}</p>
                           {w.reason ? <p className="text-xs text-ink-soft">{String(w.reason)}</p> : null}
                         </div>
-                        {canEdit ? <ActionForm action={researchNowAction.bind(null, String(w.org_id))}><Submit variant="secondary">Research now</Submit></ActionForm> : null}
+                        {canEdit ? <div className="flex gap-2"><ActionForm action={assessAction.bind(null, String(w.org_id))}><Submit variant="secondary">Client score</Submit></ActionForm><ActionForm action={researchNowAction.bind(null, String(w.org_id))}><Submit variant="secondary">Research now</Submit></ActionForm></div> : null}
                       </li>
                     );
                   })}
@@ -115,6 +115,16 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
         </div>
 
         <aside className="space-y-4">
+          {canEdit && orgs.length ? (
+            <section className="rounded-2xl border border-brand/30 bg-surface p-5">
+              <h2 className="font-semibold">Is this a potential client?</h2>
+              <p className="mt-1 text-sm text-ink-soft">Researches one company and scores it out of 100, with every reason and its source.</p>
+              <ActionForm action={assessFormAction} className="mt-4 space-y-4">
+                <Field label="Company"><Select name="org_id" required defaultValue="">{[<option key="" value="" disabled>Choose</option>, ...orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)]}</Select></Field>
+                <Submit className="w-full">Assess company</Submit>
+              </ActionForm>
+            </section>
+          ) : null}
           {canEdit ? (
             <section className="rounded-2xl border border-line bg-surface p-5">
               <h2 className="font-semibold">Watch a company</h2>

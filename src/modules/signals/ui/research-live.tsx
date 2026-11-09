@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 
 type Source = { url: string; title: string; used?: boolean };
-export type Run = { id: string; kind: string; label: string; status: string; queries: string[]; sources: Source[]; findings: number; new_companies: number; usd: number; error: string | null; created_at: string; finished_at: string | null };
+export type Run = { assessment?: { score: number; band: string } | null; id: string; kind: string; label: string; status: string; queries: string[]; sources: Source[]; findings: number; new_companies: number; usd: number; error: string | null; created_at: string; finished_at: string | null };
 
 const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
@@ -62,7 +62,7 @@ export function ResearchLive({ initial }: { initial: Run[] }) {
                 <span className={`relative inline-flex h-3 w-3 rounded-full ${live ? "bg-brand" : r.status === "done" ? "bg-emerald-500" : r.status === "failed" ? "bg-rose-500" : "bg-amber-400"}`} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{r.kind === "discover" ? "Market scan: " : ""}{r.label}</span>
+                <span className="block truncate font-medium">{r.kind === "discover" ? "Market scan: " : r.kind === "assess" ? "Client score: " : ""}{r.label}</span>
                 <span className="block text-xs text-ink-soft">
                   {live ? "Searching the web…" : r.status === "done" ? `${r.sources.length} sites read, ${r.findings} new signal${r.findings === 1 ? "" : "s"}${r.new_companies ? `, ${r.new_companies} new companies` : ""}` : r.error ?? r.status}
                   {" "}· {time(r.created_at)}
@@ -72,6 +72,12 @@ export function ResearchLive({ initial }: { initial: Run[] }) {
             </button>
             {isOpen ? (
               <div className="border-t border-line px-4 pb-4 pt-3">
+                {r.assessment ? (
+                  <a href={`/research/assessment/${r.id}`} className="mb-3 flex items-center justify-between rounded-xl bg-brand-soft/60 px-4 py-3 hover:bg-brand-soft">
+                    <span><span className="text-2xl font-bold tabular-nums">{r.assessment.score}</span><span className="text-ink-soft">/100</span> <span className="ml-2 font-medium">{r.assessment.band}</span></span>
+                    <span className="text-sm font-semibold text-brand">See all reasons</span>
+                  </a>
+                ) : null}
                 {r.queries.length ? (
                   <div className="mb-3 flex flex-wrap gap-1.5">
                     {r.queries.map((q, i) => <span key={i} className="rounded-full bg-canvas px-2.5 py-1 text-xs">🔎 {q}</span>)}

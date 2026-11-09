@@ -93,3 +93,19 @@ export async function addCompanyFromSignalAction(id: string, _prev: ActionState)
     return { ok: true, message: `${sig.entity_name_raw} added to your companies and linked.` };
   } catch (e) { return { error: errorMessage(e) }; }
 }
+
+export async function assessAction(orgId: string, _prev: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { assessCompany } = await import("./assess");
+    const r = await assessCompany(ctx.db, ctx.workspaceId, orgId, { actorUserId: ctx.userId });
+    revalidatePath("/research");
+    return { ok: true, message: `${r.assessment.company}: ${r.assessment.score}/100 (${r.assessment.band}). Open it in Live research.` };
+  } catch (e) { return { error: errorMessage(e) }; }
+}
+
+export async function assessFormAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  const orgId = String(form.get("org_id") ?? "");
+  if (!orgId) return { error: "Choose a company." };
+  return assessAction(orgId, null);
+}

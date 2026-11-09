@@ -56,7 +56,7 @@ export async function approvedDomains(db: Db, ws: string): Promise<string[]> {
 
 // ------------------------------------------------------------------ run log (what was searched, which sites were read)
 
-export async function startRun(db: Db, ws: string, kind: "company" | "discover", label: string, orgId: string | null, userId?: string) {
+export async function startRun(db: Db, ws: string, kind: "company" | "discover" | "assess", label: string, orgId: string | null, userId?: string) {
   const { data } = await db.from("research_run").insert({ workspace_id: ws, kind, label, org_id: orgId, status: "running", owner_user_id: userId ?? undefined }).select("id").single();
   return (data?.id as string | undefined) ?? null;
 }
