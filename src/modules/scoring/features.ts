@@ -214,8 +214,10 @@ export async function leadFeatures(db: Db, ws: string, orgId: string): Promise<F
   const needSig = b.sigs.filter((s) => NEED.has(s.kind) || s.category === "restructuring");
   const upcoming = b.events.filter((e) => { const d = days(e.event_date); return d !== null && d >= 0 && d <= 548; }).sort((x, y) => x.event_date.localeCompare(y.event_date));
   const v: Features["values"] = {};
-  const needs = [b.reqs.length && "open requirement", upcoming.length && "lease event within 18 months", needSig.length && `${needSig[0].kind.replace(/_/g, " ")} signal`].filter(Boolean) as string[];
-  v.need = fv(b.reqs.length ? 1 : upcoming.length ? 0.85 : needSig.length ? 0.6 : 0, needs.length ? `Need: ${needs.join(", ")}` : "No identifiable CRE need yet",
+  const needs = [b.reqs.length && (b.reqs.some((r) => r.status === "client_confirmed") ? "confirmed requirement" : "unverified requirement"), upcoming.length && "lease event within 18 months", needSig.length && `${needSig[0].kind.replace(/_/g, " ")} signal`].filter(Boolean) as string[];
+  // A client-confirmed requirement is a real need; an unverified one (e.g. created from a signal) counts less.
+  const confirmed = b.reqs.some((r) => r.status === "client_confirmed");
+  v.need = fv(confirmed ? 1 : upcoming.length ? 0.85 : b.reqs.length ? 0.7 : needSig.length ? 0.6 : 0, needs.length ? `Need: ${needs.join(", ")}` : "No identifiable CRE need yet",
     [...b.reqs.slice(0, 1).map((r) => ({ type: "requirement", id: r.id, label: r.title, tier: "records" })), ...upcoming.slice(0, 1).map((e) => ({ type: "lease_event", id: e.id, label: `${e.event_type} ${e.event_date}`, tier: e.confirmed ? "documentary_current" : "records" })), ...needSig.slice(0, 2).map(sigEv)]);
   const dates = [...upcoming.map((e) => e.event_date), ...b.reqs.map((r) => r.decision_date ?? r.occupation_date).filter(Boolean), ...needSig.map((s) => s.event_date).filter(Boolean)].filter((d) => (days(d) ?? -1) >= 0).sort();
   const nd = dates.length ? days(dates[0]) : null;
@@ -226,7 +228,12 @@ export async function leadFeatures(db: Db, ws: string, orgId: string): Promise<F
   v.authority = fv(bc.v, bc.why, bc.ev);
   const cs = await current(db, ws, "company", orgId);
   v.fit = cs === null ? fv(null, "Company not scored yet") : fv(cs / 100, `Company attractiveness ${cs}/100`);
-  const recent = b.interactions.filter((i) => (ago(i.occurred_at) ?? 999) <= 180);
+  // Engagement counts interactions with the company AND with its current people (deduplicated).
+  const pids = b.emps.map((e) => e.person_id);
+  const pl = pids.length ? await rows(db.from("interaction_link").select("interaction:interaction_id(id, occurred_at, channel, is_meaningful)").eq("workspace_id", ws).eq("entity_type", "person").in("entity_id", pids).limit(1000)) : [];
+  const allInt = new Map<string, Row>();
+  for (const i of [...b.interactions, ...pl.map((l) => l.interaction).filter(Boolean) as Row[]]) allInt.set(i.id, i);
+  const recent = [...allInt.values()].filter((i) => (ago(i.occurred_at) ?? 999) <= 180);
   v.engagement = fv(Math.min(1, recent.filter((i) => i.is_meaningful || ["meeting", "call", "visit"].includes(i.channel)).length * 0.35 + (recent.length ? 0.15 : 0)), recent.length ? `${recent.length} interaction(s) in 180 days` : "No recent engagement");
   const best = [...b.sigs].sort((x, y) => (y.confidence === "high" ? 3 : y.confidence === "medium" ? 2 : 1) - (x.confidence === "high" ? 3 : x.confidence === "medium" ? 2 : 1))[0];
   const bestAge = best ? ago(best.latest_evidence_on ?? best.detected_at) : null;
