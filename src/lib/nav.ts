@@ -58,16 +58,16 @@ export const NAV: NavSection[] = [
 ];
 
 /**
- * FOCUS MODE (owner request, Nov 2026): only Module 2 — Signal Engine — and its research screens are shown in the menu.
+ * FOCUS MODE (owner request, Nov 2026): only Module 3 — Scoring Engine — is shown in the menu.
  * Every other screen still exists in code. Record pages that a signal links to (company, person, building, requirement,
  * tasks, review) stay reachable by link but are not in the menu. Everything else redirects to /signals (src/proxy.ts).
  * Set NEXT_PUBLIC_FULL_APP=1 in Vercel to show the whole app again.
  */
 export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
 /** Screens shown in the menu while in focus mode. */
-export const FOCUS_MENU = ["/signals", "/research", "/scoring"];
+export const FOCUS_MENU = ["/scoring"];
 /** Reachable by link from a signal, but not shown in the menu. */
-const FOCUS_LINKED = ["/companies", "/people", "/buildings", "/requirements", "/tasks", "/approvals", "/search"];
+const FOCUS_LINKED = ["/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search"];
 export const HIDDEN_PREFIXES: string[] = [];
 const under = (path: string, list: string[]) => list.some((h) => path === h || path.startsWith(h + "/"));
 export function isHiddenPath(path: string): boolean {
@@ -78,7 +78,7 @@ export function isHiddenPath(path: string): boolean {
 export function inFocusMenu(path: string): boolean {
   return !FOCUS_MODE || under(path, FOCUS_MENU);
 }
-export const HOME = FOCUS_MODE ? "/signals" : "/today";
+export const HOME = FOCUS_MODE ? "/scoring" : "/today";
 
 /** The section a path belongs to: the tab with the longest matching prefix wins. */
 export function sectionFor(path: string, sections: NavSection[] = NAV): NavSection | null {

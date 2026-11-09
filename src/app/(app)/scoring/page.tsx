@@ -11,7 +11,7 @@ import type { ModelKey } from "@/modules/scoring/engine";
 
 export const metadata = { title: "Scoring" };
 type Row = Record<string, any>;
-type SP = { tab?: string; q?: string; band?: string; confidence?: string; min?: string; max?: string; complete?: string; sort?: string; req?: string };
+type SP = { industry?: string; geo?: string; expiry?: string; owner?: string; tab?: string; q?: string; band?: string; confidence?: string; min?: string; max?: string; complete?: string; sort?: string; req?: string };
 
 const TABS: { key: ModelKey | "properties"; label: string }[] = [
   { key: "company", label: "Companies" }, { key: "lead", label: "Leads" }, { key: "contact", label: "Contacts" },
@@ -30,6 +30,44 @@ async function names(db: Row, ws: string, type: string, ids: string[]): Promise<
   if (type === "requirement") for (const r of (await db.from("requirement").select("id, title, org:org_id(display_name)").eq("workspace_id", ws).in("id", ids)).data ?? []) m.set(r.id, { name: r.title, sub: r.org?.display_name });
   if (type === "opportunity") for (const r of (await db.from("opportunity").select("id, name, stage, org:org_id(display_name)").eq("workspace_id", ws).in("id", ids)).data ?? []) m.set(r.id, { name: r.name, sub: `${r.org?.display_name ?? ""} · ${String(r.stage).replace(/_/g, " ")}` });
   return m;
+}
+
+/** Industry / micro-market / lease-expiry / owner filters → allowed entity ids (null = no filter). */
+async function entityFilter(db: Row, ws: string, tab: ModelKey, sp: SP & { userId?: string }): Promise<Set<string> | null> {
+  if (!sp.industry && !sp.geo && !sp.expiry && !sp.owner) return null;
+  let orgs: Set<string> | null = null;
+  const and = (ids: string[]) => { const s = new Set(ids); orgs = orgs ? new Set([...orgs].filter((x) => s.has(x))) : s; };
+  if (sp.industry) and(((await db.from("organisation").select("id").eq("workspace_id", ws).ilike("sector", sp.industry)).data ?? []).map((r: Row) => r.id));
+  if (sp.geo) and(((await db.from("lease").select("tenant_org_id, asset:asset_id!inner(locality_id, micro_market_id)").eq("workspace_id", ws).or(`locality_id.eq.${sp.geo},micro_market_id.eq.${sp.geo}`, { referencedTable: "asset" })).data ?? []).map((r: Row) => r.tenant_org_id).filter(Boolean));
+  if (sp.expiry) {
+    const to = new Date(Date.now() + Number(sp.expiry) * 30 * 86_400_000).toISOString().slice(0, 10);
+    and(((await db.from("lease").select("tenant_org_id").eq("workspace_id", ws).gte("contractual_expiry", new Date().toISOString().slice(0, 10)).lte("contractual_expiry", to)).data ?? []).map((r: Row) => r.tenant_org_id).filter(Boolean));
+  }
+  if (sp.owner) {
+    const uid = sp.owner === "me" ? (await db.auth.getUser()).data.user?.id : sp.owner;
+    and(((await db.from("opportunity").select("org_id").eq("workspace_id", ws).or(`account_owner_user_id.eq.${uid},owner_user_id.eq.${uid}`)).data ?? []).map((r: Row) => r.org_id));
+  }
+  const o: Set<string> = orgs ?? new Set<string>();
+  if (["company", "lead", "relationship"].includes(tab)) return o;
+  const ids = [...o];
+  if (!ids.length) return new Set();
+  if (tab === "contact") return new Set(((await db.from("employment").select("person_id").eq("workspace_id", ws).eq("is_current", true).in("org_id", ids)).data ?? []).map((r: Row) => r.person_id));
+  if (tab === "requirement") return new Set(((await db.from("requirement").select("id").eq("workspace_id", ws).in("org_id", ids)).data ?? []).map((r: Row) => r.id));
+  if (tab === "opportunity") return new Set(((await db.from("opportunity").select("id").eq("workspace_id", ws).in("org_id", ids)).data ?? []).map((r: Row) => r.id));
+  return o;
+}
+
+async function filterOptions(db: Row, ws: string) {
+  const [{ data: secs }, { data: geos }, { data: mem }] = await Promise.all([
+    db.from("organisation").select("sector").eq("workspace_id", ws).not("sector", "is", null).limit(2000),
+    db.from("geography").select("id, name, level").eq("workspace_id", ws).in("level", ["micro_market", "locality"]).is("archived_at", null).order("name").limit(300),
+    db.from("membership").select("user_id, display_name").eq("workspace_id", ws).limit(50),
+  ]);
+  return {
+    industries: [...new Set((secs ?? []).map((r: Row) => String(r.sector).trim()).filter(Boolean))].sort().slice(0, 60) as string[],
+    geos: (geos ?? []).map((g: Row) => ({ id: g.id, name: g.name })) as { id: string; name: string }[],
+    owners: (mem ?? []).map((m: Row) => ({ id: m.user_id, label: m.display_name ?? "Member" })) as { id: string; label: string }[],
+  };
 }
 
 async function Stats({ db, ws }: { db: Row; ws: string }) {
@@ -66,11 +104,15 @@ async function Ranking({ sp, db, ws }: { sp: SP; db: Row; ws: string }) {
   if (sp.complete) q = q.gte("completeness", Number(sp.complete));
   const sort = sp.sort ?? "high";
   q = sort === "low" ? q.order("score", { ascending: true }) : sort === "recent" ? q.order("calculated_at", { ascending: false }) : sort === "confidence" ? q.order("completeness", { ascending: false }) : q.order("score", { ascending: false });
-  let rows = ((await q.limit(300)).data ?? []) as Row[];
+  let rows = ((await q.limit(1000)).data ?? []) as Row[];
+  const allow = await entityFilter(db, ws, tab, sp);
+  if (allow) rows = rows.filter((r) => allow.has(r.entity_id));
+  rows = rows.slice(0, 300);
   const nm = await names(db, ws, entity, rows.map((r) => r.entity_id));
   if (sp.q) rows = rows.filter((r) => `${nm.get(r.entity_id)?.name ?? ""} ${nm.get(r.entity_id)?.sub ?? ""}`.toLowerCase().includes(sp.q!.toLowerCase()));
   const ovs = new Map(((await db.from("score_override").select("entity_id, value").eq("workspace_id", ws).eq("model_key", tab).eq("kind", "priority").eq("active", true)).data ?? []).map((o: Row) => [o.entity_id, o.value]));
   const bands = MODELS[tab].version.bands.map((b) => b.label);
+  const opts = await filterOptions(db, ws);
   return (
     <div className="space-y-3">
       <p className="text-sm text-ink-soft">{MODELS[tab].purpose}</p>
@@ -80,8 +122,12 @@ async function Ranking({ sp, db, ws }: { sp: SP; db: Row; ws: string }) {
         <select name="band" defaultValue={sp.band ?? ""} aria-label="Priority" className="min-h-10 rounded-xl border border-line bg-surface px-2 text-sm"><option value="">Any priority</option>{bands.map((b) => <option key={b}>{b}</option>)}<option>Disqualified</option></select>
         <select name="confidence" defaultValue={sp.confidence ?? ""} aria-label="Confidence" className="min-h-10 rounded-xl border border-line bg-surface px-2 text-sm"><option value="">Any confidence</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="insufficient">Not enough data</option></select>
         <select name="sort" defaultValue={sort} aria-label="Sort" className="min-h-10 rounded-xl border border-line bg-surface px-2 text-sm"><option value="high">Highest score</option><option value="low">Lowest score</option><option value="recent">Recently calculated</option><option value="confidence">Most complete</option></select>
-        <details className="w-full sm:w-auto"><summary className="min-h-10 cursor-pointer list-none rounded-xl border border-line px-3 py-2 text-sm">More filters</summary>
+        <details className="w-full sm:w-auto" open={!!(sp.industry || sp.geo || sp.expiry || sp.owner || sp.min || sp.max || sp.complete)}><summary className="min-h-10 cursor-pointer list-none rounded-xl border border-line px-3 py-2 text-sm">More filters</summary>
           <div className="mt-2 flex flex-wrap gap-2">
+            {opts.industries.length ? <select name="industry" defaultValue={sp.industry ?? ""} aria-label="Industry" className="min-h-10 rounded-xl border border-line bg-surface px-2 text-sm"><option value="">Any industry</option>{opts.industries.map((x) => <option key={x}>{x}</option>)}</select> : null}
+            {opts.geos.length ? <select name="geo" defaultValue={sp.geo ?? ""} aria-label="Micro-market" className="min-h-10 rounded-xl border border-line bg-surface px-2 text-sm"><option value="">Any micro-market</option>{opts.geos.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</select> : null}
+            <select name="expiry" defaultValue={sp.expiry ?? ""} aria-label="Lease expiry" className="min-h-10 rounded-xl border border-line bg-surface px-2 text-sm"><option value="">Any lease expiry</option><option value="6">Lease expiring in 6 months</option><option value="12">in 12 months</option><option value="18">in 18 months</option><option value="24">in 24 months</option></select>
+            {opts.owners.length ? <select name="owner" defaultValue={sp.owner ?? ""} aria-label="Assigned to" className="min-h-10 rounded-xl border border-line bg-surface px-2 text-sm"><option value="">Anyone</option><option value="me">Assigned to me</option>{opts.owners.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}</select> : null}
             <input name="min" type="number" min={0} max={100} defaultValue={sp.min} placeholder="Min score" aria-label="Minimum score" className="min-h-10 w-28 rounded-xl border border-line bg-surface px-3 text-sm" />
             <input name="max" type="number" min={0} max={100} defaultValue={sp.max} placeholder="Max score" aria-label="Maximum score" className="min-h-10 w-28 rounded-xl border border-line bg-surface px-3 text-sm" />
             <input name="complete" type="number" min={0} max={100} defaultValue={sp.complete} placeholder="Min % known" aria-label="Minimum data completeness" className="min-h-10 w-32 rounded-xl border border-line bg-surface px-3 text-sm" />

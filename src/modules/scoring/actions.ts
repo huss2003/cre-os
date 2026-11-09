@@ -94,3 +94,13 @@ export async function toggleModelAction(model: string, active: boolean, _p: Acti
   try { const ctx = await requireContext("admin"); await setModelActive(ctx.db, ctx.workspaceId, key(model), active); revalidatePath("/scoring/models"); return { ok: true, message: active ? "Model switched on." : "Model switched off." }; }
   catch (e) { return err(e); }
 }
+
+export async function explainAction(model: string, id: string, resultId: string, _p: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { explainScore } = await import("./ai");
+    const r = await explainScore(ctx.db, ctx.workspaceId, resultId);
+    revalidatePath(`/scoring/${model}/${id}`);
+    return r.mocked ? { ok: true, message: "AI is not connected, so a basic summary from the missing fields was written." } : { ok: true, message: "AI summary added." };
+  } catch (e) { return err(e); }
+}

@@ -4,7 +4,7 @@ import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { MODELS, MODEL_KEYS } from "@/modules/scoring/models";
 import { scoreEntity } from "@/modules/scoring/service";
-import { recalcAction, overrideAction, feedbackAction } from "@/modules/scoring/actions";
+import { recalcAction, overrideAction, feedbackAction, explainAction } from "@/modules/scoring/actions";
 import { ScoreBar, CONF_LABEL } from "@/modules/scoring/ui/parts";
 import type { ModelKey } from "@/modules/scoring/engine";
 
@@ -70,6 +70,21 @@ export default async function Page({ params }: { params: Promise<{ model: string
           {key === "opportunity" ? <><Fact label="Stage" value={String(ex.stage).replace(/_/g, " ")} /><Fact label="Expected fee" value={ex.revenue ? `₹${Number(ex.revenue).toLocaleString("en-IN")}` : "Not recorded"} /><Fact label="Win probability" value="Not estimated" hint={ex.probability} /></> : null}
         </section>
       ) : null}
+
+      <section className="rounded-2xl border border-line bg-surface p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">AI summary</h2>
+          {editor ? <ActionForm action={explainAction.bind(null, key, id, cur.id)}><Submit variant="secondary">{ex.ai ? "Rewrite summary" : "Summarise with AI"}</Submit></ActionForm> : null}
+        </div>
+        {ex.ai ? (
+          <div className="mt-3 space-y-3 text-sm">
+            <p>{ex.ai.summary}</p>
+            {ex.ai.risks?.length ? <div><p className="font-medium">Risks</p><ul className="list-disc pl-5">{(ex.ai.risks as string[]).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
+            {ex.ai.questions?.length ? <div><p className="font-medium">Questions to ask</p><ul className="list-disc pl-5">{(ex.ai.questions as string[]).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
+            <p className="text-xs text-ink-soft">Written by {String(ex.ai.model).replace(/^mock:.*/, "rules (AI not connected)")} on {new Date(ex.ai.at).toLocaleDateString("en-IN", { dateStyle: "medium" })}. It explains the score; it does not change it.</p>
+          </div>
+        ) : <p className="mt-2 text-sm text-ink-soft">A plain-English read of this score, its risks and what to ask next.</p>}
+      </section>
 
       <section className="rounded-2xl border border-line bg-surface">
         <h2 className="px-6 pt-5 font-semibold">How the score is built</h2>
