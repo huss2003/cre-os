@@ -252,52 +252,59 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
 
       <div id="identity" />
       <Card title={`Possible duplicates (${pending.length} to decide)`} className="mt-4">
-        {candidates.length === 0 ? <p className="text-sm text-ink-soft">No similar-but-not-identical names were found. Exact building/locality and company-name matches link automatically; anything fuzzier waits here. People are never merged on name alone and towers are never collapsed.</p> : (
-          <ul className="divide-y divide-line">
-            {candidates.map((m: { id: string; entity_type: string; left_id: string; right_id: string; right_raw: Record<string, string>; score: number; suggested: string; decision: string; change_proposal_id: string | null; evidence: Record<string, unknown> }) => (
-              <li key={m.id} className="py-3 text-sm">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs uppercase text-ink-soft">{m.entity_type}</span>
-                  <StatusBadge status={m.decision} />
-                  <span className="text-xs text-ink-soft">score {Number(m.score).toFixed(2)} · suggested {m.suggested}</span>
-                </div>
-                <div className="mt-1">
-                  <Link className="text-brand underline" href={`${ENTITY_LINK[m.entity_type] ?? "/search"}/${m.left_id}`}>{m.right_raw?.left_name ?? m.left_id}</Link>
-                  {" ↔ "}
-                  <Link className="text-brand underline" href={`${ENTITY_LINK[m.entity_type] ?? "/search"}/${m.right_id}`}>{m.right_raw?.name ?? m.right_id}</Link>
-                  {m.right_raw?.locality ? <span className="text-ink-soft"> · {m.right_raw.locality}</span> : null}
+        {candidates.length === 0 ? <p className="text-sm text-ink-soft">No look-alike names found.</p> : (() => {
+          type M = { id: string; entity_type: string; left_id: string; right_id: string; right_raw: Record<string, string>; score: number; suggested: string; decision: string; change_proposal_id: string | null };
+          const NOUN: Record<string, string> = { organisation: "company", asset: "building", person: "person", geography: "place" };
+          const open = (candidates as M[]).filter((m) => m.decision === "pending");
+          const done = (candidates as M[]).filter((m) => m.decision !== "pending");
+          const Pair = ({ m }: { m: M }) => {
+            const href = (id: string) => `${ENTITY_LINK[m.entity_type] ?? "/search"}/${id}`;
+            const related = m.suggested === "relate_group" || m.suggested === "relate_campus";
+            return (
+              <li className="rounded-2xl border border-line bg-surface p-4">
+                <p className="text-sm font-medium text-ink">{related ? (m.suggested === "relate_campus" ? "Is this tower part of the campus?" : "Are these in the same group?") : `Are these the same ${NOUN[m.entity_type] ?? "record"}?`}</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                  <Link href={href(m.left_id)} className="rounded-xl bg-canvas px-3 py-2.5 text-sm font-medium hover:text-brand">{m.right_raw?.left_name ?? "Saved record"}</Link>
+                  <span className="text-center text-ink-soft" aria-hidden>≈</span>
+                  <Link href={href(m.right_id)} className="rounded-xl bg-canvas px-3 py-2.5 text-sm font-medium hover:text-brand">{m.right_raw?.name ?? "From file"}{m.right_raw?.locality ? <span className="block text-xs font-normal text-ink-soft">{m.right_raw.locality}</span> : null}</Link>
                 </div>
                 {m.decision === "pending" ? (
-                  <form action={decideMatchAction} className="mt-2 flex flex-wrap gap-2">
+                  <form action={decideMatchAction} className="mt-3 flex gap-2">
                     <input type="hidden" name="batch_id" value={batch.id} />
                     <input type="hidden" name="candidate_id" value={m.id} />
-                    {m.suggested === "relate_group" || m.suggested === "relate_campus"
-                      ? <Button variant="secondary" type="submit" name="decision" value="related">{m.suggested === "relate_campus" ? "Link tower to campus" : "Mark as group / subsidiary"}</Button>
-                      : <Button variant="secondary" type="submit" name="decision" value="link">Same entity — propose merge</Button>}
-                    <Button variant="ghost" type="submit" name="decision" value="keep_separate">Keep separate</Button>
+                    <Button type="submit" name="decision" value={related ? "related" : "link"} className="flex-1 sm:flex-none">{related ? "Yes, link them" : "Yes, same"}</Button>
+                    <Button variant="secondary" type="submit" name="decision" value="keep_separate" className="flex-1 sm:flex-none">No, different</Button>
                   </form>
-                ) : m.change_proposal_id ? <p className="mt-1 text-xs text-ink-soft">Waiting in <Link className="underline" href="/approvals">Approvals</Link>; merges are reversible.</p> : null}
+                ) : <p className="mt-2 text-xs text-ink-soft">{m.decision === "keep_separate" ? "Kept separate." : m.change_proposal_id ? <>Sent to <Link className="underline" href="/approvals">Review</Link>.</> : "Decided."}</p>}
               </li>
-            ))}
-          </ul>
-        )}
+            );
+          };
+          return (
+            <div className="space-y-4">
+              {open.length ? <ul className="space-y-3">{open.map((m) => <Pair key={m.id} m={m} />)}</ul> : <p className="text-sm text-ok">All decided.</p>}
+              {done.length ? <details><summary className="cursor-pointer text-sm text-ink-soft">Already decided ({done.length})</summary><ul className="mt-3 space-y-3">{done.map((m) => <Pair key={m.id} m={m} />)}</ul></details> : null}
+            </div>
+          );
+        })()}
       </Card>
 
       <div id="conflicts" />
       <Card title={`Values that differ from your records (${steward.conflicts.filter((x: { status: string }) => x.status === "open" || x.status === "proposed").length} open)`} className="mt-4">
         {steward.conflicts.length === 0 ? <p className="text-sm text-ink-soft">No value in this file disagrees with an existing record. Existing records are never overwritten by an import; disagreements are listed here and in <Link className="underline" href="/approvals/conflicts">Approvals → Conflicts</Link>.</p> : (
-          <Table head={["Record", "Field", "Record says", "File says", "Row", "Status"]}>
+          <ul className="space-y-3">
             {steward.conflicts.map((x: { id: string; entity_type: string; entity_id: string; field: string; master_value: unknown; source_value: unknown; material: boolean; source_locator: string; status: string; change_proposal_id: string | null }) => (
-              <tr key={x.id}>
-                <Td><Link className="text-brand underline" href={`/approvals/evidence?type=${x.entity_type}&id=${x.entity_id}`}>{x.entity_type}</Link></Td>
-                <Td>{x.field}{x.material ? <span className="ml-1 text-xs text-warn">material</span> : null}</Td>
-                <Td>{x.master_value === null ? <span className="text-ink-soft">unknown</span> : String(x.master_value)}</Td>
-                <Td>{String(x.source_value)}</Td>
-                <Td className="whitespace-nowrap">{x.source_locator}</Td>
-                <Td><StatusBadge status={x.status} />{x.change_proposal_id ? <Link className="ml-1 text-xs underline" href={`/approvals?tab=records`}>approval</Link> : null}</Td>
-              </tr>
+              <li key={x.id} className="rounded-2xl border border-line p-4 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <Link className="font-medium hover:text-brand" href={`/approvals/evidence?type=${x.entity_type}&id=${x.entity_id}`}>{x.field.replace(/_/g, " ")}</Link>
+                  <StatusBadge status={x.status} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-canvas px-3 py-2"><p className="text-xs text-ink-soft">Saved</p><p className="font-medium">{x.master_value === null ? "Unknown" : String(x.master_value)}</p></div>
+                  <div className="rounded-xl bg-warn/10 px-3 py-2"><p className="text-xs text-ink-soft">In file</p><p className="font-medium">{String(x.source_value)}</p></div>
+                </div>
+              </li>
             ))}
-          </Table>
+          </ul>
         )}
       </Card>
 
