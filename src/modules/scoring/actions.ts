@@ -21,14 +21,15 @@ export async function recalcAction(model: string, id: string, _p: ActionState): 
   } catch (e) { return err(e); }
 }
 
-/** One batch of "score everything": called repeatedly by the client until remaining = 0. */
-export async function bulkStep(since: string): Promise<{ done: number; remaining: number; total: number; error?: string }> {
+/** One batch of "score everything": the client calls again with the returned cursor until finished. */
+export async function bulkStep(cursor: string | null): Promise<{ scoredNow: number; cursor: string | null; total: number; finished: boolean; error?: string }> {
   try {
     const ctx = await requireContext("admin");
-    const r = await recalcStale(ctx.db, ctx.workspaceId, { limit: 400, since, trigger: "bulk", budgetMs: 40_000, concurrency: 10 });
-    if (r.remaining === 0) revalidatePath("/scoring");
-    return { done: r.companies, remaining: r.remaining, total: r.total };
-  } catch (e) { return { done: 0, remaining: -1, total: 0, error: e instanceof ScoringError ? e.message : errorMessage(e) }; }
+    const { recalcAll } = await import("./service");
+    const r = await recalcAll(ctx.db, ctx.workspaceId, cursor, { budgetMs: 40_000, concurrency: 10 });
+    if (r.finished) revalidatePath("/scoring");
+    return r;
+  } catch (e) { return { scoredNow: 0, cursor, total: 0, finished: true, error: e instanceof ScoringError ? e.message : errorMessage(e) }; }
 }
 
 export async function overrideAction(model: string, id: string, _p: ActionState, f: FormData): Promise<ActionState> {

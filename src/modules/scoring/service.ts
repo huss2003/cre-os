@@ -104,6 +104,23 @@ export async function recalcOrg(db: Db, ws: string, orgId: string, trigger: stri
 }
 
 /** Bulk: scores records not yet scored or older than `staleDays` (never every record blindly). */
+/** "Score everything": walks all companies in id order with a cursor, so each company is counted once. */
+export async function recalcAll(db: Db, ws: string, cursor: string | null, opts: { budgetMs?: number; concurrency?: number } = {}) {
+  const { count } = await db.from("organisation").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null);
+  let q = db.from("organisation").select("id").eq("workspace_id", ws).is("archived_at", null).order("id").limit(400);
+  if (cursor) q = q.gt("id", cursor);
+  const ids = ((await q).data ?? []).map((r) => r.id as string);
+  const deadline = Date.now() + (opts.budgetMs ?? 40_000);
+  const doneIds = new Set<string>();
+  let i = 0;
+  const worker = async () => { while (i < ids.length && Date.now() < deadline) { const id = ids[i++]; await recalcOrg(db, ws, id, "bulk"); doneIds.add(id); } };
+  await Promise.all(Array.from({ length: Math.min(opts.concurrency ?? 10, ids.length) }, worker));
+  // Next cursor = last id before the first one not finished (ids are processed roughly in order).
+  let next = cursor; for (const id of ids) { if (doneIds.has(id)) next = id; else break; }
+  const finished = ids.length === 0 || (doneIds.size === ids.length && ids.length < 400);
+  return { scoredNow: doneIds.size, cursor: next, total: count ?? 0, finished };
+}
+
 export async function recalcStale(db: Db, ws: string, opts: { limit?: number; staleDays?: number; trigger?: string; budgetMs?: number; concurrency?: number; since?: string } = {}) {
   const limit = opts.limit ?? 150;
   const cutoff = opts.since ?? new Date(Date.now() - (opts.staleDays ?? 7) * 86_400_000).toISOString();

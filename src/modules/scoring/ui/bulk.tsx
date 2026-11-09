@@ -8,15 +8,14 @@ export function BulkScore() {
   const router = useRouter();
   const [state, setState] = useState<{ running: boolean; done: number; total: number; error?: string; finished?: boolean }>({ running: false, done: 0, total: 0 });
   async function run() {
-    const since = new Date().toISOString();
     setState({ running: true, done: 0, total: 0 });
-    let done = 0;
-    for (let i = 0; i < 60; i++) {
-      const r = await bulkStep(since);
+    let done = 0; let cursor: string | null = null;
+    for (let i = 0; i < 200; i++) {
+      const r: Awaited<ReturnType<typeof bulkStep>> = await bulkStep(cursor);
       if (r.error) { setState((s) => ({ ...s, running: false, error: r.error })); return; }
-      done += r.done;
-      setState({ running: true, done, total: done + r.remaining });
-      if (r.remaining <= 0 || r.done === 0) break;
+      done += r.scoredNow; cursor = r.cursor;
+      setState({ running: true, done: Math.min(done, r.total), total: r.total });
+      if (r.finished || r.scoredNow === 0) break;
     }
     setState((s) => ({ ...s, running: false, finished: true }));
     router.refresh();
