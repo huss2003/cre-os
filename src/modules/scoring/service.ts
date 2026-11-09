@@ -34,7 +34,17 @@ export async function ensureModels(db: Db, ws: string): Promise<Record<ModelKey,
   return Object.fromEntries(have) as Record<ModelKey, Row>;
 }
 
+// Short cache so bulk runs don't re-read the model for every record (cleared on any model change).
+const VCACHE = new Map<string, { at: number; val: { id: string; version: number; v: ModelVersion; active: boolean } }>();
+export function clearModelCache() { VCACHE.clear(); }
 export async function activeVersion(db: Db, ws: string, key: ModelKey): Promise<{ id: string; version: number; v: ModelVersion; active: boolean }> {
+  const hit = VCACHE.get(`${ws}:${key}`);
+  if (hit && Date.now() - hit.at < 30_000) return hit.val;
+  const val = await loadActiveVersion(db, ws, key);
+  VCACHE.set(`${ws}:${key}`, { at: Date.now(), val });
+  return val;
+}
+async function loadActiveVersion(db: Db, ws: string, key: ModelKey): Promise<{ id: string; version: number; v: ModelVersion; active: boolean }> {
   const models = await ensureModels(db, ws);
   const m = models[key];
   const { data } = await db.from("scoring_model_version").select("id, version, factors, bands, config").eq("id", m.active_version_id).single();
@@ -94,16 +104,19 @@ export async function recalcOrg(db: Db, ws: string, orgId: string, trigger: stri
 }
 
 /** Bulk: scores records not yet scored or older than `staleDays` (never every record blindly). */
-export async function recalcStale(db: Db, ws: string, opts: { limit?: number; staleDays?: number; trigger?: string } = {}) {
+export async function recalcStale(db: Db, ws: string, opts: { limit?: number; staleDays?: number; trigger?: string; budgetMs?: number; concurrency?: number; since?: string } = {}) {
   const limit = opts.limit ?? 150;
-  const cutoff = new Date(Date.now() - (opts.staleDays ?? 7) * 86_400_000).toISOString();
+  const cutoff = opts.since ?? new Date(Date.now() - (opts.staleDays ?? 7) * 86_400_000).toISOString();
   const { data: orgs } = await db.from("organisation").select("id").eq("workspace_id", ws).is("archived_at", null).limit(3000);
   const { data: scored } = await db.from("score_result").select("entity_id, calculated_at").eq("workspace_id", ws).eq("model_key", "company").eq("is_current", true).limit(5000);
   const fresh = new Set((scored ?? []).filter((s) => s.calculated_at >= cutoff).map((s) => s.entity_id));
   const todo = (orgs ?? []).map((o) => o.id).filter((id) => !fresh.has(id)).slice(0, limit);
-  let n = 0;
-  for (const id of todo) { await recalcOrg(db, ws, id, opts.trigger ?? "scheduled"); n++; }
-  return { companies: n, remaining: Math.max(0, (orgs ?? []).length - fresh.size - n) };
+  // Parallel pool with a time budget so one request never times out; callers loop until remaining = 0.
+  const deadline = Date.now() + (opts.budgetMs ?? 40_000);
+  let n = 0, i = 0;
+  const worker = async () => { while (i < todo.length && Date.now() < deadline) { const id = todo[i++]; await recalcOrg(db, ws, id, opts.trigger ?? "scheduled"); n++; } };
+  await Promise.all(Array.from({ length: Math.min(opts.concurrency ?? 8, todo.length) }, worker));
+  return { companies: n, remaining: Math.max(0, (orgs ?? []).length - fresh.size - n), total: (orgs ?? []).length };
 }
 
 // ------------------------------------------------------------------ overrides & feedback
@@ -135,6 +148,7 @@ export async function saveVersion(db: Db, ws: string, key: ModelKey, v: ModelVer
   const { data, error } = await db.from("scoring_model_version").insert({ workspace_id: ws, model_id: m.id, version: (last?.version ?? 0) + 1, factors: v.factors, bands: v.bands, config: v.config, note: note || null }).select("id, version").single();
   if (error) throw new ScoringError(error.message);
   await db.from("scoring_model").update({ active_version_id: data.id }).eq("id", m.id);
+  clearModelCache();
   return data;
 }
 export async function activateVersion(db: Db, ws: string, key: ModelKey, versionId: string) {
@@ -142,10 +156,12 @@ export async function activateVersion(db: Db, ws: string, key: ModelKey, version
   const { data: v } = await db.from("scoring_model_version").select("id").eq("workspace_id", ws).eq("model_id", models[key].id).eq("id", versionId).maybeSingle();
   if (!v) throw new ScoringError("Version not found.");
   await db.from("scoring_model").update({ active_version_id: versionId }).eq("id", models[key].id);
+  clearModelCache();
 }
 export async function setModelActive(db: Db, ws: string, key: ModelKey, active: boolean) {
   const models = await ensureModels(db, ws);
   await db.from("scoring_model").update({ active }).eq("id", models[key].id);
+  clearModelCache();
 }
 /** Preview a draft version on a sample record without saving anything. */
 export async function preview(db: Db, ws: string, key: ModelKey, draft: ModelVersion, entityId: string) {

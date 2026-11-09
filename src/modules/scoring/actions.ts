@@ -21,13 +21,14 @@ export async function recalcAction(model: string, id: string, _p: ActionState): 
   } catch (e) { return err(e); }
 }
 
-export async function bulkAction(_p: ActionState): Promise<ActionState> {
+/** One batch of "score everything": called repeatedly by the client until remaining = 0. */
+export async function bulkStep(since: string): Promise<{ done: number; remaining: number; total: number; error?: string }> {
   try {
     const ctx = await requireContext("admin");
-    const r = await recalcStale(ctx.db, ctx.workspaceId, { limit: 60, staleDays: 0, trigger: "bulk" });
-    revalidatePath("/scoring");
-    return { ok: true, message: `Scored ${r.companies} companies and their contacts, requirements and deals.${r.remaining ? ` ${r.remaining} left — press again.` : ""}` };
-  } catch (e) { return err(e); }
+    const r = await recalcStale(ctx.db, ctx.workspaceId, { limit: 400, since, trigger: "bulk", budgetMs: 40_000, concurrency: 10 });
+    if (r.remaining === 0) revalidatePath("/scoring");
+    return { done: r.companies, remaining: r.remaining, total: r.total };
+  } catch (e) { return { done: 0, remaining: -1, total: 0, error: e instanceof ScoringError ? e.message : errorMessage(e) }; }
 }
 
 export async function overrideAction(model: string, id: string, _p: ActionState, f: FormData): Promise<ActionState> {

@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { Loading } from "@/modules/admin/ui/parts";
 import { ensureModels } from "@/modules/scoring/service";
-import { bulkAction } from "@/modules/scoring/actions";
+import { BulkScore } from "@/modules/scoring/ui/bulk";
 import { MODELS } from "@/modules/scoring/models";
 import { ScoreBar, Completeness, CONF_LABEL } from "@/modules/scoring/ui/parts";
 import type { ModelKey } from "@/modules/scoring/engine";
@@ -193,12 +192,14 @@ async function Body({ sp }: { sp: SP }) {
   const tab = sp.tab ?? "company";
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scoring</h1><p className="mt-1 max-w-2xl text-ink-soft">Who to focus on first, and why. Every score shows its reasons, sources, how much is known and how sure it is.</p></div>
-        <div className="flex gap-2">
-          {hasRole(ctx, "admin") ? <Link href="/scoring/models" className="inline-flex min-h-10 items-center rounded-xl border border-line px-4 text-sm font-semibold">Scoring rules</Link> : null}
-          {hasRole(ctx, "admin") ? <ActionForm action={bulkAction}><Submit>Score everything now</Submit></ActionForm> : null}
-        </div>
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0"><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scoring</h1><p className="mt-1 max-w-xl text-ink-soft">Who to focus on first, and why. Every score shows its reasons, sources, how much is known and how sure it is.</p></div>
+        {hasRole(ctx, "admin") ? (
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start">
+            <Link href="/scoring/models" className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-xl border border-line bg-surface px-4 text-sm font-semibold">Scoring rules</Link>
+            <BulkScore />
+          </div>
+        ) : null}
       </header>
       <Suspense fallback={<div className="h-40 rounded-2xl bg-surface" />}><Stats db={ctx.db} ws={ctx.workspaceId} /></Suspense>
       <nav aria-label="Score type" className="-mx-1 flex gap-1 overflow-x-auto border-b border-line pb-px">
