@@ -3,7 +3,17 @@ import { useActionState, useState } from "react";
 import type { ActionState } from "@/modules/admin/ui/client";
 
 /** Hand-off: confirm exact recipient + text, then open the user's own app. CRE OS never sends. */
-export function SendPanel({ action, sent, hash, to, text }: { action: (p: ActionState, f: FormData) => Promise<ActionState>; sent: (p: ActionState) => Promise<ActionState>; hash: string; to: string; text: string }) {
+/** Web compose links: open a pre-filled new email in the account already signed in in the browser. No setup, no permissions. */
+function webLinks(to: string, subject: string, body: string) {
+  const e = encodeURIComponent;
+  return [
+    ["Gmail", `https://mail.google.com/mail/?view=cm&fs=1&to=${e(to)}&su=${e(subject)}&body=${e(body)}`],
+    ["Outlook", `https://outlook.office.com/mail/deeplink/compose?to=${e(to)}&subject=${e(subject)}&body=${e(body)}`],
+    ["Outlook.com (personal)", `https://outlook.live.com/mail/0/deeplink/compose?to=${e(to)}&subject=${e(subject)}&body=${e(body)}`],
+  ] as const;
+}
+
+export function SendPanel({ action, sent, hash, to, text, email }: { action: (p: ActionState, f: FormData) => Promise<ActionState>; sent: (p: ActionState) => Promise<ActionState>; hash: string; to: string; text: string; email?: { subject: string; body: string } }) {
   const [st, run, pending] = useActionState(action, null);
   const [st2, mark, pending2] = useActionState(sent, null);
   const [copied, setCopied] = useState(false);
@@ -21,7 +31,8 @@ export function SendPanel({ action, sent, hash, to, text }: { action: (p: Action
         <div className="space-y-2 rounded-xl bg-canvas p-3 text-sm">
           <p>Checked: not suppressed and unchanged since approval.</p>
           <div className="flex flex-wrap gap-2">
-            {href ? <a href={href} target="_blank" rel="noreferrer noopener" className="min-h-10 rounded-xl bg-ink px-4 py-2 font-semibold text-white">Open in your app</a> : null}
+            {email ? webLinks(to, email.subject, email.body).map(([l, u]) => <a key={l} href={u} target="_blank" rel="noreferrer noopener" className="min-h-10 rounded-xl bg-ink px-4 py-2 font-semibold text-white">Open in {l}</a>) : null}
+            {href ? <a href={href} target="_blank" rel="noreferrer noopener" className={`min-h-10 rounded-xl px-4 py-2 font-semibold ${email ? "border border-line" : "bg-ink text-white"}`}>{email ? "Desktop mail app" : "Open in your app"}</a> : null}
             <button type="button" onClick={() => { navigator.clipboard?.writeText(text); setCopied(true); }} className="min-h-10 rounded-xl border border-line px-4">{copied ? "Copied" : "Copy text"}</button>
           </div>
           <p className="text-ink-soft">Send it yourself, then come back and press <b>I sent it</b>.</p>
