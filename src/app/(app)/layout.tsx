@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { NAV, MOBILE_BAR, HOME, isHiddenPath, type NavSection } from "@/lib/nav";
+import { NAV, MOBILE_BAR, HOME, isHiddenPath, inFocusMenu, type NavSection } from "@/lib/nav";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { NavLinks, SectionTabs, MobileBar } from "./nav-links";
 
@@ -8,7 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await requirePageContext();
   const allowed = (r?: NavSection["minRole"], platformOnly?: boolean) => (platformOnly ? ctx.isPlatformAdmin : !r || hasRole(ctx, r));
   const sections = NAV.filter((s) => allowed(s.minRole))
-    .map((s) => ({ ...s, tabs: s.tabs.filter((t) => allowed(t.minRole, t.platformOnly) && !isHiddenPath(t.href)) }))
+    .map((s) => ({ ...s, tabs: s.tabs.filter((t) => allowed(t.minRole, t.platformOnly) && inFocusMenu(t.href)) }))
     .filter((s) => s.tabs.length > 0)
     .map((s) => ({ ...s, href: s.tabs.some((t) => t.href === s.href) ? s.href : s.tabs[0].href }));
   const mobile = sections.filter((s) => (MOBILE_BAR as readonly string[]).includes(s.key));
