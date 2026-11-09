@@ -110,22 +110,28 @@ export async function contactFeatures(db: Db, ws: string, personId: string): Pro
   const [person, emps, methods, links] = await Promise.all([
     db.from("person").select("id, full_name").eq("workspace_id", ws).eq("id", personId).maybeSingle().then((r) => r.data as Row | null),
     rows(db.from("employment").select("title, fact_status, is_current, updated_at, start_date, org:org_id(display_name)").eq("workspace_id", ws).eq("person_id", personId).is("archived_at", null).order("is_current", { ascending: false }).limit(5)),
-    rows(db.from("contact_method").select("method_type, verified_on, suppressed").eq("workspace_id", ws).eq("person_id", personId).is("archived_at", null)),
+    rows(db.from("contact_method").select("method_type, verified_on, suppressed, verify_status").eq("workspace_id", ws).eq("person_id", personId).is("archived_at", null)),
     rows(db.from("interaction_link").select("interaction:interaction_id(occurred_at, channel, is_meaningful)").eq("workspace_id", ws).eq("entity_type", "person").eq("entity_id", personId).limit(300)),
   ]);
   if (!person) throw new Error("Person not found");
   const cur = emps.find((e) => e.is_current);
-  const role = classifyRole(cur?.title);
+  let role = classifyRole(cur?.title);
   const v: Features["values"] = {};
-  v.role = fv(role.value, role.why, cur ? [{ type: "employment", label: `${cur.title ?? "Role"} at ${cur.org?.display_name ?? "?"}`, tier: cur.fact_status }] : []);
+  // Module 4 role assessment (rules or a user's correction, with reason) takes precedence over the title heuristic.
+  const { data: ra } = await db.from("contact_role_assessment").select("role_class, cre_relevance, reason, source").eq("workspace_id", ws).eq("person_id", personId).eq("active", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const REL: Record<string, number | null> = { high: 1, medium: 0.7, low: 0.4, none: 0.15, unknown: null };
+  const MAP: Record<string, RoleClass> = { decision_maker: "decision_maker", economic_buyer: "influencer", influencer: "influencer", technical_evaluator: "evaluator", procurement: "evaluator", gatekeeper: "gatekeeper", operational: "operational", administrative: "operational", unknown: "unknown" };
+  if (ra) role = { cls: MAP[ra.role_class] ?? "unknown", value: REL[ra.cre_relevance] ?? null, why: `${ra.source === "user" ? "Set by your team" : "Assessed"}: ${ra.reason}` };
+  v.role = fv(role.value, role.why, cur ? [{ type: "employment", label: `${cur.title ?? "Role"} at ${cur.org?.display_name ?? "?"}`, tier: ra?.source === "user" ? "records" : cur.fact_status }] : []);
   v.employment = cur ? fv(cur.fact_status === "currently_confirmed" ? 1 : cur.fact_status === "reported" ? 0.6 : 0.3, `Current role is ${String(cur.fact_status).replace(/_/g, " ")}`, [{ type: "employment", label: cur.org?.display_name ?? "", tier: cur.fact_status }])
     : fv(0, "No current employment on record");
   const ints = links.map((l) => l.interaction).filter(Boolean) as Row[];
   const last = ints.map((i) => i.occurred_at).sort().pop();
   const meaningful = ints.filter((i) => i.is_meaningful || ["meeting", "visit", "call"].includes(i.channel)).length;
   v.relationship = fv(ints.length ? Math.min(1, meaningful * 0.25 + ((ago(last) ?? 999) <= 90 ? 0.3 : 0)) : 0, ints.length ? `${ints.length} interaction(s), ${meaningful} meaningful, last ${last?.slice(0, 10)}` : "No interactions recorded");
-  const ok = methods.filter((m) => !m.suppressed);
-  v.reachability = fv(ok.length ? Math.min(1, 0.5 + (ok.some((m) => m.verified_on) ? 0.5 : 0)) : 0, ok.length ? `${ok.length} contact method(s)${ok.some((m) => m.verified_on) ? ", verified" : ", unverified"}` : "No usable email or phone");
+  const ok = methods.filter((m) => !m.suppressed && !["invalid", "risky", "generic"].includes(m.verify_status ?? ""));
+  const good = ok.filter((m) => m.verified_on || ["verified", "likely_valid", "published_business"].includes(m.verify_status ?? ""));
+  v.reachability = fv(ok.length ? Math.min(1, 0.4 + good.length * 0.3) : 0, ok.length ? `${ok.length} usable business channel(s), ${good.length} verified or published` : "No usable business email or phone");
   const conf = cur?.updated_at ? ago(cur.updated_at) : null;
   v.recency = conf === null ? fv(null, "Never verified") : fv(conf <= 90 ? 1 : conf <= 365 ? 0.6 : 0.25, `Role last updated ${conf} days ago`);
   const strategy: Record<RoleClass, string> = {

@@ -36,6 +36,9 @@ export const NAV: NavSection[] = [
   { key: "signals", label: "Signals", hint: "Events that may need action", href: "/signals", tabs: [
     { href: "/signals", label: "Signals" },
   ]},
+  { key: "contacts", label: "Contacts", hint: "Find and verify decision-makers", href: "/contacts", tabs: [
+    { href: "/contacts", label: "Contacts" },
+  ]},
   { key: "scoring", label: "Scoring", hint: "Who to focus on first", href: "/scoring", tabs: [
     { href: "/scoring", label: "Scores" },
   ]},
@@ -72,6 +75,8 @@ export const FOCUS_MENU = [
   "/signals", "/research",
   // Module 3 — Scoring
   "/scoring",
+  // Module 4 — Contact enrichment
+  "/contacts",
 ];
 /** Reachable by link from a signal, but not shown in the menu. */
 const FOCUS_LINKED = ["/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search"];
@@ -97,4 +102,4 @@ export function sectionFor(path: string, sections: NavSection[] = NAV): NavSecti
 }
 
 /** Mobile bottom bar: the five daily sections. */
-export const MOBILE_BAR = ["today", "capture", "review", "records", "deals", "signals", "scoring", "intel", "setup"] as const;
+export const MOBILE_BAR = ["today", "capture", "review", "records", "deals", "signals", "scoring", "contacts", "intel", "setup"] as const;
