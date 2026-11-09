@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Field, Input, Textarea } from "@/components/ui";
+import { Field, Input, Textarea, HelpFor } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { Loading } from "@/modules/admin/ui/parts";
@@ -25,7 +25,7 @@ async function Horizon({ ws, db }: { ws: string; db: Awaited<ReturnType<typeof r
   return (
     <section aria-label="Dated events over the next 12 months" className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold">Next 12 months</h2>
+        <h2 className="text-sm font-semibold">Next 12 months<HelpFor k="Next 12 months" /></h2>
         <p className="text-xs text-ink-soft">{(data ?? []).length ? `${(data ?? []).length} dated events` : "No dated events yet"}</p>
       </div>
       <div className="mt-4 grid grid-cols-12 gap-1 sm:gap-2">
@@ -68,7 +68,7 @@ async function Body({ sp }: { sp: SP }) {
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Signals</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Signals<HelpFor k="Signals" /></h1>
           <p className="mt-1 text-ink-soft">{c.all ? <>{c.all} open{urgent ? <>, <span className="font-semibold text-rose-700">{urgent} to act on now</span></> : null}</> : "Nothing open right now."}</p>
         </div>
         {editor ? <ActionForm action={scanAction}><Submit variant="secondary">Scan now</Submit></ActionForm> : null}

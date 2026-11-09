@@ -1,3 +1,4 @@
+import { HelpFor } from "@/components/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
@@ -61,7 +62,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
         </div>
       </header>
 
-      {cur.recommended_action ? <section className="rounded-2xl border border-brand/30 bg-brand-soft/40 p-5"><h2 className="text-sm font-semibold">Recommended next step</h2><p className="mt-1">{cur.recommended_action}</p></section> : null}
+      {cur.recommended_action ? <section className="rounded-2xl border border-brand/30 bg-brand-soft/40 p-5"><h2 className="text-sm font-semibold">Recommended next step<HelpFor k="Recommended next step" /></h2><p className="mt-1">{cur.recommended_action}</p></section> : null}
 
       {key === "contact" || key === "requirement" || key === "opportunity" ? (
         <section className="grid gap-3 sm:grid-cols-4">
@@ -73,7 +74,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
 
       <section className="rounded-2xl border border-line bg-surface p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold">AI summary</h2>
+          <h2 className="font-semibold">AI summary<HelpFor k="AI summary" /></h2>
           {editor ? <ActionForm action={explainAction.bind(null, key, id, cur.id)}><Submit variant="secondary">{ex.ai ? "Rewrite summary" : "Summarise with AI"}</Submit></ActionForm> : null}
         </div>
         {ex.ai ? (
@@ -87,7 +88,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
       </section>
 
       <section className="rounded-2xl border border-line bg-surface">
-        <h2 className="px-6 pt-5 font-semibold">How the score is built</h2>
+        <h2 className="px-6 pt-5 font-semibold">How the score is built<HelpFor k="How the score is built" /></h2>
         <ul className="mt-2 divide-y divide-line">
           {(cur.factors as Row[]).map((f) => (
             <li key={f.key}>
@@ -108,15 +109,15 @@ export default async function Page({ params }: { params: Promise<{ model: string
 
       {(cur.missing ?? []).length || (ex.risks ?? []).length ? (
         <section className="grid gap-4 sm:grid-cols-2">
-          {(cur.missing ?? []).length ? <div className="rounded-2xl border border-line bg-surface p-5"><h2 className="font-semibold">Missing information</h2><ul className="mt-2 list-disc pl-5 text-sm">{(cur.missing as string[]).map((x) => <li key={x}>{x}</li>)}</ul><p className="mt-2 text-xs text-ink-soft">Unknown is not treated as a negative.</p></div> : null}
-          {(ex.risks ?? []).length ? <div className="rounded-2xl border border-line bg-surface p-5"><h2 className="font-semibold">Key risks</h2><ul className="mt-2 list-disc pl-5 text-sm">{(ex.risks as string[]).map((x) => <li key={x}>{x}</li>)}</ul></div> : null}
+          {(cur.missing ?? []).length ? <div className="rounded-2xl border border-line bg-surface p-5"><h2 className="font-semibold">Missing information<HelpFor k="Missing information" /></h2><ul className="mt-2 list-disc pl-5 text-sm">{(cur.missing as string[]).map((x) => <li key={x}>{x}</li>)}</ul><p className="mt-2 text-xs text-ink-soft">Unknown is not treated as a negative.</p></div> : null}
+          {(ex.risks ?? []).length ? <div className="rounded-2xl border border-line bg-surface p-5"><h2 className="font-semibold">Key risks<HelpFor k="Key risks" /></h2><ul className="mt-2 list-disc pl-5 text-sm">{(ex.risks as string[]).map((x) => <li key={x}>{x}</li>)}</ul></div> : null}
         </section>
       ) : null}
 
       {editor ? (
         <section className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-line bg-surface p-5">
-            <h2 className="font-semibold">Change priority</h2>
+            <h2 className="font-semibold">Change priority<HelpFor k="Change priority" /></h2>
             <ActionForm action={overrideAction.bind(null, key, id)} className="mt-3 space-y-3">
               <select name="value" defaultValue={ov?.value ?? cur.band} aria-label="Priority" className={sel}>{m.version.bands.map((b) => <option key={b.label}>{b.label}</option>)}</select>
               <input name="reason" placeholder="Why? (required to save)" aria-label="Reason" className={sel} />
@@ -124,7 +125,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
             </ActionForm>
           </div>
           <div className="rounded-2xl border border-line bg-surface p-5">
-            <h2 className="font-semibold">Is this score right?</h2>
+            <h2 className="font-semibold">Is this score right?<HelpFor k="Is this score right?" /></h2>
             <ActionForm action={feedbackAction.bind(null, key, id, cur.id)} className="mt-3 space-y-3">
               <select name="kind" aria-label="Feedback" className={sel}><option value="accurate">Score is accurate</option><option value="too_high">Too high</option><option value="too_low">Too low</option><option value="wrong_company">Wrong company</option><option value="missing_evidence">Missing evidence</option><option value="incorrect_requirement">Incorrect requirement</option><option value="incorrect_contact">Incorrect contact relevance</option><option value="incorrect_match">Incorrect property match</option></select>
               <input name="comment" placeholder="Comment (optional)" aria-label="Comment" className={sel} />
@@ -133,7 +134,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
           </div>
           {key === "relationship" ? (
             <div className="rounded-2xl border border-line bg-surface p-5 sm:col-span-2">
-              <h2 className="font-semibold">Your assessment of the relationship</h2>
+              <h2 className="font-semibold">Your assessment of the relationship<HelpFor k="Your assessment of the relationship" /></h2>
               {assess ? <p className="mt-1 text-sm text-ink-soft">Current: {assess.value} — “{assess.reason}”</p> : null}
               <ActionForm action={overrideAction.bind(null, "relationship", id)} className="mt-3 flex flex-col gap-3 sm:flex-row">
                 <input type="hidden" name="kind" value="relationship_assessment" />
@@ -147,7 +148,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
       ) : null}
 
       <section className="rounded-2xl border border-line bg-surface p-6">
-        <h2 className="font-semibold">Score history</h2>
+        <h2 className="font-semibold">Score history<HelpFor k="Score history" /></h2>
         <ol className="mt-3 space-y-3 text-sm">
           {(hist ?? []).map((h: Row) => (
             <li key={h.id} className="flex gap-4">

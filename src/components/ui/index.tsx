@@ -9,7 +9,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+        <h1 className="flex items-center text-2xl font-bold tracking-tight">{title}<HelpFor k={title} /></h1>
         {subtitle ? <p className="mt-1 max-w-2xl text-sm text-ink-soft">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
@@ -27,6 +27,12 @@ export function Help({ children }: { children: ReactNode }) {
       </span>
     </span>
   );
+}
+
+/** "?" icon looked up from HELP_TEXT by section title. */
+export function HelpFor({ k }: { k: string }) {
+  const t = helpFor(k);
+  return t ? <Help>{t}</Help> : null;
 }
 
 export function Card({ title, actions, children, className, help }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; help?: ReactNode }) {

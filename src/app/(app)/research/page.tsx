@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { Button, Field, Select, Input } from "@/components/ui";
+import { Button, Field, Select, Input, HelpFor } from "@/components/ui";
 import { watchlistView, openFindings, orgOptions } from "@/modules/intelligence/research/queries";
 import { Flash, fmtDay, label } from "@/modules/intelligence/ui";
 import { aiConfigured, monthSpendUsd } from "@/lib/ai/gateway";
@@ -39,7 +39,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Research</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Research<HelpFor k="Research" /></h1>
         <p className="mt-1 max-w-2xl text-ink-soft">Companies you watch are searched on the web on a schedule. What&apos;s found becomes a signal, with its link and date.</p>
       </header>
       <Flash sp={sp} />
@@ -64,7 +64,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
         <div className="min-w-0 space-y-6">
           <section>
             <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-              <div><h2 className="text-lg font-semibold">Live research</h2><p className="text-sm text-ink-soft">What each run searched and the websites it read. Green sites gave evidence.</p></div>
+              <div><h2 className="text-lg font-semibold">Live research<HelpFor k="Live research" /></h2><p className="text-sm text-ink-soft">What each run searched and the websites it read. Green sites gave evidence.</p></div>
               {canEdit ? <ActionForm action={discoverAction}><Submit>Find a new prospect in {(cfg.focusCities ?? ["Pune"]).join(", ")}</Submit></ActionForm> : null}
             </div>
             <ResearchLive initial={runs} />
@@ -117,7 +117,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
         <aside className="space-y-4">
           {canEdit && orgs.length ? (
             <section className="rounded-2xl border border-brand/30 bg-surface p-5">
-              <h2 className="font-semibold">Is this a potential client?</h2>
+              <h2 className="font-semibold">Is this a potential client?<HelpFor k="Is this a potential client?" /></h2>
               <p className="mt-1 text-sm text-ink-soft">Researches one company and scores it out of 100, with every reason and its source.</p>
               <ActionForm action={assessFormAction} className="mt-4 space-y-4">
                 <Field label="Company"><Select name="org_id" required defaultValue="">{[<option key="" value="" disabled>Choose</option>, ...orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)]}</Select></Field>
@@ -127,7 +127,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
           ) : null}
           {canEdit ? (
             <section className="rounded-2xl border border-line bg-surface p-5">
-              <h2 className="font-semibold">Watch a company</h2>
+              <h2 className="font-semibold">Watch a company<HelpFor k="Watch a company" /></h2>
               {orgs.length === 0 ? <p className="mt-2 text-sm text-ink-soft">Add companies first. Then come back here.</p> : (
                 <form action={watchAction} className="mt-4 space-y-4">
                   <Field label="Company"><Select name="org_id" required defaultValue="">{[<option key="" value="" disabled>Choose</option>, ...orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)]}</Select></Field>
@@ -140,7 +140,7 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
           ) : null}
           {isAdmin ? (
             <section className="rounded-2xl border border-line bg-surface p-5">
-              <h2 className="font-semibold">Limits</h2>
+              <h2 className="font-semibold">Limits<HelpFor k="Limits" /></h2>
               <ActionForm action={saveSettingsAction} className="mt-4 space-y-4">
                 <Field label="Companies per week" hint="Caps how many companies are searched each week. The monthly AI budget in Settings also applies."><Input name="weekly" type="number" min={1} max={500} defaultValue={weekly} /></Field>
                 <Field label="Focus cities" hint="Comma separated. Signals outside these are marked as weaker."><Input name="cities" defaultValue={(cfg.focusCities ?? ["Pune"]).join(", ")} /></Field>

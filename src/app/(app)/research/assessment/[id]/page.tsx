@@ -1,3 +1,4 @@
+import { HelpFor } from "@/components/ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
@@ -73,19 +74,19 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </header>
 
       <section className="rounded-2xl border border-line bg-surface px-6 py-2">
-        <h2 className="pt-4 font-semibold">Why they could be a client ({a.for.length})</h2>
+        <h2 className="pt-4 font-semibold">Why they could be a client<HelpFor k="Why they could be a client" /> ({a.for.length})</h2>
         {a.for.length ? <ul className="divide-y divide-line">{a.for.map((p, i) => <PointRow key={i} p={p} />)}</ul> : <p className="py-4 text-sm text-ink-soft">No supporting evidence found.</p>}
       </section>
 
       {a.against.length ? (
         <section className="rounded-2xl border border-line bg-surface px-6 py-2">
-          <h2 className="pt-4 font-semibold">Reasons for caution ({a.against.length})</h2>
+          <h2 className="pt-4 font-semibold">Reasons for caution<HelpFor k="Reasons for caution" /> ({a.against.length})</h2>
           <ul className="divide-y divide-line">{a.against.map((p, i) => <PointRow key={i} p={p} />)}</ul>
         </section>
       ) : null}
 
       <section className="rounded-2xl border border-line bg-surface p-6">
-        <h2 className="font-semibold">Still unknown</h2>
+        <h2 className="font-semibold">Still unknown<HelpFor k="Still unknown" /></h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{a.unknowns.map((u, i) => <li key={i}>{u}</li>)}</ul>
       </section>
 

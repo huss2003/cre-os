@@ -1,3 +1,4 @@
+import { HelpFor } from "@/components/ui";
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
@@ -31,14 +32,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
   return (
     <div className="space-y-6">
       <Link href="/scoring" className="text-sm text-ink-soft hover:text-ink">Scoring</Link>
-      <header><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scoring rules</h1><p className="mt-1 max-w-2xl text-ink-soft">Change weights and thresholds without code. Each save creates a new version; older versions stay so past scores can be explained, and you can switch back any time.</p></header>
+      <header><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scoring rules<HelpFor k="Scoring rules" /></h1><p className="mt-1 max-w-2xl text-ink-soft">Change weights and thresholds without code. Each save creates a new version; older versions stay so past scores can be explained, and you can switch back any time.</p></header>
       <nav className="-mx-1 flex gap-1 overflow-x-auto border-b border-line pb-px">
         {MODEL_KEYS.map((k) => <Link key={k} href={`/scoring/models?m=${k}`} aria-current={k === key ? "page" : undefined} className={`shrink-0 border-b-2 px-3 py-2 text-sm ${k === key ? "border-ink font-semibold" : "border-transparent text-ink-soft"}`}>{MODELS[k].name}</Link>)}
       </nav>
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
         <ActionForm action={saveModelAction.bind(null, key)} className="space-y-6">
           <section className="rounded-2xl border border-line bg-surface">
-            <div className="flex items-baseline justify-between px-5 pt-5"><h2 className="font-semibold">Factors — version {active.version}</h2><span className="text-sm text-ink-soft">Weights total {total} (they are scaled to 100)</span></div>
+            <div className="flex items-baseline justify-between px-5 pt-5"><h2 className="font-semibold">Factors — version<HelpFor k="Factors \u2014 version" /> {active.version}</h2><span className="text-sm text-ink-soft">Weights total {total} (they are scaled to 100)</span></div>
             <p className="px-5 text-sm text-ink-soft">{MODELS[key].purpose}</p>
             <ul className="mt-3 divide-y divide-line">
               {factors.map((f) => (
@@ -70,12 +71,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
         </ActionForm>
         <aside className="space-y-4">
           <section className="rounded-2xl border border-line bg-surface p-5">
-            <h2 className="font-semibold">Status</h2>
+            <h2 className="font-semibold">Status<HelpFor k="Status" /></h2>
             <p className="mt-1 text-sm text-ink-soft">{m.active ? "On — scores are calculated." : "Off — no new scores are calculated."}</p>
             <ActionForm action={toggleModelAction.bind(null, key, !m.active)} className="mt-3"><Submit variant="secondary">{m.active ? "Switch off" : "Switch on"}</Submit></ActionForm>
           </section>
           <section className="rounded-2xl border border-line bg-surface p-5">
-            <h2 className="font-semibold">Versions</h2>
+            <h2 className="font-semibold">Versions<HelpFor k="Versions" /></h2>
             <ol className="mt-3 space-y-3">
               {(versions ?? []).map((v: Row) => (
                 <li key={v.id} className="text-sm">

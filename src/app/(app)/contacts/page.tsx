@@ -9,11 +9,18 @@ import { discoverAction, bulkAction, approveAction, rejectAction, retryAction, a
 import { SOURCE_TYPES } from "@/modules/contacts/service";
 import { Chip, ROLE, REL, STAGE, host } from "@/modules/contacts/ui/parts";
 import { DEPARTMENTS } from "@/modules/contacts/rules";
+import { HelpFor } from "@/components/ui";
 
 export const metadata = { title: "Contacts" };
 type Row = Record<string, any>;
 type SP = { tab?: string; q?: string; dept?: string; org?: string; loc?: string };
-const TABS = [["review", "To review"], ["research", "Find people"], ["decision", "Decision-makers"], ["enrich", "Enrich"], ["missing", "Missing info"], ["changes", "Job changes"], ["duplicates", "Duplicates"], ["sources", "Sources"], ["history", "History"]] as const;
+/* 4 top-level tabs; the smaller views live as sub-filters inside them. Old ?tab= values still work. */
+const MAIN = [["review", "To review"], ["research", "Find people"], ["people", "Your contacts"], ["checks", "Checks"]] as const;
+const SUB: Record<string, [string, string][]> = {
+  people: [["decision", "Decision-makers"], ["all", "Everyone"], ["missing", "Missing info"], ["enrich", "Due for re-check"]],
+  checks: [["history", "Research runs"], ["changes", "Job changes"], ["duplicates", "Duplicates"], ["sources", "Sources"]],
+};
+const PARENT: Record<string, string> = { decision: "people", all: "people", missing: "people", enrich: "people", history: "checks", changes: "checks", duplicates: "checks", sources: "checks" };
 const sel = "min-h-10 rounded-xl border border-line bg-surface px-3 text-sm";
 
 function FieldTable({ fields }: { fields: Row[] }) {
@@ -43,16 +50,16 @@ async function Review({ db, ws, editor }: { db: Row; ws: string; editor: boolean
       {items.map((it) => {
         const src = (it.fields as Row[]).find((f) => f.source_url);
         return (
-          <li key={it.id} className="rounded-2xl border border-line bg-surface p-5">
+          <li key={it.id} className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-lg font-semibold">{it.full_name}</p>
                 <p className="text-sm text-ink-soft">{it.org?.display_name ?? (it.company_raw ? `${it.company_raw} (new company)` : "Company unknown")}{it.source_type ? ` · ${SOURCE_TYPES[it.source_type] ?? it.source_type}` : ""}{src ? <> · from <a className="underline" href={src.source_url} target="_blank" rel="noreferrer noopener">{src.source_name || host(src.source_url)}</a></> : null}</p>
               </div>
-              <div className="flex flex-wrap gap-1.5"><span className="rounded-full bg-canvas px-2.5 py-0.5 text-xs">{STAGE[it.stage]}</span><span className="rounded-full bg-canvas px-2.5 py-0.5 text-xs">{ROLE[it.role_class ?? "unknown"]}</span><span className="rounded-full bg-canvas px-2.5 py-0.5 text-xs">{it.completeness}% complete</span></div>
+              <div className="flex flex-wrap items-center gap-1.5"><span className="rounded-full bg-canvas px-2.5 py-0.5 text-xs">{ROLE[it.role_class ?? "unknown"]}</span><span className="text-xs tabular-nums text-ink-soft" title={STAGE[it.stage]}>{it.completeness}% complete</span></div>
             </div>
-            <p className={`mt-3 rounded-xl px-3 py-2 text-sm ${it.match_kind === "new" ? "bg-canvas" : "bg-amber-50 text-amber-900"}`}>{it.match_reason}</p>
-            <div className="mt-3"><FieldTable fields={it.fields} /></div>
+            {it.match_kind !== "new" ? <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">{it.match_reason}</p> : null}
+            <details className="group mt-3"><summary className="cursor-pointer list-none text-sm font-medium text-brand">Show details<span className="text-ink-soft group-open:hidden"> ({(it.fields as Row[]).filter((f) => f.field !== "full_name" && f.value).length} fields)</span></summary><div className="mt-2"><FieldTable fields={it.fields} /></div></details>
             {editor ? (
               <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
                 <ActionForm action={approveAction.bind(null, it.id)} className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-end">
@@ -73,44 +80,46 @@ async function Review({ db, ws, editor }: { db: Row; ws: string; editor: boolean
 
 async function Research({ db, ws, editor }: { db: Row; ws: string; editor: boolean }) {
   const { data: orgs } = await db.from("organisation").select("id, display_name").eq("workspace_id", ws).is("archived_at", null).order("display_name").limit(1000);
+  const box = "rounded-2xl border border-line bg-surface p-5";
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <section className="rounded-2xl border border-line bg-surface p-5">
-        <h2 className="font-semibold">Find the right people at a company</h2>
-        <p className="mt-1 text-sm text-ink-soft">Searches free public sources — the company&apos;s website and leadership pages, press releases, news, MCA director filings, conference speaker lists and industry associations — for real estate, facilities, admin, procurement, finance, HR and site leadership. Only published details are kept, each with its source. Nothing is saved until you approve it.</p>
+    <div className="space-y-4">
+      <section className={`${box} border-brand/30`}>
+        <h2 className="flex items-center text-lg font-semibold">Find the right people at a company<HelpFor k="Find the right people at a company" /></h2>
+        <p className="mt-1 text-sm text-ink-soft">Searches public sources only. Nothing is saved until you approve it.</p>
         {editor ? (
-          <ActionForm action={discoverAction} className="mt-4 space-y-3">
-            <select name="org_id" required defaultValue="" aria-label="Company" className={`${sel} w-full`}><option value="" disabled>Choose a company</option>{(orgs ?? []).map((o: Row) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</select>
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="force" value="1" /> Run again even if researched today</label>
+          <ActionForm action={discoverAction} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <select name="org_id" required defaultValue="" aria-label="Company" className={`${sel} sm:flex-1`}><option value="" disabled>Choose a company</option>{(orgs ?? []).map((o: Row) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</select>
+            <label className="flex items-center gap-2 text-sm text-ink-soft"><input type="checkbox" name="force" value="1" /> Run again today</label>
             <Submit>Find people</Submit>
           </ActionForm>
         ) : null}
       </section>
-      <section className="rounded-2xl border border-line bg-surface p-5">
-        <h2 className="font-semibold">Appointment news</h2>
-        <p className="mt-1 text-sm text-ink-soft">Finds people who recently joined companies as real estate, facilities, admin, finance or site heads — and flags job changes for people you already know.</p>
-        {editor ? <ActionForm action={appointmentAction} className="mt-3"><Submit variant="secondary">Scan appointment news</Submit></ActionForm> : null}
-      </section>
-      <section className="rounded-2xl border border-line bg-surface p-5 lg:col-span-2">
-        <h2 className="font-semibold">Import your LinkedIn connections</h2>
-        <p className="mt-1 text-sm text-ink-soft">On LinkedIn: Me → Settings &amp; Privacy → Data privacy → Get a copy of your data → tick <b>Connections</b>. Upload the <b>Connections.csv</b> you receive. Everyone lands in To review first.</p>
-        {editor ? (
-          <ActionForm action={linkedinImportAction} className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <input type="file" name="file" accept=".csv,text/csv" required aria-label="Connections.csv" className="text-sm" />
-            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="relevant" value="1" defaultChecked /> Only CRE-relevant roles</label>
-            <Submit>Import</Submit>
-          </ActionForm>
-        ) : null}
-      </section>
-      <section className="rounded-2xl border border-line bg-surface p-5 text-sm">
-        <h2 className="font-semibold">Roles we look for</h2>
-        <ul className="mt-2 space-y-1">{DEPARTMENTS.map((d) => <li key={d.key}>{d.label} <span className="text-ink-soft">— {REL[d.relevance].toLowerCase()}</span></li>)}</ul>
-      </section>
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className={box}>
+          <h2 className="flex items-center font-semibold">Appointment news<HelpFor k="Appointment news" /></h2>
+          <p className="mt-1 text-sm text-ink-soft">New real estate, facilities, finance and site heads in the last 90 days.</p>
+          {editor ? <ActionForm action={appointmentAction} className="mt-4"><Submit variant="secondary">Scan news</Submit></ActionForm> : null}
+        </section>
+        <section className={box}>
+          <h2 className="flex items-center font-semibold">Import your LinkedIn connections<HelpFor k="Import your LinkedIn connections" /></h2>
+          <details className="mt-1 text-sm text-ink-soft"><summary className="cursor-pointer">How to get Connections.csv</summary><p className="mt-1">On LinkedIn: Me → Settings &amp; Privacy → Data privacy → Get a copy of your data → tick <b>Connections</b>.</p></details>
+          {editor ? (
+            <ActionForm action={linkedinImportAction} className="mt-3 space-y-3">
+              <input type="file" name="file" accept=".csv,text/csv" required aria-label="Connections.csv" className="block w-full text-sm" />
+              <div className="flex flex-wrap items-center gap-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" name="relevant" value="1" defaultChecked /> Only CRE-relevant roles</label><Submit variant="secondary">Import</Submit></div>
+            </ActionForm>
+          ) : null}
+        </section>
+      </div>
+      <details className="rounded-2xl border border-line bg-surface p-5 text-sm">
+        <summary className="cursor-pointer font-semibold">Roles we look for</summary>
+        <ul className="mt-3 grid gap-1 sm:grid-cols-2">{DEPARTMENTS.map((d) => <li key={d.key}>{d.label} <span className="text-ink-soft">— {REL[d.relevance].toLowerCase()}</span></li>)}</ul>
+      </details>
     </div>
   );
 }
 
-async function People({ db, ws, sp, mode }: { db: Row; ws: string; sp: SP; mode: "decision" | "missing" | "enrich" }) {
+async function People({ db, ws, sp, mode }: { db: Row; ws: string; sp: SP; mode: "decision" | "missing" | "enrich" | "all" }) {
   let q = db.from("person").select("id, full_name, last_enriched_at, next_review_on, do_not_contact, employment(title, is_current, org:org_id(id, display_name)), contact_method(method_type, verify_status, suppressed), contact_role_assessment(role_class, cre_relevance, active)").eq("workspace_id", ws).is("archived_at", null);
   if (sp.q) q = q.ilike("full_name", `%${sp.q}%`);
   const { data } = await q.order("full_name").limit(1000);
@@ -133,7 +142,7 @@ async function People({ db, ws, sp, mode }: { db: Row; ws: string; sp: SP; mode:
       <button className="min-h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-white">Filter</button>
     </form>
   );
-  if (!list.length) return <>{filters}<Empty title={mode === "decision" ? "No decision-makers identified yet" : mode === "missing" ? "No gaps found" : "Nothing waiting"} text={mode === "decision" ? "Approve people from the review queue — their role and CRE relevance are recorded here." : "All contacts in this view are up to date."} /></>;
+  if (!list.length) return <>{filters}<Empty title={mode === "decision" ? "No decision-makers identified yet" : mode === "missing" ? "No gaps found" : mode === "all" ? "No contacts yet" : "Nothing waiting"} text={mode === "decision" ? "Approve people from the review queue — their role and CRE relevance are recorded here." : "All contacts in this view are up to date."} /></>;
   const rows = list.map((p) => (
     <li key={p.id} className="flex items-center gap-3 px-4 py-3">
       {mode === "enrich" ? <input type="checkbox" name="person_id" value={p.id} defaultChecked aria-label={`Select ${p.full_name}`} /> : null}
@@ -226,24 +235,39 @@ function Empty({ title, text }: { title: string; text: string }) {
   return <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center"><p className="font-semibold">{title}</p><p className="mx-auto mt-1 max-w-md text-sm text-ink-soft">{text}</p></div>;
 }
 
+function SubNav({ group, cur }: { group: string; cur: string }) {
+  return (
+    <div role="tablist" className="flex flex-wrap gap-2">
+      {SUB[group].map(([k, l]) => <Link key={k} href={`/contacts?tab=${k}`} aria-current={cur === k ? "page" : undefined} className={`rounded-full px-3.5 py-1.5 text-sm ${cur === k ? "bg-ink font-semibold text-white" : "bg-canvas text-ink-soft hover:text-ink"}`}>{l}</Link>)}
+    </div>
+  );
+}
+
 async function Body({ sp }: { sp: SP }) {
   const ctx = await requirePageContext("viewer");
   const editor = hasRole(ctx, "editor");
   const o = await overview(ctx.db, ctx.workspaceId);
-  const tab = sp.tab ?? (o.review ? "review" : "research");
-  const tiles: [string, number][] = [["Contacts", o.total], ["Found this week", o.fresh], ["Enriched", o.enriched], ["Verified channels", o.verifiedPeople], ["To review", o.review], ["Partly enriched", o.partial], ["Due for re-check", o.outdated], ["Possible duplicates", o.dups], ["Failed runs", o.failedJobs]];
+  let tab = sp.tab ?? (o.review ? "review" : "research");
+  if (tab === "people") tab = "decision";
+  if (tab === "checks") tab = "history";
+  const group = PARENT[tab] ?? tab;
+  const tiles: [string, number, string][] = [["Contacts", o.total, "Everyone saved"], ["To review", o.review, "Waiting for you"], ["Verified", o.verifiedPeople, "Confirmed email or phone"], ["Need attention", o.outdated + o.dups + o.failedJobs, `${o.outdated} re-check · ${o.dups} duplicates · ${o.failedJobs} failed`]];
   return (
-    <div className="space-y-6">
-      <header><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Contacts</h1><p className="mt-1 max-w-2xl text-ink-soft">Find the people who decide on office space, check their details against real sources, and keep every field labelled with how sure we are.</p></header>
-      <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-9">
-        {tiles.map(([l, n]) => <div key={l} className="bg-surface p-3"><dt className="text-xs text-ink-soft">{l}</dt><dd className="mt-1 text-xl font-bold tabular-nums">{n.toLocaleString("en-IN")}</dd></div>)}
+    <div className="mx-auto max-w-5xl space-y-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="flex items-center text-2xl font-bold tracking-tight sm:text-3xl">Contacts<HelpFor k="Contacts" /></h1>
+        <p className="text-sm text-ink-soft">The people who decide on office space — every detail shows its source.</p>
+      </header>
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {tiles.map(([l, n, h]) => <div key={l} className={`rounded-2xl border p-4 ${l === "To review" && n ? "border-brand/40 bg-brand-soft" : "border-line bg-surface"}`}><dt className="text-xs font-medium text-ink-soft">{l}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{n.toLocaleString("en-IN")}</dd><dd className="mt-0.5 truncate text-xs text-ink-soft" title={h}>{h}</dd></div>)}
       </dl>
-      <nav aria-label="Contact sections" className="-mx-1 flex gap-1 overflow-x-auto border-b border-line pb-px">
-        {TABS.map(([k, l]) => <Link key={k} href={`/contacts?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`shrink-0 border-b-2 px-3 py-2 text-sm ${tab === k ? "border-ink font-semibold" : "border-transparent text-ink-soft hover:text-ink"}`}>{l}{k === "review" && o.review ? <span className="ml-1.5 rounded-full bg-brand px-1.5 text-xs text-white">{o.review}</span> : null}</Link>)}
+      <nav aria-label="Contact sections" className="grid grid-cols-2 gap-1 rounded-2xl bg-canvas p-1 sm:grid-cols-4">
+        {MAIN.map(([k, l]) => <Link key={k} href={`/contacts?tab=${k}`} aria-current={group === k ? "page" : undefined} className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm ${group === k ? "bg-surface font-semibold shadow-sm" : "text-ink-soft hover:text-ink"}`}>{l}{k === "review" && o.review ? <span className="rounded-full bg-brand px-1.5 text-xs text-white">{o.review}</span> : null}</Link>)}
       </nav>
+      {SUB[group] ? <div className="flex items-center gap-2"><SubNav group={group} cur={tab} /><HelpFor k={group === "people" ? "Your contacts" : "Checks"} /></div> : <p className="flex items-center text-sm text-ink-soft">{group === "review" ? "Approve or reject what research found." : "Three ways to find new people."}<HelpFor k={group === "review" ? "To review" : "Find people"} /></p>}
       {tab === "review" ? <Review db={ctx.db} ws={ctx.workspaceId} editor={editor} />
         : tab === "research" ? <Research db={ctx.db} ws={ctx.workspaceId} editor={editor} />
-        : tab === "decision" || tab === "missing" || tab === "enrich" ? <People db={ctx.db} ws={ctx.workspaceId} sp={{ ...sp, tab }} mode={tab} />
+        : tab === "decision" || tab === "missing" || tab === "enrich" || tab === "all" ? <People db={ctx.db} ws={ctx.workspaceId} sp={{ ...sp, tab }} mode={tab} />
         : tab === "changes" ? <Changes db={ctx.db} ws={ctx.workspaceId} />
         : tab === "duplicates" ? <Duplicates db={ctx.db} ws={ctx.workspaceId} />
         : tab === "sources" ? <Sources /> : <History db={ctx.db} ws={ctx.workspaceId} editor={editor} />}
