@@ -106,3 +106,19 @@ export async function explainAction(model: string, id: string, resultId: string,
     return r.mocked ? { ok: true, message: "AI is not connected, so a basic summary from the missing fields was written." } : { ok: true, message: "AI summary added." };
   } catch (e) { return err(e); }
 }
+
+/** Scores only records that have never been scored ("unranked"). */
+export async function scoreUnrankedAction(_p: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { data } = await ctx.db.schema("mudar_app").rpc("scoring_unranked", { p_workspace: ctx.workspaceId });
+    const rows = (data ?? []) as { kind: string; examples: { id: string }[] }[];
+    const ids = (k: string) => rows.find((r) => r.kind === k)?.examples.map((e) => e.id) ?? [];
+    let n = 0;
+    for (const id of ids("company")) { await recalcOrg(ctx.db, ctx.workspaceId, id, "unranked"); n++; }
+    for (const [k, list] of [["contact", ids("contact")], ["requirement", ids("requirement")], ["opportunity", ids("opportunity")]] as const)
+      for (const id of list) { try { await scoreEntity(ctx.db, ctx.workspaceId, k, id, "unranked"); n++; } catch { /* skip deleted */ } }
+    revalidatePath("/scoring");
+    return { ok: true, message: n ? `Scored ${n} new record(s).` : "Nothing left to score." };
+  } catch (e) { return err(e); }
+}

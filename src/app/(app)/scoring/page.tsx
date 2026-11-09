@@ -4,6 +4,8 @@ import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { Loading } from "@/modules/admin/ui/parts";
 import { ensureModels } from "@/modules/scoring/service";
 import { BulkScore, AutoRefresh } from "@/modules/scoring/ui/bulk";
+import { ActionForm, Submit } from "@/modules/admin/ui/client";
+import { scoreUnrankedAction } from "@/modules/scoring/actions";
 import { MODELS } from "@/modules/scoring/models";
 import { ScoreBar, Completeness, CONF_LABEL } from "@/modules/scoring/ui/parts";
 import type { ModelKey } from "@/modules/scoring/engine";
@@ -93,6 +95,31 @@ async function Stats({ db, ws }: { db: Row; ws: string }) {
         {tiles.map(([l, n]) => <div key={l} className="bg-surface p-4"><dt className="text-xs text-ink-soft">{l}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{n.toLocaleString("en-IN")}</dd></div>)}
       </dl>
     </>
+  );
+}
+
+const KIND_LABEL: Record<string, [string, string, string]> = { company: ["company", "companies", "company"], contact: ["contact", "contacts", "contact"], requirement: ["requirement", "requirements", "requirement"], opportunity: ["deal", "deals", "opportunity"] };
+/** New records that exist but have no score yet. */
+async function Unranked({ db, ws, canEdit }: { db: Row; ws: string; canEdit: boolean }) {
+  const { data } = await db.schema("mudar_app").rpc("scoring_unranked", { p_workspace: ws });
+  const rows = ((data ?? []) as { kind: string; total: number; unranked: number; examples: { id: string; name: string }[] }[]).filter((r) => Number(r.unranked) > 0);
+  const total = rows.reduce((a, r) => a + Number(r.unranked), 0);
+  if (!total) return <p className="text-sm text-ink-soft">Every record is scored.</p>;
+  return (
+    <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5" aria-label="Not scored yet">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-lg font-semibold"><span className="tabular-nums">{total}</span> not ranked yet</p>
+          <p className="text-sm text-ink-soft">{rows.map((r) => `${r.unranked} ${Number(r.unranked) === 1 ? KIND_LABEL[r.kind][0] : KIND_LABEL[r.kind][1]}`).join(", ")} added since the last scoring run.</p>
+        </div>
+        {canEdit ? <ActionForm action={scoreUnrankedAction}><Submit>Score these now</Submit></ActionForm> : null}
+      </div>
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {rows.flatMap((r) => r.examples.slice(0, 6).map((e) => (
+          <li key={e.id}><Link href={`/scoring/${KIND_LABEL[r.kind][2]}/${e.id}`} className="inline-flex rounded-full bg-surface px-3 py-1 text-sm ring-1 ring-amber-200 hover:ring-amber-400">{e.name}<span className="ml-1.5 text-ink-soft">{KIND_LABEL[r.kind][0]}</span></Link></li>
+        )))}
+      </ul>
+    </section>
   );
 }
 
@@ -206,6 +233,7 @@ async function Body({ sp }: { sp: SP }) {
         ) : null}
       </header>
       <Suspense fallback={<div className="h-40 rounded-2xl bg-surface" />}><Stats db={ctx.db} ws={ctx.workspaceId} /></Suspense>
+      <Suspense fallback={null}><Unranked db={ctx.db} ws={ctx.workspaceId} canEdit={hasRole(ctx, "editor")} /></Suspense>
       <nav aria-label="Score type" className="-mx-1 flex gap-1 overflow-x-auto border-b border-line pb-px">
         {TABS.map((t) => <Link key={t.key} href={`/scoring?tab=${t.key}`} aria-current={tab === t.key ? "page" : undefined} className={`shrink-0 border-b-2 px-3 py-2 text-sm ${tab === t.key ? "border-ink font-semibold" : "border-transparent text-ink-soft hover:text-ink"}`}>{t.label}</Link>)}
       </nav>
