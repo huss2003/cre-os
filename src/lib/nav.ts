@@ -39,6 +39,9 @@ export const NAV: NavSection[] = [
   { key: "contacts", label: "Contacts", hint: "Find and verify decision-makers", href: "/contacts", tabs: [
     { href: "/contacts", label: "Contacts" },
   ]},
+  { key: "meetings", label: "Meetings", hint: "Prepare for every meeting", href: "/meetings", tabs: [
+    { href: "/meetings", label: "Meetings" },
+  ]},
   { key: "outreach", label: "Outreach", hint: "Who to contact today and what to say", href: "/outreach", tabs: [
     { href: "/outreach", label: "Outreach" },
   ]},
@@ -64,7 +67,8 @@ export const NAV: NavSection[] = [
 ];
 
 /**
- * FOCUS MODE (owner request, Nov 2026): Modules 1 (Database), 2 (Signals & Research) and 3 (Scoring) are shown in the menu.
+ * FOCUS MODE (owner request, Nov 2026): only Module 5 (Outreach) and Module 7 (Meetings) are shown in the menu.
+ * Modules 1–4 stay in code and are reachable by link from those screens (contacts, companies, deals, signals, review).
  * Every other screen still exists in code. Record pages that a signal links to (company, person, building, requirement,
  * tasks, review) stay reachable by link but are not in the menu. Everything else redirects to /signals (src/proxy.ts).
  * Set NEXT_PUBLIC_FULL_APP=1 in Vercel to show the whole app again.
@@ -72,19 +76,13 @@ export const NAV: NavSection[] = [
 export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
 /** Screens shown in the menu while in focus mode. */
 export const FOCUS_MENU = [
-  // Module 1 — Database
-  "/capture", "/approvals", "/companies", "/people", "/buildings", "/deals", "/requirements", "/database", "/geography", "/imports",
-  // Module 2 — Signals & research
-  "/signals", "/research",
-  // Module 3 — Scoring
-  "/scoring",
-  // Module 4 — Contact enrichment
-  "/contacts",
   // Module 5 — Outreach
   "/outreach",
+  // Module 7 — Meeting preparation
+  "/meetings",
 ];
 /** Reachable by link from a signal, but not shown in the menu. */
-const FOCUS_LINKED = ["/drafts", "/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search"];
+const FOCUS_LINKED = ["/contacts", "/drafts", "/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search", "/scoring", "/research"];
 export const HIDDEN_PREFIXES: string[] = [];
 const under = (path: string, list: string[]) => list.some((h) => path === h || path.startsWith(h + "/"));
 export function isHiddenPath(path: string): boolean {
@@ -95,7 +93,7 @@ export function isHiddenPath(path: string): boolean {
 export function inFocusMenu(path: string): boolean {
   return !FOCUS_MODE || under(path, FOCUS_MENU);
 }
-export const HOME = FOCUS_MODE ? "/scoring" : "/today";
+export const HOME = FOCUS_MODE ? "/outreach" : "/today";
 
 /** The section a path belongs to: the tab with the longest matching prefix wins. */
 export function sectionFor(path: string, sections: NavSection[] = NAV): NavSection | null {

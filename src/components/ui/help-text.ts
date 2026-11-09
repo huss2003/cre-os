@@ -135,6 +135,20 @@ export const HELP_TEXT: Record<string, string> = {
   "Did they reply?": "Paste their reply. It's saved to their history, promises become tasks, deal changes go to Review, and other follow-ups pause.",
   "Why now": "The business reason for this message and the records it's based on.",
   "Ask them": "The few questions most useful for the next conversation.",
+  // Module 7
+  "Meetings": "Every meeting gets a preparation page: who's coming, what we know, what happened before, what to ask, likely objections and the outcome to aim for \u2014 built from your records.",
+  "Import from your calendar": "Upload an .ics file exported from Google Calendar or Outlook. Attendees are matched to your contacts by email. Nothing is changed in your calendar.",
+  "Meeting readiness": "How prepared you are, out of 100: purpose, attendees, company research, contact details, history, requirement, properties, materials, questions and outcome. Separate from lead scores.",
+  "Meeting purpose": "Why this meeting is happening, what triggered it, what they may want (a guess, labelled) and what you want.",
+  "Company": "What your records say about the company. Each line shows whether it's confirmed, historical or not confirmed. 'New' marks things found in the last 2 weeks.",
+  "Attendees": "Who's coming, their role in the decision (only if recorded \u2014 seniority alone doesn't count) and your history with them.",
+  "Previous discussions": "Everything on record with this company and these people, oldest first, plus promises and objections. Nothing is invented \u2014 a first meeting says so.",
+  "Meeting strategy": "Suggested flow: opening, discovery, value, discussion, closing \u2014 with why each matters and what to find out.",
+  "Possible objections": "Objections that could come up for this kind of meeting, with how to respond. These are anticipated \u2014 nobody has said them.",
+  "Properties": "Each property compared with the requirement: what fits, what doesn't, what's unknown and what to verify. Unverified availability is labelled.",
+  "Desired outcome": "The best result to aim for, acceptable fallbacks and what to do afterwards.",
+  "Site visit checklist": "Before, during and after the visit. Tap to tick \u2014 works on a phone.",
+  "After the meeting": "Type or paste your notes. AI pulls out requirement changes, promises and objections. You choose what to apply \u2014 changes go to Review, never straight into records.",
 };
 
 export function helpFor(title: unknown): string | undefined {
