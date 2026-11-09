@@ -117,9 +117,40 @@ const Found = z.object({
     profile_url: z.string().nullable(), source_url: z.string(), source_name: z.string(), published_on: z.string().nullable(), responsibilities: z.string().nullable(),
     source_type: z.string().nullable().optional(), company: z.string().nullable().optional(),
   })),
-  company_contact: z.object({ switchboard: z.string().nullable(), contact_page_url: z.string().nullable() }).nullable(),
-  suggested_roles: z.array(z.string()),
+  company_contact: z.object({ switchboard: z.string().nullable(), contact_page_url: z.string().nullable() }).nullable().optional(),
+  suggested_roles: z.array(z.string()).optional(),
 });
+type FoundOut = z.infer<typeof Found>;
+type WebTrail = { queries: string[]; sources: { url: string; title: string }[] };
+
+/**
+ * Runs several focused web-research passes in parallel (each with its own searches) and merges the results, so one
+ * company gets far more coverage than a single search. Passes that fail are skipped; the rest still count.
+ */
+async function multiPass(ai: typeof callStructured, ws: string, workflow: string, system: string, passes: string[], searchesPerPass: number) {
+  const settled = await Promise.allSettled(passes.map((input) => ai({
+    workspaceId: ws, workflow, tier: "luna", webSearch: true, maxSearches: searchesPerPass, classification: "public", schema: Found, schemaName: "people_found", maxOutputTokens: 7000,
+    system, input, mock: () => ({ people: [], company_contact: null, suggested_roles: [] }),
+  })));
+  const ok = settled.flatMap((r) => (r.status === "fulfilled" ? [r] : []));
+  const real = ok.filter((r) => !r.value.mocked);
+  const people = new Map<string, FoundOut["people"][number]>();
+  for (const r of real) for (const p of r.value.data.people) {
+    const k = `${normName(p.full_name)}|${normName(p.company ?? "")}`;
+    const prev = people.get(k);
+    // keep the richer record when the same person comes back from two passes
+    if (!prev || (p.emails_published.length + p.phones_published.length + (p.title ? 1 : 0)) > (prev.emails_published.length + prev.phones_published.length + (prev.title ? 1 : 0))) people.set(k, p);
+  }
+  const web: WebTrail = { queries: real.flatMap((r) => r.value.web?.queries ?? []), sources: [...new Map(real.flatMap((r) => r.value.web?.sources ?? []).map((x) => [x.url, x])).values()] };
+  return {
+    people: [...people.values()], web, usd: ok.reduce((a, r) => a + r.value.usage.usd, 0),
+    company_contact: real.map((r) => r.value.data.company_contact).find(Boolean) ?? null,
+    suggested: [...new Set(real.flatMap((r) => r.value.data.suggested_roles ?? []))].slice(0, 5),
+    mocked: !real.length, failedPasses: passes.length - real.length,
+    model: ok[0]?.value.model ?? "none",
+    errors: settled.filter((r) => r.status === "rejected").map((r) => String((r as PromiseRejectedResult).reason?.message ?? r)),
+  };
+}
 
 const TARGET_ROLES = "Corporate Real Estate, Workplace Strategy, Facilities, Administration, Infrastructure, Procurement/Sourcing, CFO/Finance Director/Controller, CHRO/HR Head, Managing Director/CEO/COO, Country/India/GCC/Site Head";
 
@@ -142,13 +173,14 @@ export async function discoverCompany(db: Db, ws: string, orgId: string, opts: {
   const job = await startJob(db, ws, "company_discovery", `Find people at ${org.display_name}`, orgId, opts.userId, opts.force ? null : `discover:${orgId}:${today()}`, ["web", "records"]);
   if (job.reused) return { jobId: job.id, reused: true };
   try {
-    const r = await ai({
-      workspaceId: ws, workflow: "contacts.discover", tier: "luna", webSearch: true, classification: "public", schema: Found, schemaName: "people_found", maxOutputTokens: 1800,
-      system: "You find professionals at one company for a commercial real-estate adviser in India, using only free public sources: the company's own website (leadership/team/contact pages), its press releases, reputable news, public company filings (MCA director lists, including sites that republish MCA data), conference speaker lists, and industry association pages (CII, NASSCOM, CoreNet, etc.). Report only people and details stated in a source you found, each with its URL and source_type (company_site, press, news, regulatory_filing, conference, association, appointment_news). Emails and phone numbers ONLY if explicitly published for that person — never guess or construct an email. Never use LinkedIn. If unsure, leave fields null.",
-      input: `Company: ${org.display_name}${org.domain ? ` (website ${org.domain})` : ""}${org.sector ? `, ${org.sector}` : ""}. Focus on India / Pune.\nFind people in these roles: ${TARGET_ROLES}. Also check: Indian directors listed in MCA filings, recent appointment news ("joins as", "appointed"), and conference/association speaker pages. Up to 12 people. Also return the company's published switchboard number and contact page, and up to 3 suggested roles still worth researching.`,
-      mock: () => ({ people: [], company_contact: null, suggested_roles: [] }),
-    });
-    const people = r.data.people.filter((p) => /^https?:\/\//.test(p.source_url) && !/linkedin\.com/i.test(p.source_url) && p.full_name.trim().split(/\s+/).length >= 2).slice(0, 12);
+    const name = `${org.display_name}${org.domain ? ` (website ${org.domain})` : ""}${org.sector ? `, ${org.sector}` : ""}`;
+    const sys = "You find professionals at one company for a commercial real-estate adviser in India, using only free public sources: the company's own website (leadership/team/about/contact pages), its press releases, reputable news, public company filings (MCA director lists, including sites that republish MCA data such as Tofler or Zauba), conference speaker lists, and industry association pages (CII, NASSCOM, CoreNet, FICCI, etc.). Report only people and details stated in a source you found, each with its URL and source_type (company_site, press, news, regulatory_filing, conference, association, appointment_news). Emails and phone numbers ONLY if explicitly published for that person — never guess or construct an email. Never use LinkedIn. Include everyone relevant you find; if unsure of a field, leave it null.";
+    const r = await multiPass(ai, ws, "contacts.discover", sys, [
+      `Company: ${name}. Find its leadership and India leadership: MD, CEO, COO, Country/India Head, GCC/centre/site heads (especially Pune), business-unit heads, and all Indian directors listed in MCA filings. Also return the company's published switchboard and contact page.`,
+      `Company: ${name}. Find people in corporate real estate, workplace, facilities, administration, infrastructure and procurement/sourcing — especially in Pune or India. Check the company website, press releases, news, conference speaker lists and CoreNet/industry association pages.`,
+      `Company: ${name}. Find finance (CFO, finance director, controller) and HR (CHRO, HR head, talent/workforce heads) leaders for India, plus any recent appointment news ("joins as", "appointed", "named head of") for this company. Suggest up to 3 more roles worth researching.`,
+    ], 5);
+    const people = r.people.filter((p) => /^https?:\/\//.test(p.source_url) && !/linkedin\.com/i.test(p.source_url) && p.full_name.trim().split(/\s+/).length >= 2).slice(0, 40);
     const existing = await existingPeople(db, ws, people.map((p) => p.full_name), people.flatMap((p) => p.emails_published));
     let n = 0;
     for (const p of people) {
@@ -156,18 +188,14 @@ export async function discoverCompany(db: Db, ws: string, orgId: string, opts: {
         profile: p.profile_url && !/linkedin\.com/i.test(p.profile_url) ? p.profile_url : null, source_url: p.source_url, source_name: p.source_name, published_on: p.published_on && /^\d{4}-\d{2}-\d{2}$/.test(p.published_on) ? p.published_on : null, responsibilities: p.responsibilities, source_type: p.source_type }, existing, "web_search");
       n++;
     }
-    const sites = r.web?.sources ?? [];
+    const sites = [...r.web.sources.map((x) => ({ ...x, used: people.some((p) => p.source_url === x.url) }))];
+    if (r.company_contact?.switchboard) sites.push({ url: r.company_contact.contact_page_url ?? "", title: `Switchboard: ${phoneInfo(r.company_contact.switchboard, { onCompanyContactPage: true }).display}`, used: true });
     await db.from("enrichment_job").update({
-      status: r.mocked ? "failed" : "done", total: n, done: n, usd: r.usage.usd, queries: r.web?.queries ?? [],
-      sites: sites.map((s) => ({ ...s, used: people.some((p) => p.source_url === s.url) })).slice(0, 40),
-      error: r.mocked ? (r.model.startsWith("fallback:") ? "Web search failed or its answer couldn't be read — press Retry." : "Web research is off (no AI key). Only your records were checked.") : n ? null : "No relevant people were found on public company sources.",
+      status: r.mocked ? "failed" : r.failedPasses ? "partial" : "done", total: n, done: n, usd: r.usd, queries: r.web.queries, sites: sites.slice(0, 80),
+      error: r.mocked ? (r.errors[0] ?? (r.model.startsWith("fallback:") ? "Web search failed or its answer couldn't be read — press Retry." : "Web research is off (no AI key).")) : r.failedPasses ? `${r.failedPasses} of 3 search passes failed — press Retry for more.` : n ? null : "No relevant people were found on public sources.",
       finished_at: new Date().toISOString(),
     }).eq("id", job.id);
-    if (r.data.company_contact?.switchboard) {
-      const pi = phoneInfo(r.data.company_contact.switchboard, { onCompanyContactPage: true });
-      await db.from("enrichment_job").update({ sites: [...sites.map((s) => ({ ...s, used: people.some((p) => p.source_url === s.url) })).slice(0, 39), { url: r.data.company_contact.contact_page_url ?? "", title: `Switchboard: ${pi.display}`, used: true }] }).eq("id", job.id);
-    }
-    return { jobId: job.id, found: n, mocked: r.mocked, suggested: r.data.suggested_roles.slice(0, 3) };
+    return { jobId: job.id, found: n, mocked: r.mocked, suggested: r.suggested, error: r.mocked ? r.errors[0] ?? null : null };
   } catch (e) {
     await db.from("enrichment_job").update({ status: "failed", error: String((e as Error).message).slice(0, 300), finished_at: new Date().toISOString() }).eq("id", job.id);
     if (e instanceof AiUnavailableError) throw new ContactError(e.message);
@@ -380,17 +408,18 @@ export async function appointmentScan(db: Db, ws: string, opts: { userId?: strin
   const ai = opts.ai ?? callStructured;
   const city = opts.city ?? "Pune";
   const job = await startJob(db, ws, "appointment_scan", `Appointment news — ${city}`, null, opts.userId, `appointments:${today()}`, ["web"]);
-  if (job.reused) return { jobId: job.id, reused: true, found: 0 };
+  if (job.reused) return { jobId: job.id, reused: true, found: 0, error: null as string | null };
   const since = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
   try {
-    const r = await ai({
-      workspaceId: ws, workflow: "contacts.appointments", tier: "luna", webSearch: true, classification: "public", schema: Found, schemaName: "people_found", maxOutputTokens: 1800,
-      system: "You scan Indian business news for executive appointments relevant to office real estate. Report only appointments stated in a source, each with the person's name, new title, new company (in 'company'), URL and source_type 'appointment_news'. Never use LinkedIn. Never guess emails or phones.",
-      input: `Find appointment news since ${since} for roles: ${TARGET_ROLES} — in ${city} or India-wide for companies with ${city} offices. Phrases like "joins as", "appointed", "named head of". Up to 12.`,
-      mock: () => ({ people: [], company_contact: null, suggested_roles: [] }),
-    });
+    const sys = "You scan Indian business news for executive appointments relevant to office real estate. Report only appointments stated in a source, each with the person's full name, new title, new company (in 'company'), URL and source_type 'appointment_news'. Use news sites, company press releases, PR wires (PR Newswire, Business Wire, BW People, ET HRWorld, ET Realty, Moneycontrol, Mint, People Matters). Never use LinkedIn. Never guess emails or phones. Return every relevant appointment you find.";
+    const when = `since ${since}`;
+    const r = await multiPass(ai, ws, "contacts.appointments", sys, [
+      `Appointments ${when}: heads of corporate real estate, workplace, facilities, administration or infrastructure at companies in ${city} or India. Phrases: "joins as", "appointed", "named", "elevated to".`,
+      `Appointments ${when}: GCC heads, India/country heads, site or centre heads and managing directors for companies with offices in ${city}.`,
+      `Appointments ${when}: CFOs, finance directors, procurement/sourcing heads and CHRO/HR heads in India, especially at IT, BFSI, consulting and GCC companies with ${city} operations.`,
+    ], 5);
     const { resolveOrg } = await import("@/modules/signals/service");
-    const people = r.data.people.filter((p) => /^https?:\/\//.test(p.source_url) && !/linkedin\.com/i.test(p.source_url) && p.company).slice(0, 15);
+    const people = r.people.filter((p) => /^https?:\/\//.test(p.source_url) && !/linkedin\.com/i.test(p.source_url) && p.company).slice(0, 40);
     const existing = await existingPeople(db, ws, people.map((p) => p.full_name), []);
     let n = 0;
     for (const p of people) {
@@ -400,9 +429,10 @@ export async function appointmentScan(db: Db, ws: string, opts: { userId?: strin
         published_on: p.published_on && /^\d{4}-\d{2}-\d{2}$/.test(p.published_on) ? p.published_on : null, source_type: "appointment_news", company_raw: p.company }, existing, "web_search");
       n++;
     }
-    await db.from("enrichment_job").update({ status: r.mocked ? "failed" : "done", total: n, done: n, usd: r.usage.usd, queries: r.web?.queries ?? [], sites: (r.web?.sources ?? []).slice(0, 40),
-      error: r.mocked ? "Web research is off or failed — press Retry." : n ? null : "No relevant appointments found.", finished_at: new Date().toISOString() }).eq("id", job.id);
-    return { jobId: job.id, reused: false, found: n };
+    await db.from("enrichment_job").update({ status: r.mocked ? "failed" : r.failedPasses ? "partial" : "done", total: n, done: n, usd: r.usd, queries: r.web.queries, sites: r.web.sources.map((x) => ({ ...x, used: people.some((p) => p.source_url === x.url) })).slice(0, 80),
+      error: r.mocked ? (r.errors[0] ?? "Web research is off or failed — press Retry.") : r.failedPasses ? `${r.failedPasses} of 3 search passes failed — press Retry for more.` : n ? null : "No relevant appointments found.", finished_at: new Date().toISOString() }).eq("id", job.id);
+    if (r.mocked) return { jobId: job.id, reused: false, found: 0, error: r.errors[0] ?? "Web research didn't run." };
+    return { jobId: job.id, reused: false, found: n, error: null as string | null };
   } catch (e) {
     await db.from("enrichment_job").update({ status: "failed", error: String((e as Error).message).slice(0, 300), finished_at: new Date().toISOString() }).eq("id", job.id);
     throw e;

@@ -48,6 +48,8 @@ export interface StructuredCall<S extends ZodType> {
   schemaName: string;
   maxOutputTokens?: number;
   webSearch?: boolean;
+  /** Claude web search: how many searches this call may run (default 2, max 8). */
+  maxSearches?: number;
   /** Claude web search: only these domains (approved sources). */
   allowedDomains?: string[];
   requestId?: string;
@@ -272,7 +274,7 @@ async function logUsage(u: {
 // Only real Claude model ids are honoured; anything else (typo, other vendor) falls back to Haiku.
 const CLAUDE_MODEL = /^claude-/.test(process.env.ANTHROPIC_MODEL ?? "") ? process.env.ANTHROPIC_MODEL! : "claude-haiku-5-5";
 const CLAUDE_PRICE = { inputPerM: 1, outputPerM: 5, perSearch: 0.01 }; // USD per million tokens (estimate; update if pricing changes)
-const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600, CAP_OUTPUT_SEARCH = 3000, SEARCH_MAX_USES = 2;
+const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600, CAP_OUTPUT_SEARCH = 3000, CAP_OUTPUT_SEARCH_MAX = 8000, SEARCH_MAX_USES = 2;
 const toolName = (n: string) => n.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
 
 async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
@@ -287,7 +289,7 @@ async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<S
   try {
     const tName = toolName(call.schemaName);
     const tools = [
-      ...(call.webSearch ? [{ type: "web_search_20250305", name: "web_search", max_uses: SEARCH_MAX_USES, ...(call.allowedDomains?.length ? { allowed_domains: call.allowedDomains } : {}), user_location: { type: "approximate", country: "IN" } }] : []),
+      ...(call.webSearch ? [{ type: "web_search_20250305", name: "web_search", max_uses: Math.min(Math.max(call.maxSearches ?? SEARCH_MAX_USES, 1), 8), ...(call.allowedDomains?.length ? { allowed_domains: call.allowedDomains } : {}), user_location: { type: "approximate", country: "IN" } }] : []),
       { name: tName, description: "Return the structured result.", input_schema: schema },
     ];
     type Block = { type: string; input?: unknown; content?: unknown; name?: string };
@@ -304,12 +306,12 @@ async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<S
         headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
           model: CLAUDE_MODEL,
-          max_tokens: call.webSearch ? CAP_OUTPUT_SEARCH : Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT),
-          system: `${call.system}\n\n${INJECTION_GUARD}\nAnswer briefly. ${call.webSearch ? `Search at most twice, then call the ${tName} tool with what you found.` : "Return only the tool call."}`,
+          max_tokens: call.webSearch ? Math.min(Math.max(call.maxOutputTokens ?? CAP_OUTPUT_SEARCH, CAP_OUTPUT_SEARCH), CAP_OUTPUT_SEARCH_MAX) : Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT),
+          system: `${call.system}\n\n${INJECTION_GUARD}\nAnswer briefly. ${call.webSearch ? `Use up to ${Math.min(call.maxSearches ?? 2, 8)} different searches, then call the ${tName} tool with everything you found.` : "Return only the tool call."}`,
           messages, tools,
           tool_choice: force ? { type: "tool", name: tName } : { type: "auto" },
         }),
-        signal: AbortSignal.timeout(call.webSearch ? 55_000 : 25_000),
+        signal: AbortSignal.timeout(call.webSearch ? 50_000 + 12_000 * Math.min(call.maxSearches ?? 2, 8) : 25_000),
       });
       const body = (await res.json()) as Body;
       if (!res.ok) throw new Error(`${res.status} ${body.error?.message ?? ""}`);

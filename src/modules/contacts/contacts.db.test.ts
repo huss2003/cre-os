@@ -67,7 +67,8 @@ describe("Module 4 — contact enrichment", () => {
 
   it("failed provider → job failed with reason; retry reruns; enrichment re-checks channels without web", async () => {
     const boom = (async () => { throw new Error("provider 503"); }) as never;
-    await expect(discoverCompany(db, WS1, org, { userId: owner, force: true, ai: boom })).rejects.toThrow(/503/);
+    const res = await discoverCompany(db, WS1, org, { userId: owner, force: true, ai: boom }) as { mocked: boolean; error?: string | null };
+    expect(res.mocked).toBe(true); expect(res.error).toMatch(/503/);
     const { data: j } = await db.from("enrichment_job").select("id, status, error").eq("org_id", org).eq("status", "failed").order("created_at", { ascending: false }).limit(1).single();
     expect(j!.error).toMatch(/503/);
     const pid = (await db.from("person").insert({ workspace_id: WS1, full_name: `Dev Patel ${t}` }).select("id").single()).data!.id;

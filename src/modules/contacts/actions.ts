@@ -15,8 +15,9 @@ export async function discoverAction(_p: ActionState, f: FormData): Promise<Acti
     const org = s(f, "org_id"); if (!org) return { error: "Choose a company." };
     const r = await S.discoverCompany(ctx.db, ctx.workspaceId, org, { userId: ctx.userId, force: f.get("force") === "1" });
     if ("reused" in r && r.reused) return done("Already researched today — open it in History, or tick 'Run again'.");
-    const x = r as { found: number; mocked: boolean };
-    return done(x.mocked ? "Web research didn't run (see History for the reason). Your records were still checked." : `Found ${x.found} people. Review them in the Verification queue.`);
+    const x = r as { found: number; mocked: boolean; error?: string | null };
+    if (x.mocked) return { error: `Web research didn't run: ${x.error ?? "see History"}` };
+    return done(`Found ${x.found} people. Review them in To review.`);
   } catch (e) { return fail(e); }
 }
 export async function enrichOneAction(personId: string, _p: ActionState): Promise<ActionState> {
@@ -98,7 +99,8 @@ export async function appointmentAction(_p: ActionState): Promise<ActionState> {
   try {
     const ctx = await requireContext("editor");
     const r = await S.appointmentScan(ctx.db, ctx.workspaceId, { userId: ctx.userId });
-    return done(r.reused ? "Already scanned today — see History." : `Found ${r.found} appointment(s). Review them in To review.`);
+    if (r.error) return { error: `Scan didn't finish: ${r.error}` };
+    return done(r.reused ? "Already scanned today — see History." : r.found ? `Found ${r.found} appointment(s). Review them in To review.` : "Searched all passes; no relevant appointments in the last 90 days.");
   } catch (e) { return fail(e); }
 }
 export async function linkedinImportAction(_p: ActionState, f: FormData): Promise<ActionState> {
