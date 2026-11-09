@@ -58,14 +58,21 @@ export const NAV: NavSection[] = [
 ];
 
 /**
- * FOCUS MODE (owner request, Nov 2026): only Module 3 — Scoring Engine — is shown in the menu.
+ * FOCUS MODE (owner request, Nov 2026): Modules 1 (Database), 2 (Signals & Research) and 3 (Scoring) are shown in the menu.
  * Every other screen still exists in code. Record pages that a signal links to (company, person, building, requirement,
  * tasks, review) stay reachable by link but are not in the menu. Everything else redirects to /signals (src/proxy.ts).
  * Set NEXT_PUBLIC_FULL_APP=1 in Vercel to show the whole app again.
  */
 export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
 /** Screens shown in the menu while in focus mode. */
-export const FOCUS_MENU = ["/scoring"];
+export const FOCUS_MENU = [
+  // Module 1 — Database
+  "/capture", "/approvals", "/companies", "/people", "/buildings", "/deals", "/requirements", "/database", "/geography", "/imports",
+  // Module 2 — Signals & research
+  "/signals", "/research",
+  // Module 3 — Scoring
+  "/scoring",
+];
 /** Reachable by link from a signal, but not shown in the menu. */
 const FOCUS_LINKED = ["/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search"];
 export const HIDDEN_PREFIXES: string[] = [];
