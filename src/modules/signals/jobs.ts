@@ -3,7 +3,7 @@ import { enqueue } from "@/lib/jobs/queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { localDate, atLocal } from "@/lib/util/time";
 import { scanWorkspace } from "./service";
-import { researchDue } from "./research";
+import { researchDue, discoverMarket } from "./research";
 
 /**
  * signals.scan — daily per workspace (06:00 local). Incremental: claims changed in the last 2 days + all lease events in
@@ -28,6 +28,11 @@ handlers["signals.research"] = async (job) => {
   return researchDue(createAdminClient(), job.workspace_id);
 };
 
+handlers["signals.discover"] = async (job) => {
+  if (!job.workspace_id) throw new Error("signals.discover requires workspace_id");
+  return discoverMarket(createAdminClient(), job.workspace_id);
+};
+
 export async function schedule(now: Date): Promise<void> {
   const admin = createAdminClient();
   const { data } = await admin.from("workspace").select("id, timezone, status").eq("status", "active");
@@ -37,6 +42,9 @@ export async function schedule(now: Date): Promise<void> {
     const at = atLocal(day, SCAN_LOCAL_TIME, tz);
     const rAt = atLocal(day, "05:30", tz);
     if (now >= rAt) await enqueue({ workspaceId: ws.id, type: "signals.research", dedupeKey: `signals.research:${ws.id}:${day}`, dueAt: rAt, maxAttempts: 2 });
+    // Market discovery once a week (Monday 05:15 local).
+    const dAt = atLocal(day, "05:15", tz);
+    if (new Date(`${day}T12:00:00Z`).getUTCDay() === 1 && now >= dAt) await enqueue({ workspaceId: ws.id, type: "signals.discover", dedupeKey: `signals.discover:${ws.id}:${day}`, dueAt: dAt, maxAttempts: 2 });
     if (now >= at) await enqueue({ workspaceId: ws.id, type: "signals.scan", dedupeKey: `signals.scan:${ws.id}:${day}`, dueAt: at, maxAttempts: 3 });
   }
 }

@@ -65,6 +65,8 @@ export interface StructuredResult<T> {
   mocked: boolean;
   model: string;
   usage: { input: number; output: number; usd: number };
+  /** Web search trail (Claude path): what was searched and which pages came back. */
+  web?: { queries: string[]; sources: { url: string; title: string }[] };
 }
 
 export async function callStructured<S extends ZodType>(call: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
@@ -299,9 +301,14 @@ async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<S
       }),
       signal: AbortSignal.timeout(call.webSearch ? 55_000 : 25_000),
     });
-    const body = (await res.json()) as { content?: { type: string; input?: unknown }[]; usage?: { input_tokens?: number; output_tokens?: number; server_tool_use?: { web_search_requests?: number } }; error?: { message?: string } };
+    const body = (await res.json()) as { content?: { type: string; input?: unknown; content?: unknown }[]; usage?: { input_tokens?: number; output_tokens?: number; server_tool_use?: { web_search_requests?: number } }; error?: { message?: string } };
     if (!res.ok) throw new Error(`${res.status} ${body.error?.message ?? ""}`);
     const tool = body.content?.find((c) => c.type === "tool_use");
+    const web = call.webSearch ? {
+      queries: (body.content ?? []).filter((c) => c.type === "server_tool_use").map((c) => String((c.input as { query?: string })?.query ?? "")).filter(Boolean),
+      sources: (body.content ?? []).filter((c) => c.type === "web_search_tool_result" && Array.isArray(c.content))
+        .flatMap((c) => (c.content as { url?: string; title?: string }[]).map((r) => ({ url: String(r.url ?? ""), title: String(r.title ?? "") }))).filter((r) => r.url),
+    } : undefined;
     const parsed = call.schema.safeParse(tool?.input);
     const inTok = body.usage?.input_tokens ?? 0, outTok = body.usage?.output_tokens ?? 0;
     const searches = body.usage?.server_tool_use?.web_search_requests ?? 0;
@@ -313,7 +320,7 @@ async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<S
       throw new Error("Claude returned an unexpected shape");
     }
     await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, inTok, outTok, usd, ok: true, requestId: call.requestId });
-    return { data: parsed.data, mocked: false, model: CLAUDE_MODEL, usage: { input: inTok, output: outTok, usd } };
+    return { data: parsed.data, mocked: false, model: CLAUDE_MODEL, usage: { input: inTok, output: outTok, usd }, web };
   } catch (e) {
     await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, ok: false, error: String(e).slice(0, 500), requestId: call.requestId });
     if (call.mock) return { data: call.schema.parse(call.mock()), mocked: true, model: `fallback:${CLAUDE_MODEL}`, usage: { input: 0, output: 0, usd: 0 } };

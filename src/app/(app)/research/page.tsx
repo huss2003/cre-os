@@ -5,7 +5,8 @@ import { watchlistView, openFindings, orgOptions } from "@/modules/intelligence/
 import { Flash, fmtDay, label } from "@/modules/intelligence/ui";
 import { aiConfigured, monthSpendUsd } from "@/lib/ai/gateway";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
-import { researchNowAction, saveSettingsAction } from "@/modules/signals/actions";
+import { researchNowAction, saveSettingsAction, discoverAction } from "@/modules/signals/actions";
+import { ResearchLive, type Run } from "@/modules/signals/ui/research-live";
 import { watchAction, findingAction } from "./actions";
 
 const TIERS = [
@@ -25,10 +26,11 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
   const ctx = await requirePageContext();
   const canEdit = hasRole(ctx, "editor");
   const isAdmin = hasRole(ctx, "admin");
-  const [{ watch }, findings, orgs, spend, cfg] = await Promise.all([
+  const [{ watch }, findings, orgs, spend, cfg, runs] = await Promise.all([
     watchlistView(ctx.db, ctx.workspaceId), openFindings(ctx.db, ctx.workspaceId), orgOptions(ctx.db, ctx.workspaceId),
     monthSpendUsd(ctx.workspaceId).catch(() => 0),
     ctx.db.from("workspace_setting").select("value").eq("workspace_id", ctx.workspaceId).eq("key", "signals").maybeSingle().then((r) => (r.data?.value ?? {}) as { weeklyCompanyLimit?: number; focusCities?: string[] }),
+    ctx.db.from("research_run").select("id, kind, label, status, queries, sources, findings, new_companies, usd, error, created_at, finished_at").eq("workspace_id", ctx.workspaceId).order("created_at", { ascending: false }).limit(12).then((r) => (r.data ?? []) as Run[]),
   ]);
   const ai = aiConfigured();
   const weekly = cfg.weeklyCompanyLimit ?? 25;
@@ -60,6 +62,13 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="min-w-0 space-y-6">
+          <section>
+            <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+              <div><h2 className="text-lg font-semibold">Live research</h2><p className="text-sm text-ink-soft">What each run searched and the websites it read. Green sites gave evidence.</p></div>
+              {canEdit ? <ActionForm action={discoverAction}><Submit>Find new activity in {(cfg.focusCities ?? ["Pune"]).join(", ")}</Submit></ActionForm> : null}
+            </div>
+            <ResearchLive initial={runs} />
+          </section>
           {watch.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
               <p className="font-semibold">No companies watched yet</p>

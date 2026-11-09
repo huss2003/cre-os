@@ -64,8 +64,29 @@ export function SignalCard({ s }: { s: Row }) {
           {w ? <> — {w}</> : null}
         </p>
         {s.recommended_action ? <p className="mt-3 border-t border-line pt-3 text-sm text-ink">{s.recommended_action.split(" On record:")[0]}</p> : null}
-        <p className="mt-2 text-xs text-ink-soft">{VERIFY_LABEL[s.verification] ?? s.verification} · {STATUS_LABEL[s.status] ?? s.status}</p>
+        <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-soft">
+          <SourceLine ev={(s.evidence ?? []) as Row[]} />
+          <span>{VERIFY_LABEL[s.verification] ?? s.verification}, {(STATUS_LABEL[s.status] ?? s.status).toLowerCase()}</span>
+        </p>
       </div>
     </Link>
+  );
+}
+
+const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+/** "Source: economictimes.com +2" — where the signal came from, always visible on the card. */
+export function SourceLine({ ev }: { ev: Row[] }) {
+  const sup = ev.filter((e) => e.role !== "counter");
+  if (!sup.length) return <span>Source: none recorded</span>;
+  const first = sup.find((e) => e.source_url) ?? sup[0];
+  const name = first.source_url ? host(first.source_url) : first.source_name ?? "Your records";
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-canvas px-2 py-0.5 text-ink">
+      {first.source_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={`https://www.google.com/s2/favicons?domain=${name}&sz=32`} alt="" width={12} height={12} className="rounded-sm" />
+      ) : null}
+      Source: {name}{sup.length > 1 ? ` +${sup.length - 1}` : ""}
+    </span>
   );
 }

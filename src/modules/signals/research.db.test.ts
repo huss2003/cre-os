@@ -21,3 +21,23 @@ describe("Signals auto-research", () => {
     expect(sig!.some((s) => s.category === "expansion")).toBe(true);
   });
 });
+
+describe("Market discovery + run log", () => {
+  it("logs searches and sites; unknown companies become unmatched signals, not new records", async () => {
+    const { discoverMarket } = await import("./research");
+    const db = await userClient("owner");
+    const t = tag("dc");
+    const fake = (async () => ({ mocked: false, model: "test", usage: { input: 0, output: 0, usd: 0.01 },
+      web: { queries: [`pune office ${t}`], sources: [{ url: `https://et.example.com/${t}`, title: "Story" }, { url: "https://other.example.com/x", title: "Other" }] },
+      data: { findings: [{ company: `Newco ${t}`, kind: "gcc_plan", summary: `Newco ${t} sets up GCC in Pune`, location: "Pune", published_on: "2026-11-05", source_url: `https://et.example.com/${t}`, source_name: "ET" }] } })) as never;
+    const r = await discoverMarket(db, WS1, { ai: fake });
+    expect(r.found).toBe(1); expect(r.newCompanies).toBe(1);
+    const { data: run } = await db.from("research_run").select("status, queries, sources").eq("id", r.runId!).single();
+    expect(run!.status).toBe("done"); expect(run!.queries[0]).toContain(t);
+    expect((run!.sources as { used: boolean }[]).filter((s) => s.used)).toHaveLength(1);
+    const { data: orgs } = await db.from("organisation").select("id").eq("workspace_id", WS1).eq("display_name", `Newco ${t}`);
+    expect(orgs).toHaveLength(0);
+    const { data: sig } = await db.from("signal").select("entity_name_raw, processing_status").eq("workspace_id", WS1).eq("entity_name_raw", `Newco ${t}`).single();
+    expect(sig!.processing_status).toBe("entity_unresolved");
+  });
+});

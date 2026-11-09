@@ -7,7 +7,7 @@ import { signalDetail } from "@/modules/signals/service";
 import { signalAction } from "@/modules/signals/actions";
 import { CATEGORY_LABEL, type Category } from "@/modules/signals/engine";
 import { STATUS_LABEL, VERIFY_LABEL, CAT_COLOR, URGENCY, StrengthBars } from "@/modules/signals/ui/card";
-import { researchNowAction } from "@/modules/signals/actions";
+import { researchNowAction, addCompanyFromSignalAction } from "@/modules/signals/actions";
 
 export const metadata = { title: "Signal" };
 type Row = Record<string, any>;
@@ -93,6 +93,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <ActionForm action={act} className="space-y-2"><Field label="Link to existing deal"><Select name="opportunity_id" defaultValue={s.opportunity_id ?? ""}><option value="">Pick…</option>{opps.map((o: Row) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field><Btn a="link_opportunity">Link</Btn></ActionForm>
               <ActionForm action={act} className="mt-3 space-y-2"><Field label="Or propose new deal" hint="Goes to Review"><Input name="name" placeholder={s.title} /></Field><Btn a="propose_opportunity">Propose deal</Btn></ActionForm>
             </Card>
+            {!s.org_id && !s.person_id && s.entity_name_raw ? <Card title="New company"><ActionForm action={addCompanyFromSignalAction.bind(null, id)}><p className="mb-3 text-sm text-ink-soft">{s.entity_name_raw} isn&apos;t in your records yet.</p><Submit>Add {s.entity_name_raw} as a company</Submit></ActionForm></Card> : null}
             {s.org_id ? <Card title="Research"><ActionForm action={researchNowAction.bind(null, s.org_id)}><p className="mb-3 text-sm text-ink-soft">Search the web for recent news about this company (uses a small amount of AI credit).</p><Submit variant="secondary">Research this company</Submit></ActionForm></Card> : null}
             <Card title="Company">
               <ActionForm action={act} className="space-y-2"><Field label="Correct company"><Select name="org_id" defaultValue={s.org_id ?? ""}><option value="">Pick…</option>{orgs.map((o: Row) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</Select></Field><Btn a="correct_company">Save company</Btn></ActionForm>

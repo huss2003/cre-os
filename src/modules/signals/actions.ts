@@ -69,3 +69,28 @@ export async function saveSettingsAction(_prev: ActionState, form: FormData): Pr
     return { ok: true, message: "Saved." };
   } catch (e) { return { error: errorMessage(e) }; }
 }
+
+export async function discoverAction(_prev: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { discoverMarket } = await import("./research");
+    const r = await discoverMarket(ctx.db, ctx.workspaceId, { actorUserId: ctx.userId });
+    revalidatePath("/research"); revalidatePath("/signals");
+    if (r.skipped) return { error: `Scan didn't run: ${r.skipped}` };
+    return { ok: true, message: `Found ${r.found} new signal(s)${r.newCompanies ? `, ${r.newCompanies} from companies not in your records yet` : ""}.` };
+  } catch (e) { return { error: errorMessage(e) }; }
+}
+
+/** Turns an unmatched company name on a signal into a real company record and links it. */
+export async function addCompanyFromSignalAction(id: string, _prev: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { data: sig } = await ctx.db.from("signal").select("entity_name_raw, org_id").eq("workspace_id", ctx.workspaceId).eq("id", id).maybeSingle();
+    if (!sig?.entity_name_raw || sig.org_id) return { error: "Nothing to add." };
+    const { data: org, error } = await ctx.db.from("organisation").insert({ workspace_id: ctx.workspaceId, display_name: sig.entity_name_raw, owner_user_id: ctx.userId }).select("id").single();
+    if (error) throw error;
+    await actOnSignal(ctx.db, ctx.workspaceId, ctx.userId, id, "correct_company", { org_id: org.id });
+    revalidatePath(`/signals/${id}`); revalidatePath("/signals");
+    return { ok: true, message: `${sig.entity_name_raw} added to your companies and linked.` };
+  } catch (e) { return { error: errorMessage(e) }; }
+}

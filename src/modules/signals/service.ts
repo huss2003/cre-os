@@ -93,15 +93,15 @@ function facts(c: OrgContext | null): ContextFacts {
 
 // ------------------------------------------------------------------ upsert one signal (grouping + evidence)
 
-interface Evidence { role: "support" | "counter" | "context"; key: string; claimId?: string; leaseEventId?: string; sourceName?: string | null; url?: string | null; excerpt?: string | null; tier?: string | null; status?: string | null; published?: string | null; note?: string | null }
-interface Draft {
+export interface Evidence { role: "support" | "counter" | "context"; key: string; claimId?: string; leaseEventId?: string; sourceName?: string | null; url?: string | null; excerpt?: string | null; tier?: string | null; status?: string | null; published?: string | null; note?: string | null }
+export interface Draft {
   category: Category; kind: string; title: string; summary: string; creRelevance: string; orgId?: string | null; personId?: string | null;
   leaseId?: string | null; leaseEventId?: string | null; nameRaw?: string | null; location?: string | null; eventDate?: string | null;
   eventDateBasis?: string | null; daysAway?: number | null; verification: Verification; evidence: Evidence[]; key: string;
   recommended?: { text: string; actionKind: string }; processing?: string;
 }
 
-async function upsertSignal(db: Db, ws: string, d: Draft, s: Settings, today: string, ctxCache: Map<string, OrgContext>): Promise<{ id: string; created: boolean }> {
+export async function upsertSignal(db: Db, ws: string, d: Draft, s: Settings, today: string, ctxCache: Map<string, OrgContext>): Promise<{ id: string; created: boolean }> {
   const ctx = d.orgId ? ctxCache.get(d.orgId) ?? await orgContext(db, ws, d.orgId).then((c) => (ctxCache.set(d.orgId!, c), c)) : null;
   const { data: existing } = await db.from("signal").select("id, status").eq("workspace_id", ws).eq("dedupe_key", d.key).maybeSingle();
   let id = existing?.id as string | undefined;
@@ -446,7 +446,7 @@ export type View = keyof typeof VIEWS;
 
 export interface ListFilter { view?: View; q?: string; confidence?: string; status?: string; assigned?: string; userId?: string; from?: string; to?: string }
 export async function listSignals(db: Db, ws: string, f: ListFilter) {
-  let q = db.from("signal").select("*, org:org_id(display_name, sector), person:person_id(full_name)").eq("workspace_id", ws).is("archived_at", null);
+  let q = db.from("signal").select("*, org:org_id(display_name, sector), person:person_id(full_name), evidence:signal_evidence(source_name, source_url, role, published_on)").eq("workspace_id", ws).is("archived_at", null);
   const v = f.view ?? "all";
   if (v === "closed") q = q.in("status", ["dismissed", "snoozed", "rejected", "known"]);
   else {
@@ -466,7 +466,7 @@ export async function listSignals(db: Db, ws: string, f: ListFilter) {
   if (f.q && rows.length < 200) {
     const orgs = await all<Row>(db.from("organisation").select("id").eq("workspace_id", ws).ilike("display_name", `%${f.q}%`).limit(50));
     if (orgs.length) {
-      const extra = await all<Row>(db.from("signal").select("*, org:org_id(display_name, sector), person:person_id(full_name)").eq("workspace_id", ws).in("org_id", orgs.map((o) => o.id)).is("archived_at", null).limit(100));
+      const extra = await all<Row>(db.from("signal").select("*, org:org_id(display_name, sector), person:person_id(full_name), evidence:signal_evidence(source_name, source_url, role, published_on)").eq("workspace_id", ws).in("org_id", orgs.map((o) => o.id)).is("archived_at", null).limit(100));
       for (const e of extra) if (!rows.some((r) => r.id === e.id)) rows.push(e);
     }
   }
@@ -475,7 +475,7 @@ export async function listSignals(db: Db, ws: string, f: ListFilter) {
 
 export async function signalDetail(db: Db, ws: string, id: string) {
   const [sig, ev, hist] = await Promise.all([
-    db.from("signal").select("*, org:org_id(display_name, sector), person:person_id(full_name)").eq("workspace_id", ws).eq("id", id).maybeSingle().then((r) => r.data),
+    db.from("signal").select("*, org:org_id(display_name, sector), person:person_id(full_name), evidence:signal_evidence(source_name, source_url, role, published_on)").eq("workspace_id", ws).eq("id", id).maybeSingle().then((r) => r.data),
     all<Row>(db.from("signal_evidence").select("*").eq("workspace_id", ws).eq("signal_id", id).is("archived_at", null).order("created_at")),
     all<Row>(db.from("signal_review").select("*").eq("workspace_id", ws).eq("signal_id", id).order("created_at", { ascending: false }).limit(50)),
   ]);

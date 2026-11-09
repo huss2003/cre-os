@@ -9,7 +9,8 @@
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
-import { scanClaims, settings } from "./service";
+import { scanClaims, settings, resolveOrg, upsertSignal, type OrgContext } from "./service";
+import { categoryOf, dedupeKey, normName } from "./engine";
 
 const KINDS = ["expansion", "gcc_plan", "hiring", "funding", "consolidation", "layoff", "relocation", "merger", "acquisition", "leadership_change", "rto", "infrastructure", "macro"] as const;
 export const ResearchSchema = z.object({
@@ -35,6 +36,22 @@ export async function approvedDomains(db: Db, ws: string): Promise<string[]> {
     .map((r) => { try { return new URL(String(r.base_url)).hostname.replace(/^www\./, ""); } catch { return null; } }).filter(Boolean) as string[])];
 }
 
+// ------------------------------------------------------------------ run log (what was searched, which sites were read)
+
+export async function startRun(db: Db, ws: string, kind: "company" | "discover", label: string, orgId: string | null, userId?: string) {
+  const { data } = await db.from("research_run").insert({ workspace_id: ws, kind, label, org_id: orgId, status: "running", owner_user_id: userId ?? undefined }).select("id").single();
+  return (data?.id as string | undefined) ?? null;
+}
+async function finishRun(db: Db, ws: string, id: string | null, patch: Record<string, unknown>) {
+  if (id) await db.from("research_run").update({ ...patch, finished_at: new Date().toISOString() }).eq("workspace_id", ws).eq("id", id);
+}
+function sourcesOf(web: { queries: string[]; sources: { url: string; title: string }[] } | undefined, used: string[]) {
+  const seen = new Map<string, { url: string; title: string; used: boolean }>();
+  for (const r of web?.sources ?? []) if (!seen.has(r.url)) seen.set(r.url, { ...r, used: used.includes(r.url) });
+  for (const u of used) if (!seen.has(u)) seen.set(u, { url: u, title: "", used: true });
+  return [...seen.values()].slice(0, 40);
+}
+
 /** Research one company now. Returns how many new findings were stored. */
 export async function researchCompany(db: Db, ws: string, orgId: string, opts: { actorUserId?: string; ai?: typeof callStructured } = {}) {
   const ai = opts.ai ?? callStructured;
@@ -45,6 +62,9 @@ export async function researchCompany(db: Db, ws: string, orgId: string, opts: {
   const since = new Date(Date.now() - 180 * 86_400_000).toISOString().slice(0, 10);
   let out: ResearchOut;
   let mocked = false;
+  let web: { queries: string[]; sources: { url: string; title: string }[] } | undefined;
+  let usd = 0;
+  const runId = await startRun(db, ws, "company", org.display_name, orgId, opts.actorUserId);
   try {
     const r = await ai({
       workspaceId: ws, workflow: "signals.research", tier: "luna", webSearch: true, allowedDomains: domains.length ? domains : undefined,
@@ -53,9 +73,10 @@ export async function researchCompany(db: Db, ws: string, orgId: string, opts: {
       input: `Company: ${org.display_name}${org.domain ? ` (website ${org.domain})` : ""}${org.sector ? `, sector ${org.sector}` : ""}.\nFind news since ${since} about: office expansion or new offices, GCC plans, large local hiring, funding, consolidation or closures, layoffs, relocation, mergers/acquisitions, leadership changes in real estate/facilities/admin/finance/HR, return-to-office policy. Focus cities: ${s.focusCities.join(", ")}. Return at most 5 findings.`,
       mock: () => ({ insufficient_evidence: true, findings: [] }),
     });
-    out = r.data; mocked = r.mocked;
+    out = r.data; mocked = r.mocked; web = r.web; usd = r.usage.usd;
   } catch (e) {
-    if (e instanceof AiUnavailableError) return { stored: 0, skipped: e.message, mocked: true };
+    await finishRun(db, ws, runId, { status: e instanceof AiUnavailableError ? "skipped" : "failed", error: String((e as Error).message).slice(0, 300) });
+    if (e instanceof AiUnavailableError) return { stored: 0, skipped: e.message, mocked: true, runId };
     throw e;
   }
   let stored = 0;
@@ -77,7 +98,8 @@ export async function researchCompany(db: Db, ws: string, orgId: string, opts: {
   const { data: w } = await db.from("watchlist").select("id, tier").eq("workspace_id", ws).eq("org_id", orgId).maybeSingle();
   if (w) await db.from("watchlist").update({ last_researched_at: new Date().toISOString(), next_due_at: new Date(Date.now() + (CADENCE[w.tier] ?? 90) * 86_400_000).toISOString() }).eq("id", w.id);
   if (stored) await scanClaims(db, ws, s, { orgIds: [orgId] });
-  return { stored, mocked, insufficient: out.insufficient_evidence };
+  await finishRun(db, ws, runId, { status: mocked ? "skipped" : "done", queries: web?.queries ?? [], sources: sourcesOf(web, out.findings.map((f) => f.source_url)), findings: stored, usd, error: mocked ? "AI not connected" : null });
+  return { stored, mocked, insufficient: out.insufficient_evidence, runId, skipped: undefined as string | undefined };
 }
 
 /** Daily batch: due watchlist companies, limited to weeklyCompanyLimit/7 per day (at least 1). */
@@ -94,4 +116,65 @@ export async function researchDue(db: Db, ws: string) {
     if (r.skipped) break; // budget reached / AI paused: stop, local work continues tomorrow
   }
   return { researched: results.length, stored: results.reduce((a, r) => a + r.stored, 0) };
+}
+
+// ------------------------------------------------------------------ market discovery: find companies we don't know yet
+
+export const DiscoverSchema = z.object({
+  findings: z.array(z.object({
+    company: z.string().min(2).max(120),
+    kind: z.enum(KINDS),
+    summary: z.string().max(400),
+    location: z.string().max(100).nullable(),
+    published_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+    source_url: z.string().url(),
+    source_name: z.string().max(120),
+  })).max(10),
+});
+
+/**
+ * Scans recent news for office / GCC / expansion / leasing activity in the focus cities. Known companies get a normal
+ * signal; unknown companies get an "unmatched" signal you can turn into a company with one click. Nothing is auto-created.
+ */
+export async function discoverMarket(db: Db, ws: string, opts: { actorUserId?: string; ai?: typeof callStructured } = {}) {
+  const ai = opts.ai ?? callStructured;
+  const s = await settings(db, ws);
+  const city = s.focusCities.join(", ");
+  const runId = await startRun(db, ws, "discover", `New activity in ${city}`, null, opts.actorUserId);
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  let r;
+  try {
+    r = await ai({
+      workspaceId: ws, workflow: "signals.discover", tier: "luna", webSearch: true, classification: "public",
+      schema: DiscoverSchema, schemaName: "market_findings", maxOutputTokens: 1200,
+      system: "You scan Indian business news for a commercial real-estate adviser. Report only companies and events stated in sources you found, each with its URL. Never guess area, headcount or dates. Never use LinkedIn.",
+      input: `Find news since ${since} about companies opening, expanding, leasing, relocating, consolidating or setting up GCCs/offices in ${city}. Also large hiring drives in ${city}. Return up to 10 distinct companies.`,
+      mock: () => ({ findings: [] }),
+    });
+  } catch (e) {
+    await finishRun(db, ws, runId, { status: e instanceof AiUnavailableError ? "skipped" : "failed", error: String((e as Error).message).slice(0, 300) });
+    return { runId, found: 0, newCompanies: 0, skipped: (e as Error).message };
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const cache = new Map<string, OrgContext>();
+  let found = 0, unknown = 0;
+  for (const f of r.data.findings) {
+    if (/linkedin\.com/i.test(f.source_url)) continue;
+    const cat = categoryOf(f.kind);
+    if (!cat) continue;
+    const res = await resolveOrg(db, ws, f.company);
+    if (!res.orgId) unknown++;
+    const entity = res.orgId ?? `name:${normName(f.company)}`;
+    const out = await upsertSignal(db, ws, {
+      category: cat, kind: f.kind, key: dedupeKey(cat, f.kind, entity, f.published_on ?? today),
+      title: `${f.company}: ${f.kind.replace(/_/g, " ")}${f.location ? ` (${f.location})` : ""}`,
+      summary: f.summary, creRelevance: "Found by market scan. Evidence of activity, not proof of a space need.",
+      orgId: res.orgId, nameRaw: res.orgId ? null : f.company, location: f.location, verification: "inference",
+      evidence: [{ role: "support", key: `url:${f.source_url}`, sourceName: f.source_name, url: f.source_url, excerpt: f.summary, tier: "single_unverified", status: "reported", published: f.published_on }],
+      processing: res.orgId ? "review_required" : "entity_unresolved",
+    }, s, today, cache);
+    if (out.created) found++;
+  }
+  await finishRun(db, ws, runId, { status: r.mocked ? "skipped" : "done", queries: r.web?.queries ?? [], sources: sourcesOf(r.web, r.data.findings.map((f) => f.source_url)), findings: found, new_companies: unknown, usd: r.usage.usd, error: r.mocked ? "AI not connected" : null });
+  return { runId, found, newCompanies: unknown, skipped: r.mocked ? "AI not connected" : undefined };
 }
