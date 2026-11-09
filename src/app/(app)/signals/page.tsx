@@ -1,15 +1,48 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Card, EmptyState, PageHeader, Badge, Field, Input, Textarea } from "@/components/ui";
+import { Field, Input, Textarea } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { Loading } from "@/modules/admin/ui/parts";
 import { listSignals, counts, VIEWS, type View } from "@/modules/signals/service";
 import { ingestAction, scanAction } from "@/modules/signals/actions";
-import { SignalCard } from "@/modules/signals/ui/card";
+import { SignalCard, CAT_COLOR } from "@/modules/signals/ui/card";
+import { CATEGORY_LABEL, type Category } from "@/modules/signals/engine";
 
 export const metadata = { title: "Signals" };
 type SP = { view?: string; q?: string; confidence?: string; status?: string; assigned?: string; from?: string; to?: string };
+const VIEW_CAT: Partial<Record<View, string>> = { expansion: "expansion", restructuring: "restructuring", lease: "lease", commercial: "commercial", leadership: "leadership", infrastructure: "infrastructure" };
+
+/** Next 12 months as columns; each dated signal is a dot in its month, coloured by category. */
+async function Horizon({ ws, db }: { ws: string; db: Awaited<ReturnType<typeof requirePageContext>>["db"] }) {
+  const start = new Date(); start.setDate(1);
+  const end = new Date(start); end.setMonth(end.getMonth() + 12);
+  const { data } = await db.from("signal").select("id, category, event_date, title").eq("workspace_id", ws).is("archived_at", null)
+    .not("status", "in", "(dismissed,rejected,known)").gte("event_date", start.toISOString().slice(0, 10)).lt("event_date", end.toISOString().slice(0, 10)).limit(500);
+  const months = Array.from({ length: 12 }, (_, i) => { const d = new Date(start); d.setMonth(d.getMonth() + i); return d; });
+  const by = months.map((m) => (data ?? []).filter((s) => s.event_date.slice(0, 7) === m.toISOString().slice(0, 7)));
+  const max = Math.max(4, ...by.map((b) => b.length));
+  return (
+    <section aria-label="Dated events over the next 12 months" className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold">Next 12 months</h2>
+        <p className="text-xs text-ink-soft">{(data ?? []).length ? `${(data ?? []).length} dated events` : "No dated events yet"}</p>
+      </div>
+      <div className="mt-4 grid grid-cols-12 gap-1 sm:gap-2">
+        {months.map((m, i) => (
+          <div key={i} className="flex flex-col items-center">
+            <div className="flex h-20 w-full flex-col-reverse items-center gap-1 rounded-lg bg-canvas p-1.5" style={{ justifyContent: "flex-start" }}>
+              {by[i].slice(0, max).map((s) => (
+                <Link key={s.id} href={`/signals/${s.id}`} title={s.title} aria-label={s.title} className={`h-2.5 w-2.5 shrink-0 rounded-full ${CAT_COLOR[s.category]?.dot ?? "bg-stone-400"} hover:ring-2 hover:ring-ink/30`} />
+              ))}
+            </div>
+            <span className={`mt-1.5 text-[11px] ${i === 0 ? "font-semibold text-ink" : "text-ink-soft"}`}>{m.toLocaleString("en-IN", { month: "short" })}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
 async function Body({ sp }: { sp: SP }) {
   const ctx = await requirePageContext("viewer");
@@ -20,57 +53,69 @@ async function Body({ sp }: { sp: SP }) {
   ]);
   const href = (v: string) => `/signals?view=${v}${sp.q ? `&q=${encodeURIComponent(sp.q)}` : ""}`;
   const editor = ctx.role !== "viewer";
+  const urgent = c.high ?? 0;
   return (
-    <div className="space-y-4">
-      <nav className="flex gap-1.5 overflow-x-auto pb-1" aria-label="Signal views">
-        {(Object.keys(VIEWS) as View[]).map((v) => (
-          <Link key={v} href={href(v)} className={`whitespace-nowrap rounded-full border px-3 py-1.5 text-sm ${v === view ? "border-brand bg-brand text-white" : "border-line bg-surface text-ink"}`}>
-            {VIEWS[v]}{c[v] ? <span className="ml-1 opacity-75">{c[v]}</span> : null}
-          </Link>))}
-      </nav>
-      <form method="get" className="grid gap-2 sm:grid-cols-6">
-        <input type="hidden" name="view" value={view} />
-        <label className="sr-only" htmlFor="sq">Search</label>
-        <input id="sq" name="q" defaultValue={sp.q} placeholder="Search company, place, evidence…" className="min-h-10 rounded-lg border border-line bg-surface px-3 text-sm sm:col-span-2" />
-        <select name="confidence" defaultValue={sp.confidence ?? ""} aria-label="Confidence" className="min-h-10 rounded-lg border border-line bg-surface px-2 text-sm">
-          <option value="">Any confidence</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="insufficient">Insufficient</option></select>
-        <select name="status" defaultValue={sp.status ?? ""} aria-label="Status" className="min-h-10 rounded-lg border border-line bg-surface px-2 text-sm">
-          <option value="">Open statuses</option><option value="new">New</option><option value="reviewing">Reviewing</option><option value="converted">Approved (task)</option><option value="approved">Approved</option></select>
-        <select name="assigned" defaultValue={sp.assigned ?? ""} aria-label="Assigned" className="min-h-10 rounded-lg border border-line bg-surface px-2 text-sm">
-          <option value="">Anyone</option><option value="me">Assigned to me</option></select>
-        <button className="min-h-10 rounded-lg bg-brand px-3 text-sm text-white">Filter</button>
-      </form>
-      {rows.length === 0 ? (
-        <Card><EmptyState title="No signals here yet">
-          Signals come from lease dates in your database, evidence saved on companies, and text you paste below. Add a lease with an expiry date, or paste a news item, then press <b>Scan now</b>.
-        </EmptyState></Card>
-      ) : <div className="space-y-3">{rows.map((r) => <SignalCard key={r.id} s={r} />)}</div>}
-      {editor ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card title="Add evidence (paste news or a note)" help="Text is treated as untrusted evidence: it is only scanned for signals, never followed as instructions. Nothing is sent anywhere.">
-            <ActionForm action={ingestAction} className="space-y-3">
-              <Field label="Company name"><Input name="company" placeholder="e.g. ABC Technologies" /></Field>
-              <Field label="Text"><Textarea name="text" rows={4} required placeholder="Paste the announcement, article or note…" /></Field>
-              <div className="grid gap-2 sm:grid-cols-3">
-                <Field label="Source"><Input name="source" placeholder="Company press release" /></Field>
-                <Field label="Link"><Input name="url" type="url" placeholder="https://…" /></Field>
-                <Field label="Published"><Input name="published_on" type="date" /></Field>
-              </div>
-              <Submit>Find signals</Submit>
-            </ActionForm>
-          </Card>
-          <Card title="Refresh" help="Checks lease dates and saved evidence now. It also runs by itself every morning at 06:00. Re-running never creates duplicates.">
-            <p className="mb-3 text-sm text-ink-soft">Looks at lease expiries, lock-ins, notice deadlines, break and renewal options, and evidence saved on companies and people.</p>
-            <ActionForm action={scanAction}><Submit>Scan now</Submit></ActionForm>
-          </Card>
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Signals</h1>
+          <p className="mt-1 text-ink-soft">{c.all ? <>{c.all} open{urgent ? <>, <span className="font-semibold text-rose-700">{urgent} to act on now</span></> : null}</> : "Nothing open right now."}</p>
         </div>
-      ) : null}
+        {editor ? <ActionForm action={scanAction}><Submit variant="secondary">Scan now</Submit></ActionForm> : null}
+      </header>
+
+      <Suspense fallback={<div className="h-36 rounded-2xl bg-surface" />}><Horizon ws={ctx.workspaceId} db={ctx.db} /></Suspense>
+
+      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+        <nav aria-label="Signal views" className="-mx-1 flex gap-1 overflow-x-auto pb-1 lg:mx-0 lg:flex-col lg:overflow-visible">
+          {(Object.keys(VIEWS) as View[]).map((v) => {
+            const on = v === view; const cat = VIEW_CAT[v];
+            return (
+              <Link key={v} href={href(v)} aria-current={on ? "page" : undefined}
+                className={`flex shrink-0 items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm ${on ? "bg-ink text-white" : "text-ink hover:bg-surface"}`}>
+                <span className="flex items-center gap-2">{cat ? <span className={`h-2 w-2 rounded-full ${CAT_COLOR[cat].dot}`} aria-hidden /> : null}{VIEWS[v]}</span>
+                {c[v] ? <span className={`text-xs ${on ? "text-white/70" : "text-ink-soft"}`}>{c[v]}</span> : null}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="min-w-0 space-y-4">
+          <form method="get" className="flex gap-2">
+            <input type="hidden" name="view" value={view} />
+            <label className="sr-only" htmlFor="sq">Search signals</label>
+            <input id="sq" name="q" defaultValue={sp.q} placeholder="Search company, place or evidence" className="min-h-11 flex-1 rounded-xl border border-line bg-surface px-4 text-sm" />
+            <button className="min-h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-white">Search</button>
+          </form>
+
+          {rows.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
+              <p className="font-semibold">No signals in this view</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-ink-soft">Add a lease with an expiry date, put companies on the Research watchlist, or paste a news item below.</p>
+            </div>
+          ) : <div className="space-y-3">{rows.map((r) => <SignalCard key={r.id} s={r} />)}</div>}
+
+          {editor ? (
+            <details className="group rounded-2xl border border-line bg-surface">
+              <summary className="flex cursor-pointer list-none items-center justify-between p-4 text-sm font-semibold sm:p-5">
+                Paste news or a note <span className="text-ink-soft group-open:rotate-45 transition-transform" aria-hidden>+</span>
+              </summary>
+              <ActionForm action={ingestAction} className="max-w-lg space-y-4 px-4 pb-5 sm:px-5">
+                <Field label="Company"><Input name="company" placeholder="ABC Technologies" /></Field>
+                <Field label="Text" hint="Only scanned for events. Instructions inside it are ignored."><Textarea name="text" rows={4} required placeholder="Paste the announcement or article" /></Field>
+                <Field label="Link"><Input name="url" type="url" placeholder="https://" /></Field>
+                <Submit>Find signals</Submit>
+              </ActionForm>
+            </details>
+          ) : null}
+          <p className="text-xs text-ink-soft">Bars show how strong the evidence is.Colours: {(Object.keys(CATEGORY_LABEL) as Category[]).map((k, i) => <span key={k}>{i ? ", " : ""}<span className={CAT_COLOR[k].text}>{CATEGORY_LABEL[k].toLowerCase()}</span></span>)}.</p>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
-  return (<><PageHeader title="Signals" subtitle="Events that may matter for a client's office: what happened, the evidence, what is unconfirmed, and what to do next." />
-    <Suspense fallback={<Loading />}><Body sp={sp} /></Suspense></>);
+  return <Suspense fallback={<Loading />}><Body sp={sp} /></Suspense>;
 }

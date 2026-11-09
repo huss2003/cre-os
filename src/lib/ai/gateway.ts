@@ -48,6 +48,8 @@ export interface StructuredCall<S extends ZodType> {
   schemaName: string;
   maxOutputTokens?: number;
   webSearch?: boolean;
+  /** Claude web search: only these domains (approved sources). */
+  allowedDomains?: string[];
   requestId?: string;
   /** Deterministic result used when no API key is configured (dev/test). If omitted, throws AiUnavailableError. */
   mock?: () => z.infer<S>;
@@ -266,8 +268,9 @@ async function logUsage(u: {
  * no web search. Structured output via a forced tool call whose input_schema is the Zod schema.
  */
 const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
-const CLAUDE_PRICE = { inputPerM: 1, outputPerM: 5 }; // USD per million tokens (estimate; update if pricing changes)
-const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600;
+const CLAUDE_PRICE = { inputPerM: 1, outputPerM: 5, perSearch: 0.01 }; // USD per million tokens (estimate; update if pricing changes)
+const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600, CAP_OUTPUT_SEARCH = 1200, SEARCH_MAX_USES = 2;
+const toolName = (n: string) => n.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
 
 async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
   const redact = call.redact ?? ((s: string) => s);
@@ -284,20 +287,25 @@ async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<S
       headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: CLAUDE_MODEL,
-        max_tokens: Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT),
-        system: `${call.system}\n\n${INJECTION_GUARD}\nAnswer briefly. Return only the tool call.`,
+        // Web search needs room for search results; still capped. Without search the tool call is forced.
+        max_tokens: call.webSearch ? CAP_OUTPUT_SEARCH : Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT),
+        system: `${call.system}\n\n${INJECTION_GUARD}\nAnswer briefly. ${call.webSearch ? "Search at most twice, then finish by calling the result tool." : "Return only the tool call."}`,
         messages: [{ role: "user", content: user }],
-        tools: [{ name: call.schemaName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60), description: "Return the structured result.", input_schema: schema }],
-        tool_choice: { type: "tool", name: call.schemaName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60) },
+        tools: [
+          ...(call.webSearch ? [{ type: "web_search_20250305", name: "web_search", max_uses: SEARCH_MAX_USES, ...(call.allowedDomains?.length ? { allowed_domains: call.allowedDomains } : {}), user_location: { type: "approximate", country: "IN" } }] : []),
+          { name: toolName(call.schemaName), description: "Return the structured result.", input_schema: schema },
+        ],
+        tool_choice: call.webSearch ? { type: "any" } : { type: "tool", name: toolName(call.schemaName) },
       }),
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(call.webSearch ? 55_000 : 25_000),
     });
-    const body = (await res.json()) as { content?: { type: string; input?: unknown }[]; usage?: { input_tokens?: number; output_tokens?: number }; error?: { message?: string } };
+    const body = (await res.json()) as { content?: { type: string; input?: unknown }[]; usage?: { input_tokens?: number; output_tokens?: number; server_tool_use?: { web_search_requests?: number } }; error?: { message?: string } };
     if (!res.ok) throw new Error(`${res.status} ${body.error?.message ?? ""}`);
     const tool = body.content?.find((c) => c.type === "tool_use");
     const parsed = call.schema.safeParse(tool?.input);
     const inTok = body.usage?.input_tokens ?? 0, outTok = body.usage?.output_tokens ?? 0;
-    const usd = (inTok / 1e6) * CLAUDE_PRICE.inputPerM + (outTok / 1e6) * CLAUDE_PRICE.outputPerM;
+    const searches = body.usage?.server_tool_use?.web_search_requests ?? 0;
+    const usd = (inTok / 1e6) * CLAUDE_PRICE.inputPerM + (outTok / 1e6) * CLAUDE_PRICE.outputPerM + searches * CLAUDE_PRICE.perSearch;
     if (!parsed.success) {
       // Output cut short or off-schema: fall back to the deterministic result rather than retrying (keeps cost bounded).
       await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, inTok, outTok, usd, ok: false, error: "schema_mismatch", requestId: call.requestId });

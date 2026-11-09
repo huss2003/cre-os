@@ -43,3 +43,29 @@ export async function scanAction(_prev: ActionState): Promise<ActionState> {
     return { ok: true, message: `Scan done: ${r.lease} new lease signal(s), ${r.claims} new evidence signal(s).` };
   } catch (e) { return { error: errorMessage(e) }; }
 }
+
+export async function researchNowAction(orgId: string, _prev: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { researchCompany } = await import("./research");
+    const r = await researchCompany(ctx.db, ctx.workspaceId, orgId, { actorUserId: ctx.userId });
+    revalidatePath("/research"); revalidatePath("/signals");
+    if (r.skipped) return { error: `Research paused: ${r.skipped}` };
+    if (r.mocked) return { ok: true, message: "AI is not connected yet, so no web search ran. Add ANTHROPIC_API_KEY in Vercel." };
+    return { ok: true, message: r.stored ? `Found ${r.stored} new item(s) — see Signals.` : "Searched. Nothing new found." };
+  } catch (e) { return { error: errorMessage(e) }; }
+}
+
+export async function saveSettingsAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("admin");
+    const weekly = Math.max(1, Math.min(500, Number(form.get("weekly")) || 25));
+    const cities = String(form.get("cities") ?? "Pune").split(",").map((c) => c.trim()).filter(Boolean).slice(0, 10);
+    const { data: cur } = await ctx.db.from("workspace_setting").select("value").eq("workspace_id", ctx.workspaceId).eq("key", "signals").maybeSingle();
+    const value = { ...((cur?.value as object) ?? {}), weeklyCompanyLimit: weekly, focusCities: cities.length ? cities : ["Pune"] };
+    const { error } = await ctx.db.from("workspace_setting").upsert({ workspace_id: ctx.workspaceId, key: "signals", value, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    revalidatePath("/research");
+    return { ok: true, message: "Saved." };
+  } catch (e) { return { error: errorMessage(e) }; }
+}

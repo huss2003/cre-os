@@ -6,7 +6,8 @@ import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { signalDetail } from "@/modules/signals/service";
 import { signalAction } from "@/modules/signals/actions";
 import { CATEGORY_LABEL, type Category } from "@/modules/signals/engine";
-import { STATUS_LABEL, VERIFY_LABEL } from "@/modules/signals/ui/card";
+import { STATUS_LABEL, VERIFY_LABEL, CAT_COLOR, URGENCY, StrengthBars } from "@/modules/signals/ui/card";
+import { researchNowAction } from "@/modules/signals/actions";
 
 export const metadata = { title: "Signal" };
 type Row = Record<string, any>;
@@ -33,22 +34,26 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const Btn = ({ a, children, v = "secondary" }: { a: string; children: React.ReactNode; v?: "primary" | "secondary" | "danger" }) => <Submit name="action" value={a} variant={v}>{children}</Submit>;
   return (
     <>
-      <PageHeader title={s.title} subtitle={<Link href="/signals" className="underline">← All signals</Link>} />
-      <div className="grid gap-4 lg:grid-cols-3">
+      <Link href="/signals" className="text-sm text-ink-soft hover:text-ink">Signals</Link>
+      <header className="mt-2 mb-6 flex overflow-hidden rounded-2xl border border-line bg-surface">
+        <span className={`w-2 shrink-0 ${CAT_COLOR[s.category]?.rail ?? "bg-stone-400"}`} aria-hidden />
+        <div className="flex-1 p-5 sm:p-6">
+          <p className={`text-sm font-medium ${CAT_COLOR[s.category]?.text ?? ""}`}>{CATEGORY_LABEL[s.category as Category]}</p>
+          <h1 className="mt-1 text-xl font-bold leading-tight sm:text-2xl">{s.title}</h1>
+          <p className="mt-2 text-ink-soft">
+            {s.org_id ? <Link className="text-ink underline-offset-2 hover:underline" href={`/companies/${s.org_id}`}>{s.org?.display_name}</Link> : s.person_id ? <Link className="text-ink hover:underline" href={`/people/${s.person_id}`}>{s.person?.full_name}</Link> : <span className="text-warn">Company not matched{s.entity_name_raw ? ` (${s.entity_name_raw})` : ""}</span>}
+            {s.location_text ? `, ${s.location_text}` : ""}{s.event_date ? ` — event ${s.event_date}` : ""}
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+            <span className={`rounded-full px-3 py-1 font-medium ring-1 ${(URGENCY[s.priority_band] ?? URGENCY.low).cls}`}>{(URGENCY[s.priority_band] ?? URGENCY.low).label}</span>
+            <span className="flex items-center gap-2"><StrengthBars level={s.confidence} size="lg" /><span>Evidence {s.confidence}</span></span>
+            <span>{VERIFY_LABEL[s.verification]}</span>
+            <span className="text-ink-soft">{STATUS_LABEL[s.status] ?? s.status}</span>
+          </div>
+        </div>
+      </header>
+      <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <Card>
-            <div className="flex flex-wrap gap-1.5">
-              <Badge tone={s.priority_band === "high" ? "bad" : s.priority_band === "medium" ? "warn" : "neutral"}>{s.priority_band} priority ({s.priority})</Badge>
-              <Badge>{CATEGORY_LABEL[s.category as Category]}</Badge><Badge>Evidence: {s.confidence}</Badge>
-              <Badge>{VERIFY_LABEL[s.verification]}</Badge><Badge>{STATUS_LABEL[s.status] ?? s.status}</Badge><Badge>Stage: {String(s.processing_status).replace(/_/g, " ")}</Badge>
-            </div>
-            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
-              <dt className="text-ink-soft">Company</dt><dd className="sm:col-span-3">{s.org_id ? <Link className="underline" href={`/companies/${s.org_id}`}>{s.org?.display_name}</Link> : s.person_id ? <Link className="underline" href={`/people/${s.person_id}`}>{s.person?.full_name}</Link> : <span className="text-warn">Not matched{s.entity_name_raw ? ` (“${s.entity_name_raw}”)` : ""}</span>}</dd>
-              <dt className="text-ink-soft">Location</dt><dd className="sm:col-span-3">{s.location_text ?? "Unknown"}</dd>
-              <dt className="text-ink-soft">Detected</dt><dd>{String(s.detected_at).slice(0, 10)}</dd>
-              <dt className="text-ink-soft">Event date</dt><dd>{s.event_date ? `${s.event_date} (${s.event_date_basis ?? "basis unknown"})` : "Unknown"}</dd>
-            </dl>
-          </Card>
           <Card title="Details">
             <Section n={1} title="What happened?">{s.summary ?? none}</Section>
             <Section n={2} title="Why it matters">{s.cre_relevance ?? none} <span className="text-ink-soft">(interpretation, not a fact)</span></Section>
@@ -88,6 +93,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <ActionForm action={act} className="space-y-2"><Field label="Link to existing deal"><Select name="opportunity_id" defaultValue={s.opportunity_id ?? ""}><option value="">Pick…</option>{opps.map((o: Row) => <option key={o.id} value={o.id}>{o.name}</option>)}</Select></Field><Btn a="link_opportunity">Link</Btn></ActionForm>
               <ActionForm action={act} className="mt-3 space-y-2"><Field label="Or propose new deal" hint="Goes to Review"><Input name="name" placeholder={s.title} /></Field><Btn a="propose_opportunity">Propose deal</Btn></ActionForm>
             </Card>
+            {s.org_id ? <Card title="Research"><ActionForm action={researchNowAction.bind(null, s.org_id)}><p className="mb-3 text-sm text-ink-soft">Search the web for recent news about this company (uses a small amount of AI credit).</p><Submit variant="secondary">Research this company</Submit></ActionForm></Card> : null}
             <Card title="Company">
               <ActionForm action={act} className="space-y-2"><Field label="Correct company"><Select name="org_id" defaultValue={s.org_id ?? ""}><option value="">Pick…</option>{orgs.map((o: Row) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</Select></Field><Btn a="correct_company">Save company</Btn></ActionForm>
             </Card>
