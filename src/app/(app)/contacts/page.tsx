@@ -5,7 +5,8 @@ import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { Loading } from "@/modules/admin/ui/parts";
 import { overview } from "@/modules/contacts/queries";
 import { sources } from "@/modules/contacts/service";
-import { discoverAction, bulkAction, approveAction, rejectAction, retryAction } from "@/modules/contacts/actions";
+import { discoverAction, bulkAction, approveAction, rejectAction, retryAction, appointmentAction, linkedinImportAction } from "@/modules/contacts/actions";
+import { SOURCE_TYPES } from "@/modules/contacts/service";
 import { Chip, ROLE, REL, STAGE, host } from "@/modules/contacts/ui/parts";
 import { DEPARTMENTS } from "@/modules/contacts/rules";
 
@@ -46,7 +47,7 @@ async function Review({ db, ws, editor }: { db: Row; ws: string; editor: boolean
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-lg font-semibold">{it.full_name}</p>
-                <p className="text-sm text-ink-soft">{it.org?.display_name}{src ? <> · from <a className="underline" href={src.source_url} target="_blank" rel="noreferrer noopener">{src.source_name || host(src.source_url)}</a></> : null}</p>
+                <p className="text-sm text-ink-soft">{it.org?.display_name ?? (it.company_raw ? `${it.company_raw} (new company)` : "Company unknown")}{it.source_type ? ` · ${SOURCE_TYPES[it.source_type] ?? it.source_type}` : ""}{src ? <> · from <a className="underline" href={src.source_url} target="_blank" rel="noreferrer noopener">{src.source_name || host(src.source_url)}</a></> : null}</p>
               </div>
               <div className="flex flex-wrap gap-1.5"><span className="rounded-full bg-canvas px-2.5 py-0.5 text-xs">{STAGE[it.stage]}</span><span className="rounded-full bg-canvas px-2.5 py-0.5 text-xs">{ROLE[it.role_class ?? "unknown"]}</span><span className="rounded-full bg-canvas px-2.5 py-0.5 text-xs">{it.completeness}% complete</span></div>
             </div>
@@ -76,12 +77,28 @@ async function Research({ db, ws, editor }: { db: Row; ws: string; editor: boole
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <section className="rounded-2xl border border-line bg-surface p-5">
         <h2 className="font-semibold">Find the right people at a company</h2>
-        <p className="mt-1 text-sm text-ink-soft">Searches the company&apos;s website, leadership pages and press releases for real estate, facilities, admin, procurement, finance, HR and site leadership. Only published details are kept, each with its source. Nothing is saved until you approve it.</p>
+        <p className="mt-1 text-sm text-ink-soft">Searches free public sources — the company&apos;s website and leadership pages, press releases, news, MCA director filings, conference speaker lists and industry associations — for real estate, facilities, admin, procurement, finance, HR and site leadership. Only published details are kept, each with its source. Nothing is saved until you approve it.</p>
         {editor ? (
           <ActionForm action={discoverAction} className="mt-4 space-y-3">
             <select name="org_id" required defaultValue="" aria-label="Company" className={`${sel} w-full`}><option value="" disabled>Choose a company</option>{(orgs ?? []).map((o: Row) => <option key={o.id} value={o.id}>{o.display_name}</option>)}</select>
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="force" value="1" /> Run again even if researched today</label>
             <Submit>Find people</Submit>
+          </ActionForm>
+        ) : null}
+      </section>
+      <section className="rounded-2xl border border-line bg-surface p-5">
+        <h2 className="font-semibold">Appointment news</h2>
+        <p className="mt-1 text-sm text-ink-soft">Finds people who recently joined companies as real estate, facilities, admin, finance or site heads — and flags job changes for people you already know.</p>
+        {editor ? <ActionForm action={appointmentAction} className="mt-3"><Submit variant="secondary">Scan appointment news</Submit></ActionForm> : null}
+      </section>
+      <section className="rounded-2xl border border-line bg-surface p-5 lg:col-span-2">
+        <h2 className="font-semibold">Import your LinkedIn connections</h2>
+        <p className="mt-1 text-sm text-ink-soft">On LinkedIn: Me → Settings &amp; Privacy → Data privacy → Get a copy of your data → tick <b>Connections</b>. Upload the <b>Connections.csv</b> you receive. Everyone lands in To review first.</p>
+        {editor ? (
+          <ActionForm action={linkedinImportAction} className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <input type="file" name="file" accept=".csv,text/csv" required aria-label="Connections.csv" className="text-sm" />
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="relevant" value="1" defaultChecked /> Only CRE-relevant roles</label>
+            <Submit>Import</Submit>
           </ActionForm>
         ) : null}
       </section>

@@ -93,3 +93,21 @@ export async function archiveAction(personId: string, _p: ActionState, f: FormDa
     return done("Archive proposed — confirm it in Review.", `/contacts/${personId}`, "/approvals");
   } catch (e) { return fail(e); }
 }
+
+export async function appointmentAction(_p: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const r = await S.appointmentScan(ctx.db, ctx.workspaceId, { userId: ctx.userId });
+    return done(r.reused ? "Already scanned today — see History." : `Found ${r.found} appointment(s). Review them in To review.`);
+  } catch (e) { return fail(e); }
+}
+export async function linkedinImportAction(_p: ActionState, f: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const file = f.get("file");
+    if (!(file instanceof File) || !file.size) return { error: "Choose your Connections.csv file." };
+    if (file.size > 5_000_000) return { error: "File is larger than 5 MB." };
+    const r = await S.importLinkedIn(ctx.db, ctx.workspaceId, await file.text(), { userId: ctx.userId, onlyRelevant: f.get("relevant") === "1" });
+    return done(`Imported ${r.imported} of ${r.total} connections into To review. Nothing is saved until you approve.`);
+  } catch (e) { return fail(e); }
+}

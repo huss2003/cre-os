@@ -41,3 +41,13 @@ describe("contact rules", () => {
     expect(completeness([{ field: "full_name", value: "x", status: "reported" }, { field: "email", value: "bad", status: "invalid" }])).toBe(10);
   });
 });
+
+import { parseLinkedInCsv } from "./service";
+describe("LinkedIn export parser", () => {
+  it("skips LinkedIn's note lines and handles quoted commas", () => {
+    const csv = `Notes:\n"When exporting your connection data, you may notice..."\n\nFirst Name,Last Name,URL,Email Address,Company,Position,Connected On\nRahul,Mehta,https://www.linkedin.com/in/rahul,,"VertexNova Technologies, Pvt. Ltd.",Head of Administration,15 Oct 2026\n`;
+    const r = parseLinkedInCsv(csv);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ first: "Rahul", company: "VertexNova Technologies, Pvt. Ltd.", position: "Head of Administration", url: "https://www.linkedin.com/in/rahul" });
+  });
+});

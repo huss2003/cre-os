@@ -84,3 +84,20 @@ describe("Module 4 — contact enrichment", () => {
     expect(data ?? []).toHaveLength(0);
   });
 });
+
+describe("free sources", () => {
+  it("LinkedIn import: new company stays unsaved until approval; approval creates company + person + role", async () => {
+    const { importLinkedIn, approveItem } = await import("./service");
+    const db = await userClient("owner"); const owner = (await db.auth.getUser()).data.user!.id; const t = tag("li");
+    const csv = `First Name,Last Name,URL,Email Address,Company,Position,Connected On\nNisha,Kapoor${t},https://www.linkedin.com/in/nisha-${t},,Brandnew Co ${t},Head of Workplace,01 Nov 2026\nJoe,Coder${t},,,Brandnew Co ${t},Software Engineer,01 Nov 2026\n`;
+    const r = await importLinkedIn(db, WS1, csv, { userId: owner, onlyRelevant: true });
+    expect(r.imported).toBe(1);
+    const { data: it } = await db.from("enrichment_item").select("*").eq("job_id", r.jobId).single();
+    expect(it!.org_id).toBeNull(); expect(it!.company_raw).toBe(`Brandnew Co ${t}`); expect(it!.source_type).toBe("linkedin_export");
+    const { data: before } = await db.from("organisation").select("id").eq("workspace_id", WS1).eq("display_name", `Brandnew Co ${t}`);
+    expect(before).toHaveLength(0);
+    const a = await approveItem(db, WS1, owner, it!.id, "new");
+    const { data: emp } = await db.from("employment").select("title, org:org_id(display_name)").eq("person_id", a.personId).single();
+    expect(emp).toMatchObject({ title: "Head of Workplace", org: { display_name: `Brandnew Co ${t}` } });
+  });
+});

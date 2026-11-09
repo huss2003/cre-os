@@ -24,12 +24,15 @@ export function sources(): Source[] {
   return [
     { key: "records", label: "Your records", kind: "Internal", available: true, note: "People, roles, emails and interactions already in the database." },
     { key: "web", label: "Company websites, leadership pages & press releases", kind: "Web search (Claude)", available: ai, note: ai ? "Searches public company pages. LinkedIn is excluded." : "Add ANTHROPIC_API_KEY to switch on." },
+    { key: "mca", label: "Company filings (MCA directors)", kind: "Public filings via web search", available: ai, note: ai ? "Directors listed in public MCA data are found during Find people." : "Needs ANTHROPIC_API_KEY." },
+    { key: "events", label: "Conference speakers & industry associations", kind: "Public pages via web search", available: ai, note: "CII, NASSCOM, CoreNet and event speaker lists are searched during Find people." },
+    { key: "appointments", label: "Appointment news", kind: "News via web search", available: ai, note: "\"X joins Y as Head of Admin\" — finds new decision-makers and job changes. Weekly, or press Scan appointment news." },
+    { key: "linkedin_export", label: "Your LinkedIn connections (export)", kind: "Your own file", available: true, note: "Upload Connections.csv from LinkedIn's 'Get a copy of your data'. Free; your own data." },
     { key: "upload", label: "Spreadsheet upload", kind: "File", available: true, note: "Use Setup → Imports; imported people appear here for enrichment." },
     { key: "capture", label: "Business cards & notes", kind: "Capture", available: true, note: "People mentioned in captures become contacts after review." },
     { key: "mx", label: "Email domain check (MX)", kind: "DNS", available: true, note: "Checks the domain accepts mail. Does not prove a mailbox exists." },
     { key: "licensed_b2b", label: "Licensed B2B contact database", kind: "Paid provider", available: false, note: "Not connected — needs a licensed provider account and API key." },
-    { key: "linkedin", label: "LinkedIn", kind: "Professional network", available: false, note: "No approved integration. Never scraped." },
-    { key: "filings", label: "Company filings (MCA directors)", kind: "Regulatory", available: false, note: "Not connected — needs a filings data provider." },
+    { key: "linkedin", label: "LinkedIn search / profiles", kind: "Professional network", available: false, note: "No approved integration. Never scraped — use your connections export instead." },
   ];
 }
 
@@ -59,16 +62,22 @@ async function existingPeople(db: Db, ws: string, names: string[], emails: strin
 
 const STAGE_FOR: Record<Match["kind"], string> = { new: "verification_required", existing: "verification_required", possible_duplicate: "possible_duplicate", job_change: "employment_verification_pending" };
 
-interface Found { full_name: string; title: string | null; location: string | null; emails: string[]; phones: string[]; phone_is_mobile?: boolean; profile: string | null; source_url: string | null; source_name: string; published_on: string | null; responsibilities?: string | null }
+export const SOURCE_TYPES: Record<string, string> = {
+  company_site: "Company website / leadership page", press: "Company press release", news: "News article", regulatory_filing: "Company filing (MCA directors)",
+  conference: "Conference speaker list", association: "Industry association page", appointment_news: "Appointment news", linkedin_export: "Your LinkedIn export", records: "Your records",
+};
+const stype = (t: string | null | undefined) => (t && t in SOURCE_TYPES ? t : "news");
+interface Found { source_type?: string | null; company_raw?: string | null; full_name: string; title: string | null; location: string | null; emails: string[]; phones: string[]; phone_is_mobile?: boolean; profile: string | null; source_url: string | null; source_name: string; published_on: string | null; responsibilities?: string | null }
 
 /** Turns one found person into a reviewable item with field-level evidence. */
-async function buildItem(db: Db, ws: string, jobId: string, org: Row, f: Found, people: Existing[], method: string) {
+async function buildItem(db: Db, ws: string, jobId: string, orgIn: Row | null, f: Found, people: Existing[], method: string) {
+  const org: Row = orgIn ?? { id: null, display_name: f.company_raw ?? null, domain: null };
   const m = matchIdentity({ full_name: f.full_name, emails: f.emails, profile: f.profile, org_id: org.id }, people);
   const cls = classify(f.title);
   const src = { source_name: f.source_name, source_url: f.source_url, observed_on: f.published_on ?? today(), method };
   const fields: Row[] = [
-    { field: "full_name", value: f.full_name, status: f.source_url ? "reported" : "user_provided", ...src },
-    { field: "employer", value: org.display_name, status: f.source_url ? "reported" : "unknown", ...src },
+    { field: "full_name", value: f.full_name, status: method === "linkedin_export" ? "user_provided" : f.source_url ? "reported" : "user_provided", ...src },
+    { field: "employer", value: org.display_name, status: org.display_name ? (method === "linkedin_export" ? "user_provided" : "reported") : "missing", ...src, note: orgIn ? undefined : org.display_name ? "Company not in your records yet — it will be added when you approve." : undefined },
     { field: "designation", value: f.title, status: f.title ? "reported" : "missing", ...src },
     { field: "department", value: cls.department, status: cls.department ? "inferred" : "unknown", ...src, method: "rules" },
     { field: "location", value: f.location, status: f.location ? "reported" : "missing", ...src },
@@ -91,6 +100,7 @@ async function buildItem(db: Db, ws: string, jobId: string, org: Row, f: Found, 
     workspace_id: ws, job_id: jobId, org_id: org.id, person_id: m.person_id, full_name: f.full_name.slice(0, 160),
     stage: STAGE_FOR[m.kind], match_kind: m.kind, match_reason: m.reason, match_candidates: m.candidates, fields,
     role_class: cls.role, department: cls.department, cre_relevance: cls.relevance, role_reason: cls.reason,
+    company_raw: orgIn ? null : f.company_raw ?? null, source_type: method === "linkedin_export" ? "linkedin_export" : stype(f.source_type),
     completeness: completeness(fields as never), dedupe_key: `${normName(f.full_name)}|${(f.title ?? "").toLowerCase()}`,
   };
   const { data, error } = await db.from("enrichment_item").upsert(row, { onConflict: "workspace_id,job_id,dedupe_key", ignoreDuplicates: true }).select("id").maybeSingle();
@@ -105,6 +115,7 @@ const Found = z.object({
     full_name: z.string(), title: z.string().nullable(), location: z.string().nullable(),
     emails_published: z.array(z.string()), phones_published: z.array(z.string()), phone_is_mobile: z.boolean().nullable(),
     profile_url: z.string().nullable(), source_url: z.string(), source_name: z.string(), published_on: z.string().nullable(), responsibilities: z.string().nullable(),
+    source_type: z.string().nullable().optional(), company: z.string().nullable().optional(),
   })),
   company_contact: z.object({ switchboard: z.string().nullable(), contact_page_url: z.string().nullable() }).nullable(),
   suggested_roles: z.array(z.string()),
@@ -133,8 +144,8 @@ export async function discoverCompany(db: Db, ws: string, orgId: string, opts: {
   try {
     const r = await ai({
       workspaceId: ws, workflow: "contacts.discover", tier: "luna", webSearch: true, classification: "public", schema: Found, schemaName: "people_found", maxOutputTokens: 1800,
-      system: "You find professionals at one company for a commercial real-estate adviser in India, using only public company sources (official website, leadership/team pages, press releases, reputable news). Report only people and details stated in a source you found, each with its URL. Emails and phone numbers ONLY if explicitly published for that person — never guess or construct an email. Never use LinkedIn. If unsure, leave fields null.",
-      input: `Company: ${org.display_name}${org.domain ? ` (website ${org.domain})` : ""}${org.sector ? `, ${org.sector}` : ""}. Focus on India / Pune.\nFind people in these roles: ${TARGET_ROLES}. Up to 10 people. Also return the company's published switchboard number and contact page, and up to 3 suggested roles still worth researching.`,
+      system: "You find professionals at one company for a commercial real-estate adviser in India, using only free public sources: the company's own website (leadership/team/contact pages), its press releases, reputable news, public company filings (MCA director lists, including sites that republish MCA data), conference speaker lists, and industry association pages (CII, NASSCOM, CoreNet, etc.). Report only people and details stated in a source you found, each with its URL and source_type (company_site, press, news, regulatory_filing, conference, association, appointment_news). Emails and phone numbers ONLY if explicitly published for that person — never guess or construct an email. Never use LinkedIn. If unsure, leave fields null.",
+      input: `Company: ${org.display_name}${org.domain ? ` (website ${org.domain})` : ""}${org.sector ? `, ${org.sector}` : ""}. Focus on India / Pune.\nFind people in these roles: ${TARGET_ROLES}. Also check: Indian directors listed in MCA filings, recent appointment news ("joins as", "appointed"), and conference/association speaker pages. Up to 12 people. Also return the company's published switchboard number and contact page, and up to 3 suggested roles still worth researching.`,
       mock: () => ({ people: [], company_contact: null, suggested_roles: [] }),
     });
     const people = r.data.people.filter((p) => /^https?:\/\//.test(p.source_url) && !/linkedin\.com/i.test(p.source_url) && p.full_name.trim().split(/\s+/).length >= 2).slice(0, 12);
@@ -142,7 +153,7 @@ export async function discoverCompany(db: Db, ws: string, orgId: string, opts: {
     let n = 0;
     for (const p of people) {
       await buildItem(db, ws, job.id, org, { full_name: p.full_name, title: p.title, location: p.location, emails: p.emails_published.filter((e) => e.includes("@")), phones: p.phones_published, phone_is_mobile: !!p.phone_is_mobile,
-        profile: p.profile_url && !/linkedin\.com/i.test(p.profile_url) ? p.profile_url : null, source_url: p.source_url, source_name: p.source_name, published_on: p.published_on && /^\d{4}-\d{2}-\d{2}$/.test(p.published_on) ? p.published_on : null, responsibilities: p.responsibilities }, existing, "web_search");
+        profile: p.profile_url && !/linkedin\.com/i.test(p.profile_url) ? p.profile_url : null, source_url: p.source_url, source_name: p.source_name, published_on: p.published_on && /^\d{4}-\d{2}-\d{2}$/.test(p.published_on) ? p.published_on : null, responsibilities: p.responsibilities, source_type: p.source_type }, existing, "web_search");
       n++;
     }
     const sites = r.web?.sources ?? [];
@@ -235,6 +246,7 @@ export async function retryJob(db: Db, ws: string, jobId: string, userId?: strin
   const { data: j } = await db.from("enrichment_job").select("*").eq("workspace_id", ws).eq("id", jobId).single();
   if (!j) throw new ContactError("Job not found.");
   if (j.kind === "company_discovery" && j.org_id) return discoverCompany(db, ws, j.org_id, { userId, force: true });
+  if (j.kind === "appointment_scan") { await db.from("enrichment_job").update({ idempotency_key: null }).eq("id", jobId); return appointmentScan(db, ws, { userId }); }
   if (j.kind === "contact_enrich" || j.kind === "bulk") {
     const { data: items } = await db.from("enrichment_item").select("person_id").eq("job_id", jobId);
     const done = new Set((items ?? []).map((x) => x.person_id));
@@ -264,6 +276,17 @@ export async function approveItem(db: Db, ws: string, userId: string, itemId: st
   const val = (f: string) => fields.find((x) => x.field === f && x.value)?.value ?? null;
   const evidence = `${fields.find((x) => x.source_url)?.source_name ?? "source"} ${fields.find((x) => x.source_url)?.source_url ?? ""}`.trim();
   const proposals: string[] = [];
+  // Company not yet in records (LinkedIn export / appointment news): match by exact name, else add it (with the user's approval).
+  let orgId: string | null = it.org_id;
+  if (!orgId && it.company_raw) {
+    const { resolveOrg } = await import("@/modules/signals/service");
+    orgId = (await resolveOrg(db, ws, it.company_raw)).orgId;
+    if (!orgId) {
+      const r = await apply(db, ws, userId, { targetType: "organisation", operation: "create", patch: [{ op: "add", path: "/display_name", value: it.company_raw }], reason: `Company of a contact approved from ${it.source_type ?? "enrichment"}`, idempotencyKey: `contacts.org:${normName(it.company_raw)}` });
+      proposals.push(r.id); orgId = r.target;
+    }
+    if (orgId) await db.from("enrichment_item").update({ org_id: orgId }).eq("id", itemId);
+  }
   let personId: string | null = as && as !== "new" ? as : it.person_id;
   if (it.match_kind === "possible_duplicate" && !as) throw new ContactError("Choose whether this is an existing contact or a new person.");
   if (!personId) {
@@ -273,13 +296,13 @@ export async function approveItem(db: Db, ws: string, userId: string, itemId: st
   }
   // Employment: new person / existing without this company → create; job change → person move (Review).
   const { data: emps } = await db.from("employment").select("id, org_id, title, is_current, fact_status, row_version").eq("workspace_id", ws).eq("person_id", personId).is("archived_at", null);
-  const here = (emps ?? []).find((e) => e.is_current && e.org_id === it.org_id);
-  const elsewhere = (emps ?? []).filter((e) => e.is_current && e.org_id !== it.org_id);
-  if (it.org_id && !here && elsewhere.length) {
-    const ps = await proposePersonMove(db, ws, { personId, newOrgId: it.org_id, title: val("designation"), reason: `Employment change found by enrichment (${evidence})`, idempotencyKey: `contacts.move:${it.id}`, actorUserId: userId } as never);
+  const here = (emps ?? []).find((e) => e.is_current && e.org_id === orgId);
+  const elsewhere = (emps ?? []).filter((e) => e.is_current && e.org_id !== orgId);
+  if (orgId && !here && elsewhere.length) {
+    const ps = await proposePersonMove(db, ws, { personId, newOrgId: orgId, title: val("designation"), reason: `Employment change found by enrichment (${evidence})`, idempotencyKey: `contacts.move:${it.id}`, actorUserId: userId } as never);
     proposals.push(...(ps as Row[]).map((x) => x.id));
-  } else if (it.org_id && !here) {
-    const r = await apply(db, ws, userId, { targetType: "employment", operation: "create", patch: [{ op: "add", path: "/person_id", value: personId }, { op: "add", path: "/org_id", value: it.org_id }, { op: "add", path: "/title", value: val("designation") }, { op: "add", path: "/is_current", value: true }, { op: "add", path: "/fact_status", value: "reported" }], reason: `Role from enrichment (${evidence})`, idempotencyKey: `contacts.emp:${it.id}` });
+  } else if (orgId && !here) {
+    const r = await apply(db, ws, userId, { targetType: "employment", operation: "create", patch: [{ op: "add", path: "/person_id", value: personId }, { op: "add", path: "/org_id", value: orgId }, { op: "add", path: "/title", value: val("designation") }, { op: "add", path: "/is_current", value: true }, { op: "add", path: "/fact_status", value: "reported" }], reason: `Role from enrichment (${evidence})`, idempotencyKey: `contacts.emp:${it.id}` });
     proposals.push(r.id);
   } else if (here && val("designation") && val("designation") !== here.title) {
     // Title differs: a confirmed title is never overwritten automatically — that proposal waits in Review.
@@ -300,7 +323,7 @@ export async function approveItem(db: Db, ws: string, userId: string, itemId: st
   }
   // Role assessment (rules), feeding Module 3 through the scoring trigger.
   await db.from("contact_role_assessment").update({ active: false }).eq("workspace_id", ws).eq("person_id", personId).eq("source", "rules").eq("active", true);
-  await db.from("contact_role_assessment").insert({ workspace_id: ws, person_id: personId, org_id: it.org_id, role_class: it.role_class ?? "unknown", department: it.department, cre_relevance: it.cre_relevance ?? "unknown", reason: it.role_reason ?? "Rules", evidence: fields.filter((x) => x.source_url).slice(0, 3).map((x) => ({ source_name: x.source_name, source_url: x.source_url, observed_on: x.observed_on })), source: "rules", owner_user_id: userId });
+  await db.from("contact_role_assessment").insert({ workspace_id: ws, person_id: personId, org_id: orgId, role_class: it.role_class ?? "unknown", department: it.department, cre_relevance: it.cre_relevance ?? "unknown", reason: it.role_reason ?? "Rules", evidence: fields.filter((x) => x.source_url).slice(0, 3).map((x) => ({ source_name: x.source_name, source_url: x.source_url, observed_on: x.observed_on })), source: "rules", owner_user_id: userId });
   await db.from("person").update({ last_enriched_at: new Date().toISOString(), next_review_on: new Date(Date.now() + 180 * 86_400_000).toISOString().slice(0, 10) }).eq("id", personId);
   await db.from("enrichment_item").update({ decision: "approved", stage: "verified", person_id: personId, reviewed_by: userId, reviewed_at: new Date().toISOString(), proposal_ids: proposals }).eq("id", itemId);
   try { await scoreEntity(db, ws, "contact", personId, "enrichment"); } catch { /* scoring off */ }
@@ -348,4 +371,88 @@ export async function reverifyDue(db: Db, ws: string) {
   const { data } = await db.from("person").select("id").eq("workspace_id", ws).is("archived_at", null).eq("do_not_contact", false).lte("next_review_on", today()).limit(100);
   const ids = (data ?? []).map((r) => r.id);
   return ids.length ? enrichMany(db, ws, { personIds: ids, web: false }) : { jobId: null, done: 0, failed: 0, left: 0, skippedDoNotContact: 0 };
+}
+
+// ------------------------------------------------------------------ appointment news (free): new roles + job changes
+
+/** Scans recent appointment news ("X joins Y as Head of Admin") for CRE-relevant roles in the focus cities. */
+export async function appointmentScan(db: Db, ws: string, opts: { userId?: string; ai?: typeof callStructured; city?: string } = {}) {
+  const ai = opts.ai ?? callStructured;
+  const city = opts.city ?? "Pune";
+  const job = await startJob(db, ws, "appointment_scan", `Appointment news — ${city}`, null, opts.userId, `appointments:${today()}`, ["web"]);
+  if (job.reused) return { jobId: job.id, reused: true, found: 0 };
+  const since = new Date(Date.now() - 90 * 86_400_000).toISOString().slice(0, 10);
+  try {
+    const r = await ai({
+      workspaceId: ws, workflow: "contacts.appointments", tier: "luna", webSearch: true, classification: "public", schema: Found, schemaName: "people_found", maxOutputTokens: 1800,
+      system: "You scan Indian business news for executive appointments relevant to office real estate. Report only appointments stated in a source, each with the person's name, new title, new company (in 'company'), URL and source_type 'appointment_news'. Never use LinkedIn. Never guess emails or phones.",
+      input: `Find appointment news since ${since} for roles: ${TARGET_ROLES} — in ${city} or India-wide for companies with ${city} offices. Phrases like "joins as", "appointed", "named head of". Up to 12.`,
+      mock: () => ({ people: [], company_contact: null, suggested_roles: [] }),
+    });
+    const { resolveOrg } = await import("@/modules/signals/service");
+    const people = r.data.people.filter((p) => /^https?:\/\//.test(p.source_url) && !/linkedin\.com/i.test(p.source_url) && p.company).slice(0, 15);
+    const existing = await existingPeople(db, ws, people.map((p) => p.full_name), []);
+    let n = 0;
+    for (const p of people) {
+      const res = await resolveOrg(db, ws, p.company!);
+      const org = res.orgId ? (await db.from("organisation").select("id, display_name, domain").eq("id", res.orgId).single()).data : null;
+      await buildItem(db, ws, job.id, org, { full_name: p.full_name, title: p.title, location: p.location, emails: [], phones: [], profile: null, source_url: p.source_url, source_name: p.source_name,
+        published_on: p.published_on && /^\d{4}-\d{2}-\d{2}$/.test(p.published_on) ? p.published_on : null, source_type: "appointment_news", company_raw: p.company }, existing, "web_search");
+      n++;
+    }
+    await db.from("enrichment_job").update({ status: r.mocked ? "failed" : "done", total: n, done: n, usd: r.usage.usd, queries: r.web?.queries ?? [], sites: (r.web?.sources ?? []).slice(0, 40),
+      error: r.mocked ? "Web research is off or failed — press Retry." : n ? null : "No relevant appointments found.", finished_at: new Date().toISOString() }).eq("id", job.id);
+    return { jobId: job.id, reused: false, found: n };
+  } catch (e) {
+    await db.from("enrichment_job").update({ status: "failed", error: String((e as Error).message).slice(0, 300), finished_at: new Date().toISOString() }).eq("id", job.id);
+    throw e;
+  }
+}
+
+// ------------------------------------------------------------------ LinkedIn connections export (your own data, free)
+
+/** Parses LinkedIn's Connections.csv (skips the note lines before the header). Handles quoted commas. */
+export function parseLinkedInCsv(text: string): { first: string; last: string; url: string; email: string; company: string; position: string; connected: string }[] {
+  const lines = text.replace(/^﻿/, "").split(/\r?\n/);
+  const hi = lines.findIndex((l) => /first name/i.test(l) && /last name/i.test(l));
+  if (hi < 0) throw new ContactError("This doesn't look like LinkedIn's Connections.csv (no 'First Name, Last Name' header).");
+  const split = (l: string) => { const out: string[] = []; let cur = "", q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === "," && !q) { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out.map((x) => x.trim()); };
+  const head = split(lines[hi]).map((h) => h.toLowerCase());
+  const col = (n: string) => head.findIndex((h) => h === n);
+  const idx = { first: col("first name"), last: col("last name"), url: col("url"), email: col("email address"), company: col("company"), position: col("position"), connected: col("connected on") };
+  return lines.slice(hi + 1).filter((l) => l.trim()).map(split).map((c) => ({
+    first: c[idx.first] ?? "", last: c[idx.last] ?? "", url: idx.url >= 0 ? c[idx.url] ?? "" : "", email: idx.email >= 0 ? c[idx.email] ?? "" : "",
+    company: idx.company >= 0 ? c[idx.company] ?? "" : "", position: idx.position >= 0 ? c[idx.position] ?? "" : "", connected: idx.connected >= 0 ? c[idx.connected] ?? "" : "",
+  })).filter((r) => (r.first + r.last).trim());
+}
+
+/** Imports your connections as reviewable items (CRE-relevant roles first). Nothing is saved until approved. */
+export async function importLinkedIn(db: Db, ws: string, text: string, opts: { userId?: string; onlyRelevant?: boolean } = {}) {
+  const rows = parseLinkedInCsv(text);
+  if (!rows.length) throw new ContactError("No connections found in the file.");
+  const picked = rows.filter((r) => !opts.onlyRelevant || ["high", "medium"].includes(classify(r.position).relevance)).slice(0, 2000);
+  const job = await startJob(db, ws, "linkedin_import", `LinkedIn connections import (${picked.length} of ${rows.length})`, null, opts.userId, null, ["linkedin_export"]);
+  const { resolveOrg } = await import("@/modules/signals/service");
+  const orgCache = new Map<string, Row | null>();
+  let n = 0;
+  for (let i = 0; i < picked.length; i += 50) {
+    const chunk = picked.slice(i, i + 50);
+    const existing = await existingPeople(db, ws, chunk.map((r) => `${r.first} ${r.last}`), chunk.map((r) => r.email).filter((e) => e.includes("@")));
+    for (const r of chunk) {
+      const key = r.company.toLowerCase();
+      if (r.company && !orgCache.has(key)) {
+        const id = (await resolveOrg(db, ws, r.company)).orgId;
+        orgCache.set(key, id ? (await db.from("organisation").select("id, display_name, domain").eq("id", id).single()).data : null);
+      }
+      const connected = Date.parse(r.connected);
+      await buildItem(db, ws, job.id, r.company ? orgCache.get(key) ?? null : null, {
+        full_name: `${r.first} ${r.last}`.trim(), title: r.position || null, location: null, emails: r.email.includes("@") ? [r.email] : [], phones: [],
+        profile: r.url || null, source_url: null, source_name: "Your LinkedIn connections export", published_on: Number.isFinite(connected) ? new Date(connected).toISOString().slice(0, 10) : today(),
+        company_raw: r.company || null,
+      }, existing, "linkedin_export");
+      n++;
+    }
+  }
+  await db.from("enrichment_job").update({ status: "done", total: n, done: n, finished_at: new Date().toISOString() }).eq("id", job.id);
+  return { jobId: job.id, imported: n, total: rows.length };
 }

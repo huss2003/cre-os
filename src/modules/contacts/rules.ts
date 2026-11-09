@@ -70,7 +70,7 @@ export function phoneInfo(raw: string, ctx: { published?: boolean; onCompanyCont
 // ---------------------------------------------------------------- departments, roles and CRE relevance
 
 export const DEPARTMENTS: { key: string; label: string; re: RegExp; relevance: Relevance }[] = [
-  { key: "real_estate", label: "Corporate Real Estate", re: /(corporate real estate|\bcre\b|real estate|workplace strategy|workplace experience|portfolio manager)/i, relevance: "high" },
+  { key: "real_estate", label: "Corporate Real Estate", re: /(corporate real estate|\bcre\b|real estate|\bworkplace\b|portfolio manager)/i, relevance: "high" },
   { key: "facilities", label: "Facilities & Administration", re: /(facilit|administration|\badmin\b|general admin|workplace operations|office admin|infrastructure manager)/i, relevance: "high" },
   { key: "procurement", label: "Procurement", re: /(procure|sourcing|vendor management|purchas)/i, relevance: "medium" },
   { key: "finance", label: "Finance", re: /(\bcfo\b|chief financial|finance|financial controller|controller|treasur)/i, relevance: "medium" },

@@ -22,7 +22,7 @@ drop table if exists mudar.reporting_line cascade;
 
 create table mudar.enrichment_job (
   id uuid primary key default gen_random_uuid(),
-  kind text not null check (kind in ('company_discovery','contact_enrich','bulk','reverify')),
+  kind text not null check (kind in ('company_discovery','contact_enrich','bulk','reverify','appointment_scan','linkedin_import')),
   org_id uuid references mudar.organisation(id) on delete set null,
   label text not null,
   status text not null default 'pending' check (status in ('pending','running','done','partial','failed','cancelled')),
@@ -65,6 +65,8 @@ create table mudar.enrichment_item (
   reviewed_by uuid references auth.users(id),
   reviewed_at timestamptz,
   proposal_ids uuid[] not null default '{}',
+  company_raw text,                       -- company name as given by the source when not (yet) in records
+  source_type text,                       -- company_site / press / news / regulatory_filing / conference / association / appointment_news / linkedin_export
   error text,
   attempts int not null default 0,
   dedupe_key text not null
