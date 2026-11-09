@@ -269,9 +269,10 @@ async function logUsage(u: {
  * costs well under one credit: cheapest model, input capped at ~6k chars + evidence ~4k chars, output capped at 600 tokens,
  * no web search. Structured output via a forced tool call whose input_schema is the Zod schema.
  */
-const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
+// Only real Claude model ids are honoured; anything else (typo, other vendor) falls back to Haiku.
+const CLAUDE_MODEL = /^claude-/.test(process.env.ANTHROPIC_MODEL ?? "") ? process.env.ANTHROPIC_MODEL! : "claude-haiku-5-5";
 const CLAUDE_PRICE = { inputPerM: 1, outputPerM: 5, perSearch: 0.01 }; // USD per million tokens (estimate; update if pricing changes)
-const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600, CAP_OUTPUT_SEARCH = 1200, SEARCH_MAX_USES = 2;
+const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600, CAP_OUTPUT_SEARCH = 3000, SEARCH_MAX_USES = 2;
 const toolName = (n: string) => n.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
 
 async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
@@ -284,29 +285,45 @@ async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<S
   try { schema = z.toJSONSchema(call.schema as never, { target: "draft-7" }) as Record<string, unknown>; delete schema.$schema; }
   catch { schema = { type: "object" }; }
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: CLAUDE_MODEL,
-        // Web search needs room for search results; still capped. Without search the tool call is forced.
-        max_tokens: call.webSearch ? CAP_OUTPUT_SEARCH : Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT),
-        system: `${call.system}\n\n${INJECTION_GUARD}\nAnswer briefly. ${call.webSearch ? "Search at most twice, then finish by calling the result tool." : "Return only the tool call."}`,
-        messages: [{ role: "user", content: user }],
-        tools: [
-          ...(call.webSearch ? [{ type: "web_search_20250305", name: "web_search", max_uses: SEARCH_MAX_USES, ...(call.allowedDomains?.length ? { allowed_domains: call.allowedDomains } : {}), user_location: { type: "approximate", country: "IN" } }] : []),
-          { name: toolName(call.schemaName), description: "Return the structured result.", input_schema: schema },
-        ],
-        tool_choice: call.webSearch ? { type: "any" } : { type: "tool", name: toolName(call.schemaName) },
-      }),
-      signal: AbortSignal.timeout(call.webSearch ? 55_000 : 25_000),
-    });
-    const body = (await res.json()) as { content?: { type: string; input?: unknown; content?: unknown }[]; usage?: { input_tokens?: number; output_tokens?: number; server_tool_use?: { web_search_requests?: number } }; error?: { message?: string } };
-    if (!res.ok) throw new Error(`${res.status} ${body.error?.message ?? ""}`);
-    const tool = body.content?.find((c) => c.type === "tool_use");
+    const tName = toolName(call.schemaName);
+    const tools = [
+      ...(call.webSearch ? [{ type: "web_search_20250305", name: "web_search", max_uses: SEARCH_MAX_USES, ...(call.allowedDomains?.length ? { allowed_domains: call.allowedDomains } : {}), user_location: { type: "approximate", country: "IN" } }] : []),
+      { name: tName, description: "Return the structured result.", input_schema: schema },
+    ];
+    type Block = { type: string; input?: unknown; content?: unknown; name?: string };
+    type Body = { content?: Block[]; stop_reason?: string; usage?: { input_tokens?: number; output_tokens?: number; server_tool_use?: { web_search_requests?: number } }; error?: { message?: string } };
+    const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: user }];
+    const all: Block[] = [];
+    const usage = { in: 0, out: 0, searches: 0 };
+    let tool: Block | undefined;
+    // Web search: search freely (auto), continue paused turns, then force the result tool. Max 3 round trips.
+    for (let turn = 0; turn < 3 && !tool; turn++) {
+      const force = !call.webSearch || turn > 0;
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model: CLAUDE_MODEL,
+          max_tokens: call.webSearch ? CAP_OUTPUT_SEARCH : Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT),
+          system: `${call.system}\n\n${INJECTION_GUARD}\nAnswer briefly. ${call.webSearch ? `Search at most twice, then call the ${tName} tool with what you found.` : "Return only the tool call."}`,
+          messages, tools,
+          tool_choice: force ? { type: "tool", name: tName } : { type: "auto" },
+        }),
+        signal: AbortSignal.timeout(call.webSearch ? 55_000 : 25_000),
+      });
+      const body = (await res.json()) as Body;
+      if (!res.ok) throw new Error(`${res.status} ${body.error?.message ?? ""}`);
+      usage.in += body.usage?.input_tokens ?? 0; usage.out += body.usage?.output_tokens ?? 0; usage.searches += body.usage?.server_tool_use?.web_search_requests ?? 0;
+      all.push(...(body.content ?? []));
+      tool = body.content?.find((c) => c.type === "tool_use" && c.name === tName);
+      if (tool) break;
+      messages.push({ role: "assistant", content: body.content ?? [] });
+      if (body.stop_reason !== "pause_turn") messages.push({ role: "user", content: `Now call the ${tName} tool with your findings. Use null for anything unknown.` });
+    }
+    const body = { content: all, usage: { input_tokens: usage.in, output_tokens: usage.out, server_tool_use: { web_search_requests: usage.searches } } };
     const web = call.webSearch ? {
-      queries: (body.content ?? []).filter((c) => c.type === "server_tool_use").map((c) => String((c.input as { query?: string })?.query ?? "")).filter(Boolean),
-      sources: (body.content ?? []).filter((c) => c.type === "web_search_tool_result" && Array.isArray(c.content))
+      queries: all.filter((c) => c.type === "server_tool_use").map((c) => String((c.input as { query?: string })?.query ?? "")).filter(Boolean),
+      sources: all.filter((c) => c.type === "web_search_tool_result" && Array.isArray(c.content))
         .flatMap((c) => (c.content as { url?: string; title?: string }[]).map((r) => ({ url: String(r.url ?? ""), title: String(r.title ?? "") }))).filter((r) => r.url),
     } : undefined;
     const parsed = call.schema.safeParse(tool?.input);
@@ -315,11 +332,11 @@ async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<S
     const usd = (inTok / 1e6) * CLAUDE_PRICE.inputPerM + (outTok / 1e6) * CLAUDE_PRICE.outputPerM + searches * CLAUDE_PRICE.perSearch;
     if (!parsed.success) {
       // Output cut short or off-schema: fall back to the deterministic result rather than retrying (keeps cost bounded).
-      await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, inTok, outTok, usd, ok: false, error: "schema_mismatch", requestId: call.requestId });
+      await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, inTok, outTok, searchCalls: searches, usd, ok: false, error: `schema_mismatch: ${parsed.error.issues.slice(0, 3).map((i) => `${i.path.join(".")} ${i.message}`).join("; ")}`.slice(0, 500), requestId: call.requestId });
       if (call.mock) return { data: call.schema.parse(call.mock()), mocked: true, model: `fallback:${CLAUDE_MODEL}`, usage: { input: inTok, output: outTok, usd } };
       throw new Error("Claude returned an unexpected shape");
     }
-    await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, inTok, outTok, usd, ok: true, requestId: call.requestId });
+    await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, inTok, outTok, searchCalls: searches, usd, ok: true, requestId: call.requestId });
     return { data: parsed.data, mocked: false, model: CLAUDE_MODEL, usage: { input: inTok, output: outTok, usd }, web };
   } catch (e) {
     await logUsage({ workspaceId: call.workspaceId, workflow: call.workflow, model: CLAUDE_MODEL, ok: false, error: String(e).slice(0, 500), requestId: call.requestId });

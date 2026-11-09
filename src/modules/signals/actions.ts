@@ -50,8 +50,7 @@ export async function researchNowAction(orgId: string, _prev: ActionState): Prom
     const { researchCompany } = await import("./research");
     const r = await researchCompany(ctx.db, ctx.workspaceId, orgId, { actorUserId: ctx.userId });
     revalidatePath("/research"); revalidatePath("/signals");
-    if (r.skipped) return { error: `Research paused: ${r.skipped}` };
-    if (r.mocked) return { ok: true, message: "AI is not connected yet, so no web search ran. Add ANTHROPIC_API_KEY in Vercel." };
+    if (r.skipped) return { error: `Research didn't finish: ${r.skipped}` };
     return { ok: true, message: r.stored ? `Found ${r.stored} new item(s) — see Signals.` : "Searched. Nothing new found." };
   } catch (e) { return { error: errorMessage(e) }; }
 }

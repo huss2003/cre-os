@@ -16,17 +16,35 @@ const KINDS = ["expansion", "gcc_plan", "hiring", "funding", "consolidation", "l
 export const ResearchSchema = z.object({
   insufficient_evidence: z.boolean(),
   findings: z.array(z.object({
-    kind: z.enum(KINDS),
-    summary: z.string().max(400),
-    location: z.string().max(100).nullable(),
-    event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-    published_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-    source_url: z.string().url(),
-    source_name: z.string().max(120),
+    kind: z.string(),
+    summary: z.string(),
+    location: z.string().nullable(),
+    event_date: z.string().nullable(),
+    published_on: z.string().nullable(),
+    source_url: z.string(),
+    source_name: z.string(),
     official_source: z.boolean(),
-  })).max(5),
+  })),
 });
 export type ResearchOut = z.infer<typeof ResearchSchema>;
+
+/** Lenient model output → strict values: only full ISO dates and http(s) URLs survive. */
+const isoDate = (v: string | null | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+const okUrl = (v: string) => /^https?:\/\/\S+$/i.test(v);
+
+/** Model output is untrusted: keep only well-formed findings, trim text, drop bad dates/kinds instead of failing the run. */
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+function clean<T extends { kind: string; summary: string; location: string | null; published_on: string | null; source_url: string; source_name: string; event_date?: string | null }>(f: T) {
+  if (!(KINDS as readonly string[]).includes(f.kind) || !/^https?:\/\//.test(f.source_url)) return null;
+  return { ...f, kind: f.kind as (typeof KINDS)[number], summary: f.summary.slice(0, 400), location: f.location?.slice(0, 100) ?? null,
+    source_name: f.source_name.slice(0, 120), published_on: f.published_on && DATE.test(f.published_on) ? f.published_on : null,
+    event_date: f.event_date && DATE.test(f.event_date) ? f.event_date : null };
+}
+
+/** "fallback:" = the AI answered but the call failed or its answer was unreadable — not the same as "no key". */
+function aiKind(model: string): string | null {
+  return model.startsWith("fallback:") ? "AI call failed or its answer couldn't be read. Check Settings → AI usage for the error." : null;
+}
 
 const CADENCE: Record<string, number> = { critical: 7, active: 30, universe: 90 };
 
@@ -64,6 +82,7 @@ export async function researchCompany(db: Db, ws: string, orgId: string, opts: {
   let mocked = false;
   let web: { queries: string[]; sources: { url: string; title: string }[] } | undefined;
   let usd = 0;
+  let rModel = "";
   const runId = await startRun(db, ws, "company", org.display_name, orgId, opts.actorUserId);
   try {
     const r = await ai({
@@ -73,7 +92,7 @@ export async function researchCompany(db: Db, ws: string, orgId: string, opts: {
       input: `Company: ${org.display_name}${org.domain ? ` (website ${org.domain})` : ""}${org.sector ? `, sector ${org.sector}` : ""}.\nFind news since ${since} about: office expansion or new offices, GCC plans, large local hiring, funding, consolidation or closures, layoffs, relocation, mergers/acquisitions, leadership changes in real estate/facilities/admin/finance/HR, return-to-office policy. Focus cities: ${s.focusCities.join(", ")}. Return at most 5 findings.`,
       mock: () => ({ insufficient_evidence: true, findings: [] }),
     });
-    out = r.data; mocked = r.mocked; web = r.web; usd = r.usage.usd;
+    out = r.data; mocked = r.mocked; web = r.web; usd = r.usage.usd; rModel = r.model;
   } catch (e) {
     await finishRun(db, ws, runId, { status: e instanceof AiUnavailableError ? "skipped" : "failed", error: String((e as Error).message).slice(0, 300) });
     if (e instanceof AiUnavailableError) return { stored: 0, skipped: e.message, mocked: true, runId };
@@ -81,8 +100,9 @@ export async function researchCompany(db: Db, ws: string, orgId: string, opts: {
   }
   let stored = 0;
   const today = new Date().toISOString().slice(0, 10);
-  for (const f of out.findings) {
-    if (/linkedin\.com/i.test(f.source_url)) continue;
+  for (const raw of out.findings) {
+    const f = { ...raw, event_date: isoDate(raw.event_date), published_on: isoDate(raw.published_on) };
+    if (!okUrl(f.source_url) || /linkedin\.com/i.test(f.source_url)) continue;
     const { data: dup } = await db.from("signal_claim").select("id").eq("workspace_id", ws).eq("subject_id", orgId).eq("claim_type", f.kind).eq("source_url", f.source_url).limit(1);
     if (dup?.length) continue;
     const { error } = await db.from("signal_claim").insert({
@@ -98,8 +118,8 @@ export async function researchCompany(db: Db, ws: string, orgId: string, opts: {
   const { data: w } = await db.from("watchlist").select("id, tier").eq("workspace_id", ws).eq("org_id", orgId).maybeSingle();
   if (w) await db.from("watchlist").update({ last_researched_at: new Date().toISOString(), next_due_at: new Date(Date.now() + (CADENCE[w.tier] ?? 90) * 86_400_000).toISOString() }).eq("id", w.id);
   if (stored) await scanClaims(db, ws, s, { orgIds: [orgId] });
-  await finishRun(db, ws, runId, { status: mocked ? "skipped" : "done", queries: web?.queries ?? [], sources: sourcesOf(web, out.findings.map((f) => f.source_url)), findings: stored, usd, error: mocked ? "AI not connected" : null });
-  return { stored, mocked, insufficient: out.insufficient_evidence, runId, skipped: undefined as string | undefined };
+  await finishRun(db, ws, runId, { status: mocked ? "skipped" : "done", queries: web?.queries ?? [], sources: sourcesOf(web, out.findings.map((f) => f.source_url)), findings: stored, usd, error: mocked ? (aiKind(rModel) ?? "AI not connected") : null });
+  return { stored, mocked, insufficient: out.insufficient_evidence, runId, skipped: mocked ? (aiKind(rModel) ?? "AI not connected") : undefined as string | undefined };
 }
 
 /** Daily batch: due watchlist companies, limited to weeklyCompanyLimit/7 per day (at least 1). */
@@ -122,14 +142,14 @@ export async function researchDue(db: Db, ws: string) {
 
 export const DiscoverSchema = z.object({
   findings: z.array(z.object({
-    company: z.string().min(2).max(120),
-    kind: z.enum(KINDS),
-    summary: z.string().max(400),
-    location: z.string().max(100).nullable(),
-    published_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-    source_url: z.string().url(),
-    source_name: z.string().max(120),
-  })).max(10),
+    company: z.string().min(2),
+    kind: z.string(),
+    summary: z.string(),
+    location: z.string().nullable(),
+    published_on: z.string().nullable(),
+    source_url: z.string(),
+    source_name: z.string(),
+  })),
 });
 
 /**
@@ -158,8 +178,9 @@ export async function discoverMarket(db: Db, ws: string, opts: { actorUserId?: s
   const today = new Date().toISOString().slice(0, 10);
   const cache = new Map<string, OrgContext>();
   let found = 0, unknown = 0;
-  for (const f of r.data.findings) {
-    if (/linkedin\.com/i.test(f.source_url)) continue;
+  for (const raw of r.data.findings) {
+    const f = { ...raw, published_on: isoDate(raw.published_on) };
+    if (!okUrl(f.source_url) || /linkedin\.com/i.test(f.source_url)) continue;
     const cat = categoryOf(f.kind);
     if (!cat) continue;
     const res = await resolveOrg(db, ws, f.company);
@@ -175,6 +196,6 @@ export async function discoverMarket(db: Db, ws: string, opts: { actorUserId?: s
     }, s, today, cache);
     if (out.created) found++;
   }
-  await finishRun(db, ws, runId, { status: r.mocked ? "skipped" : "done", queries: r.web?.queries ?? [], sources: sourcesOf(r.web, r.data.findings.map((f) => f.source_url)), findings: found, new_companies: unknown, usd: r.usage.usd, error: r.mocked ? "AI not connected" : null });
-  return { runId, found, newCompanies: unknown, skipped: r.mocked ? "AI not connected" : undefined };
+  await finishRun(db, ws, runId, { status: r.mocked ? "skipped" : "done", queries: r.web?.queries ?? [], sources: sourcesOf(r.web, r.data.findings.map((f) => f.source_url)), findings: found, new_companies: unknown, usd: r.usage.usd, error: r.mocked ? (aiKind(r.model) ?? "AI not connected") : null });
+  return { runId, found, newCompanies: unknown, skipped: r.mocked ? (aiKind(r.model) ?? "AI not connected") : undefined };
 }
