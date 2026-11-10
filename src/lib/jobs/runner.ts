@@ -39,7 +39,7 @@ export async function tick(opts: { budgetMs?: number; worker?: string; source?: 
 
   for (const s of schedulers) {
     try {
-      await s(new Date());
+      await withTimeout(s(new Date()), 8_000, "scheduler");
     } catch (e) {
       scheduleErrors.push(errText(e));
     }
@@ -55,7 +55,8 @@ export async function tick(opts: { budgetMs?: number; worker?: string; source?: 
 
   let ran = 0, failed = 0;
   try {
-    while (Date.now() - started < budget) {
+    // Leave headroom: a job started late could overrun the 60 s platform limit (the cause of the live timeouts).
+    while (Date.now() - started < budget - 15_000) {
       // One job per claim so the time budget is checked before every job; unclaimed work waits for the next tick.
       const jobs = await claim(worker, 1);
       if (jobs.length === 0) break;
@@ -63,7 +64,8 @@ export async function tick(opts: { budgetMs?: number; worker?: string; source?: 
         const h = handlers[job.job_type];
         try {
           if (!h) throw new Error(`no handler for job_type ${job.job_type}`);
-          const result = await h(job);
+          const remaining = Math.max(5_000, budget - (Date.now() - started));
+          const result = await withTimeout(h(job), remaining, `job ${job.job_type}`);
           await complete(job.id, result);
           ran++;
         } catch (e) {
