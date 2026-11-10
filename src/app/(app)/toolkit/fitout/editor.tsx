@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { Button, Field, Input, Select, Textarea } from "@/components/ui";
+import { Certainty, Field, btn, inputCls } from "@/modules/toolkit/ui/kit";
+import { StickyBar } from "@/modules/toolkit/ui/options/parts";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { saveFitoutAction, type FitoutPayload } from "@/modules/toolkit/actions-fitout";
 import { CATEGORY_LABEL, DEFAULT_CRITERIA, FITOUT_CATEGORIES, type FitoutCategory, type FitoutLine, type PartnerQuote } from "@/modules/toolkit/calc/fitout";
@@ -8,7 +9,11 @@ import { CATEGORY_LABEL, DEFAULT_CRITERIA, FITOUT_CATEGORIES, type FitoutCategor
 const blankLine = (): FitoutLine => ({ category: "civil", description: "", quantity: "", unit: "", unitPrice: "", vendor: "", quoteRef: "", taxPct: "", estimated: "", approved: "", actual: "" });
 const blankQuote = (): PartnerQuote => ({ partnerName: "", scope: [], exclusions: [], price: "", taxPct: "", deliveryWeeks: "", paymentSchedule: "", warrantyMonths: "", validUntil: "", documentsUrl: "" });
 const s = (v: unknown) => (v === null || v === undefined ? "" : String(v));
-const small = "!py-1.5 !px-2 text-xs";
+const cell = inputCls.replace("px-3", "px-2").replace("text-[15px]", "text-sm");
+const STAGE_TINT = { estimated: "bg-amber-50/70 border-amber-300", approved: "bg-sky-50/70 border-sky-300", actual: "bg-emerald-50/70 border-emerald-300" } as const;
+const STAGE_CERT = { estimated: "estimated", approved: "quoted", actual: "confirmed" } as const;
+const STAGE_NAME = { estimated: "Estimated", approved: "Approved", actual: "Actual" } as const;
+const chip = (on: boolean) => `inline-flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-sm focus-within:ring-2 focus-within:ring-brand/30 ${on ? "border-brand bg-brand-soft text-brand" : "border-slate-300 bg-white text-ink-soft"}`;
 
 export function FitoutEditor({ id, title, initial, partners }: { id?: string; title?: string; initial?: FitoutPayload; partners: { id: string; name: string }[] }) {
   const [lines, setLines] = useState<FitoutLine[]>(initial?.lines?.length ? initial.lines : [blankLine()]);
@@ -28,94 +33,141 @@ export function FitoutEditor({ id, title, initial, partners }: { id?: string; ti
     <ActionForm action={saveFitoutAction} className="space-y-6">
       <input type="hidden" name="payload" value={JSON.stringify(payload)} />
       {id ? <input type="hidden" name="id" value={id} /> : null}
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Title"><Input name="title" defaultValue={title ?? ""} placeholder="e.g. Baner HQ fit-out" required /></Field>
-        <Field label="Carpet area (sf)" hint="Optional — gives cost per sf."><Input inputMode="decimal" value={area} onChange={(e) => setArea(e.target.value)} /></Field>
-        <Field label="Seats" hint="Optional — gives cost per seat."><Input inputMode="numeric" value={seats} onChange={(e) => setSeats(e.target.value)} /></Field>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Name this budget" required htmlFor="fo-title"><input id="fo-title" className={inputCls} name="title" defaultValue={title ?? ""} placeholder="e.g. Baner HQ fit-out" required /></Field>
+        <Field label="Carpet area" unit="sf" hint="Gives cost per sf." htmlFor="fo-area"><input id="fo-area" className={`${inputCls} pr-12`} inputMode="decimal" value={area} onChange={(e) => setArea(e.target.value)} placeholder="blank = unknown" /></Field>
+        <Field label="Seats" unit="seats" hint="Gives cost per seat." htmlFor="fo-seats"><input id="fo-seats" className={`${inputCls} pr-16`} inputMode="numeric" value={seats} onChange={(e) => setSeats(e.target.value)} placeholder="blank = unknown" /></Field>
       </div>
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold">Line items <span className="font-normal text-ink-soft">— amounts excluding tax; tax % per line is required (never assumed). Leave unknown amounts blank.</span></h3>
-        {lines.map((l, i) => (
-          <div key={i} className="rounded-xl border border-line bg-surface p-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
-              <Select className={small} value={l.category} onChange={(e) => setL(i, "category", e.target.value)} aria-label="Category">
-                {FITOUT_CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
-              </Select>
-              <Input className={`${small} col-span-1 sm:col-span-2`} placeholder="Description" value={s(l.description)} onChange={(e) => setL(i, "description", e.target.value)} />
-              <Input className={small} placeholder="Qty" inputMode="decimal" value={s(l.quantity)} onChange={(e) => setL(i, "quantity", e.target.value)} />
-              <Input className={small} placeholder="Unit (sf, nos…)" value={s(l.unit)} onChange={(e) => setL(i, "unit", e.target.value)} />
-              <Input className={small} placeholder="Unit price ₹" inputMode="decimal" value={s(l.unitPrice)} onChange={(e) => setL(i, "unitPrice", e.target.value)} />
-              <Input className={small} placeholder="Vendor" value={s(l.vendor)} onChange={(e) => setL(i, "vendor", e.target.value)} />
-              <Input className={small} placeholder="Quote ref" value={s(l.quoteRef)} onChange={(e) => setL(i, "quoteRef", e.target.value)} />
-              <Input className={small} placeholder="Tax %" inputMode="decimal" value={s(l.taxPct)} onChange={(e) => setL(i, "taxPct", e.target.value)} />
-              <Input className={small} placeholder="Estimated ₹ (or qty×price)" inputMode="decimal" value={s(l.estimated)} onChange={(e) => setL(i, "estimated", e.target.value)} />
-              <Input className={small} placeholder="Approved ₹" inputMode="decimal" value={s(l.approved)} onChange={(e) => setL(i, "approved", e.target.value)} />
-              <Input className={small} placeholder="Actual ₹" inputMode="decimal" value={s(l.actual)} onChange={(e) => setL(i, "actual", e.target.value)} />
-            </div>
-            <button type="button" className="mt-2 text-xs text-ink-soft hover:text-bad" onClick={() => setLines((xs) => xs.filter((_, j) => j !== i))}>Remove line</button>
-          </div>
-        ))}
-        <Button type="button" variant="secondary" onClick={() => setLines((xs) => [...xs, blankLine()])}>＋ Add line</Button>
+      <section aria-labelledby="fo-lines" className="space-y-3">
+        <div>
+          <h3 id="fo-lines" className="text-lg font-semibold"><span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">1</span>Budget lines</h3>
+          <p className="text-sm text-ink-soft">One row per item. Amounts <strong>exclude tax</strong>; tax % per line is required (never assumed). Leave unknown amounts blank. Estimated = quantity × unit price when left blank.</p>
+          <p className="mt-2 flex flex-wrap gap-3 text-xs">{(["estimated", "approved", "actual"] as const).map((k) => <span key={k} className={`inline-flex items-center gap-1.5 rounded border px-2 py-1 ${STAGE_TINT[k]}`}><strong>{STAGE_NAME[k]}</strong><Certainty c={STAGE_CERT[k]} /></span>)}</p>
+        </div>
+        <p className="text-xs text-ink-soft sm:hidden">Scroll the table sideways to see every column →</p>
+        <div className="overflow-x-auto rounded-xl border border-line">
+          <table className="w-full min-w-[1180px] text-left text-sm">
+            <thead className="bg-canvas text-xs text-ink-soft">
+              <tr>
+                <th scope="col" className="px-2 py-2 font-semibold">#</th>
+                <th scope="col" className="px-2 py-2 font-semibold">Category</th>
+                <th scope="col" className="px-2 py-2 font-semibold">Description</th>
+                <th scope="col" className="px-2 py-2 font-semibold">Qty</th>
+                <th scope="col" className="px-2 py-2 font-semibold">Unit</th>
+                <th scope="col" className="px-2 py-2 font-semibold">Unit price ₹</th>
+                <th scope="col" className="px-2 py-2 font-semibold">Vendor</th>
+                <th scope="col" className="px-2 py-2 font-semibold">Quote ref</th>
+                <th scope="col" className="px-2 py-2 font-semibold">Tax %</th>
+                {(["estimated", "approved", "actual"] as const).map((k) => <th key={k} scope="col" className={`border-l px-2 py-2 font-semibold ${STAGE_TINT[k]}`}>{STAGE_NAME[k]} ₹</th>)}
+                <th scope="col" className="px-2 py-2"><span className="sr-only">Remove</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {lines.map((l, i) => {
+                const lab = (x: string) => `Line ${i + 1} ${x}`;
+                return (
+                  <tr key={i} className="align-top">
+                    <td className="px-2 py-2 text-ink-soft">{i + 1}</td>
+                    <td className="px-1 py-1.5 min-w-36"><select className={cell} value={l.category} onChange={(e) => setL(i, "category", e.target.value)} aria-label={lab("category")}>
+                      {FITOUT_CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}
+                    </select></td>
+                    <td className="px-1 py-1.5 min-w-48"><input className={cell} aria-label={lab("description")} placeholder="Description" value={s(l.description)} onChange={(e) => setL(i, "description", e.target.value)} /></td>
+                    <td className="px-1 py-1.5 w-20"><input className={cell} aria-label={lab("quantity")} inputMode="decimal" value={s(l.quantity)} onChange={(e) => setL(i, "quantity", e.target.value)} /></td>
+                    <td className="px-1 py-1.5 w-24"><input className={cell} aria-label={lab("unit")} placeholder="sf, nos…" value={s(l.unit)} onChange={(e) => setL(i, "unit", e.target.value)} /></td>
+                    <td className="px-1 py-1.5 w-28"><input className={cell} aria-label={lab("unit price ₹")} inputMode="decimal" value={s(l.unitPrice)} onChange={(e) => setL(i, "unitPrice", e.target.value)} /></td>
+                    <td className="px-1 py-1.5 w-32"><input className={cell} aria-label={lab("vendor")} value={s(l.vendor)} onChange={(e) => setL(i, "vendor", e.target.value)} /></td>
+                    <td className="px-1 py-1.5 w-28"><input className={cell} aria-label={lab("quote ref")} value={s(l.quoteRef)} onChange={(e) => setL(i, "quoteRef", e.target.value)} /></td>
+                    <td className="px-1 py-1.5 w-20"><input className={`${cell} ${s(l.taxPct) === "" ? "border-amber-400" : ""}`} aria-label={lab("tax %")} placeholder="req." inputMode="decimal" value={s(l.taxPct)} onChange={(e) => setL(i, "taxPct", e.target.value)} /></td>
+                    {(["estimated", "approved", "actual"] as const).map((k) => (
+                      <td key={k} className={`w-32 border-l px-1 py-1.5 ${STAGE_TINT[k]}`}><input className={`${cell} ${STAGE_TINT[k]}`} aria-label={lab(`${STAGE_NAME[k].toLowerCase()} ₹`)} inputMode="decimal" placeholder={k === "estimated" ? "qty × price" : "blank = unknown"} value={s(l[k])} onChange={(e) => setL(i, k, e.target.value)} /></td>
+                    ))}
+                    <td className="px-1 py-1.5"><button type="button" aria-label={`Remove line ${i + 1}`} className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 bg-white text-ink-soft hover:border-rose-400 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300" onClick={() => setLines((xs) => xs.filter((_, j) => j !== i))}>✕</button></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <button type="button" className={btn.secondary} onClick={() => setLines((xs) => [...xs, blankLine()])}>＋ Add budget line</button>
       </section>
 
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold">Partner quotations <span className="font-normal text-ink-soft">— every partner goes through the same comparison.</span></h3>
+      <section aria-labelledby="fo-quotes" className="space-y-4">
         <div>
-          <p className="mb-1 text-xs text-ink-soft">Required scope (blank = categories used in the line items)</p>
-          <div className="flex flex-wrap gap-1.5">
+          <h3 id="fo-quotes" className="text-lg font-semibold"><span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">2</span>Partner quotations</h3>
+          <p className="text-sm text-ink-soft">Every partner goes through the same comparison and ranking — no partner is treated specially.</p>
+        </div>
+        <fieldset>
+          <legend className="text-sm font-medium text-ink">Required scope</legend>
+          <p className="mb-2 text-xs text-ink-soft">Tap the categories every quote must cover. None ticked = the categories used in your budget lines.</p>
+          <div className="flex flex-wrap gap-2">
             {FITOUT_CATEGORIES.map((c) => (
-              <label key={c} className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs ${scope.includes(c) ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-soft"}`}>
-                <input type="checkbox" className="sr-only" checked={scope.includes(c)} onChange={(e) => setScope((xs) => (e.target.checked ? [...xs, c] : xs.filter((x) => x !== c)))} />{CATEGORY_LABEL[c]}
+              <label key={c} className={chip(scope.includes(c))}>
+                <input type="checkbox" className="sr-only" checked={scope.includes(c)} onChange={(e) => setScope((xs) => (e.target.checked ? [...xs, c] : xs.filter((x) => x !== c)))} /><span aria-hidden>{scope.includes(c) ? "✓" : "+"}</span>{CATEGORY_LABEL[c]}
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
         <datalist id="partner-names">{partners.map((p) => <option key={p.id} value={p.name} />)}</datalist>
-        {quotes.map((q, i) => (
-          <div key={i} className="space-y-2 rounded-xl border border-line bg-surface p-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Input className={small} list="partner-names" placeholder="Partner name" value={q.partnerName} onChange={(e) => setQ(i, { partnerName: e.target.value, partnerId: byName.get(e.target.value) ?? null })} />
-              <Input className={small} placeholder="Price ex-tax ₹" inputMode="decimal" value={s(q.price)} onChange={(e) => setQ(i, { price: e.target.value })} />
-              <Input className={small} placeholder="Tax %" inputMode="decimal" value={s(q.taxPct)} onChange={(e) => setQ(i, { taxPct: e.target.value })} />
-              <Input className={small} placeholder="Delivery (weeks)" inputMode="numeric" value={s(q.deliveryWeeks)} onChange={(e) => setQ(i, { deliveryWeeks: e.target.value })} />
-              <Input className={small} placeholder="Warranty (months)" inputMode="numeric" value={s(q.warrantyMonths)} onChange={(e) => setQ(i, { warrantyMonths: e.target.value })} />
-              <label className="text-xs text-ink-soft">Valid until<Input className={small} type="date" value={s(q.validUntil)} onChange={(e) => setQ(i, { validUntil: e.target.value })} /></label>
-              <Input className={small} placeholder="Payment schedule" value={s(q.paymentSchedule)} onChange={(e) => setQ(i, { paymentSchedule: e.target.value })} />
-              <Input className={small} placeholder="Documents link" value={s(q.documentsUrl)} onChange={(e) => setQ(i, { documentsUrl: e.target.value })} />
+        {quotes.length === 0 ? <p className="rounded-xl border-2 border-dashed border-slate-300 px-4 py-6 text-center text-sm text-ink-soft">No quotations yet. Press “Add partner quotation” for each partner&apos;s quote.</p> : null}
+        <div className="grid gap-4 lg:grid-cols-2">
+        {quotes.map((q, i) => {
+          const qid = `q${i}-`;
+          return (
+          <article key={i} aria-label={`Quotation ${i + 1}`} className={`space-y-3 rounded-xl border-2 bg-surface p-4 ${pref === i ? "border-brand" : "border-line"}`}>
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold">Quotation {i + 1}{q.partnerName ? ` — ${q.partnerName}` : ""}</p>
+              <span className="flex items-center gap-2">{pref === i ? <span className="rounded-full bg-brand px-2.5 py-0.5 text-xs font-semibold text-white">★ Preferred</span> : null}<Certainty c="quoted" /></span>
             </div>
-            <Input className={small} placeholder="Exclusions (separate with ;)" value={(q.exclusions ?? []).join("; ")} onChange={(e) => setQ(i, { exclusions: e.target.value.split(";").map((x) => x.trim()) })} />
-            <div className="flex flex-wrap gap-1">
-              {FITOUT_CATEGORIES.map((c) => {
-                const on = (q.scope ?? []).includes(c);
-                return <button type="button" key={c} onClick={() => setQ(i, { scope: on ? (q.scope ?? []).filter((x) => x !== c) : [...(q.scope ?? []), c] })} className={`rounded-full border px-2 py-0.5 text-[11px] ${on ? "border-brand bg-brand-soft text-brand" : "border-line text-ink-soft"}`}>{CATEGORY_LABEL[c]}</button>;
-              })}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Field label="Partner name" htmlFor={`${qid}name`} required><input id={`${qid}name`} className={inputCls} list="partner-names" value={q.partnerName} onChange={(e) => setQ(i, { partnerName: e.target.value, partnerId: byName.get(e.target.value) ?? null })} /></Field>
+              <Field label="Price excluding tax" unit="₹" htmlFor={`${qid}price`} required><input id={`${qid}price`} className={`${inputCls} pr-10`} inputMode="decimal" value={s(q.price)} onChange={(e) => setQ(i, { price: e.target.value })} /></Field>
+              <Field label="Tax" unit="%" htmlFor={`${qid}tax`} required><input id={`${qid}tax`} className={`${inputCls} pr-10`} inputMode="decimal" value={s(q.taxPct)} onChange={(e) => setQ(i, { taxPct: e.target.value })} /></Field>
+              <Field label="Delivery" unit="weeks" htmlFor={`${qid}wk`}><input id={`${qid}wk`} className={`${inputCls} pr-16`} inputMode="numeric" value={s(q.deliveryWeeks)} onChange={(e) => setQ(i, { deliveryWeeks: e.target.value })} /></Field>
+              <Field label="Warranty" unit="months" htmlFor={`${qid}wr`}><input id={`${qid}wr`} className={`${inputCls} pr-20`} inputMode="numeric" value={s(q.warrantyMonths)} onChange={(e) => setQ(i, { warrantyMonths: e.target.value })} /></Field>
+              <Field label="Valid until" hint="Past this date the quote is marked Expired." htmlFor={`${qid}vu`}><input id={`${qid}vu`} className={inputCls} type="date" value={s(q.validUntil)} onChange={(e) => setQ(i, { validUntil: e.target.value })} /></Field>
+              <Field label="Payment schedule" htmlFor={`${qid}pay`}><input id={`${qid}pay`} className={inputCls} value={s(q.paymentSchedule)} onChange={(e) => setQ(i, { paymentSchedule: e.target.value })} /></Field>
+              <Field label="Documents link" htmlFor={`${qid}doc`}><input id={`${qid}doc`} className={inputCls} value={s(q.documentsUrl)} onChange={(e) => setQ(i, { documentsUrl: e.target.value })} /></Field>
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <label className="flex items-center gap-1.5"><input type="radio" name="pref-pick" checked={pref === i} onChange={() => setPref(i)} /> Mark as preferred</label>
-              <button type="button" className="text-ink-soft hover:text-bad" onClick={() => { setQuotes((xs) => xs.filter((_, j) => j !== i)); setPref(null); }}>Remove quote</button>
+            <Field label="Exclusions" hint="Separate items with ;" htmlFor={`${qid}ex`}><input id={`${qid}ex`} className={inputCls} value={(q.exclusions ?? []).join("; ")} onChange={(e) => setQ(i, { exclusions: e.target.value.split(";").map((x) => x.trim()) })} /></Field>
+            <fieldset>
+              <legend className="text-sm font-medium">Scope this quote covers</legend>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {FITOUT_CATEGORIES.map((c) => {
+                  const on = (q.scope ?? []).includes(c);
+                  return <button type="button" key={c} aria-pressed={on} onClick={() => setQ(i, { scope: on ? (q.scope ?? []).filter((x) => x !== c) : [...(q.scope ?? []), c] })} className={chip(on)}><span aria-hidden>{on ? "✓" : "+"}</span>{CATEGORY_LABEL[c]}</button>;
+                })}
+              </div>
+            </fieldset>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+              <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm font-medium"><input type="radio" className="h-5 w-5 accent-[var(--color-brand)]" name="pref-pick" checked={pref === i} onChange={() => setPref(i)} /> Mark as preferred partner</label>
+              <button type="button" className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm text-ink-soft hover:border-rose-400 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300" onClick={() => { setQuotes((xs) => xs.filter((_, j) => j !== i)); setPref(null); }}>✕ Remove quotation</button>
             </div>
-          </div>
-        ))}
-        <Button type="button" variant="secondary" onClick={() => setQuotes((xs) => [...xs, blankQuote()])}>＋ Add quotation</Button>
+          </article>
+          );
+        })}
+        </div>
+        <button type="button" className={btn.secondary} onClick={() => setQuotes((xs) => [...xs, blankQuote()])}>＋ Add partner quotation</button>
         {pref !== null ? (
-          <div className="space-y-2">
-            <Field label="Why is this partner preferred?" hint="Required, stored with the analysis. The ranking itself is unchanged."><Textarea value={reason} onChange={(e) => setReason(e.target.value)} required minLength={10} /></Field>
-            <button type="button" className="text-xs text-ink-soft underline" onClick={() => { setPref(null); setReason(""); }}>Clear preferred choice</button>
+          <div role="status" className="space-y-3 rounded-xl border-2 border-brand/40 bg-brand-soft p-4">
+            <p className="text-sm font-semibold">★ Preferred partner needs a written reason</p>
+            <p className="text-sm text-ink-soft">You marked a preferred partner. Write why (at least 10 characters) — it is stored with the analysis. The ranking itself does not change.</p>
+            <Field label="Why is this partner preferred?" required htmlFor="fo-reason"><textarea id="fo-reason" rows={3} className={`${inputCls} py-2`} value={reason} onChange={(e) => setReason(e.target.value)} required minLength={10} /></Field>
+            <button type="button" className={btn.quiet} onClick={() => { setPref(null); setReason(""); }}>Clear preferred choice</button>
           </div>
         ) : null}
-        <details className="text-xs">
-          <summary className="cursor-pointer text-ink-soft">Ranking weights (price {crit.price} · scope {crit.scope} · timeline {crit.timeline} · warranty {crit.warranty})</summary>
-          <div className="mt-2 grid grid-cols-4 gap-2">
+        <details className="group rounded-xl border border-line">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 text-sm font-medium">Ranking weights — price {crit.price} · scope {crit.scope} · timeline {crit.timeline} · warranty {crit.warranty} <span aria-hidden className="transition group-open:rotate-180 motion-reduce:transition-none">▾</span></summary>
+          <div className="grid grid-cols-2 gap-3 border-t border-line p-4 sm:grid-cols-4">
             {(["price", "scope", "timeline", "warranty"] as const).map((k) => (
-              <label key={k}>{k}<Input className={small} inputMode="numeric" value={crit[k]} onChange={(e) => setCrit((c) => ({ ...c, [k]: Math.max(0, Number(e.target.value) || 0) }))} /></label>
+              <Field key={k} label={k[0].toUpperCase() + k.slice(1)} htmlFor={`w-${k}`}><input id={`w-${k}`} className={inputCls} inputMode="numeric" value={crit[k]} onChange={(e) => setCrit((c) => ({ ...c, [k]: Math.max(0, Number(e.target.value) || 0) }))} /></Field>
             ))}
           </div>
         </details>
       </section>
 
-      <Field label="Version note (optional)"><Input name="note" placeholder="What changed" /></Field>
-      <Submit>{id ? "Save new version" : "Calculate & save"}</Submit>
+      <Field label="Version note" htmlFor="fo-note"><input id="fo-note" className={inputCls} name="note" placeholder="What changed" /></Field>
+      <StickyBar note="Press to total the budget and rank the quotes."><Submit>{id ? "Compare & save new version" : "Compare & save"}</Submit></StickyBar>
     </ActionForm>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 import { useId, useState, type ReactNode } from "react";
-import { Input, Select } from "@/components/ui";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { updateBriefFieldAction } from "@/modules/toolkit/actions-core";
 import type { BriefField } from "@/modules/toolkit/brief";
+import { Field, btn, inputCls } from "@/modules/toolkit/ui/kit";
 
 export interface EditCtx { requirementId: string; rowVersion: number; canEdit: boolean }
 
@@ -11,21 +11,30 @@ const placeholderFor = (key: string) => (key === "area" || key === "seats" ? "mi
 
 /** Compact edit form for one brief field (same fields/behaviour as before: value, how sure, evidence). */
 export function FieldForm({ f, ctx, onDone }: { f: BriefField; ctx: EditCtx; onDone?: () => void }) {
+  const uid = useId();
   return (
-    <ActionForm action={updateBriefFieldAction} className="mt-2 grid gap-2 rounded-lg border border-line bg-canvas p-3 sm:grid-cols-[1fr_13rem]">
+    <ActionForm action={updateBriefFieldAction} className="mt-2 grid gap-3 rounded-lg border border-line bg-canvas p-3 sm:grid-cols-[1fr_15rem]">
       <input type="hidden" name="requirement_id" value={ctx.requirementId} />
       <input type="hidden" name="row_version" value={ctx.rowVersion} />
       <input type="hidden" name="key" value={f.key} />
-      <Input name="value" defaultValue={f.value ?? ""} placeholder={placeholderFor(f.key)} aria-label={f.label} autoFocus />
-      <Select name="status" defaultValue={f.status === "Assumption" ? "reported" : "estimated"} aria-label="How sure">
-        <option value="estimated">Estimated (our estimate)</option>
-        <option value="reported">Assumption (heard second-hand)</option>
-        <option value="client_confirmed">Confirmed by client — needs approval</option>
-      </Select>
-      <Input name="evidence" placeholder="If confirmed: how (meeting date, email reference)" className="sm:col-span-2" />
-      <div className="flex gap-2">
-        <Submit variant="secondary">Save</Submit>
-        {onDone && <button type="button" onClick={onDone} className="rounded px-2 text-xs text-ink-soft hover:text-ink focus-visible:outline-2 focus-visible:outline-brand">Cancel</button>}
+      <Field label={f.label} htmlFor={`${uid}-v`} required hint={placeholderFor(f.key) ? `Enter as: ${placeholderFor(f.key)}` : undefined}>
+        <input id={`${uid}-v`} name="value" defaultValue={f.value ?? ""} placeholder={placeholderFor(f.key)} className={inputCls} autoFocus />
+      </Field>
+      <Field label="How sure are you?" htmlFor={`${uid}-s`} required>
+        <select id={`${uid}-s`} name="status" defaultValue={f.status === "Assumption" ? "reported" : "estimated"} className={inputCls}>
+          <option value="estimated">Estimated (our estimate)</option>
+          <option value="reported">Assumption (heard second-hand)</option>
+          <option value="client_confirmed">Confirmed by client — needs approval</option>
+        </select>
+      </Field>
+      <div className="sm:col-span-2">
+        <Field label="Evidence" htmlFor={`${uid}-e`} hint="If confirmed: how — meeting date or email reference.">
+          <input id={`${uid}-e`} name="evidence" placeholder="e.g. Call with CFO, 3 Nov" className={inputCls} />
+        </Field>
+      </div>
+      <div className="flex gap-2 sm:col-span-2">
+        <Submit>Save</Submit>
+        {onDone && <button type="button" onClick={onDone} className={btn.secondary}>Cancel</button>}
       </div>
     </ActionForm>
   );
@@ -40,8 +49,8 @@ export function EditableValue({ f, ctx, children, className = "" }: { f: BriefFi
     <div className={className}>
       <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}
         title={`Edit ${f.label}`}
-        className="group -mx-1 block w-[calc(100%+0.5rem)] rounded px-1 text-left hover:bg-brand-soft/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-        {children}
+        className="group -mx-1 block min-h-11 w-[calc(100%+0.5rem)] rounded px-1 text-left hover:bg-brand-soft/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
+        <span className="flex items-start justify-between gap-2"><span className="min-w-0 flex-1">{children}</span><span aria-hidden className="shrink-0 pt-0.5 text-xs font-medium text-brand opacity-70 group-hover:opacity-100">✎ Edit</span></span>
         <span className="sr-only"> — edit {f.label}</span>
       </button>
       {open && <div id={id}><FieldForm f={f} ctx={ctx} onDone={() => setOpen(false)} /></div>}
@@ -62,8 +71,8 @@ export function MissingLine({ fields, ctx }: { fields: BriefField[]; ctx: EditCt
         <span className="min-w-0 flex-1">{fields.map((f) => f.label).join(", ")}</span>
         {ctx.canEdit && (
           <button type="button" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}
-            className="font-medium text-brand hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand">
-            {open ? "Close" : "Add"}
+            className={open ? btn.secondary : btn.primary}>
+            {open ? "Close" : "✎ Fill these in"}
           </button>
         )}
       </p>
@@ -71,7 +80,6 @@ export function MissingLine({ fields, ctx }: { fields: BriefField[]; ctx: EditCt
         <div id={id} className="mt-3 space-y-4">
           {fields.map((f) => (
             <div key={f.key}>
-              <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">{f.label}</p>
               <FieldForm f={f} ctx={ctx} />
             </div>
           ))}

@@ -1,60 +1,80 @@
-import Link from "next/link";
-import { Badge, Card, EmptyState, Field, HelpFor, Input, PageHeader, Stat, Table, Td, inr } from "@/components/ui";
+import Decimal from "decimal.js";
+import { Table, Td, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { leaseEconomicsAction } from "@/modules/toolkit/actions-lease";
 import { getAnalysis, listAnalyses } from "@/modules/toolkit/store";
 import type { LeaseEconomics, LeaseTerms, OfferComparison } from "@/modules/toolkit/calc/lease";
+import { Certainty, EmptyState, Legend, MissingNote, Readout, Status, ToolHeader, btn } from "@/modules/toolkit/ui/kit";
+import { BlankHint, Completeness, H, HowCalculated, In, Panel, SavedList, StickyBar, certOf, offerLetter } from "@/modules/toolkit/ui/lease/shared";
 import { LeaseTermFields, Money, Warnings } from "./parts";
 
 type Out = { mode: "single"; result: LeaseEconomics } | { mode: "compare"; comparison: OfferComparison };
+const STEPS = ["Enter the offer", "Calculate", "Read the cost breakdown", "Compare offers"];
+
+/** Average rent per sf per month over the tenure, after rent-free and escalation (display only, deterministic). */
+function effectiveRent(r: LeaseEconomics): string | null {
+  const tenure = r.years.length ? r.years[r.years.length - 1].toMonth : 0;
+  if (!tenure || !Number(r.areaSf)) return null;
+  return new Decimal(r.totals.rent).div(r.areaSf).div(tenure).toDecimalPlaces(2).toString();
+}
 
 function OfferResult({ r }: { r: LeaseEconomics }) {
+  const eff = effectiveRent(r);
   return (
-    <section className="space-y-4">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="font-serif text-xl">{r.name}</h3>
-        <Badge tone={r.label === "quoted" ? "ok" : "warn"}>{r.label}</Badge>
-        <Badge tone={r.complete ? "ok" : "warn"}>{r.totalsLabel}</Badge>
-        <span className="text-xs text-ink-soft">{inr(r.areaSf).replace("₹", "")} sf {r.areaBasis} · rent-free {r.rentFreeMonths} mo</span>
+    <Panel>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <H sub={<>{inr(r.areaSf).replace("₹", "")} sq ft {r.areaBasis} · rent-free {r.rentFreeMonths} months</>}>{r.name}</H>
+        <Completeness complete={r.complete} label={r.label} />
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Base rent / month" value={<Money x={r.monthly.baseRent} />} hint={<>per year <Money x={r.annual.baseRent} /></>} />
-        <Stat label="CAM / month" value={<Money x={r.monthly.cam} />} hint={<>per year <Money x={r.annual.cam} /></>} />
-        <Stat label="Parking / month" value={<Money x={r.monthly.parking} />} hint={<>other / month <Money x={r.monthly.other} /></>} />
-        <Stat label="Rent-free benefit" value={<Money x={r.rentFreeBenefit} compact />} />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border border-line p-4 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">Over the tenure</p>
-          <dl className="mt-2 grid grid-cols-2 gap-y-1">
-            <dt>Rent</dt><dd className="text-right"><Money x={r.totals.rent} /></dd>
-            <dt>CAM</dt><dd className="text-right"><Money x={r.totals.cam} /></dd>
-            <dt>Parking</dt><dd className="text-right"><Money x={r.totals.parking} /></dd>
-            <dt>Other recurring</dt><dd className="text-right"><Money x={r.totals.other} /></dd>
-            <dt>Non-recurring</dt><dd className="text-right"><Money x={r.totals.nonRecurring} /></dd>
-            <dt className="border-t border-line pt-1 font-semibold">Total contractual occupancy expenditure</dt><dd className="border-t border-line pt-1 text-right font-semibold"><Money x={r.totals.contractualExpenditure} /></dd>
-            <dt className="text-ink-soft">Present value (incl. deposit timing)</dt><dd className="text-right text-ink-soft"><Money x={r.totals.npv} /></dd>
-          </dl>
-        </div>
-        <div className="rounded-2xl border border-line p-4 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">Security deposit — refundable, not an expense</p>
-          {r.deposit ? <p className="mt-2"><span className="text-lg font-semibold">{inr(r.deposit.amount)}</span><br /><span className="text-ink-soft">paid at signing (month 0), refunded month {r.deposit.refundMonth}</span></p> : <p className="mt-2"><Badge tone="warn">unknown or none</Badge></p>}
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">Escalated rent by period</p>
-          <ul className="mt-1 space-y-1">{r.rentSteps.map((s) => <li key={s.fromMonth}>Months {s.fromMonth}–{s.toMonth}: ₹{s.ratePerSf}/sf · {inr(s.monthlyRent)}/mo · {inr(s.annualRent)}/yr</li>)}</ul>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Readout label="Monthly rent (starting)" value={<Money x={r.monthly.baseRent} />} sub={<>per year <Money x={r.annual.baseRent} /></>} />
+        <Readout label="Monthly CAM" value={<Money x={r.monthly.cam} />} unknown={r.monthly.cam === null} sub={<>parking / month <Money x={r.monthly.parking} /></>} />
+        <Readout label="Effective rent" value={eff ? `₹${eff} /sf/month` : "—"} unknown={!eff} sub="average after rent-free and escalation" />
+        <Readout emphasis label="Total cost over tenure" value={<Money x={r.totals.contractualExpenditure} />} sub={<>present value <Money x={r.totals.npv} /> · <Certainty c={r.complete ? certOf(r.label) : "missing"} /></>} />
+        <Readout label="Rent-free benefit" value={<Money x={r.rentFreeBenefit} />} sub="rent you don't pay during rent-free" />
+        <div className="rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50/60 px-4 py-3">
+          <p className="flex items-center justify-between gap-2 text-xs font-medium text-emerald-900"><span>Refundable deposit</span><span className="rounded bg-white/70 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-emerald-800">Not a cost</span></p>
+          {r.deposit ? (
+            <><p className="mt-1 text-lg font-semibold tabular-nums">{inr(r.deposit.amount)}</p><p className="mt-0.5 text-xs text-emerald-900"><span aria-hidden>↺ </span>Comes back to you — paid at signing, refunded month {r.deposit.refundMonth}.</p></>
+          ) : <p className="mt-1 text-sm italic text-ink-soft">Unknown or none — add deposit months to see it.</p>}
         </div>
       </div>
-      <Table head={["Year", "Months", "Rent", "CAM", "Parking", "Other", "One-off", "Expenditure", "Deposit (refundable)"]}>
-        {r.years.map((y) => <tr key={y.year}><Td>{y.year}</Td><Td>{y.fromMonth}–{y.toMonth}</Td><Td>{inr(y.rent)}</Td><Td>{inr(y.cam)}</Td><Td>{inr(y.parking)}</Td><Td>{inr(y.other)}</Td><Td>{inr(y.nonRecurring)}</Td><Td className="font-medium">{inr(y.expenditure)}</Td><Td className="text-ink-soft">{inr(y.deposit)}</Td></tr>)}
-      </Table>
-      <details className="text-sm">
-        <summary className="cursor-pointer font-medium text-ink-soft hover:text-brand">Month by month ({r.months.length})</summary>
-        <div className="mt-2"><Table head={["Month", "Date", "Rent", "CAM", "Parking", "Other", "Total"]}>
-          {r.months.map((m) => <tr key={m.month}><Td>{m.month}</Td><Td>{m.date}</Td><Td>{inr(m.rent)}</Td><Td>{inr(m.cam)}</Td><Td>{inr(m.parking)}</Td><Td>{inr(m.other)}</Td><Td>{inr(m.total)}</Td></tr>)}
-        </Table></div>
-      </details>
+      <MissingNote items={r.gaps} what="the totals above exclude these until you add them" />
+
+      <div className="space-y-2">
+        <H sub="Each row is one lease year. Costs only — the deposit column is money that comes back.">Year by year</H>
+        <div className="overflow-x-auto">
+          <Table head={["Year", "Months", "Rent", "CAM", "Parking", "Other", "One-off", "Total cost", "Deposit (refundable)"]}>
+            {r.years.map((y) => <tr key={y.year}><Td className="font-medium">Year {y.year}</Td><Td>{y.fromMonth}–{y.toMonth}</Td><Td>{inr(y.rent)}</Td><Td>{inr(y.cam)}</Td><Td>{inr(y.parking)}</Td><Td>{inr(y.other)}</Td><Td>{inr(y.nonRecurring)}</Td><Td className="font-semibold">{inr(y.expenditure)}</Td><Td className="text-emerald-800">{inr(y.deposit)}</Td></tr>)}
+          </Table>
+        </div>
+      </div>
+
+      <HowCalculated>
+        <p>Formula lease-1.0 on the fin-1.0 engine — fixed, deterministic arithmetic (no AI). Blank inputs are unknown and excluded from totals, never treated as zero.</p>
+        <p className="font-medium text-ink">Rent by period</p>
+        <ul className="list-disc space-y-1 pl-5">{r.rentSteps.map((s) => <li key={s.fromMonth}>Months {s.fromMonth}–{s.toMonth}: ₹{s.ratePerSf}/sf · {inr(s.monthlyRent)}/month · {inr(s.annualRent)}/year</li>)}</ul>
+        <p className="font-medium text-ink">Over the tenure</p>
+        <dl className="grid max-w-md grid-cols-2 gap-y-1">
+          <dt>Rent</dt><dd className="text-right"><Money x={r.totals.rent} /></dd>
+          <dt>CAM</dt><dd className="text-right"><Money x={r.totals.cam} /></dd>
+          <dt>Parking</dt><dd className="text-right"><Money x={r.totals.parking} /></dd>
+          <dt>Other recurring</dt><dd className="text-right"><Money x={r.totals.other} /></dd>
+          <dt>One-off</dt><dd className="text-right"><Money x={r.totals.nonRecurring} /></dd>
+          <dt className="border-t border-line pt-1 font-semibold text-ink">Total contractual cost</dt><dd className="border-t border-line pt-1 text-right font-semibold text-ink"><Money x={r.totals.contractualExpenditure} /></dd>
+        </dl>
+        <p>Present value discounts each month&apos;s payment at your discount rate and includes the deposit going out and coming back. Effective rent = total rent ÷ (area × tenure months).</p>
+        <p>{r.totalsLabel}</p>
+        <details>
+          <summary className="flex min-h-11 cursor-pointer items-center font-medium hover:text-brand">Month by month ({r.months.length})</summary>
+          <div className="overflow-x-auto"><Table head={["Month", "Date", "Rent", "CAM", "Parking", "Other", "Total"]}>
+            {r.months.map((m) => <tr key={m.month}><Td>{m.month}</Td><Td>{m.date}</Td><Td>{inr(m.rent)}</Td><Td>{inr(m.cam)}</Td><Td>{inr(m.parking)}</Td><Td>{inr(m.other)}</Td><Td>{inr(m.total)}</Td></tr>)}
+          </Table></div>
+        </details>
+      </HowCalculated>
       <Warnings items={r.warnings} />
-    </section>
+    </Panel>
   );
 }
 
@@ -68,51 +88,69 @@ export default async function LeasePage({ searchParams }: { searchParams: Promis
   const out = cur?.outputs as Out | undefined;
   const offers: LeaseTerms[] = (cur?.inputs as { offers?: LeaseTerms[] } | undefined)?.offers ?? [];
   const discount = offers[0]?.discountRatePct ?? "";
+  const step = cur && out ? (out.mode === "compare" ? 3 : 2) : 0;
   return (
-    <div data-tour="toolkit-lease" className="mx-auto max-w-5xl space-y-6 pb-16">
-      <PageHeader title="Lease economics" subtitle="Rent, escalation, rent-free, CAM, parking and deposit over the tenure. Formula lease-1.0 on the fin-1.0 engine — deterministic; blanks are unknown, never zero." />
+    <div data-tour="toolkit-lease" className="mx-auto max-w-6xl space-y-6 pb-16">
+      <ToolHeader eyebrow="Deal toolkit" title="Lease economics" purpose="What an offer really costs: rent, escalation, rent-free, CAM, parking and deposit over the whole tenure. Add up to four offers to compare them side by side." steps={STEPS} current={step} />
+      <Legend />
+
       {cur && out ? (
-        <Card title={<span>{cur.title} <span className="text-xs font-normal text-ink-soft">v{cur.current_version} · {cur.formula_version}</span></span>}>
+        <section className="space-y-4" aria-label="Results">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl font-bold">{cur.title}</h2>
+            <span className="text-xs text-ink-soft">version {cur.current_version} · {cur.formula_version}</span>
+            <Status s={cur.status ?? "draft"} />
+          </div>
           {out.mode === "compare" ? (
-            <div className="space-y-8">
-              <Table head={["Rank", "Offer", "Nominal total", "Present value", "vs first offer (PV)", "Costs"]}>
-                {out.comparison.rows.map((r) => <tr key={r.name}><Td>{r.rank}</Td><Td className="font-medium">{r.name}</Td><Td>{inr(r.nominalTco)}</Td><Td>{inr(r.npv)}</Td><Td>{inr(r.incrementalNpvVsBaseline)}</Td><Td>{r.complete ? <Badge tone="ok">complete</Badge> : <Badge tone="warn">incomplete</Badge>}</Td></tr>)}
-              </Table>
-              <p className="text-xs text-ink-soft">All offers compared over the same {out.comparison.horizonMonths} months, same start date and discount rate. Nominal total includes the deposit paid and refunded (nets to zero).</p>
+            <div className="space-y-6">
+              <Panel>
+                <H sub={`All offers over the same ${out.comparison.horizonMonths} months, same start date and discount rate. Lowest present value ranks first.`}>Offers compared</H>
+                <div className="overflow-x-auto">
+                  <Table head={["Rank", "Offer", "Total cost (nominal)", "Present value", "vs first offer (PV)", "Costs"]}>
+                    {out.comparison.rows.map((r) => <tr key={r.name}><Td className="font-bold">#{r.rank}</Td><Td className="font-medium">{r.name}</Td><Td>{inr(r.nominalTco)}</Td><Td>{inr(r.npv)}</Td><Td>{inr(r.incrementalNpvVsBaseline)}</Td><Td>{r.complete ? <Status s="ready" label="Complete" /> : <Status s="needs_info" label="Incomplete" />}</Td></tr>)}
+                  </Table>
+                </div>
+                <p className="text-xs text-ink-soft">Nominal total includes the deposit paid and refunded (nets to zero).</p>
+              </Panel>
               {out.comparison.offers.map((o) => <OfferResult key={o.name} r={o} />)}
             </div>
           ) : <OfferResult r={out.result} />}
-          {cur.versions?.length > 1 && <p className="mt-4 text-xs text-ink-soft">Earlier versions are kept: {cur.versions.map((v: { version: number }) => `v${v.version}`).join(", ")}.</p>}
-        </Card>
+          {cur.versions?.length > 1 && <p className="text-xs text-ink-soft">Earlier versions are kept: {cur.versions.map((v: { version: number }) => `v${v.version}`).join(", ")}.</p>}
+        </section>
       ) : null}
 
       {ctx.role !== "viewer" && (
-        <Card title={<span className="flex items-center">{cur ? "Change the terms (saves a new version)" : "New lease analysis"}<HelpFor k="Lease economics" /></span>}>
-          <ActionForm action={leaseEconomicsAction} className="space-y-4" dataTour="lease-form">
+        <section className="space-y-4" aria-labelledby="lease-form-h">
+          <H sub={cur ? "Change any term and recalculate — this saves a new version; earlier ones are kept." : "Area, rent, tenure and start date are enough to start."}><span id="lease-form-h">{cur ? "Change the terms" : "1 · Enter the offer"}</span></H>
+          <ActionForm action={leaseEconomicsAction} className="space-y-5" dataTour="lease-form">
             {cur ? <input type="hidden" name="id" value={cur.id} /> : null}
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Title"><Input name="title" defaultValue={cur?.title ?? ""} placeholder="Baner shortlist — lease terms" /></Field>
-              <Field label="Discount % p.a." hint="Used for present value. 0 = undiscounted."><Input name="discount" inputMode="decimal" defaultValue={String(discount)} required /></Field>
+            <BlankHint />
+            <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2">
+              <In label="Analysis title" name="title" defaultValue={cur?.title ?? ""} placeholder="Baner shortlist — lease terms" />
+              <In label="Discount rate" unit="% per year" name="discount" inputMode="decimal" defaultValue={String(discount)} required hint="Used for present value. 0 = undiscounted." />
             </div>
-            <LeaseTermFields p="o0_" def={offers[0]} title="Offer 1" />
-            {[1, 2, 3].map((k) => (
-              <details key={k} open={!!offers[k]} className="group">
-                <summary className="cursor-pointer text-sm font-medium text-ink-soft hover:text-brand">＋ Offer {k + 1} (compare side by side)</summary>
-                <div className="mt-3"><LeaseTermFields p={`o${k}_`} def={offers[k]} title={`Offer ${k + 1}`} /></div>
-              </details>
-            ))}
-            <Submit dataTour="lease-save">{cur ? "Recalculate & save new version" : "Calculate & save"}</Submit>
+            <div className="grid gap-5 xl:grid-cols-2">
+              <LeaseTermFields p="o0_" def={offers[0]} title="Offer A" />
+              {[1, 2, 3].map((k) => (
+                <details key={k} open={!!offers[k]} className="group min-w-0">
+                  <summary className={`${btn.secondary} w-full list-none border-dashed group-open:mb-3`}><span aria-hidden>＋</span> Add offer {offerLetter(k)} <span className="font-normal text-ink-soft group-open:hidden">(compare side by side)</span><span className="hidden font-normal text-ink-soft group-open:inline">— open</span></summary>
+                  <LeaseTermFields p={`o${k}_`} def={offers[k]} title={`Offer ${offerLetter(k)}`} />
+                </details>
+              ))}
+            </div>
+            <StickyBar note="Calculates with fixed formulas and saves the analysis.">
+              <Submit dataTour="lease-save">{cur ? "Recalculate & save new version" : "Calculate & save"}</Submit>
+            </StickyBar>
           </ActionForm>
-        </Card>
+        </section>
       )}
 
-      <Card title="Saved lease analyses">
-        {saved.length === 0 ? <EmptyState title="Nothing saved yet">Enter an offer above — area, rent ₹/sf/month, dates and tenure are enough to start. Add up to three more offers to compare.</EmptyState> : (
-          <ul className="divide-y divide-line text-sm">
-            {saved.map((a) => <li key={a.id} className="flex items-center justify-between gap-2 py-2"><Link className="text-brand" href={`/toolkit/lease?id=${a.id}`}>{a.title}</Link><span className="flex gap-1.5 text-xs text-ink-soft">v{a.current_version} <Badge tone={a.status === "needs_info" ? "warn" : "neutral"}>{a.status === "needs_info" ? "needs info" : a.status}</Badge></span></li>)}
-          </ul>
+      <section className="space-y-3" aria-labelledby="lease-saved-h">
+        <H><span id="lease-saved-h">Saved lease analyses</span></H>
+        {saved.length === 0 ? <EmptyState title="Nothing saved yet" text="Enter an offer above — area, rent ₹/sf/month, dates and tenure are enough to start. Add up to three more offers to compare." /> : (
+          <SavedList items={saved as any} href={(id) => `/toolkit/lease?id=${id}`} />
         )}
-      </Card>
+      </section>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
-import { Badge, Field, Input, MoreFields, Select, inr } from "@/components/ui";
+import { inr } from "@/components/ui";
+import { FormSection } from "@/modules/toolkit/ui/kit";
+import { In, Sel } from "@/modules/toolkit/ui/lease/shared";
 import type { LeaseTerms } from "@/modules/toolkit/calc/lease";
 
 /** Shared lease-term fields (lease, occupancy and negotiation pages). Field names are prefixed (e.g. "o0_"). */
@@ -7,52 +9,51 @@ type Def = Partial<LeaseTerms>;
 const v = (x: unknown) => (x === null || x === undefined ? "" : String(x));
 
 export function Money({ x, compact }: { x: string | null | undefined; compact?: boolean }) {
-  return x === null || x === undefined ? <Badge tone="warn">unknown</Badge> : <>{inr(x, { compact })}</>;
+  return x === null || x === undefined ? <span className="inline-flex items-center gap-1 italic text-ink-soft"><span aria-hidden className="h-2 w-2 rounded-full border border-slate-400 bg-white" />unknown</span> : <>{inr(x, { compact })}</>;
 }
 
 export function LeaseTermFields({ p, def = {}, title, extra }: { p: string; def?: Def; title?: string; extra?: ReactNode }) {
   const other = def.otherRecurring?.[0];
   const nr = def.nonRecurring?.[0];
   return (
-    <fieldset className="space-y-3 rounded-2xl border border-line p-4">
-      {title ? <legend className="px-1 text-xs font-semibold uppercase tracking-[0.18em] text-ink-soft">{title}</legend> : null}
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Offer name"><Input name={`${p}name`} defaultValue={v(def.name)} placeholder="Building A" /></Field>
-        <Field label="Values are" hint="Quoted = from a landlord quote. Estimated = your assumption. Shown on every result.">
-          <Select name={`${p}label`} defaultValue={v(def.label) || "quoted"}><option value="quoted">Quoted</option><option value="estimated">Estimated</option></Select>
-        </Field>
-        <Field label="Area (sf)"><Input name={`${p}area`} inputMode="decimal" defaultValue={v(def.areaSf)} /></Field>
-        <Field label="Area basis" hint="Rent and CAM rates apply to this area.">
-          <Select name={`${p}basis`} defaultValue={v(def.areaBasis) || "chargeable"}><option value="chargeable">Chargeable</option><option value="carpet">Carpet</option></Select>
-        </Field>
-        <Field label="Rent ₹/sf/month"><Input name={`${p}rent`} inputMode="decimal" defaultValue={v(def.rentPerSf)} /></Field>
-        <Field label="Tenure (months)"><Input name={`${p}tenure`} inputMode="numeric" defaultValue={v(def.tenureMonths)} /></Field>
-        <Field label="Lease commencement"><Input type="date" name={`${p}lc`} defaultValue={v(def.leaseCommencement)} /></Field>
-        <Field label="Rent commencement" hint="Optional. If rent-free months is blank, rent-free = whole months between the two dates.">
-          <Input type="date" name={`${p}rc`} defaultValue={v(def.rentCommencement)} />
-        </Field>
-        <Field label="Rent-free (months)"><Input name={`${p}rf`} inputMode="numeric" defaultValue={v(def.rentFreeMonths)} /></Field>
-        <Field label="Deposit (months of rent)" hint="Blank = unknown. 0 = no deposit. Refundable — shown separately from expenses."><Input name={`${p}dep`} inputMode="decimal" defaultValue={v(def.depositMonths)} /></Field>
-        <Field label="Escalation %"><Input name={`${p}esc`} inputMode="decimal" defaultValue={v(def.escalationPct)} /></Field>
-        <Field label="…every (months)" hint="36 = every three years. First escalated month = this + 1."><Input name={`${p}escevery`} inputMode="numeric" defaultValue={v(def.escalationEveryMonths)} /></Field>
-        <Field label="CAM ₹/sf/month" hint="Blank = unknown (result marked incomplete). 0 = included in rent."><Input name={`${p}cam`} inputMode="decimal" defaultValue={v(def.camPerSf)} /></Field>
-        <Field label="Parking slots" hint="Blank = unknown. 0 = no paid parking."><Input name={`${p}pslots`} inputMode="numeric" defaultValue={v(def.parkingSlots)} /></Field>
-        <Field label="Parking ₹/slot/month"><Input name={`${p}prate`} inputMode="decimal" defaultValue={v(def.parkingRatePerSlot)} /></Field>
+    <fieldset className="min-w-0 space-y-3 rounded-2xl border-2 border-line bg-white p-3 sm:p-4">
+      {title ? <legend className="px-2 text-base font-bold text-ink">{title}</legend> : null}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <In label="Offer name" name={`${p}name`} defaultValue={v(def.name)} placeholder="Building A" />
+        <Sel label="Values are" name={`${p}label`} defaultValue={v(def.label) || "quoted"} hint="Quoted = from a landlord quote. Estimated = your assumption. Shown on every result."><option value="quoted">Quoted</option><option value="estimated">Estimated</option></Sel>
       </div>
-      <MoreFields label="Other charges, one-offs, GST">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Other recurring — label"><Input name={`${p}other_label`} defaultValue={v(other?.label)} placeholder="Insurance" /></Field>
-          <Field label="Amount ₹"><Input name={`${p}other_amount`} inputMode="decimal" defaultValue={v(other?.amount)} /></Field>
-          <Field label="Periodicity"><Select name={`${p}other_per`} defaultValue={v(other?.periodicity) || "monthly"}><option value="monthly">Per month</option><option value="annual">Per year</option></Select></Field>
-          <label className="flex items-end gap-2 pb-2 text-sm"><input type="checkbox" name={`${p}other_none`} defaultChecked={def.otherRecurringState === "none"} /> No other recurring charges</label>
-          <Field label="One-off at signing — label"><Input name={`${p}nr_label`} defaultValue={v(nr?.label)} placeholder="Legal fees" /></Field>
-          <Field label="Amount ₹"><Input name={`${p}nr_amount`} inputMode="decimal" defaultValue={v(nr?.amount)} /></Field>
-          <Field label="GST in quoted rates">
-            <Select name={`${p}gst`} defaultValue={v(def.gst?.treatment)}><option value="">Not specified</option><option value="included">Included</option><option value="excluded">Excluded (add)</option><option value="recoverable">Recoverable</option></Select>
-          </Field>
-          <Field label="GST rate %" hint="Needed only when excluded; never defaulted."><Input name={`${p}gst_rate`} inputMode="decimal" defaultValue={v(def.gst?.ratePct)} /></Field>
-        </div>
-      </MoreFields>
+      <FormSection title="Space & term" desc="How big, when it starts and for how long.">
+        <In label="Area" unit="sq ft" name={`${p}area`} inputMode="decimal" defaultValue={v(def.areaSf)} />
+        <Sel label="Area basis" name={`${p}basis`} defaultValue={v(def.areaBasis) || "chargeable"} hint="Rent and CAM rates apply to this area."><option value="chargeable">Chargeable</option><option value="carpet">Carpet</option></Sel>
+        <In label="Tenure" unit="months" name={`${p}tenure`} inputMode="numeric" defaultValue={v(def.tenureMonths)} />
+        <In label="Lease commencement" type="date" name={`${p}lc`} defaultValue={v(def.leaseCommencement)} />
+        <In label="Rent commencement" type="date" name={`${p}rc`} defaultValue={v(def.rentCommencement)} hint="If rent-free is blank, rent-free = whole months between the two dates." />
+        <In label="Rent-free" unit="months" name={`${p}rf`} inputMode="numeric" defaultValue={v(def.rentFreeMonths)} />
+      </FormSection>
+      <FormSection title="Rent & escalation" desc="Quoted rent and how often it goes up.">
+        <In label="Rent" unit="₹/sf/month" name={`${p}rent`} inputMode="decimal" defaultValue={v(def.rentPerSf)} />
+        <div className="hidden sm:block" />
+        <In label="Escalation" unit="%" name={`${p}esc`} inputMode="decimal" defaultValue={v(def.escalationPct)} />
+        <In label="…every" unit="months" name={`${p}escevery`} inputMode="numeric" defaultValue={v(def.escalationEveryMonths)} hint="36 = every three years." />
+      </FormSection>
+      <FormSection title="Charges" desc="CAM, parking and other monthly charges.">
+        <In label="CAM" unit="₹/sf/month" name={`${p}cam`} inputMode="decimal" defaultValue={v(def.camPerSf)} hint="0 = included in rent." />
+        <div className="hidden sm:block" />
+        <In label="Parking slots" unit="slots" name={`${p}pslots`} inputMode="numeric" defaultValue={v(def.parkingSlots)} hint="0 = no paid parking." />
+        <In label="Parking rate" unit="₹/slot/month" name={`${p}prate`} inputMode="decimal" defaultValue={v(def.parkingRatePerSlot)} />
+        <In label="Other recurring — what" name={`${p}other_label`} defaultValue={v(other?.label)} placeholder="Insurance" />
+        <In label="Other recurring — amount" unit="₹" name={`${p}other_amount`} inputMode="decimal" defaultValue={v(other?.amount)} />
+        <Sel label="Other recurring — how often" name={`${p}other_per`} defaultValue={v(other?.periodicity) || "monthly"}><option value="monthly">Per month</option><option value="annual">Per year</option></Sel>
+        <label className="flex min-h-11 cursor-pointer items-center gap-3 self-end rounded-lg px-1 text-sm"><input type="checkbox" className="h-5 w-5 accent-brand" name={`${p}other_none`} defaultChecked={def.otherRecurringState === "none"} /> No other recurring charges</label>
+        <Sel label="GST in quoted rates" name={`${p}gst`} defaultValue={v(def.gst?.treatment)}><option value="">Not specified</option><option value="included">Included</option><option value="excluded">Excluded (add)</option><option value="recoverable">Recoverable</option></Sel>
+        <In label="GST rate" unit="%" name={`${p}gst_rate`} inputMode="decimal" defaultValue={v(def.gst?.ratePct)} hint="Needed only when excluded; never defaulted." />
+      </FormSection>
+      <FormSection title="Deposit & one-offs" desc="Refundable deposit and costs paid once at signing.">
+        <In label="Security deposit" unit="months of rent" name={`${p}dep`} inputMode="decimal" defaultValue={v(def.depositMonths)} hint="Refundable — shown separately from costs." />
+        <div className="hidden sm:block" />
+        <In label="One-off at signing — what" name={`${p}nr_label`} defaultValue={v(nr?.label)} placeholder="Legal fees" />
+        <In label="One-off amount" unit="₹" name={`${p}nr_amount`} inputMode="decimal" defaultValue={v(nr?.amount)} />
+      </FormSection>
       {extra}
     </fieldset>
   );
@@ -87,8 +88,8 @@ export function CumulativeChart({ series, label }: { series: string[]; label: st
 export function Warnings({ items }: { items: string[] }) {
   if (!items.length) return null;
   return (
-    <details className="rounded-xl border border-line px-3 py-2 text-xs text-ink-soft">
-      <summary className="cursor-pointer">{items.length} note{items.length === 1 ? "" : "s"} from the engine</summary>
+    <details className="rounded-lg border border-line px-4 py-2 text-sm text-ink-soft">
+      <summary className="flex min-h-11 cursor-pointer items-center">{items.length} note{items.length === 1 ? "" : "s"} from the engine</summary>
       <ul className="mt-2 list-disc space-y-1 pl-4">{items.map((w, i) => <li key={i}>{w}</li>)}</ul>
     </details>
   );

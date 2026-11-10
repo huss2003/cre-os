@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { HelpFor, Input, Select } from "@/components/ui";
+import { HelpFor } from "@/components/ui";
+import { EmptyState, Field, MissingNote, Status, ToolHeader, btn, inputCls } from "@/modules/toolkit/ui/kit";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { generateDeliverablesAction } from "@/modules/toolkit/actions-core";
@@ -7,7 +8,7 @@ import { KIND_LABEL, type DeliverableFile } from "@/modules/toolkit/deliverables
 
 type Row = Record<string, any>;
 function H({ children }: { children: string }) {
-  return <h2 className="flex items-center border-b border-ink pb-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink">{children}<HelpFor k={children} /></h2>;
+  return <h2 className="flex items-center text-lg font-semibold text-ink">{children}<HelpFor k={children} /></h2>;
 }
 
 export default async function DeliverablesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -25,43 +26,45 @@ export default async function DeliverablesPage({ searchParams }: { searchParams:
   const gen = (done.data ?? []) as Row[];
   return (
     <div className="mx-auto max-w-4xl space-y-10 pb-16">
-      <header data-tour="toolkit-deliverables">
-        <Link href="/toolkit" className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">← Deal toolkit</Link>
-        <h1 className="mt-2 font-serif text-3xl text-ink">Client deliverables</h1>
-        <p className="mt-2 max-w-2xl text-sm text-ink-soft">Choose a requirement and the analyses to include. You get an editable proposal (Word), a workbook with one sheet per analysis (Excel) and a decision summary (Word). Figures from analyses that are missing information, not approved or based on estimates are labelled in every file.</p>
-      </header>
+      <div data-tour="toolkit-deliverables">
+        <ToolHeader title="Make client documents" purpose="Turn saved analyses into an editable proposal (Word), a workbook (Excel) and a decision summary (Word). Anything incomplete, unapproved or estimated is labelled in every file."
+          steps={["Choose the requirement", "Tick the analyses to include", "Generate 3 files", "Download & send yourself"]} current={requirementId ? 1 : 0} />
+      </div>
 
       <section>
         <H>Generate deliverables</H>
-        {rq.length === 0 ? <p className="py-4 text-sm text-ink-soft">No requirements yet. Create one under <Link className="text-brand underline" href="/requirements">Deals → Requirements</Link> first.</p> : (
+        {rq.length === 0 ? <div className="mt-4"><EmptyState title="No requirements yet" text="Documents are built for one client requirement. Create one first." action={<Link href="/requirements" className={btn.primary}>Create a requirement</Link>} /></div> : (
           <>
-            <form method="get" data-tour="deliv-pick" className="mt-4 flex flex-wrap items-end gap-2">
-              <label className="grid gap-1 text-sm"><span className="text-ink-soft">Requirement</span>
-                <Select name="requirement" defaultValue={requirementId} className="min-w-64"><option value="">— choose —</option>{rq.map((r) => <option key={r.id} value={r.id}>{r.title}{r.organisation?.display_name ? ` · ${r.organisation.display_name}` : ""}</option>)}</Select></label>
-              <button type="submit" className="rounded-lg border border-line px-3 py-2 text-sm hover:border-brand">Show analyses</button>
+            <form method="get" data-tour="deliv-pick" className="mt-4 grid gap-3 rounded-xl border border-line bg-surface p-4 sm:grid-cols-[1fr_auto] sm:items-end">
+              <Field label="1. Which requirement?" htmlFor="deliv-req" required>
+                <select id="deliv-req" name="requirement" defaultValue={requirementId} className={inputCls}><option value="">Choose a requirement…</option>{rq.map((r) => <option key={r.id} value={r.id}>{r.title}{r.organisation?.display_name ? ` · ${r.organisation.display_name}` : ""}</option>)}</select>
+              </Field>
+              <button type="submit" className={btn.secondary}>Show its analyses</button>
             </form>
             {requirementId && app.role !== "viewer" && (
-              <ActionForm action={generateDeliverablesAction} className="mt-6 space-y-4" dataTour="deliv-generate">
+              <ActionForm action={generateDeliverablesAction} className="mt-6 space-y-4 rounded-xl border border-line bg-surface p-4" dataTour="deliv-generate">
                 <input type="hidden" name="requirement_id" value={requirementId} />
-                {an.length === 0 ? <p className="text-sm text-ink-soft">No saved analyses for this requirement yet — the files will contain the requirement brief only. Save analyses from the toolkit sections to include them.</p> : (
-                  <fieldset className="divide-y divide-line border-y border-line">
+                <p className="font-semibold">2. Tick the analyses to include</p>
+                {an.length === 0 ? <MissingNote items={["No saved analyses for this requirement"]} what="the files will contain the requirement brief only. Save analyses from the toolkit to include them." /> : (
+                  <fieldset className="space-y-2">
                     <legend className="sr-only">Analyses to include</legend>
                     {an.map((a) => (
-                      <label key={a.id} className="flex cursor-pointer items-start gap-3 py-3 text-sm">
-                        <input type="checkbox" name="analysis_id" value={a.id} defaultChecked={a.status === "approved" || a.status === "ready"} className="mt-1" />
-                        <span><span className="font-medium">{a.title}</span>
-                          <span className="block text-xs text-ink-soft">{KIND_LABEL[a.kind] ?? a.kind} · v{a.current_version} · {a.formula_version ?? "—"} · {String(a.status).replace(/_/g, " ")}</span>
-                          {(a.missing ?? []).length > 0 && <span className="block text-xs text-bad">Will be labelled: missing {(a.missing as string[]).join(", ")}</span>}
-                          {a.status !== "approved" && !(a.missing ?? []).length && <span className="block text-xs text-warn">Will be labelled: not approved</span>}
+                      <label key={a.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-line px-3 py-3 text-sm hover:border-brand/50 has-[:checked]:border-brand has-[:checked]:bg-brand-soft/40">
+                        <input type="checkbox" name="analysis_id" value={a.id} defaultChecked={a.status === "approved" || a.status === "ready"} className="mt-0.5 size-5 accent-[var(--color-brand)]" />
+                        <span className="min-w-0 flex-1"><span className="flex flex-wrap items-center gap-2 font-medium">{a.title}<Status s={String(a.status)} /></span>
+                          <span className="block text-xs text-ink-soft">{KIND_LABEL[a.kind] ?? a.kind} · version {a.current_version} · formula {a.formula_version ?? "—"}</span>
+                          {(a.missing ?? []).length > 0 && <span className="mt-1 block text-xs text-rose-700">! Will be labelled: missing {(a.missing as string[]).join(", ")}</span>}
+                          {a.status !== "approved" && !(a.missing ?? []).length && <span className="mt-1 block text-xs text-amber-800">! Will be labelled: not approved</span>}
                         </span>
                       </label>))}
                   </fieldset>
                 )}
+                <p className="pt-2 font-semibold">3. Cover details</p>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Input name="title" placeholder="Title (default: Proposal — requirement)" aria-label="Title" />
-                  <Input name="prepared_for" placeholder="Prepared for (recipient name)" aria-label="Prepared for" />
+                  <Field label="Title" htmlFor="deliv-title" hint="Leave blank for “Proposal — requirement”."><input id="deliv-title" name="title" placeholder="Proposal — requirement" className={inputCls} /></Field>
+                  <Field label="Prepared for" htmlFor="deliv-for" hint="Recipient name on the cover."><input id="deliv-for" name="prepared_for" placeholder="e.g. Priya Shah, CFO" className={inputCls} /></Field>
                 </div>
-                <Submit>Generate 3 files</Submit>
+                <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0"><Submit className="w-full sm:w-auto">Generate 3 files</Submit></div>
               </ActionForm>
             )}
           </>
@@ -70,16 +73,16 @@ export default async function DeliverablesPage({ searchParams }: { searchParams:
 
       <section>
         <H>Generated deliverables</H>
-        {gen.length === 0 ? <p className="py-4 text-sm text-ink-soft">Nothing generated yet.</p> : (
-          <ul className="divide-y divide-line">{gen.map((d) => {
+        {gen.length === 0 ? <div className="mt-4"><EmptyState title="Nothing generated yet" text="Choose a requirement above and press “Generate 3 files”. Your documents will be listed here to download." /></div> : (
+          <ul className="mt-4 space-y-3">{gen.map((d) => {
             const files = (d.outputs?.files ?? []) as DeliverableFile[];
             const used = (d.inputs?.analyses ?? []) as Row[];
             return (
-              <li key={d.id} className="py-4 text-sm">
-                <p className="font-medium">{d.title}</p>
+              <li key={d.id} className="rounded-xl border border-line bg-surface p-4 text-sm">
+                <p className="flex flex-wrap items-center gap-2 font-semibold">{d.title}{(d.missing ?? []).length > 0 ? <Status s="needs_info" label="Labelled incomplete" /> : null}</p>
                 <p className="text-xs text-ink-soft">{d.requirement?.title ?? "—"} · {String(d.updated_at).slice(0, 16).replace("T", " ")} · built from {used.length ? used.map((u) => `${u.title} v${u.version}`).join(", ") : "the brief only"}</p>
-                {(d.missing ?? []).length > 0 && <p className="text-xs text-bad">Labelled incomplete: {(d.missing as string[]).join("; ")}</p>}
-                <p className="mt-2 flex flex-wrap gap-4">{files.map((f) => <a key={f.name} className="text-brand underline-offset-2 hover:underline" href={`/toolkit/deliverables/${d.id}/${encodeURIComponent(f.name)}`}>{f.label} ({f.kind.toUpperCase()}) ↓</a>)}</p>
+                {(d.missing ?? []).length > 0 && <p className="mt-1 text-xs text-rose-700">Gaps: {(d.missing as string[]).join("; ")}</p>}
+                <p className="mt-3 flex flex-wrap gap-2">{files.map((f) => <a key={f.name} className={btn.secondary} href={`/toolkit/deliverables/${d.id}/${encodeURIComponent(f.name)}`}>↓ {f.label} ({f.kind.toUpperCase()})</a>)}</p>
               </li>);
           })}</ul>
         )}

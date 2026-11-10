@@ -1,36 +1,44 @@
-import Link from "next/link";
-import { Badge, Card, EmptyState, Field, HelpFor, Input, PageHeader } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { createNegotiationAction } from "@/modules/toolkit/actions-lease";
 import { listAnalyses } from "@/modules/toolkit/store";
+import { EmptyState, Legend, ToolHeader } from "@/modules/toolkit/ui/kit";
+import { BlankHint, H, In, SavedList, StickyBar } from "@/modules/toolkit/ui/lease/shared";
 import { LeaseTermFields } from "../lease/parts";
 import { NonFinancialFields } from "./fields";
+import { NothingSent } from "@/modules/toolkit/ui/lease/negotiation";
+
+const STEPS = ["Record Offer 1", "Add each counter-offer", "See what changed", "Value concessions & plan"];
 
 export default async function NegotiationPage() {
   const ctx = await requirePageContext();
   const saved = await listAnalyses(ctx.db, ctx.workspaceId, { kind: "negotiation", limit: 30 });
   return (
     <div data-tour="toolkit-negotiation" className="mx-auto max-w-5xl space-y-6 pb-16">
-      <PageHeader title="Negotiation comparison" subtitle="Every landlord offer is kept as its own version (Offer 1, Offer 2 …). See what moved, what it is worth (fin-1.0 NPV) and what is still open. Formula nego-1.0. CRE OS never accepts, rejects or sends anything." />
-      <Card title="Negotiations">
-        {saved.length === 0 ? <EmptyState title="No negotiations yet">Record the landlord&apos;s first offer below. Each later offer is added as a new version — nothing is overwritten.</EmptyState> : (
-          <ul className="divide-y divide-line text-sm">
-            {saved.map((a) => <li key={a.id} className="flex items-center justify-between gap-2 py-2"><Link className="text-brand" href={`/toolkit/negotiation/${a.id}`}>{a.title}</Link><span className="flex gap-1.5 text-xs text-ink-soft">v{a.current_version} <Badge tone={a.status === "needs_info" ? "warn" : "neutral"}>{a.status === "needs_info" ? "open terms" : a.status}</Badge></span></li>)}
-          </ul>
+      <ToolHeader eyebrow="Deal toolkit" title="Negotiation comparison" purpose="Every landlord offer is kept as its own version (Offer 1, Offer 2 …). See what moved, what it is worth and what is still open." steps={STEPS} current={0} />
+      <NothingSent />
+      <Legend />
+      <section className="space-y-3" aria-labelledby="nego-list-h">
+        <H><span id="nego-list-h">Negotiations</span></H>
+        {saved.length === 0 ? <EmptyState title="No negotiations yet" text="Record the landlord's first offer below. Each later offer is added as a new version — nothing is overwritten." /> : (
+          <SavedList items={saved as any} href={(id) => `/toolkit/negotiation/${id}`} statusLabel={(s) => (s === "needs_info" ? "Open terms" : undefined)} />
         )}
-      </Card>
+      </section>
       {ctx.role !== "viewer" && (
-        <Card title={<span className="flex items-center">Start with Offer 1<HelpFor k="Negotiation" /></span>}>
-          <ActionForm action={createNegotiationAction} className="space-y-4" dataTour="nego-offer1">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Title"><Input name="title" placeholder="Tower B, 4th floor — landlord X" /></Field>
-              <Field label="Discount % p.a."><Input name="discount" inputMode="decimal" required /></Field>
+        <section className="space-y-4" aria-labelledby="nego-new-h">
+          <H sub="Enter the landlord's first offer. Later offers are added on the negotiation's page."><span id="nego-new-h">Start with Offer 1</span></H>
+          <ActionForm action={createNegotiationAction} className="space-y-5" dataTour="nego-offer1">
+            <BlankHint />
+            <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2">
+              <In label="Negotiation title" name="title" placeholder="Tower B, 4th floor — landlord X" />
+              <In label="Discount rate" unit="% per year" name="discount" inputMode="decimal" required />
             </div>
             <LeaseTermFields p="o0_" title="Offer 1 — financial terms" extra={<NonFinancialFields />} />
-            <Submit dataTour="nego-save1">Save Offer 1</Submit>
+            <StickyBar note="Saves Offer 1. Nothing is sent to anyone.">
+              <Submit dataTour="nego-save1">Save Offer 1</Submit>
+            </StickyBar>
           </ActionForm>
-        </Card>
+        </section>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { HelpFor } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { requirementCompleteness, type RequirementRow } from "@/modules/deals/requirements/contract";
+import { EmptyState, OpenRow, Status, ToolHeader, btn } from "@/modules/toolkit/ui/kit";
 
 type Row = Record<string, any>;
 
@@ -15,28 +16,33 @@ export default async function BriefIndexPage() {
   const rows = (reqs.data ?? []) as Row[];
   return (
     <div className="mx-auto max-w-4xl space-y-8 pb-16">
-      <header data-tour="toolkit-brief">
-        <Link href="/toolkit" className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">← Deal toolkit</Link>
-        <h1 className="mt-2 font-serif text-3xl text-ink">Requirement brief</h1>
-        <p className="mt-2 max-w-2xl text-sm text-ink-soft">Pick a requirement to see its brief: every item marked Confirmed, Estimated, Assumption or Missing, with open questions and pending approvals.</p>
-      </header>
-      <section>
-        <h2 className="flex items-center border-b border-ink pb-2 text-xs font-semibold uppercase tracking-[0.18em]">Requirements<HelpFor k="Requirements" /></h2>
-        {rows.length === 0 ? <p className="py-6 text-sm text-ink-soft">No requirements yet. Create one under <Link className="text-brand underline" href="/requirements">Deals → Requirements</Link>, then come back to build its brief.</p> : (
-          <ul className="divide-y divide-line">
+      <div data-tour="toolkit-brief">
+        <ToolHeader title="Client briefs" purpose="Write down what each client needs, and see at a glance what is confirmed and what is still missing."
+          steps={["Pick a requirement", "Fill the gaps", "Save a snapshot", "Approve it"]} current={0}
+          action={<Link href="/requirements" className={btn.secondary}>New requirement</Link>} />
+      </div>
+      <section className="space-y-3">
+        <h2 className="flex items-center text-lg font-semibold">Pick a requirement<HelpFor k="Requirements" /></h2>
+        {rows.length === 0 ? (
+          <EmptyState title="No requirements yet" text="A requirement is one client search. Create it under Requirements, then come back to build its brief." action={<Link href="/requirements" className={btn.primary}>Create a requirement</Link>} />
+        ) : (
+          <ul className="space-y-2">
             {rows.map((r) => {
               const c = requirementCompleteness(r as RequirementRow); const b = byReq.get(r.id);
               return (
-                <li key={r.id} className="grid gap-2 py-4 sm:grid-cols-[1fr_12rem] sm:items-center sm:gap-6">
-                  <div className="min-w-0"><Link href={`/toolkit/brief/${r.id}`} className="font-serif text-lg text-ink hover:text-brand focus-visible:outline-2 focus-visible:outline-brand">{r.title}</Link>
-                    <p className="text-xs text-ink-soft">{r.organisation?.display_name ?? "—"} · {b ? `Snapshot v${b.current_version} · ${String(b.status).replace(/_/g, " ")}` : "No snapshot yet"}</p></div>
-                  <div role="img" aria-label={`${c.percentKnown}% known, ${c.percentConfirmed}% confirmed`}>
-                    <div className="relative h-1.5 overflow-hidden rounded-full bg-line">
-                      <div className="absolute inset-y-0 left-0 bg-amber-400" style={{ width: `${c.percentKnown}%` }} />
-                      <div className="absolute inset-y-0 left-0 bg-ok" style={{ width: `${c.percentConfirmed}%` }} />
-                    </div>
-                    <p className="mt-1 text-[11px] tabular-nums text-ink-soft">{c.percentKnown}% known · {c.percentConfirmed}% confirmed</p>
-                  </div>
+                <li key={r.id}>
+                  <OpenRow href={`/toolkit/brief/${r.id}`} title={r.title}
+                    meta={<>{r.organisation?.display_name ?? "No company"} · {b ? `Snapshot version ${b.current_version}` : "No snapshot yet"}</>}
+                    right={
+                      <span className="flex shrink-0 flex-col items-end gap-1.5">{b ? <Status s={String(b.status)} /> : <Status s="draft" label="No snapshot" />}<span className="hidden w-40 sm:block" role="img" aria-label={`${c.percentKnown}% known, ${c.percentConfirmed}% confirmed`}>
+                        <span className="relative block h-1.5 overflow-hidden rounded-full bg-line">
+                          <span className="absolute inset-y-0 left-0 bg-amber-400" style={{ width: `${c.percentKnown}%` }} />
+                          <span className="absolute inset-y-0 left-0 bg-ok" style={{ width: `${c.percentConfirmed}%` }} />
+                        </span>
+                        <span className="mt-1 block text-[11px] tabular-nums text-ink-soft">{c.percentKnown}% known · {c.percentConfirmed}% confirmed</span>
+                      </span></span>}
+                  />
+                  <p className="mt-1 px-1 text-xs text-ink-soft sm:hidden">{c.percentKnown}% known · {c.percentConfirmed}% confirmed</p>
                 </li>);
             })}
           </ul>

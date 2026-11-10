@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Badge, Card, EmptyState, Field, Help, Input, PageHeader, Select } from "@/components/ui";
+import { Help } from "@/components/ui";
+import { EmptyState, Field, OpenRow, ToolHeader, btn, inputCls } from "@/modules/toolkit/ui/kit";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { generatePacksAction } from "@/modules/toolkit/actions-extras";
@@ -15,31 +16,34 @@ export default async function PacksPage() {
   ]);
   const r = (reqs.data ?? []) as Row[], a = (assets.data ?? []) as Row[], p = (packs.data ?? []) as Row[];
   return (
-    <div data-tour="toolkit-packs" className="space-y-5">
-      <PageHeader title="Site visit pack & presentation" subtitle="Pick a requirement and the buildings to show. You get a Word site-visit pack (details, checklist, blank feedback) and an editable PowerPoint deck. Unverified and estimated figures are labelled." />
-      <Card title="Generate" help={<Help>Commercial terms come from the latest quote version per building; comparison figures from the latest saved property comparison / lease economics for the requirement. Branding comes from your template settings.</Help>}>
-        {!r.length || !a.length ? <EmptyState title="Nothing to pack yet">You need at least one requirement and one building. Add them under Requirements and Buildings.</EmptyState> : (
-          <ActionForm action={generatePacksAction} className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Requirement"><Select name="requirement_id" required defaultValue="">{[<option key="" value="" disabled>Choose…</option>, ...r.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)]}</Select></Field>
-              <Field label="Prepared for (optional)"><Input name="prepared_for" placeholder="Client name on the cover" /></Field>
+    <div data-tour="toolkit-packs" className="mx-auto max-w-4xl space-y-8 pb-16">
+      <ToolHeader title="Site-visit pack & deck" purpose="Pick a requirement and the buildings to show. You get a Word site-visit pack (details, checklist, blank feedback) and an editable PowerPoint deck. Unverified and estimated figures are labelled."
+        steps={["Choose the requirement", "Tick the buildings", "Generate both files", "Download"]} current={0} />
+      <section className="space-y-3">
+        <h2 className="flex items-center text-lg font-semibold">Make a pack<Help>Commercial terms come from the latest quote version per building; comparison figures from the latest saved property comparison / lease economics for the requirement. Branding comes from your template settings.</Help></h2>
+        {!r.length || !a.length ? <EmptyState title="Nothing to pack yet" text={`You need at least one requirement and one building.${!r.length ? " Add a requirement first." : " Add a building first."}`} action={<Link href={!r.length ? "/requirements" : "/buildings"} className={btn.primary}>{!r.length ? "Create a requirement" : "Add a building"}</Link>} /> : (
+          <ActionForm action={generatePacksAction} className="space-y-4 rounded-xl border border-line bg-surface p-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Requirement" htmlFor="pk-req" required><select id="pk-req" name="requirement_id" required defaultValue="" className={inputCls}>{[<option key="" value="" disabled>Choose…</option>, ...r.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)]}</select></Field>
+              <Field label="Prepared for" htmlFor="pk-for" hint="Client name on the cover."><input id="pk-for" name="prepared_for" placeholder="e.g. Acme Ltd" className={inputCls} /></Field>
             </div>
-            <fieldset><legend className="mb-1 text-xs font-medium text-ink-soft">Buildings</legend>
-              <div className="grid max-h-72 gap-1 overflow-y-auto rounded-lg border border-line p-2 sm:grid-cols-2">
-                {a.map((x) => <label key={x.id} className="flex items-center gap-2 text-sm"><input type="checkbox" name="asset_id" value={x.id} /> {x.name}{x.micro?.name ? <span className="text-xs text-ink-soft">· {x.micro.name}</span> : null}</label>)}
+            <fieldset><legend className="mb-1.5 flex items-center gap-1.5 text-sm font-medium"><span aria-hidden className="text-slate-400">✎</span>Buildings to show <span className="text-xs font-normal text-ink-soft">tick one or more</span></legend>
+              <div className="grid max-h-72 gap-1 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 sm:grid-cols-2">
+                {a.map((x) => <label key={x.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-canvas has-[:checked]:bg-brand-soft/50"><input type="checkbox" name="asset_id" value={x.id} className="size-5 accent-[var(--color-brand)]" /> <span>{x.name}{x.micro?.name ? <span className="text-xs text-ink-soft"> · {x.micro.name}</span> : null}</span></label>)}
               </div>
             </fieldset>
-            <Submit>Generate both files</Submit>
+            <div className="sticky bottom-0 -mx-4 -mb-4 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur sm:static sm:m-0 sm:border-0 sm:bg-transparent sm:p-0"><Submit className="w-full sm:w-auto">Generate both files</Submit></div>
           </ActionForm>
         )}
-      </Card>
-      <Card title="Generated packs">
-        {!p.length ? <EmptyState title="No packs yet">Generated packs are kept with the analysis and quote versions they used.</EmptyState> : (
-          <ul className="divide-y divide-line text-sm">
-            {p.map((x) => <li key={x.id} className="flex items-center justify-between gap-2 py-2"><Link className="text-brand" href={`/toolkit/packs/${x.id}`}>{x.title}</Link><span className="text-xs text-ink-soft">{String(x.updated_at).slice(0, 10)} <Badge>v{x.current_version}</Badge></span></li>)}
+      </section>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold">Your packs <span className="text-sm font-normal text-ink-soft">({p.length})</span></h2>
+        {!p.length ? <EmptyState title="No packs yet" text="Generate a pack above. Each pack is kept with the analysis and quote versions it used." /> : (
+          <ul className="space-y-2">
+            {p.map((x) => <li key={x.id}><OpenRow href={`/toolkit/packs/${x.id}`} title={x.title} meta={`Version ${x.current_version} · ${String(x.updated_at).slice(0, 10)}`} /></li>)}
           </ul>
         )}
-      </Card>
+      </section>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Card, PageHeader, StaleBanner } from "@/components/ui";
+import { Legend, MissingNote, Status, ToolHeader, btn } from "@/modules/toolkit/ui/kit";
+import { Panel } from "@/modules/toolkit/ui/options/parts";
 import { requirePageContext } from "@/lib/auth/context";
 import { getAnalysis, getVersion } from "@/modules/toolkit/store";
 import type { FitoutPayload } from "@/modules/toolkit/actions-fitout";
@@ -22,17 +23,19 @@ export default async function FitoutView({ params, searchParams }: { params: Pro
   const outputs = src.outputs as { budget: FitoutResult; quotes: QuoteCompareResult; asOf: string };
   const partners = await loadPartners(ctx.db, ctx.workspaceId);
   return (
-    <div className="space-y-5">
-      <PageHeader title={a.title} subtitle={<>Fit-out budget · formula {src.formula_version} · version {ver ? ver.version : a.current_version}{outputs.asOf ? ` · quotes checked against ${outputs.asOf}` : ""} · <Link className="text-brand" href="/toolkit/fitout">all budgets</Link></>} />
-      {ver ? <StaleBanner>Viewing older version {ver.version}. <Link className="underline" href={`/toolkit/fitout/${id}`}>Back to current</Link></StaleBanner> : null}
-      {(a.missing ?? []).length && !ver ? <StaleBanner>Needs information: {(a.missing as string[]).join(" · ")}</StaleBanner> : null}
+    <div className="space-y-6">
+      <ToolHeader eyebrow={`Fit-out budget · version ${ver ? ver.version : a.current_version} · formula ${src.formula_version}`} title={a.title}
+        purpose={`Totals and partner ranking first; edit below to save a new version.${outputs.asOf ? ` Quote validity checked against ${outputs.asOf}.` : ""}`}
+        back={{ href: "/toolkit/fitout", label: "All budgets" }} steps={["Add budget lines", "Add partner quotes", "Compare"]} current={2} />
+      {ver ? <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">! Viewing older version {ver.version}. <Link className={btn.link} href={`/toolkit/fitout/${id}`}>Back to current</Link></div> : null}
+      {!ver ? <MissingNote items={(a.missing ?? []) as string[]} /> : null}
+      <Legend />
       <FitoutResults budget={outputs.budget} quotes={outputs.quotes} inputs={inputs} />
-      <Card title="Versions">
-        <ul className="space-y-1 text-sm">{a.versions.map((v) => <li key={v.version}><Link className="text-brand" href={`/toolkit/fitout/${id}?v=${v.version}`}>v{v.version}</Link> <span className="text-xs text-ink-soft">{new Date(v.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} · {v.formula_version}{v.note ? ` — ${v.note}` : ""}</span>{v.version === a.current_version ? <span className="ml-1"><Badge tone="ok">current</Badge></span> : null}</li>)}</ul>
-      </Card>
-      <Card title="Edit — saves a new version">
-        <FitoutEditor id={id} title={a.title} initial={inputs} partners={partners} />
-      </Card>
+      <Panel title="Change the budget or quotes" desc="Saving creates a new version; older versions stay below."><FitoutEditor id={id} title={a.title} initial={inputs} partners={partners} /></Panel>
+      <details className="group rounded-xl border border-line bg-surface">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-4 py-2 font-medium">Earlier versions ({a.versions.length}) <span aria-hidden className="transition group-open:rotate-180 motion-reduce:transition-none">▾</span></summary>
+        <ul className="space-y-1 border-t border-line px-4 py-3 text-sm">{a.versions.map((v) => <li key={v.version} className="flex flex-wrap items-center gap-2"><Link className="inline-flex min-h-11 items-center font-medium text-brand underline underline-offset-4" href={`/toolkit/fitout/${id}?v=${v.version}`}>Version {v.version}</Link> <span className="text-xs text-ink-soft">{new Date(v.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} · {v.formula_version}{v.note ? ` — ${v.note}` : ""}</span>{v.version === a.current_version ? <Status s="approved" label="Current" /> : null}</li>)}</ul>
+      </details>
     </div>
   );
 }

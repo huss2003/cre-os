@@ -13,7 +13,7 @@ export function WorkspaceFileInput({ workspaceId, folder, accept, exts }: { work
   const [status, setStatus] = useState<string | null>(null);
   return (
     <span className="block">
-      <input type="file" accept={accept} className="block w-full text-sm" onChange={async (e) => {
+      <input type="file" accept={accept} aria-label="Choose a file to upload" className="block min-h-11 w-full rounded-lg border border-slate-300 bg-white p-1.5 text-sm file:mr-3 file:min-h-8 file:rounded-md file:border-0 file:bg-brand-soft file:px-3 file:font-semibold file:text-brand hover:border-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/30" onChange={async (e) => {
         const file = e.target.files?.[0];
         setPath(""); setName("");
         if (!file) return;
@@ -30,7 +30,7 @@ export function WorkspaceFileInput({ workspaceId, folder, accept, exts }: { work
       }} />
       <input type="hidden" name="storage_path" value={path} />
       <input type="hidden" name="file_name" value={name} />
-      {status ? <span className="mt-1 block text-xs text-ink-soft">{status}</span> : null}
+      {status ? <span role="status" className="mt-1 block text-xs text-ink-soft">{status}</span> : null}
     </span>
   );
 }
