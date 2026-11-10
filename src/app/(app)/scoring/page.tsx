@@ -231,7 +231,7 @@ async function Body({ sp }: { sp: SP }) {
         <div className="min-w-0"><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scoring<HelpFor k="Scoring" /></h1><p className="mt-1 max-w-xl text-ink-soft">Who to focus on first, and why. Every score shows its reasons, sources, how much is known and how sure it is.</p></div>
         {hasRole(ctx, "admin") ? (
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start">
-            <Link href="/scoring/models" className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-xl border border-line bg-surface px-4 text-sm font-semibold">Scoring rules</Link>
+            <Link data-tour="scoring-rules-link" href="/scoring/models" className="inline-flex min-h-10 items-center justify-center whitespace-nowrap rounded-xl border border-line bg-surface px-4 text-sm font-semibold">Scoring rules</Link>
             <BulkScore />
           </div>
         ) : null}

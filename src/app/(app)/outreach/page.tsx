@@ -51,12 +51,14 @@ async function Today({ db, ws, editor, userId }: { db: Row; ws: string; editor: 
         <h2 data-tour="outreach-today" className="flex items-center font-semibold">New conversations to start<HelpFor k="New conversations to start" /></h2>
         {!sug.length ? <Empty title="No new reasons to reach out today" text="Suggestions come from recent signals and upcoming lease dates for companies where a relevant contact is saved. Add signals in Signals, or find people in Contacts." /> : (
           <ul className="grid gap-4 md:grid-cols-2">
-            {sug.map((x) => {
+            {sug.map((x, idx) => {
+              // Tutorial target: the practice contact's card if present, otherwise the first card.
+              const tourCard = sug.some((y) => /\(tutorial\)/.test(y.name)) ? /\(tutorial\)/.test(x.name) : idx === 0;
               const tone = x.scenario === "lease_renewal" ? "bg-sky-50 text-sky-800" : x.scenario === "expansion" || x.scenario === "gcc" ? "bg-emerald-50 text-emerald-800" : "bg-violet-50 text-violet-800";
               const ini = x.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
               const title = x.title && !/named in import/i.test(x.title) ? x.title : null;
               return (
-              <li key={x.personId} className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm transition hover:border-brand/40 hover:shadow-md">
+              <li key={x.personId} data-tour={tourCard ? "outreach-practice-card" : undefined} className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm transition hover:border-brand/40 hover:shadow-md">
                 <div className="flex items-start gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft font-semibold text-brand">{ini}</span>
                   <div className="min-w-0 flex-1">
@@ -75,7 +77,7 @@ async function Today({ db, ws, editor, userId }: { db: Row; ws: string; editor: 
                     <input type="hidden" name="person_id" value={x.personId} /><input type="hidden" name="scenario" value={x.scenario} />{x.signalId ? <input type="hidden" name="signal_id" value={x.signalId} /> : null}
                     <div className="flex flex-wrap gap-1.5">{([["email", "Email", true], ["whatsapp", "WhatsApp", true], ["call", "Call", false]] as const).map(([v, l, on]) => (
                       <label key={v} className="cursor-pointer"><input type="checkbox" name="channel" value={v} defaultChecked={on} className="peer sr-only" /><span className="inline-flex min-h-8 items-center rounded-full border border-line px-3 text-sm text-ink-soft peer-checked:border-brand peer-checked:bg-brand-soft peer-checked:text-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand/30">{l}</span></label>))}</div>
-                    <Submit>Prepare drafts</Submit>
+                    <Submit dataTour={tourCard ? "outreach-prepare" : undefined}>Prepare drafts</Submit>
                   </ActionForm>
                 ) : null}
               </li>); })}

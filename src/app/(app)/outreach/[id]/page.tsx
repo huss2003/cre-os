@@ -96,7 +96,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               {editor && st !== "sent" ? <ActionForm action={sentAction.bind(null, id)} className="mt-4"><Submit>I made the call</Submit></ActionForm> : null}
             </section>
           ) : draft ? (
-            <section className={`${card} space-y-5`}>
+            <section data-tour="outreach-compose" className={`${card} space-y-5`}>
               <div className="flex items-center gap-3"><Icon c="✉" /><h2 className="flex items-center text-lg font-semibold">Compose message<HelpFor k="Message" /></h2></div>
               {editable ? (
                 <ActionForm key={draft.content_hash} action={saveAction.bind(null, id)} className="space-y-3">
@@ -129,8 +129,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <section className="rounded-2xl border border-brand/15 bg-brand-soft/40 p-5">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="flex items-center font-semibold">✨ Rewrite with AI</h2><p className="text-sm text-ink-soft">Each rewrite is saved as a new version — check it before approving.</p></div>
               {/* One form: every chip is a submit button carrying its own op, so the result message sits below the group instead of breaking the row. */}
-              <ActionForm action={aiAction.bind(null, id)} className="mt-4">
-                <div className="flex flex-wrap items-center gap-2">
+              <ActionForm action={aiAction.bind(null, id)} className="mt-4" dataTour="outreach-rewrite">
+                <div data-tour="outreach-rewrite-chips" className="flex flex-wrap items-center gap-2">
                   {OPS.map(([op, l]) => <Submit key={op} variant="ghost" name="op" value={op} className={chip}>{l}</Submit>)}
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-brand/10 pt-3">
@@ -171,7 +171,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {editor && draft && st === "draft" ? (
             <section className={`${card} flex flex-wrap items-center justify-between gap-3`}>
               <p className="flex items-center text-sm text-ink-soft">Save your edits first — approval covers the saved text only.<HelpFor k="Approval" /></p>
-              <div className="flex flex-wrap gap-2"><ActionForm action={requestAction.bind(null, id)}><Submit variant="secondary">Ask a colleague</Submit></ActionForm><ActionForm action={approveAction.bind(null, id)}><input type="hidden" name="hash" value={draft.content_hash} /><Submit>✓ Approve this exact text</Submit></ActionForm></div>
+              <div className="flex flex-wrap gap-2"><ActionForm action={requestAction.bind(null, id)}><Submit variant="secondary">Ask a colleague</Submit></ActionForm><ActionForm action={approveAction.bind(null, id)}><input type="hidden" name="hash" value={draft.content_hash} /><Submit dataTour="outreach-approve">✓ Approve this exact text</Submit></ActionForm></div>
             </section>
           ) : null}
           {editor && draft && st === "pending_approval" ? (
@@ -181,17 +181,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </section>
           ) : null}
           {editor && draft && st === "approved" ? (
-            <section className={card}><h2 className="flex items-center font-semibold">Send it yourself<HelpFor k="Send it yourself" /></h2><div className="mt-3"><SendPanel action={openAction.bind(null, id)} sent={sentAction.bind(null, id)} hash={draft.content_hash} to={draft.recipient_address ?? ""} text={draft.subject ? `Subject: ${draft.subject}\n\n${draft.body}` : draft.body} email={["email", "introduction"].includes(draft.channel) ? { subject: draft.subject ?? "", body: draft.body } : undefined} /></div></section>
+            <section data-tour="outreach-send" className={card}><h2 className="flex items-center font-semibold">Send it yourself<HelpFor k="Send it yourself" /></h2><div className="mt-3"><SendPanel action={openAction.bind(null, id)} sent={sentAction.bind(null, id)} hash={draft.content_hash} to={draft.recipient_address ?? ""} text={draft.subject ? `Subject: ${draft.subject}\n\n${draft.body}` : draft.body} email={["email", "introduction"].includes(draft.channel) ? { subject: draft.subject ?? "", body: draft.body } : undefined} /></div></section>
           ) : null}
           {editor && ["sent", "replied"].includes(st) ? (
             <section className={card}>
               <h2 className="flex items-center font-semibold">Did they reply?<HelpFor k="Did they reply?" /></h2>
-              <ActionForm action={responseAction.bind(null, id)} className="mt-3 space-y-3"><textarea name="text" rows={4} placeholder="Paste their reply, or note what they said on the phone" className={field} /><Submit>Save reply</Submit></ActionForm>
+              <ActionForm action={responseAction.bind(null, id)} className="mt-3 space-y-3"><textarea data-tour="outreach-reply-text" name="text" rows={4} placeholder="Paste their reply, or note what they said on the phone" className={field} /><Submit dataTour="outreach-reply-save">Save reply</Submit></ActionForm>
               {st === "sent" ? <ActionForm action={closeAction.bind(null, id)} className="mt-3"><input type="hidden" name="outcome" value="no_response" /><Submit variant="ghost">Close — no response</Submit></ActionForm> : null}
             </section>
           ) : null}
           {it.response ? (
-            <section className={card}><h2 className="font-semibold">Their reply</h2>
+            <section data-tour="outreach-reply-result" className={card}><h2 className="font-semibold">Their reply</h2>
               <p className="mt-2 text-sm"><span className="mr-1 rounded-full bg-canvas px-2 py-0.5 text-xs">{OUTCOME_LABEL[it.response.outcome as keyof typeof OUTCOME_LABEL] ?? String(it.response.outcome).replace(/_/g, " ")}</span>{it.response.summary}</p>
               {(it.response.commitments ?? []).length ? <ul className="mt-2 list-disc pl-5 text-sm">{(it.response.commitments as Row[]).map((m, i) => <li key={i}>{m.who === "us" ? "We" : "They"}: {m.what}{m.due ? ` (by ${m.due})` : ""}</li>)}</ul> : null}
               {it.response.outcome === "referred" && it.response.referred ? <div className="mt-3 rounded-xl bg-canvas p-3 text-sm"><p><b>Referred to:</b> {it.response.referred.name}{it.response.referred.email ? ` · ${it.response.referred.email}` : ""}</p><p className="mt-1 text-ink-soft">A new contact was proposed for Review — it's created only once approved.</p><div className="mt-2 flex gap-3"><Link href="/approvals" className="text-brand hover:underline">Open Review →</Link><Link href="/contacts" className="text-brand hover:underline">Contacts →</Link></div></div> : null}
@@ -257,7 +257,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ) : null}
 
           {(d.versions as Row[]).length ? (
-            <section className={card}>
+            <section data-tour="outreach-versions" className={card}>
               <h2 className="text-lg font-semibold">🗂 Versions</h2>
               <p className="mt-1 text-xs text-ink-soft">Tap a version to read it. Restoring saves it as a new version, so nothing is lost.</p>
               <ul className="mt-3 space-y-2">{(d.versions as Row[]).slice(0, 5).map((v, i) => (

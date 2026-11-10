@@ -9,7 +9,7 @@ export default async function ComparePage() {
   return (
     <div data-tour="toolkit-compare">
       <PageHeader title="Property comparison" subtitle="Side-by-side, weighted rating of buildings against a requirement. Every run is saved as a reproducible version."
-        actions={<><ButtonLink variant="secondary" href="/toolkit/models">Rating models</ButtonLink><ButtonLink href="/toolkit/compare/new">New comparison</ButtonLink></>} />
+        actions={<><ButtonLink variant="secondary" href="/toolkit/models">Rating models</ButtonLink><ButtonLink data-tour="compare-new" href="/toolkit/compare/new">New comparison</ButtonLink></>} />
       {rows.length === 0 ? (
         <EmptyState title="No comparisons yet" action={<ButtonLink href="/toolkit/compare/new">Start a comparison</ButtonLink>}>
           Pick a requirement and the buildings you are considering — or type in options that aren&apos;t in the database yet. Unknown data is left out of the score, never counted as zero.

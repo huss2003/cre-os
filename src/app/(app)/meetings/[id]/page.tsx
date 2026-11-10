@@ -59,15 +59,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   const actions = (
     <div className="flex flex-wrap gap-2 print:hidden lg:flex-col lg:items-stretch">
-      {editor && !cancelled ? <ActionForm action={A.briefAction.bind(null, id)}><Submit variant={b ? "secondary" : "primary"} className="w-full min-h-10">{b ? "Regenerate" : "Prepare brief"}</Submit></ActionForm> : null}
-      {b ? <Link href={`/meetings/${id}/live`} className={`${linkBtn} bg-ink text-white hover:bg-ink/90`}>Meeting mode</Link> : null}
+      {editor && !cancelled ? <ActionForm action={A.briefAction.bind(null, id)}><Submit dataTour="meeting-prepare" variant={b ? "secondary" : "primary"} className="w-full min-h-10">{b ? "Regenerate" : "Prepare brief"}</Submit></ActionForm> : null}
+      {b ? <Link data-tour="meeting-mode" href={`/meetings/${id}/live`} className={`${linkBtn} bg-ink text-white hover:bg-ink/90`}>Meeting mode</Link> : null}
       {editor && b && p.status === "brief_ready" ? <ActionForm action={A.reviewAction.bind(null, id)}><Submit variant="secondary" className="w-full min-h-10">Mark reviewed</Submit></ActionForm> : null}
       {b ? <a href={`/api/v1/meetings/${id}/brief`} className={`${linkBtn} border border-line bg-surface hover:bg-canvas`}>Export</a> : null}
     </div>
   );
 
   const readiness = (
-    <div>
+    <div data-tour="meeting-readiness">
       <div className="flex items-center gap-4">
         <Gauge score={score} />
         <div className="min-w-0">
@@ -106,7 +106,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
           {/* Mobile summary bar */}
           <div className="mb-8 space-y-4 rounded-xl bg-surface p-4 lg:hidden print:hidden">
-            <div className="flex items-center gap-4">
+            <div data-tour="meeting-readiness" className="flex items-center gap-4">
               <div className="scale-75 -m-3"><Gauge score={score} /></div>
               <div className="min-w-0 text-sm">
                 <p className="font-semibold">Readiness</p>
@@ -266,10 +266,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {editor && b && !cancelled ? (
             <div className="print:hidden"><Section id="after" title="After the meeting">
               {!out ? (
-                <ActionForm action={A.structureAction.bind(null, id)} className="space-y-3"><textarea name="text" rows={5} placeholder="What happened? Area, budget, dates, who decides, objections, what you promised… (notes from Meeting mode are included)" className={inp} /><Submit>Structure my notes</Submit></ActionForm>
+                <ActionForm action={A.structureAction.bind(null, id)} className="space-y-3" dataTour="meeting-after"><textarea data-tour="meeting-after-text" name="text" rows={5} placeholder="What happened? Area, budget, dates, who decides, objections, what you promised… (notes from Meeting mode are included)" className={inp} /><Submit dataTour="meeting-structure">Structure my notes</Submit></ActionForm>
               ) : p.outcome?.applied ? (
                 <div className="space-y-5">
-                  <p>Applied {new Date(p.outcome.applied.at).toLocaleString("en-IN")}: {p.outcome.applied.proposals} update(s) to Review, {p.outcome.applied.tasks} task(s). <Link href="/approvals" className="text-brand underline underline-offset-4">Open Review</Link></p>
+                  <p data-tour="meeting-applied">Applied {new Date(p.outcome.applied.at).toLocaleString("en-IN")}: {p.outcome.applied.proposals} update(s) to Review, {p.outcome.applied.tasks} task(s). <Link href="/approvals" className="text-brand underline underline-offset-4">Open Review</Link></p>
                   <Analysis o={out} />
                   <div className="rounded-xl bg-surface p-4">
                     <Kicker>Follow-up pack</Kicker><p className="mt-1 text-xs text-ink-soft">Drafts only — nothing is sent. Open them in Outreach to review, then send from your own mail or WhatsApp.</p>
@@ -306,13 +306,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                     {(out.new_stakeholders as Row[] ?? []).map((c, i) => <li key={`s${i}`} className="flex gap-2.5"><Dot tone="muted" /><span>New stakeholder: {c.name} ({c.role}) <span className="text-ink-soft">(“{c.quote}”)</span></span></li>)}
                   </ul></div> : null}
                   {clarOpen.length ? (
-                    <ActionForm action={A.clarifyAction.bind(null, id)} className="space-y-3 rounded-xl border border-warn/40 p-4">
+                    <ActionForm action={A.clarifyAction.bind(null, id)} className="space-y-3 rounded-xl border border-warn/40 p-4" dataTour="meeting-clarify">
                       <Kicker>Please clarify before applying</Kicker>
                       {clarOpen.map((q) => <label key={q.i} className="block space-y-1 text-sm"><span>{q.question} <span className="text-xs text-ink-soft">({q.about})</span></span><input name={`q_${q.i}`} required className={inp} /></label>)}
                       <Submit>Save answers</Submit>
                     </ActionForm>
                   ) : null}
-                  {!clarOpen.length ? <ActionForm action={A.applyAction.bind(null, id)} className="space-y-1 rounded-xl bg-surface p-4">
+                  {!clarOpen.length ? <ActionForm action={A.applyAction.bind(null, id)} className="space-y-1 rounded-xl bg-surface p-4" dataTour="meeting-apply">
                     <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="interaction" value="1" defaultChecked className="h-4 w-4 accent-brand" /> Save the meeting to history</label>
                     <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="requirement" value="1" defaultChecked className="h-4 w-4 accent-brand" /> Send requirement / deal changes to Review</label>
                     <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="tasks" value="1" defaultChecked className="h-4 w-4 accent-brand" /> Create tasks for our commitments</label>
@@ -324,7 +324,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                       <label className="block space-y-1 text-sm"><span className="text-ink-soft">Tasks assigned to</span><select name="assignee" defaultValue={ctx.userId} className={inp}>{((members ?? []) as Row[]).map((mm) => <option key={mm.user_id} value={mm.user_id}>{mm.user_id === ctx.userId ? "Me" : mm.display_name ?? `Member (${mm.role})`}</option>)}</select></label>
                       {p.opportunity_id ? <label className="block space-y-1 text-sm"><span className="text-ink-soft">Next action date on the deal (to Review)</span><input type="date" name="next_action_date" defaultValue={out.followup_date ?? ""} className={inp} /></label> : null}
                     </div>
-                    <div className="pt-2"><Submit>Approve selected</Submit></div>
+                    <div className="pt-2"><Submit dataTour="meeting-apply-submit">Approve selected</Submit></div>
                   </ActionForm> : null}
                 </div>
               )}

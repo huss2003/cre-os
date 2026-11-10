@@ -41,7 +41,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
       <PageHeader title={a.title} subtitle={<>{a.requirement?.title ?? "No requirement linked"} · model {out.model.name}{out.model.version ? ` v${out.model.version}` : ""} · formula {out.formula} · term {out.termMonths} months{out.termAssumed ? " (assumed)" : ""}</>}
         actions={<ButtonLink variant="secondary" href="/toolkit/compare">All comparisons</ButtonLink>} />
 
-      <Card title={<span className="flex items-center">Recommendation<HelpFor k="Recommendation" /></span>} className="mb-5">
+      <div data-tour="compare-recommendation"><Card title={<span className="flex items-center">Recommendation<HelpFor k="Recommendation" /></span>} className="mb-5">
         {rec ? (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
@@ -51,9 +51,9 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
             {rec.verification.length ? <div className="rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-warn">Verify before advising: {rec.verification.join("; ")}</div> : null}
           </div>
         ) : <p className="text-sm text-bad">{out.recommendation.explanation}</p>}
-      </Card>
+      </Card></div>
 
-      <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+      <div data-tour="compare-table" className="overflow-x-auto rounded-2xl border border-line bg-surface">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-canvas">

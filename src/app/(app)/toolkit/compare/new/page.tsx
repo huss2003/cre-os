@@ -13,7 +13,7 @@ export default async function NewComparisonPage() {
     <div className="max-w-4xl">
       <PageHeader title="New comparison" subtitle="Blank fields stay unknown — they are excluded from the score and listed as missing." />
       <ActionForm action={createComparisonAction} className="space-y-5">
-        <Card title="Basics">
+        <div data-tour="compare-basics"><Card title="Basics">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Title"><Input name="title" placeholder="e.g. Kharadi 25k sf options" required /></Field>
             <Field label="Requirement" hint="Area, budget and preferred micro-markets come from the requirement and drive the mandatory rules.">
@@ -23,7 +23,7 @@ export default async function NewComparisonPage() {
               <option value="">Workspace default (or built-in)</option>{models.map((m) => <option key={m.id} value={m.id}>{m.name} v{m.version}</option>)}</Select></Field>
             <Field label="Term (months)" hint="Used for the effective occupancy cost. Blank = 60 months, shown as an assumption."><Input name="term_months" inputMode="numeric" /></Field>
           </div>
-        </Card>
+        </Card></div>
         <Card title="Buildings in the database">
           {assets.length === 0 ? <p className="text-sm text-ink-soft">No buildings yet — add them under Buildings, or use manual rows below.</p> : (
             <div className="grid max-h-72 gap-1 overflow-y-auto sm:grid-cols-2">
@@ -36,7 +36,7 @@ export default async function NewComparisonPage() {
             </div>
           )}
         </Card>
-        <Card title="Manual properties" help="For options not in the database. They are labelled as manually entered and flagged for verification.">
+        <div data-tour="compare-manual"><Card title="Manual properties" help="For options not in the database. They are labelled as manually entered and flagged for verification.">
           <div className="space-y-3">
             {[0, 1, 2, 3].map((i) => (
               <details key={i} open={i === 0} className="rounded-xl border border-line bg-canvas/50 p-3">
@@ -59,8 +59,8 @@ export default async function NewComparisonPage() {
               </details>
             ))}
           </div>
-        </Card>
-        <Submit>Run comparison</Submit>
+        </Card></div>
+        <Submit dataTour="compare-run">Run comparison</Submit>
       </ActionForm>
     </div>
   );

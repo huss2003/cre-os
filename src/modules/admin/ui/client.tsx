@@ -17,14 +17,14 @@ export type ActionState = {
 export type FormAction = (prev: ActionState, form: FormData) => Promise<ActionState>;
 
 /** Form bound to a server action; shows the result inline (errors, confirmations, one-time secrets). */
-export function ActionForm({ action, children, className }: { action: FormAction; children: ReactNode; className?: string }) {
+export function ActionForm({ action, children, className, dataTour }: { action: FormAction; children: ReactNode; className?: string; dataTour?: string }) {
   const [state, formAction, isPending] = useActionState(action, null);
   const ref = useRef<HTMLFormElement>(null);
   // Clear only after a successful save; on error everything typed stays.
   useEffect(() => { if (state?.ok) ref.current?.reset(); }, [state]);
   // Submit manually so React does not reset the form: a failed save keeps everything the user typed.
   return (
-    <form ref={ref} className={className} onSubmit={(e) => {
+    <form ref={ref} className={className} data-tour={dataTour} onSubmit={(e) => {
       e.preventDefault();
       const fd = new FormData(e.currentTarget);
       const sub = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
@@ -53,14 +53,14 @@ export function ActionResult({ state }: { state: ActionState }) {
   );
 }
 
-export function Submit({ children, variant = "primary", confirm, className, name, value }: {
-  children: ReactNode; variant?: "primary" | "secondary" | "danger" | "ghost"; confirm?: string; className?: string; name?: string; value?: string;
+export function Submit({ children, variant = "primary", confirm, className, name, value, dataTour }: {
+  children: ReactNode; variant?: "primary" | "secondary" | "danger" | "ghost"; confirm?: string; className?: string; name?: string; value?: string; dataTour?: string;
 }) {
   const ctxPending = useContext(PendingCtx);
   const { pending: formPending } = useFormStatus();
   const pending = ctxPending ?? formPending;
   return (
-    <Button type="submit" variant={variant} disabled={pending} className={className} name={name} value={value}
+    <Button type="submit" variant={variant} disabled={pending} className={className} name={name} value={value} data-tour={dataTour}
       onClick={confirm ? (e) => { if (!window.confirm(confirm)) e.preventDefault(); } : undefined}>
       {pending ? "Working…" : children}
     </Button>

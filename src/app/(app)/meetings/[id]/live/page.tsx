@@ -50,14 +50,14 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       {(notes ?? []).length ? <Block title="Notes so far">
         <ul className="space-y-2.5 text-[15px]">{((notes ?? []) as Row[]).map((n, i) => <li key={i}><span className="text-xs uppercase tracking-wider text-ink-soft">{n.kind} · {new Date(n.created_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}</span><p>{n.text}</p></li>)}</ul>
-        <Link href={`/meetings/${id}#after`} className="mt-4 inline-flex min-h-10 items-center text-sm font-medium text-brand underline underline-offset-4">Finish: turn notes into updates</Link>
+        <Link data-tour="meeting-live-finish" href={`/meetings/${id}#after`} className="mt-4 inline-flex min-h-10 items-center text-sm font-medium text-brand underline underline-offset-4">Finish: turn notes into updates</Link>
       </Block> : null}
 
       {editor ? (
         <section className="sticky bottom-2 z-10 mt-4 rounded-2xl border border-line bg-surface/95 p-3 shadow-[0_8px_30px_rgba(15,23,42,0.10)] backdrop-blur supports-[backdrop-filter]:bg-surface/85">
-          <ActionForm action={noteAction.bind(null, id)} className="space-y-2">
-            <textarea name="text" rows={3} placeholder="Type a note…" aria-label="Note" className="w-full resize-none rounded-xl border border-line bg-surface px-3 py-2 text-base" />
-            <div className="flex gap-2"><select name="kind" aria-label="Type" className="min-h-11 flex-1 rounded-xl border border-line bg-surface px-2 text-base"><option value="note">Note</option><option value="action">Action item</option><option value="commitment">Commitment</option><option value="feedback">Their feedback</option></select><Submit className="min-h-11">Save</Submit></div>
+          <ActionForm action={noteAction.bind(null, id)} className="space-y-2" dataTour="meeting-live-note">
+            <textarea data-tour="meeting-live-note-text" name="text" rows={3} placeholder="Type a note…" aria-label="Note" className="w-full resize-none rounded-xl border border-line bg-surface px-3 py-2 text-base" />
+            <div className="flex gap-2"><select name="kind" aria-label="Type" className="min-h-11 flex-1 rounded-xl border border-line bg-surface px-2 text-base"><option value="note">Note</option><option value="action">Action item</option><option value="commitment">Commitment</option><option value="feedback">Their feedback</option></select><Submit dataTour="meeting-live-save" className="min-h-11">Save</Submit></div>
           </ActionForm>
         </section>
       ) : null}

@@ -27,10 +27,16 @@ export default async function BriefIndexPage() {
             {rows.map((r) => {
               const c = requirementCompleteness(r as RequirementRow); const b = byReq.get(r.id);
               return (
-                <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-3 py-3">
-                  <div><Link href={`/toolkit/brief/${r.id}`} className="font-medium text-ink hover:text-brand">{r.title}</Link>
-                    <p className="text-xs text-ink-soft">{r.organisation?.display_name ?? "—"} · {c.percentKnown}% known · {c.percentConfirmed}% confirmed</p></div>
-                  <span className="text-xs text-ink-soft">{b ? `Snapshot v${b.current_version} · ${String(b.status).replace(/_/g, " ")}` : "No snapshot yet"}</span>
+                <li key={r.id} className="grid gap-2 py-4 sm:grid-cols-[1fr_12rem] sm:items-center sm:gap-6">
+                  <div className="min-w-0"><Link href={`/toolkit/brief/${r.id}`} className="font-serif text-lg text-ink hover:text-brand focus-visible:outline-2 focus-visible:outline-brand">{r.title}</Link>
+                    <p className="text-xs text-ink-soft">{r.organisation?.display_name ?? "—"} · {b ? `Snapshot v${b.current_version} · ${String(b.status).replace(/_/g, " ")}` : "No snapshot yet"}</p></div>
+                  <div role="img" aria-label={`${c.percentKnown}% known, ${c.percentConfirmed}% confirmed`}>
+                    <div className="relative h-1.5 overflow-hidden rounded-full bg-line">
+                      <div className="absolute inset-y-0 left-0 bg-amber-400" style={{ width: `${c.percentKnown}%` }} />
+                      <div className="absolute inset-y-0 left-0 bg-ok" style={{ width: `${c.percentConfirmed}%` }} />
+                    </div>
+                    <p className="mt-1 text-[11px] tabular-nums text-ink-soft">{c.percentKnown}% known · {c.percentConfirmed}% confirmed</p>
+                  </div>
                 </li>);
             })}
           </ul>

@@ -52,7 +52,7 @@ async function Body({ tab }: { tab: string }) {
       ) : (
         <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
           {rows.map((r) => { const st = STATUS[r.status] ?? [r.status, "bg-canvas"]; return (
-            <li key={r.id}><Link href={`/meetings/${r.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-canvas">
+            <li key={r.id}><Link data-tour={/\(tutorial\)/.test(String(r.meeting.title ?? "")) ? "meeting-practice-row" : undefined} href={`/meetings/${r.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-canvas">
               <span className="w-24 shrink-0 text-xs text-ink-soft">{when(r.meeting.start_at)}</span>
               <span className="min-w-0 flex-1"><span className="block truncate font-medium">{r.meeting.title}</span><span className="block truncate text-xs text-ink-soft">{MEETING_TYPES[r.meeting_type]?.label ?? r.meeting_type}{r.org ? ` · ${r.org.display_name}` : ""} · {(r.meeting_prep_attendee ?? []).length} attendee(s){r.meeting.location ? ` · ${r.meeting.location}` : ""}</span></span>
               {r.readiness !== null ? <span className="hidden shrink-0 text-xs tabular-nums sm:block" title="Meeting readiness">{r.readiness}/100</span> : null}

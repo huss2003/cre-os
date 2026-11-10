@@ -35,7 +35,7 @@ export default async function NegotiationDetail({ params }: { params: Promise<{ 
     <div className="mx-auto max-w-5xl space-y-6 pb-16">
       <PageHeader title={a.title} subtitle={`${versions.length} offer version${versions.length === 1 ? "" : "s"} · analysis v${a.current_version} · ${a.formula_version} · compared over ${out.horizonMonths} months`} />
 
-      <Card title="Offers">
+      <div data-tour="nego-offers"><Card title="Offers">
         <Table head={["Offer", "Recorded", "Rent total", "Deposit (refundable)", "Contractual expenditure", "Present value", "Costs"]}>
           {out.offers.map((o) => {
             const v = versions.find((x) => x.no === o.no);
@@ -43,7 +43,7 @@ export default async function NegotiationDetail({ params }: { params: Promise<{ 
           })}
         </Table>
         <Warnings items={out.warnings} />
-      </Card>
+      </Card></div>
 
       {out.diffs.filter((d) => d.from !== null).reverse().map((d) => (
         <Card key={d.to} title={`Offer ${d.to} vs Offer ${d.from}`}>
@@ -121,14 +121,14 @@ export default async function NegotiationDetail({ params }: { params: Promise<{ 
       {editor && (
         <Card title={`Record Offer ${versions.length + 1}`}>
           <p className="mb-3 text-sm text-ink-soft">Pre-filled with {versions[versions.length - 1].label}. Change what the landlord changed; earlier offers stay exactly as recorded.</p>
-          <ActionForm action={addOfferAction} className="space-y-4">
+          <ActionForm action={addOfferAction} className="space-y-4" dataTour="nego-add-offer">
             <input type="hidden" name="id" value={a.id} />
             <div className="grid grid-cols-2 gap-3">
               <Field label="Discount % p.a." hint="Must match earlier offers for a fair comparison."><Input name="discount" inputMode="decimal" required defaultValue={String(latest.discountRatePct)} /></Field>
               <Field label="Note"><Input name="note" placeholder="Landlord counter after site visit" /></Field>
             </div>
             <LeaseTermFields p="o0_" def={latest} title="Financial terms" extra={<NonFinancialFields def={latest} />} />
-            <Submit>Save as Offer {versions.length + 1}</Submit>
+            <Submit dataTour="nego-save-offer">Save as Offer {versions.length + 1}</Submit>
           </ActionForm>
         </Card>
       )}

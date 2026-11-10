@@ -22,13 +22,13 @@ export default async function NegotiationPage() {
       </Card>
       {ctx.role !== "viewer" && (
         <Card title={<span className="flex items-center">Start with Offer 1<HelpFor k="Negotiation" /></span>}>
-          <ActionForm action={createNegotiationAction} className="space-y-4">
+          <ActionForm action={createNegotiationAction} className="space-y-4" dataTour="nego-offer1">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Title"><Input name="title" placeholder="Tower B, 4th floor — landlord X" /></Field>
               <Field label="Discount % p.a."><Input name="discount" inputMode="decimal" required /></Field>
             </div>
             <LeaseTermFields p="o0_" title="Offer 1 — financial terms" extra={<NonFinancialFields />} />
-            <Submit>Save Offer 1</Submit>
+            <Submit dataTour="nego-save1">Save Offer 1</Submit>
           </ActionForm>
         </Card>
       )}

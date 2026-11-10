@@ -88,7 +88,7 @@ export default async function LeasePage({ searchParams }: { searchParams: Promis
 
       {ctx.role !== "viewer" && (
         <Card title={<span className="flex items-center">{cur ? "Change the terms (saves a new version)" : "New lease analysis"}<HelpFor k="Lease economics" /></span>}>
-          <ActionForm action={leaseEconomicsAction} className="space-y-4">
+          <ActionForm action={leaseEconomicsAction} className="space-y-4" dataTour="lease-form">
             {cur ? <input type="hidden" name="id" value={cur.id} /> : null}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Title"><Input name="title" defaultValue={cur?.title ?? ""} placeholder="Baner shortlist — lease terms" /></Field>
@@ -101,7 +101,7 @@ export default async function LeasePage({ searchParams }: { searchParams: Promis
                 <div className="mt-3"><LeaseTermFields p={`o${k}_`} def={offers[k]} title={`Offer ${k + 1}`} /></div>
               </details>
             ))}
-            <Submit>{cur ? "Recalculate & save new version" : "Calculate & save"}</Submit>
+            <Submit dataTour="lease-save">{cur ? "Recalculate & save new version" : "Calculate & save"}</Submit>
           </ActionForm>
         </Card>
       )}

@@ -35,13 +35,13 @@ export default async function DeliverablesPage({ searchParams }: { searchParams:
         <H>Generate deliverables</H>
         {rq.length === 0 ? <p className="py-4 text-sm text-ink-soft">No requirements yet. Create one under <Link className="text-brand underline" href="/requirements">Deals → Requirements</Link> first.</p> : (
           <>
-            <form method="get" className="mt-4 flex flex-wrap items-end gap-2">
+            <form method="get" data-tour="deliv-pick" className="mt-4 flex flex-wrap items-end gap-2">
               <label className="grid gap-1 text-sm"><span className="text-ink-soft">Requirement</span>
                 <Select name="requirement" defaultValue={requirementId} className="min-w-64"><option value="">— choose —</option>{rq.map((r) => <option key={r.id} value={r.id}>{r.title}{r.organisation?.display_name ? ` · ${r.organisation.display_name}` : ""}</option>)}</Select></label>
               <button type="submit" className="rounded-lg border border-line px-3 py-2 text-sm hover:border-brand">Show analyses</button>
             </form>
             {requirementId && app.role !== "viewer" && (
-              <ActionForm action={generateDeliverablesAction} className="mt-6 space-y-4">
+              <ActionForm action={generateDeliverablesAction} className="mt-6 space-y-4" dataTour="deliv-generate">
                 <input type="hidden" name="requirement_id" value={requirementId} />
                 {an.length === 0 ? <p className="text-sm text-ink-soft">No saved analyses for this requirement yet — the files will contain the requirement brief only. Save analyses from the toolkit sections to include them.</p> : (
                   <fieldset className="divide-y divide-line border-y border-line">
