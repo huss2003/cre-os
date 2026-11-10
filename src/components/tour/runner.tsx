@@ -98,6 +98,9 @@ function TourRunner({ tour, index, onGo, onExit }: { tour: Tour; index: number; 
   const titleId = useId();
   const motion = !reducedMotion();
 
+  // Warm up every route in this tour once, so moving between screens is instant.
+  useEffect(() => { for (const r of new Set(tour.steps.map((st) => st.route))) router.prefetch(r); }, [tour.key, router, tour.steps]);
+
   // Navigate to the step's route, then poll for its target.
   useEffect(() => {
     setEl(null); setRect(null); setSearching(true);
@@ -110,11 +113,11 @@ function TourRunner({ tour, index, onGo, onExit }: { tour: Tour; index: number; 
       if (cancelled) return;
       const found = routeMatches(step.route, window.location.pathname, window.location.search) ? document.querySelector(sel) : null;
       if (found) {
-        found.scrollIntoView({ block: "center", behavior: motion ? "smooth" : "auto" });
+        const r0 = found.getBoundingClientRect(); if (r0.top < 80 || r0.bottom > window.innerHeight - 80) found.scrollIntoView({ block: "center", behavior: "auto" });
         setEl(found); setSearching(false); return;
       }
       if (Date.now() - started > 6000) { setSearching(false); return; }
-      setTimeout(tick, 150);
+      setTimeout(tick, 80);
     };
     tick();
     return () => { cancelled = true; };
@@ -126,19 +129,22 @@ function TourRunner({ tour, index, onGo, onExit }: { tour: Tour; index: number; 
     let raf = 0;
     const measure = () => {
       raf = 0;
-      setVw(window.innerWidth); setVh(window.innerHeight);
-      if (el && el.isConnected) { const r = el.getBoundingClientRect(); setRect({ top: r.top, left: r.left, width: r.width, height: r.height }); }
-      else setRect(null);
+      setVw((v) => (v === window.innerWidth ? v : window.innerWidth)); setVh((v) => (v === window.innerHeight ? v : window.innerHeight));
+      if (el && el.isConnected) {
+        const r = el.getBoundingClientRect();
+        setRect((p) => (p && Math.abs(p.top - r.top) < 0.5 && Math.abs(p.left - r.left) < 0.5 && Math.abs(p.width - r.width) < 0.5 && Math.abs(p.height - r.height) < 0.5 ? p : { top: r.top, left: r.left, width: r.width, height: r.height }));
+      } else setRect((p) => (p === null ? p : null));
     };
     const schedule = () => { if (!raf) raf = requestAnimationFrame(measure); };
     measure();
     window.addEventListener("scroll", schedule, true);
     window.addEventListener("resize", schedule);
-    const iv = setInterval(schedule, 500); // layout shifts from late-loading content
-    return () => { window.removeEventListener("scroll", schedule, true); window.removeEventListener("resize", schedule); clearInterval(iv); if (raf) cancelAnimationFrame(raf); };
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(schedule) : null; // late-loading content shifts layout
+    if (ro) { ro.observe(document.body); if (el) ro.observe(el); }
+    return () => { window.removeEventListener("scroll", schedule, true); window.removeEventListener("resize", schedule); ro?.disconnect(); if (raf) cancelAnimationFrame(raf); };
   }, [el]);
 
-  useLayoutEffect(() => { if (cardRef.current) setCardH(cardRef.current.offsetHeight); });
+  useLayoutEffect(() => { if (cardRef.current) { const h = cardRef.current.offsetHeight; setCardH((p) => (p === h ? p : h)); } }, [index, tour.key, vw]);
   useEffect(() => { cardRef.current?.focus({ preventScroll: true }); }, [index, tour.key]);
 
   useEffect(() => {
@@ -168,7 +174,7 @@ function TourRunner({ tour, index, onGo, onExit }: { tour: Tour; index: number; 
     cardStyle = { top, left, width };
   } else cardStyle = { top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: Math.min(384, vw - 32) };
 
-  const transition = motion ? "all 200ms ease" : "none";
+  const transition = motion ? "top 140ms ease-out, left 140ms ease-out, width 140ms ease-out, height 140ms ease-out" : "none";
 
   return (
     <>
@@ -176,11 +182,11 @@ function TourRunner({ tour, index, onGo, onExit }: { tour: Tour; index: number; 
       {!ring && <div aria-hidden className="pointer-events-none fixed inset-0 z-[1000]" style={{ background: "rgba(15,15,30,.55)" }} />}
       {ring && (
         <div aria-hidden className="pointer-events-none fixed z-[1000] rounded-xl ring-2 ring-brand"
-          style={{ ...ring, boxShadow: "0 0 0 9999px rgba(15,15,30,.55)", transition }} />
+          style={{ ...ring, boxShadow: "0 0 0 100vmax rgba(15,15,30,.55)", willChange: "top, left, width, height" }} />
       )}
       <div ref={cardRef} role="dialog" aria-modal="false" aria-labelledby={titleId} tabIndex={-1}
         className={`fixed z-[1001] bg-surface p-4 shadow-xl outline-none ${mobile ? "rounded-t-2xl border-t border-line pb-6" : "max-w-sm rounded-2xl border border-line"}`}
-        style={{ ...cardStyle, transition }}>
+        style={{ ...cardStyle, transition, willChange: "top, left" }}>
         <div className="flex items-start gap-2">
           <p className="min-w-0 flex-1 truncate text-xs font-semibold uppercase tracking-wide text-brand">{tour.module} · {tour.title}</p>
           <button type="button" onClick={onExit} aria-label="Exit tutorial" className="-mr-1 -mt-1 rounded-lg px-2 text-lg leading-none text-ink-soft hover:bg-canvas">×</button>
