@@ -4,7 +4,7 @@ import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { HelpFor } from "@/components/ui";
 import { detail, OutreachError, buildContext } from "@/modules/outreach/service";
-import { saveAction, aiAction, requestAction, approveAction, rejectAction, openAction, sentAction, responseAction, pauseAction, resumeAction, prepareAction, closeAction } from "@/modules/outreach/actions";
+import { saveAction, aiAction, restoreAction, requestAction, approveAction, rejectAction, openAction, sentAction, responseAction, pauseAction, resumeAction, prepareAction, closeAction } from "@/modules/outreach/actions";
 import { SendPanel } from "@/modules/outreach/ui/send";
 import { SCENARIOS, CHANNEL_LABEL, LEVEL_LABEL } from "@/modules/outreach/rules";
 
@@ -202,10 +202,32 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <section className={card}><h2 className="font-semibold">Same conversation</h2><ul className="mt-2 space-y-1 text-sm">{(d.siblings as Row[]).map((x) => <li key={x.id}><Link href={`/outreach/${x.id}`} className="hover:text-brand">Step {x.step} · {CHANNEL_LABEL[x.channel as keyof typeof CHANNEL_LABEL]} · {x.status.replace("_", " ")}{x.planned_on && x.status === "planned" ? ` · ${x.planned_on}` : ""}</Link></li>)}</ul></section>
           ) : null}
 
+          {(d.versions as Row[]).length ? (
+            <section className={card}>
+              <h2 className="text-lg font-semibold">🗂 Versions</h2>
+              <p className="mt-1 text-xs text-ink-soft">Tap a version to read it. Restoring saves it as a new version, so nothing is lost.</p>
+              <ul className="mt-3 space-y-2">{(d.versions as Row[]).slice(0, 5).map((v, i) => (
+                <li key={v.version}>
+                  <details className="group rounded-xl border border-line open:border-brand/40 open:bg-brand-soft/30">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm">
+                      <span className="rounded-md bg-canvas px-1.5 py-0.5 text-xs font-semibold tabular-nums">v{v.version}</span>
+                      <span className="min-w-0 flex-1 truncate">{v.kind === "generated" ? "First draft" : v.op?.startsWith("restored") ? `Restored ${v.op.slice(9)}` : v.kind === "ai_edit" ? `AI: ${(OPS.find(([o]) => o === v.op)?.[1] ?? v.op ?? "rewrite")}` : "Your edit"}</span>
+                      {i === 0 ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800">Current</span> : <span className="text-xs text-ink-soft">{new Date(v.created_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}</span>}
+                      <span className="text-ink-soft transition group-open:rotate-180">▾</span>
+                    </summary>
+                    <div className="border-t border-line px-3 py-3 text-sm">
+                      {v.subject ? <p className="font-medium">{v.subject}</p> : null}
+                      <p className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap text-ink-soft">{v.body}</p>
+                      {editable && i > 0 ? <ActionForm action={restoreAction.bind(null, id, v.version)} className="mt-3"><Submit variant="secondary">Use this version</Submit></ActionForm> : null}
+                    </div>
+                  </details>
+                </li>))}</ul>
+            </section>
+          ) : null}
+
           <details className={card}>
-            <summary className="flex cursor-pointer items-center justify-between text-lg font-semibold">🗂 History ({d.events.length})<span className="text-sm text-ink-soft">▾</span></summary>
+            <summary className="flex cursor-pointer items-center justify-between font-semibold">Activity ({d.events.length})<span className="text-sm text-ink-soft">▾</span></summary>
             <ul className="mt-3 space-y-1 text-xs">{(d.events as Row[]).map((e, i) => <li key={i}><span className="text-ink-soft">{new Date(e.created_at).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}</span> {e.event.replace(/_/g, " ")}{e.detail?.reason ? ` — ${e.detail.reason}` : ""}</li>)}</ul>
-            <p className="mt-3 text-sm font-medium">Versions</p><ul className="mt-1 space-y-1 text-xs">{(d.versions as Row[]).map((v) => <li key={v.version}>v{v.version} · {v.kind.replace("_", " ")}{v.op ? ` (${v.op})` : ""}{v.learn ? " · style example" : ""}</li>)}</ul>
           </details>
         </aside>
       </div>

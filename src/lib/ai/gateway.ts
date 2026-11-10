@@ -274,7 +274,7 @@ async function logUsage(u: {
 // Only real Claude model ids are honoured; anything else (typo, other vendor) falls back to Haiku.
 const CLAUDE_MODEL = /^claude-/.test(process.env.ANTHROPIC_MODEL ?? "") ? process.env.ANTHROPIC_MODEL! : "claude-haiku-5-5";
 const CLAUDE_PRICE = { inputPerM: 1, outputPerM: 5, perSearch: 0.01 }; // USD per million tokens (estimate; update if pricing changes)
-const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600, CAP_OUTPUT_SEARCH = 3000, CAP_OUTPUT_SEARCH_MAX = 8000, SEARCH_MAX_USES = 2;
+const CAP_INPUT = 6000, CAP_EVIDENCE = 4000, CAP_OUTPUT = 600, CAP_OUTPUT_MAX = 4000, CAP_OUTPUT_SEARCH = 3000, CAP_OUTPUT_SEARCH_MAX = 8000, SEARCH_MAX_USES = 2;
 const toolName = (n: string) => n.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 60);
 
 async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
@@ -306,7 +306,7 @@ async function callClaude<S extends ZodType>(call: StructuredCall<S>): Promise<S
         headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01" },
         body: JSON.stringify({
           model: CLAUDE_MODEL,
-          max_tokens: call.webSearch ? Math.min(Math.max(call.maxOutputTokens ?? CAP_OUTPUT_SEARCH, CAP_OUTPUT_SEARCH), CAP_OUTPUT_SEARCH_MAX) : Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT),
+          max_tokens: call.webSearch ? Math.min(Math.max(call.maxOutputTokens ?? CAP_OUTPUT_SEARCH, CAP_OUTPUT_SEARCH), CAP_OUTPUT_SEARCH_MAX) : Math.min(call.maxOutputTokens ?? CAP_OUTPUT, CAP_OUTPUT_MAX),
           system: `${call.system}\n\n${INJECTION_GUARD}\nAnswer briefly. ${call.webSearch ? `Use up to ${Math.min(call.maxSearches ?? 2, 8)} different searches, then call the ${tName} tool with everything you found.` : "Return only the tool call."}`,
           messages, tools,
           tool_choice: force ? { type: "tool", name: tName } : { type: "auto" },

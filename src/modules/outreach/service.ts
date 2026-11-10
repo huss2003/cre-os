@@ -121,12 +121,13 @@ export async function duplicateCheck(db: Db, ws: string, personId: string, userI
   return w;
 }
 
+// Lenient: only subject/body are essential; everything else defaults so a slightly short AI answer still works.
 const Gen = z.object({
-  subject: z.string().nullable(), body: z.string(),
-  value_prop: z.string(), assumptions: z.array(z.string()),
-  questions: z.array(z.string()), opening_alternatives: z.array(z.string()), cta_alternatives: z.array(z.string()),
-  call_script: z.object({ opener: z.string(), reason: z.string(), questions: z.array(z.string()), objections: z.array(z.object({ objection: z.string(), reply: z.string() })), close: z.string() }).nullable(),
-  forwardable: z.string().nullable(),
+  subject: z.string().nullable().optional().default(null), body: z.string(),
+  value_prop: z.string().optional().default(""), assumptions: z.array(z.string()).optional().default([]),
+  questions: z.array(z.string()).optional().default([]), opening_alternatives: z.array(z.string()).optional().default([]), cta_alternatives: z.array(z.string()).optional().default([]),
+  call_script: z.object({ opener: z.string(), reason: z.string(), questions: z.array(z.string()), objections: z.array(z.object({ objection: z.string(), reply: z.string() })), close: z.string() }).nullable().optional().default(null),
+  forwardable: z.string().nullable().optional().default(null),
 });
 type GenOut = z.infer<typeof Gen>;
 type Ai = typeof callStructured;
@@ -143,7 +144,7 @@ async function styleNotes(db: Db, ws: string, userId: string, channel: string): 
   return mine.length ? `\nThe user approved these as examples of their style (match tone and length, not content):\n${mine.map((v) => `---\n${String(v.body).slice(0, 600)}`).join("\n")}` : "";
 }
 
-async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string } }, ai: Ai): Promise<{ out: GenOut; mocked: boolean }> {
+async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string } }, ai: Ai): Promise<{ out: GenOut; mocked: boolean; model: string }> {
   const tpl = R.templateDraft({ channel: a.channel, scenario: a.scenario, first: c.first, company: c.org?.display_name ?? "your company", level: c.level, reason: a.reason, roleKey: c.roleKey, sender: a.sender, via: a.via?.full_name?.split(/\s+/)[0] ?? null, lang: a.lang });
   const focus = R.ROLE_FOCUS[c.roleKey] ?? R.ROLE_FOCUS.other;
   const input = [
@@ -159,10 +160,10 @@ async function generate(db: Db, ws: string, userId: string, c: Context, a: { cha
     a.current ? `Rewrite this draft — instruction: ${a.instruction}\nSubject: ${a.current.subject ?? ""}\n${a.current.body}` : `Suggest up to 3 discovery questions from: ${R.SCENARIOS[a.scenario].questions.join(" | ")}`,
   ].filter(Boolean).join("\n\n") + await styleNotes(db, ws, userId, a.channel);
   const mock = (): GenOut => a.current ? mockEdit(a.current, a.instruction ?? "", tpl) : { ...tpl, value_prop: R.SCENARIOS[a.scenario].value, assumptions: c.unknowns.map((u) => `Unknown: ${u}`), questions: R.SCENARIOS[a.scenario].questions.slice(0, 3) };
-  const r = await ai({ workspaceId: ws, workflow: "outreach.draft", tier: "luna", system: SYSTEM, input, schema: Gen, schemaName: "outreach_draft", maxOutputTokens: 1800, classification: "corporate_confidential", mock });
+  const r = await ai({ workspaceId: ws, workflow: "outreach.draft", tier: "luna", system: SYSTEM, input, schema: Gen, schemaName: "outreach_draft", maxOutputTokens: 2500, classification: "corporate_confidential", mock });
   const out = r.data;
   if (a.channel !== "email" && a.channel !== "meeting_followup" && a.channel !== "introduction") out.subject = null;
-  return { out, mocked: r.mocked };
+  return { out, mocked: r.mocked, model: r.model };
 }
 
 /** Offline edits so the editor works without an AI key. */
@@ -281,9 +282,18 @@ export async function aiEdit(db: Db, ws: string, userId: string, id: string, op:
   const via = it.intro_via_person_id ? (await db.from("person").select("id, full_name").eq("id", it.intro_via_person_id).maybeSingle()).data : null;
   const lang: R.Lang = op === "hindi" ? "hi" : op === "hinglish" ? "hinglish" : op === "english" ? "en" : it.language;
   const g = await generate(db, ws, userId, c, { channel: it.channel, scenario: it.scenario, reason: it.reason, lang, via, sender: await senderName(db, ws), instruction: AI_OPS[op] ?? op, current: op === "regenerate" ? undefined : { subject: d.subject, body: d.body } }, ai);
+  if (g.mocked && String(g.model).startsWith("fallback:")) throw new OutreachError("The AI couldn't rewrite it this time — nothing was changed. Please try again.");
+  if (g.mocked && op !== "regenerate" && g.out.body === d.body) throw new OutreachError("AI is off (no key loaded), so this option can't change the text. Restart the app after adding the key.");
   if (lang !== it.language) await db.from("outreach_item").update({ language: lang }).eq("id", id);
   await db.from("outreach_item").update({ script: { ...(it.script ?? {}), openings: g.out.opening_alternatives, ctas: g.out.cta_alternatives } }).eq("id", id);
   return editItem(db, ws, userId, id, { subject: g.out.subject ?? d.subject, body: g.out.body }, "ai_edit", op);
+}
+
+/** Put an earlier version back (saved as a new version, so nothing is lost; approval resets). */
+export async function restoreVersion(db: Db, ws: string, userId: string, id: string, version: number) {
+  const { data: v } = await db.from("outreach_version").select("subject, body").eq("workspace_id", ws).eq("item_id", id).eq("version", version).maybeSingle();
+  if (!v) throw new OutreachError("That version no longer exists.");
+  return editItem(db, ws, userId, id, { subject: v.subject, body: v.body }, "user_edit", `restored v${version}`);
 }
 
 export async function requestApproval(db: Db, ws: string, userId: string, id: string) {

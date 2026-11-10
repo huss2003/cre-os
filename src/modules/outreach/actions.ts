@@ -87,3 +87,7 @@ export async function sweepAction(): Promise<ActionState> {
   try { const ctx = await requireContext("editor"); const r = await S.sweep(ctx.db, ctx.workspaceId); return done(`Checked ${r.checked}; paused ${r.paused}.`); }
   catch (e) { return fail(e); }
 }
+export async function restoreAction(id: string, version: number): Promise<ActionState> {
+  try { const ctx = await requireContext("editor"); await S.restoreVersion(ctx.db, ctx.workspaceId, ctx.userId, id, version); return done(`Version ${version} restored.`, id); }
+  catch (e) { return fail(e); }
+}
