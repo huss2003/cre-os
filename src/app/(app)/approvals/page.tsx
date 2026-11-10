@@ -53,7 +53,9 @@ async function Body({ searchParams }: Props) {
   const editor = hasRole(ctx, "editor");
   return (
     <div className="space-y-4">
+      <div data-tour="review-header">
       <PageHeader title="Review" subtitle="Everything waiting for your OK. Captures appear first — open one, check it, press Reviewed and it is added to the right sections." />
+      </div>
       {importsWaiting.length ? (
         <Card title={`Imports to review (${importsWaiting.length})`} help="Large files are reviewed in one place: open the import to see what it contains, add all safe rows in one click, and check only the doubtful ones.">
           <ul className="divide-y divide-line">
@@ -86,7 +88,7 @@ async function Body({ searchParams }: Props) {
           </ul>
         )}
       </Card>
-      <nav className="-mx-1 flex gap-1 overflow-x-auto pb-1" aria-label="Approval queues">
+      <nav className="-mx-1 flex gap-1 overflow-x-auto pb-1" aria-label="Approval queues" data-tour="review-tabs">
         {TABS.map((t) => (
           <Link key={t.key} href={`/approvals?tab=${t.key}`} aria-current={t.key === tab ? "page" : undefined}
             className={clsx("whitespace-nowrap rounded-lg px-3 py-2 text-sm", t.key === tab ? "bg-brand text-white" : "border border-line bg-surface")}>{t.label}</Link>

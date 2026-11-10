@@ -83,7 +83,7 @@ async function Research({ db, ws, editor }: { db: Row; ws: string; editor: boole
   const box = "rounded-2xl border border-line bg-surface p-5";
   return (
     <div className="space-y-4">
-      <section className={`${box} border-brand/30`}>
+      <section data-tour="contacts-find-company" className={`${box} border-brand/30`}>
         <h2 className="flex items-center text-lg font-semibold">Find the right people at a company<HelpFor k="Find the right people at a company" /></h2>
         <p className="mt-1 text-sm text-ink-soft">Searches public sources only. Nothing is saved until you approve it.</p>
         {editor ? (
@@ -96,12 +96,12 @@ async function Research({ db, ws, editor }: { db: Row; ws: string; editor: boole
       </section>
       <div className="grid gap-4 md:grid-cols-2">
         <section className={box}>
-          <h2 className="flex items-center font-semibold">Appointment news<HelpFor k="Appointment news" /></h2>
+          <h2 data-tour="contacts-appointment-news" className="flex items-center font-semibold">Appointment news<HelpFor k="Appointment news" /></h2>
           <p className="mt-1 text-sm text-ink-soft">New real estate, facilities, finance and site heads in the last 90 days.</p>
           {editor ? <ActionForm action={appointmentAction} className="mt-4"><Submit variant="secondary">Scan news</Submit></ActionForm> : null}
         </section>
         <section className={box}>
-          <h2 className="flex items-center font-semibold">Import your LinkedIn connections<HelpFor k="Import your LinkedIn connections" /></h2>
+          <h2 data-tour="contacts-linkedin-import" className="flex items-center font-semibold">Import your LinkedIn connections<HelpFor k="Import your LinkedIn connections" /></h2>
           <details className="mt-1 text-sm text-ink-soft"><summary className="cursor-pointer">How to get Connections.csv</summary><p className="mt-1">On LinkedIn: Me → Settings &amp; Privacy → Data privacy → Get a copy of your data → tick <b>Connections</b>.</p></details>
           {editor ? (
             <ActionForm action={linkedinImportAction} className="mt-3 space-y-3">
@@ -135,7 +135,7 @@ async function People({ db, ws, sp, mode }: { db: Row; ws: string; sp: SP; mode:
   if (mode === "enrich") people = people.filter((p) => !p.do_not_contact && (!p.last_enriched_at || (p.next_review_on && p.next_review_on <= new Date().toISOString().slice(0, 10))));
   const list = people.slice(0, 200);
   const filters = (
-    <form method="get" className="mb-3 flex flex-wrap gap-2">
+    <form data-tour="contacts-filters" method="get" className="mb-3 flex flex-wrap gap-2">
       <input type="hidden" name="tab" value={sp.tab} />
       <input name="q" defaultValue={sp.q} placeholder="Name" aria-label="Name" className={`${sel} min-w-40 flex-1`} />
       <select name="dept" defaultValue={sp.dept ?? ""} aria-label="Department" className={sel}><option value="">Any department</option>{DEPARTMENTS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}</select>
@@ -237,7 +237,7 @@ function Empty({ title, text }: { title: string; text: string }) {
 
 function SubNav({ group, cur }: { group: string; cur: string }) {
   return (
-    <div role="tablist" className="flex flex-wrap gap-2">
+    <div data-tour="contacts-subnav" role="tablist" className="flex flex-wrap gap-2">
       {SUB[group].map(([k, l]) => <Link key={k} href={`/contacts?tab=${k}`} aria-current={cur === k ? "page" : undefined} className={`rounded-full px-3.5 py-1.5 text-sm ${cur === k ? "bg-ink font-semibold text-white" : "bg-canvas text-ink-soft hover:text-ink"}`}>{l}</Link>)}
     </div>
   );
@@ -258,13 +258,13 @@ async function Body({ sp }: { sp: SP }) {
         <h1 className="flex items-center text-2xl font-bold tracking-tight sm:text-3xl">Contacts<HelpFor k="Contacts" /></h1>
         <p className="text-sm text-ink-soft">The people who decide on office space — every detail shows its source.</p>
       </header>
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl data-tour="contacts-stats" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map(([l, n, h]) => <div key={l} className={`rounded-2xl border p-4 ${l === "To review" && n ? "border-brand/40 bg-brand-soft" : "border-line bg-surface"}`}><dt className="text-xs font-medium text-ink-soft">{l}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{n.toLocaleString("en-IN")}</dd><dd className="mt-0.5 truncate text-xs text-ink-soft" title={h}>{h}</dd></div>)}
       </dl>
-      <nav aria-label="Contact sections" className="grid grid-cols-2 gap-1 rounded-2xl bg-canvas p-1 sm:grid-cols-4">
+      <nav data-tour="contacts-tabs" aria-label="Contact sections" className="grid grid-cols-2 gap-1 rounded-2xl bg-canvas p-1 sm:grid-cols-4">
         {MAIN.map(([k, l]) => <Link key={k} href={`/contacts?tab=${k}`} aria-current={group === k ? "page" : undefined} className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm ${group === k ? "bg-surface font-semibold shadow-sm" : "text-ink-soft hover:text-ink"}`}>{l}{k === "review" && o.review ? <span className="rounded-full bg-brand px-1.5 text-xs text-white">{o.review}</span> : null}</Link>)}
       </nav>
-      {SUB[group] ? <div className="flex items-center gap-2"><SubNav group={group} cur={tab} /><HelpFor k={group === "people" ? "Your contacts" : "Checks"} /></div> : <p className="flex items-center text-sm text-ink-soft">{group === "review" ? "Approve or reject what research found." : "Three ways to find new people."}<HelpFor k={group === "review" ? "To review" : "Find people"} /></p>}
+      {SUB[group] ? <div className="flex items-center gap-2"><SubNav group={group} cur={tab} /><HelpFor k={group === "people" ? "Your contacts" : "Checks"} /></div> : <p data-tour="contacts-section-hint" className="flex items-center text-sm text-ink-soft">{group === "review" ? "Approve or reject what research found." : "Three ways to find new people."}<HelpFor k={group === "review" ? "To review" : "Find people"} /></p>}
       {tab === "review" ? <Review db={ctx.db} ws={ctx.workspaceId} editor={editor} />
         : tab === "research" ? <Research db={ctx.db} ws={ctx.workspaceId} editor={editor} />
         : tab === "decision" || tab === "missing" || tab === "enrich" || tab === "all" ? <People db={ctx.db} ws={ctx.workspaceId} sp={{ ...sp, tab }} mode={tab} />

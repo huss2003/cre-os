@@ -42,6 +42,9 @@ export const NAV: NavSection[] = [
   { key: "meetings", label: "Meetings", hint: "Prepare for every meeting", href: "/meetings", tabs: [
     { href: "/meetings", label: "Meetings" },
   ]},
+  { key: "tutorials", label: "Tutorials", hint: "Guided walk-throughs", href: "/tutorials", tabs: [
+    { href: "/tutorials", label: "Tutorials" },
+  ]},
   { key: "outreach", label: "Outreach", hint: "Who to contact today and what to say", href: "/outreach", tabs: [
     { href: "/outreach", label: "Outreach" },
   ]},
@@ -80,6 +83,8 @@ export const FOCUS_MENU = [
   "/outreach",
   // Module 7 — Meeting preparation
   "/meetings",
+  // Guided tutorials
+  "/tutorials",
 ];
 /** Reachable by link from a signal, but not shown in the menu. */
 const FOCUS_LINKED = ["/settings/connections", "/contacts", "/drafts", "/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search", "/scoring", "/research"];

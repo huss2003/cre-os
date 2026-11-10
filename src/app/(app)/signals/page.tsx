@@ -66,7 +66,7 @@ async function Body({ sp }: { sp: SP }) {
   const urgent = c.high ?? 0;
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between" data-tour="signals-header">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Signals<HelpFor k="Signals" /></h1>
           <p className="mt-1 text-ink-soft">{c.all ? <>{c.all} open{urgent ? <>, <span className="font-semibold text-rose-700">{urgent} to act on now</span></> : null}</> : "Nothing open right now."}</p>
@@ -77,7 +77,7 @@ async function Body({ sp }: { sp: SP }) {
       <Suspense fallback={<div className="h-36 rounded-2xl bg-surface" />}><Horizon ws={ctx.workspaceId} db={ctx.db} /></Suspense>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <nav aria-label="Signal views" className="-mx-1 flex gap-1 overflow-x-auto pb-1 lg:mx-0 lg:flex-col lg:overflow-visible">
+        <nav aria-label="Signal views" data-tour="signals-views" className="-mx-1 flex gap-1 overflow-x-auto pb-1 lg:mx-0 lg:flex-col lg:overflow-visible">
           {(Object.keys(VIEWS) as View[]).map((v) => {
             const on = v === view; const cat = VIEW_CAT[v];
             return (
@@ -91,7 +91,7 @@ async function Body({ sp }: { sp: SP }) {
         </nav>
 
         <div className="min-w-0 space-y-4">
-          <form method="get" className="flex gap-2">
+          <form method="get" className="flex gap-2" data-tour="signals-search">
             <input type="hidden" name="view" value={view} />
             <label className="sr-only" htmlFor="sq">Search signals</label>
             <input id="sq" name="q" defaultValue={sp.q} placeholder="Search company, place or evidence" className="min-h-11 flex-1 rounded-xl border border-line bg-surface px-4 text-sm" />

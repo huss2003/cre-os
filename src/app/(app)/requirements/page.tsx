@@ -12,8 +12,10 @@ export default async function RequirementsPage({ searchParams }: { searchParams:
   const rows = await listRequirements(ctx, { status });
   return (
     <div>
+      <div data-tour="requirements-header">
       <PageHeader title="Requirements" subtitle="Client requirements, what is confirmed vs estimated, and what still needs asking."
         actions={<ButtonLink href="/requirements/new">New requirement</ButtonLink>} />
+      </div>
       <Flash sp={sp} />
       <form className="mb-4 flex gap-2" method="get">
         <Select name="status" defaultValue={status ?? ""} className="max-w-xs" aria-label="Filter by status">

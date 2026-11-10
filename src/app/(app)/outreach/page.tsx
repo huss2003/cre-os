@@ -46,7 +46,7 @@ async function Today({ db, ws, editor }: { db: Row; ws: string; editor: boolean 
   return (
     <div className="space-y-6">
       <section className="space-y-3">
-        <h2 className="flex items-center font-semibold">New conversations to start<HelpFor k="New conversations to start" /></h2>
+        <h2 data-tour="outreach-today" className="flex items-center font-semibold">New conversations to start<HelpFor k="New conversations to start" /></h2>
         {!sug.length ? <Empty title="No new reasons to reach out today" text="Suggestions come from recent signals and upcoming lease dates for companies where a relevant contact is saved. Add signals in Signals, or find people in Contacts." /> : (
           <ul className="grid gap-4 md:grid-cols-2">
             {sug.map((x) => {
@@ -81,7 +81,7 @@ async function Today({ db, ws, editor }: { db: Row; ws: string; editor: boolean 
         )}
       </section>
       <section className="space-y-3">
-        <h2 className="flex items-center font-semibold">Follow-ups due<HelpFor k="Follow-ups due" /></h2>
+        <h2 data-tour="outreach-followups" className="flex items-center font-semibold">Follow-ups due<HelpFor k="Follow-ups due" /></h2>
         {!(due ?? []).length ? <p className="text-sm text-ink-soft">None due today.</p> : (
           <ul className={`divide-y divide-line ${box}`}>
             {(due as Row[]).map((i) => (
@@ -115,7 +115,7 @@ async function Results({ db, ws }: { db: Row; ws: string }) {
   ];
   return (
     <div className="space-y-3">
-      <p className="flex items-center text-sm text-ink-soft">Last {a.days} days. Every rate shows what it is divided by.<HelpFor k="Results" /></p>
+      <p data-tour="outreach-results" className="flex items-center text-sm text-ink-soft">Last {a.days} days. Every rate shows what it is divided by.<HelpFor k="Results" /></p>
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">{tiles.map(([l, n, h]) => <div key={l} className={`${box} p-4`}><dt className="text-xs text-ink-soft">{l}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{n}</dd><dd className="mt-0.5 text-xs text-ink-soft">{h}</dd></div>)}</dl>
     </div>
   );
@@ -132,13 +132,13 @@ async function Body({ sp }: { sp: SP }) {
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
-        <div><h1 className="flex items-center text-2xl font-bold tracking-tight sm:text-3xl">Outreach<HelpFor k="Outreach" /></h1><p className="text-sm text-ink-soft">Who to contact, why now, and what to say. You approve and send every message yourself.</p></div>
-        {editor ? <div className="flex gap-2"><ActionForm action={sweepAction}><Submit variant="secondary">Re-check follow-ups</Submit></ActionForm><Link href="/outreach/new" className="inline-flex min-h-10 items-center rounded-xl bg-brand px-4 text-sm font-semibold text-white">New outreach</Link></div> : null}
+        <div><h1 data-tour="outreach-heading" className="flex items-center text-2xl font-bold tracking-tight sm:text-3xl">Outreach<HelpFor k="Outreach" /></h1><p className="text-sm text-ink-soft">Who to contact, why now, and what to say. You approve and send every message yourself.</p></div>
+        {editor ? <div className="flex gap-2"><ActionForm action={sweepAction}><Submit variant="secondary">Re-check follow-ups</Submit></ActionForm><Link data-tour="outreach-new" href="/outreach/new" className="inline-flex min-h-10 items-center rounded-xl bg-brand px-4 text-sm font-semibold text-white">New outreach</Link></div> : null}
       </header>
-      <nav aria-label="Outreach sections" className="grid grid-cols-3 gap-1 rounded-2xl bg-canvas p-1 sm:grid-cols-5">
+      <nav data-tour="outreach-tabs" aria-label="Outreach sections" className="grid grid-cols-3 gap-1 rounded-2xl bg-canvas p-1 sm:grid-cols-5">
         {MAIN.map(([k, l]) => <Link key={k} href={`/outreach?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={`flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm ${tab === k ? "bg-surface font-semibold shadow-sm" : "text-ink-soft hover:text-ink"}`}>{l}{badge[k] ? <span className="rounded-full bg-brand px-1.5 text-xs text-white">{badge[k]}</span> : null}</Link>)}
       </nav>
-      {SUB[tab] ? <div className="flex flex-wrap gap-2">{SUB[tab].map(([k, l, st]) => <Link key={k} href={`/outreach?tab=${tab}&view=${k}`} aria-current={sub?.[0] === k ? "page" : undefined} className={`rounded-full px-3.5 py-1.5 text-sm ${sub?.[0] === k ? "bg-ink font-semibold text-white" : "bg-canvas text-ink-soft hover:text-ink"}`}>{l}{st.length ? ` (${n(st)})` : ""}</Link>)}</div> : null}
+      {SUB[tab] ? <div data-tour="outreach-subtabs" className="flex flex-wrap gap-2">{SUB[tab].map(([k, l, st]) => <Link key={k} href={`/outreach?tab=${tab}&view=${k}`} aria-current={sub?.[0] === k ? "page" : undefined} className={`rounded-full px-3.5 py-1.5 text-sm ${sub?.[0] === k ? "bg-ink font-semibold text-white" : "bg-canvas text-ink-soft hover:text-ink"}`}>{l}{st.length ? ` (${n(st)})` : ""}</Link>)}</div> : null}
       {tab === "today" ? <Today db={ctx.db} ws={ctx.workspaceId} editor={editor} />
         : tab === "results" ? <Results db={ctx.db} ws={ctx.workspaceId} />
         : tab === "paused" ? <List db={ctx.db} ws={ctx.workspaceId} statuses={["paused"]} />

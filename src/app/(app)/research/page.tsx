@@ -38,14 +38,14 @@ export default async function ResearchPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-6">
-      <header>
+      <header data-tour="research-header">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Research<HelpFor k="Research" /></h1>
         <p className="mt-1 max-w-2xl text-ink-soft">Companies you watch are searched on the web on a schedule. What&apos;s found becomes a signal, with its link and date.</p>
       </header>
       <Flash sp={sp} />
 
       {/* Status: is the engine actually able to search? */}
-      <section className={`flex flex-col gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between ${ai ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/70"}`}>
+      <section data-tour="research-status" className={`flex flex-col gap-4 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between ${ai ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/70"}`}>
         <div className="flex items-start gap-3">
           <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${ai ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden />
           <div>

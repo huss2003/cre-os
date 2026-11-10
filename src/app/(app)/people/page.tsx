@@ -12,8 +12,10 @@ async function Body({ searchParams }: { searchParams: SP }) {
   const ctx = await requirePageContext();
   return (
     <>
+      <div data-tour="people-header">
       <PageHeader title="People" subtitle="Contacts on accounts you can see. Suppressed contacts are labelled."
         actions={hasRole(ctx, "editor") ? <ButtonLink href="/people/new">Add person</ButtonLink> : null} />
+      </div>
       <EntityList ctx={ctx} table="person" sp={await searchParams} />
     </>
   );

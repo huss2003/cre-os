@@ -137,6 +137,7 @@ export const HELP_TEXT: Record<string, string> = {
   "Ask them": "The few questions most useful for the next conversation.",
   // Module 7
   "Meetings": "Every meeting gets a preparation page: who's coming, what we know, what happened before, what to ask, likely objections and the outcome to aim for \u2014 built from your records.",
+  "Tutorials": "Guided walk-throughs of each module. A tutorial moves you between screens and highlights each part with a short explanation. Press Esc to leave at any time.",
   "Import from your calendar": "Upload an .ics file exported from Google Calendar or Outlook. Attendees are matched to your contacts by email. Nothing is changed in your calendar.",
   "Meeting readiness": "How prepared you are, out of 100: purpose, attendees, company research, contact details, history, requirement, properties, materials, questions and outcome. Separate from lead scores.",
   "Meeting purpose": "Why this meeting is happening, what triggered it, what they may want (a guess, labelled) and what you want.",

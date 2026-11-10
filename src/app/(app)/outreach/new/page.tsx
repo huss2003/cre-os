@@ -20,7 +20,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
       <div className="mx-auto max-w-xl space-y-4">
         <Link href="/outreach" className="text-sm text-ink-soft hover:text-ink">← Outreach</Link>
         <h1 className="text-2xl font-bold">Who do you want to contact?</h1>
-        <form method="get" className={`${box} space-y-3`}>
+        <form data-tour="outreach-pick-contact" method="get" className={`${box} space-y-3`}>
           <select name="person" required className={sel} defaultValue=""><option value="" disabled>Choose a contact</option>{((data ?? []) as Row[]).filter((p) => !p.do_not_contact).map((p) => { const e = (p.employment ?? []).find((x: Row) => x.is_current); return <option key={p.id} value={p.id}>{p.full_name}{e ? ` — ${e.title ?? ""} ${e.org?.display_name ? `at ${e.org.display_name}` : ""}` : ""}</option>; })}</select>
           <button className="min-h-10 rounded-xl bg-brand px-4 text-sm font-semibold text-white">Continue</button>
         </form>

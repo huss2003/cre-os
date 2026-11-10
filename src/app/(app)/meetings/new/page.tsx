@@ -22,7 +22,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ o
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Link href="/meetings" className="text-sm text-ink-soft hover:text-ink">← Meetings</Link>
-      <h1 className="text-2xl font-bold">New meeting</h1>
+      <h1 data-tour="meetings-new-form" className="text-2xl font-bold">New meeting</h1>
       <ActionForm action={createAction} className="space-y-4 rounded-2xl border border-line bg-surface p-5">
         <label className="block text-sm font-medium">Title<input name="title" required placeholder="e.g. VertexNova — requirement discussion" className={f} /></label>
         <div className="grid gap-3 sm:grid-cols-3">

@@ -36,8 +36,10 @@ export default async function DealsPage({ searchParams }: { searchParams: Promis
   );
   return (
     <div>
+      <div data-tour="deals-header">
       <PageHeader title="Pipeline" subtitle="Stage = deal progress. Outcome, temperature and mandate are tracked separately."
         actions={<Link className="text-sm text-brand underline" href={all ? "/deals" : "/deals?all=1"}>{all ? "Hide lost / dormant" : "Show lost / dormant"}</Link>} />
+      </div>
       <Flash sp={sp} />
       {opps.length === 0 ? (
         <EmptyState title="No opportunities yet">Create one below, or open a requirement and choose “Track as opportunity”.</EmptyState>

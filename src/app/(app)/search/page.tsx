@@ -23,7 +23,7 @@ async function Results({ searchParams }: { searchParams: SP }) {
 
   return (
     <div className="space-y-4">
-      <form action="/search" className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
+      <form action="/search" data-tour="search-form" className="grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
         <Input name="q" defaultValue={params.q} placeholder="Company, person, building, email, CIN, alias…" autoFocus aria-label="Search" />
         <select name="type" defaultValue={typeSel} className="rounded-lg border border-line bg-surface px-3 py-2 text-sm" aria-label="Type">
           <option value="">All types</option>

@@ -15,10 +15,12 @@ async function Body() {
   const waiting = sources.reduce((a, s) => a + s.waiting, 0);
   return (
     <>
+      <div data-tour="imports-header">
       <PageHeader
         title="Imports"
         subtitle="Originals are hashed and kept read-only. Every row is staged with its cell locator, reconciled, and linked to buildings, companies, leases and market series."
       />
+      </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="order-2 space-y-3 lg:order-1">
           {batches.length === 0 ? (
@@ -63,9 +65,9 @@ async function Body() {
           )}
         </div>
         <div className="order-1 lg:order-2">
-          <Card title="Upload" actions={<Link className="text-sm text-brand" href="/imports/sources">Sources{waiting ? ` (${waiting} waiting)` : ""}</Link>}>
+          <div data-tour="imports-upload"><Card title="Upload" actions={<Link className="text-sm text-brand" href="/imports/sources">Sources{waiting ? ` (${waiting} waiting)` : ""}</Link>}>
             <UploadForm sources={sources.map((s) => ({ id: s.id, name: s.name, kind: s.kind, approved: s.approved, is_default: s.is_default }))} />
-          </Card>
+          </Card></div>
         </div>
       </div>
     </>

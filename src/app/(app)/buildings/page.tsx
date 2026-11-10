@@ -12,8 +12,10 @@ async function Body({ searchParams }: { searchParams: SP }) {
   const ctx = await requirePageContext();
   return (
     <>
+      <div data-tour="buildings-header">
       <PageHeader title="Buildings" subtitle="Campuses, projects, buildings and towers. Vacancy is only shown with dated evidence."
         actions={hasRole(ctx, "editor") ? <ButtonLink href="/buildings/new">Add building</ButtonLink> : null} />
+      </div>
       <EntityList ctx={ctx} table="asset" sp={await searchParams} />
     </>
   );

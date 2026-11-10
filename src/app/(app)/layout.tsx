@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { TourProvider, TourUrlStarter } from "@/components/tour/runner";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { NAV, MOBILE_BAR, HOME, isHiddenPath, inFocusMenu, type NavSection } from "@/lib/nav";
 import { WorkspaceSwitcher } from "./workspace-switcher";
@@ -13,6 +15,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .map((s) => ({ ...s, href: s.tabs.some((t) => t.href === s.href) ? s.href : s.tabs[0].href }));
   const mobile = sections.filter((s) => (MOBILE_BAR as readonly string[]).includes(s.key));
   return (
+    <TourProvider>
+    <Suspense fallback={null}><TourUrlStarter /></Suspense>
     <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
       <aside className="hidden border-r border-line bg-surface lg:block">
         <div className="sticky top-0 flex h-screen flex-col overflow-y-auto p-4">
@@ -44,5 +48,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <MobileBar sections={mobile} />
       </div>
     </div>
+    </TourProvider>
   );
 }

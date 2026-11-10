@@ -92,7 +92,7 @@ async function Stats({ db, ws }: { db: Row; ws: string }) {
   return (
     <>
       <AutoRefresh busy={queued > 0} />
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-5">
+      <dl data-tour="scoring-stats" className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-5">
         {tiles.map(([l, n]) => <div key={l} className="bg-surface p-4"><dt className="text-xs text-ink-soft">{l}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{n.toLocaleString("en-IN")}</dd></div>)}
       </dl>
     </>
@@ -105,9 +105,9 @@ async function Unranked({ db, ws, canEdit }: { db: Row; ws: string; canEdit: boo
   const { data } = await db.schema("mudar_app").rpc("scoring_unranked", { p_workspace: ws });
   const rows = ((data ?? []) as { kind: string; total: number; unranked: number; examples: { id: string; name: string }[] }[]).filter((r) => Number(r.unranked) > 0);
   const total = rows.reduce((a, r) => a + Number(r.unranked), 0);
-  if (!total) return <p className="text-sm text-ink-soft">Every record is scored.</p>;
+  if (!total) return <p data-tour="scoring-unranked" className="text-sm text-ink-soft">Every record is scored.</p>;
   return (
-    <section className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5" aria-label="Not scored yet">
+    <section data-tour="scoring-unranked" className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5" aria-label="Not scored yet">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-lg font-semibold"><span className="tabular-nums">{total}</span> not ranked yet</p>
@@ -227,7 +227,7 @@ async function Body({ sp }: { sp: SP }) {
   const tab = sp.tab ?? "company";
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <header data-tour="scoring-header" className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0"><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Scoring<HelpFor k="Scoring" /></h1><p className="mt-1 max-w-xl text-ink-soft">Who to focus on first, and why. Every score shows its reasons, sources, how much is known and how sure it is.</p></div>
         {hasRole(ctx, "admin") ? (
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start">
@@ -238,7 +238,7 @@ async function Body({ sp }: { sp: SP }) {
       </header>
       <Suspense fallback={<div className="h-40 rounded-2xl bg-surface" />}><Stats db={ctx.db} ws={ctx.workspaceId} /></Suspense>
       <Suspense fallback={null}><Unranked db={ctx.db} ws={ctx.workspaceId} canEdit={hasRole(ctx, "editor")} /></Suspense>
-      <nav aria-label="Score type" className="-mx-1 flex gap-1 overflow-x-auto border-b border-line pb-px">
+      <nav data-tour="scoring-tabs" aria-label="Score type" className="-mx-1 flex gap-1 overflow-x-auto border-b border-line pb-px">
         {TABS.map((t) => <Link key={t.key} href={`/scoring?tab=${t.key}`} aria-current={tab === t.key ? "page" : undefined} className={`shrink-0 border-b-2 px-3 py-2 text-sm ${tab === t.key ? "border-ink font-semibold" : "border-transparent text-ink-soft hover:text-ink"}`}>{t.label}</Link>)}
       </nav>
       {tab === "properties" ? <Properties sp={sp} db={ctx.db} ws={ctx.workspaceId} /> : <Ranking sp={sp} db={ctx.db} ws={ctx.workspaceId} />}
