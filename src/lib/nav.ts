@@ -86,8 +86,10 @@ const FOCUS_LINKED = ["/settings/connections", "/contacts", "/drafts", "/compani
 export const HIDDEN_PREFIXES: string[] = [];
 const under = (path: string, list: string[]) => list.some((h) => path === h || path.startsWith(h + "/"));
 export function isHiddenPath(path: string): boolean {
+  // Focus mode only trims the MENU. Every screen stays reachable by link, so buttons/links that open a
+  // contact, company, deal, document, settings page etc. never bounce back to Home.
   if (!FOCUS_MODE) return false;
-  return !under(path, FOCUS_MENU) && !under(path, FOCUS_LINKED);
+  return path === "/today" && !under(path, FOCUS_MENU);
 }
 /** Menu filter: only the focus screens. */
 export function inFocusMenu(path: string): boolean {
