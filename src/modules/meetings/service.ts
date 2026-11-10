@@ -129,7 +129,7 @@ export async function gather(db: Db, ws: string, prepId: string) {
     q<Row[]>(attendeeIds.length > 0, () => db.from("outreach_item").select("id, channel, status, reason, sent_at, response, person_id").eq("workspace_id", ws).in("person_id", attendeeIds).order("updated_at", { ascending: false }).limit(20)),
     q<Row[]>(true, () => db.from("task").select("id, title, due_at, status, linked_entity_type, linked_entity_id").eq("workspace_id", ws).eq("status", "open").in("linked_entity_id", [...attendeeIds, ...(orgId ? [orgId] : []), ...(p.opportunity_id ? [p.opportunity_id] : []), prepId]).limit(30)),
     q<Row[]>(true, () => db.from("meeting_material").select("*").eq("prep_id", prepId).order("created_at")),
-    q<Row[]>(true, () => db.from("meeting_note").select("*").eq("prep_id", prepId).order("created_at")),
+    q<Row[]>(true, () => db.from("meeting_note").select("*").eq("prep_id", prepId).is("archived_at", null).order("created_at")),
     q<Row[]>(true, () => db.from("score_result").select("model_key, entity_id, score, band").eq("workspace_id", ws).eq("is_current", true).in("entity_id", [...attendeeIds, ...(orgId ? [orgId] : []), ...(p.opportunity_id ? [p.opportunity_id] : [])])),
     q<Row[]>(!!p.requirement_id, () => db.from("stakeholder").select("person_id, role").eq("workspace_id", ws).eq("requirement_id", p.requirement_id!)),
     q<Row[]>(!!orgId, () => db.from("market_transaction").select("id, deal_type, period_start, area_sf, asset:asset_id(name)").eq("workspace_id", ws).eq("tenant_org_id", orgId!).order("period_start", { ascending: false }).limit(5)),
@@ -398,7 +398,7 @@ const Out = z.object({
 });
 export type Outcome = z.infer<typeof Out>;
 export async function structureOutcome(db: Db, ws: string, userId: string, prepId: string, text: string, ai: Ai = callStructured) {
-  const { data: notes } = await db.from("meeting_note").select("kind, text").eq("prep_id", prepId).order("created_at");
+  const { data: notes } = await db.from("meeting_note").select("kind, text").eq("prep_id", prepId).is("archived_at", null).order("created_at");
   const all = [text, ...((notes ?? []) as Row[]).map((n) => `[${n.kind}] ${n.text}`)].filter((s) => s.trim()).join("\n");
   if (!all.trim()) throw new MeetingError("Add notes first.");
   const r = await ai({ workspaceId: ws, workflow: "meetings.outcome", tier: "luna", schema: Out, schemaName: "meeting_outcome", maxOutputTokens: 1500,
@@ -406,7 +406,7 @@ export async function structureOutcome(db: Db, ws: string, userId: string, prepI
     input: "Structure these notes.", evidence: all,
     mock: () => {
       const seats = all.match(/(\d{2,5})\s*(seats|people|headcount)/i); const area = all.match(/(\d[\d,]{2,})\s*(sq\.?\s*ft|sqft|sf)/i); const date = all.match(/\d{4}-\d{2}-\d{2}/);
-      return { summary: all.slice(0, 240), outcome: (/not interested|no need/i.test(all) ? "negative" : "positive") as Outcome["outcome"], topics: [] as string[],
+      return { summary: all.slice(0, 240), outcome: (/did ?n.t happen|not held|no.show|cancell?ed|postponed|didn.t meet/i.test(all) ? "no_show" : /not interested|no need/i.test(all) ? "negative" : "positive") as Outcome["outcome"], topics: [] as string[],
         requirement_updates: [...(seats ? [{ field: "seats_target" as const, value: seats[1], quote: seats[0] }] : []), ...(area ? [{ field: "area_target_sf" as const, value: area[1].replace(/,/g, ""), quote: area[0] }] : []), ...(date && /move/i.test(all) ? [{ field: "occupation_date" as const, value: date[0], quote: date[0] }] : [])],
         decision_process: null, objections: /broker/i.test(all) ? ["Mentioned an existing broker"] : [], property_feedback: [],
         commitments: all.split(/\n/).filter((l) => /\b(we will|i will|send|share)\b/i.test(l)).map((l) => ({ who: "us" as const, what: l.replace(/^\[\w+\]\s*/, "").slice(0, 160), due: null })),
@@ -422,11 +422,12 @@ export async function applyOutcome(db: Db, ws: string, userId: string, prepId: s
   const o = x.prep.outcome?.proposed as Outcome | undefined;
   if (!o) throw new MeetingError("Structure the notes first.");
   if (x.prep.outcome?.applied) throw new MeetingError("Already applied.");
+  if (o.outcome === "no_show") throw new MeetingError("The notes say the meeting didn't happen — use 'Meeting didn't happen' instead.");
   const res = { proposals: 0, tasks: 0, interaction: null as string | null, draft: null as string | null };
   if (sel.interaction) {
     const key = `meeting:${prepId}`;
     const prev = (await db.from("interaction").select("id").eq("workspace_id", ws).eq("source_message_id", key).maybeSingle()).data;
-    const ins = prev ?? (await db.from("interaction").insert({ workspace_id: ws, occurred_at: x.meeting.start_at, channel: x.prep.meeting_type === "site_visit" ? "visit" : "meeting", direction: "internal", subject: x.meeting.title, summary: o.summary, promises: o.commitments, objections: o.objections.map((t) => ({ text: t })), opportunity_id: x.prep.opportunity_id, is_meaningful: o.outcome !== "no_show", source_message_id: key, owner_user_id: userId }).select("id").single()).data!;
+    const ins = prev ?? (await db.from("interaction").insert({ workspace_id: ws, occurred_at: x.meeting.start_at, channel: x.prep.meeting_type === "site_visit" ? "visit" : "meeting", direction: "internal", subject: x.meeting.title, summary: o.summary, promises: o.commitments, objections: o.objections.map((t) => ({ text: t })), opportunity_id: x.prep.opportunity_id, is_meaningful: true, source_message_id: key, owner_user_id: userId }).select("id").single()).data!;
     res.interaction = ins.id;
     if (!prev) await db.from("interaction_link").insert([...x.attendees.filter((a) => a.personId).map((a) => ({ workspace_id: ws, interaction_id: ins.id, entity_type: "person", entity_id: a.personId, role: "participant" })), ...(x.prep.org_id ? [{ workspace_id: ws, interaction_id: ins.id, entity_type: "organisation", entity_id: x.prep.org_id, role: "mentioned" }] : [])]);
   }
@@ -459,6 +460,24 @@ export async function applyOutcome(db: Db, ws: string, userId: string, prepId: s
   await db.from("meeting_prep").update({ status: "completed", outcome: { ...x.prep.outcome, applied: { at: new Date().toISOString(), by: userId, ...res } } }).eq("id", prepId);
   await db.from("meeting_visit").update({ status: "completed" }).eq("id", x.prep.meeting_visit_id);
   return res;
+}
+
+/** Meeting didn't happen: log it (optional), clear proposals, keep the prep open for a new date. Nothing else changes. */
+export async function recordNoShow(db: Db, ws: string, userId: string, prepId: string, opts: { log: boolean }) {
+  const x = await gather(db, ws, prepId);
+  if (opts.log) {
+    const key = `meeting-noshow:${prepId}:${x.meeting.start_at.slice(0, 10)}`;
+    const prev = (await db.from("interaction").select("id").eq("workspace_id", ws).eq("source_message_id", key).maybeSingle()).data;
+    if (!prev) {
+      const { data: ins } = await db.from("interaction").insert({ workspace_id: ws, occurred_at: x.meeting.start_at, channel: "meeting", direction: "internal", subject: `${x.meeting.title} — did not happen`, summary: "Meeting did not take place.", is_meaningful: false, opportunity_id: x.prep.opportunity_id, source_message_id: key, owner_user_id: userId }).select("id").single();
+      if (ins) await db.from("interaction_link").insert(x.attendees.filter((a) => a.personId).map((a) => ({ workspace_id: ws, interaction_id: ins.id, entity_type: "person", entity_id: a.personId, role: "participant" })));
+    }
+  }
+  await db.from("meeting_prep").update({ outcome: null, status: x.prep.brief ? "brief_ready" : "preparation_pending" }).eq("id", prepId);
+  await db.from("meeting_note").update({ archived_at: new Date().toISOString() }).eq("prep_id", prepId).is("archived_at", null);
+}
+export async function discardOutcome(db: Db, ws: string, prepId: string) {
+  await db.from("meeting_prep").update({ outcome: null }).eq("workspace_id", ws).eq("id", prepId);
 }
 
 /** Reminders: preps whose meeting is within 24h and still not reviewed get a task (idempotent). Job: meetings.remind. */

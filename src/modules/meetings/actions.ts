@@ -87,3 +87,9 @@ export async function rescheduleAction(id: string, _p: ActionState, f: FormData)
 export async function cancelAction(id: string): Promise<ActionState> {
   try { const ctx = await requireContext("editor"); await S.cancelMeeting(ctx.db, ctx.workspaceId, id); return done("Cancelled here. Your own calendar was not changed.", id); } catch (e) { return fail(e); }
 }
+export async function noShowAction(id: string, _p: ActionState, f: FormData): Promise<ActionState> {
+  try { const ctx = await requireContext("editor"); await S.recordNoShow(ctx.db, ctx.workspaceId, ctx.userId, id, { log: f.get("log") === "1" }); return done("Recorded as not held. Pick a new date when you have one.", id); } catch (e) { return fail(e); }
+}
+export async function discardOutcomeAction(id: string): Promise<ActionState> {
+  try { const ctx = await requireContext("editor"); await S.discardOutcome(ctx.db, ctx.workspaceId, id); return done("Notes summary cleared.", id); } catch (e) { return fail(e); }
+}
