@@ -14,7 +14,7 @@ import { Tag, Dot, Avatar, AvatarStack, Gauge, Section, Kicker, Chip, Disclosure
 export const metadata = { title: "Meeting brief" };
 type Row = Record<string, any>;
 const ROLE: Record<string, string> = { decision_maker: "Decision-maker", economic_buyer: "Economic buyer", influencer: "Influencer", technical_evaluator: "Evaluator", operational: "Operational", gatekeeper: "Gatekeeper", procurement: "Procurement", administrative: "Administrative", unknown: "Role unknown" };
-const dateFmt = (d: string) => new Date(d).toLocaleString("en-IN", { weekday: "short", dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" } as Intl.DateTimeFormatOptions);
+const dateFmt = (d: string) => new Date(d).toLocaleString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 const Notice = ({ tone, children }: { tone: "bad" | "warn"; children: React.ReactNode }) => (
   <p className={`flex gap-2.5 border-l-2 py-1 pl-3 text-sm ${tone === "bad" ? "border-bad text-bad" : "border-warn text-warn"}`}>{children}</p>
 );
