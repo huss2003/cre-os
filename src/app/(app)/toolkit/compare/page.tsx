@@ -7,7 +7,7 @@ export default async function ComparePage() {
   const ctx = await requirePageContext();
   const rows = await listAnalyses(ctx.db, ctx.workspaceId, { kind: "property_comparison" });
   return (
-    <div>
+    <div data-tour="toolkit-compare">
       <PageHeader title="Property comparison" subtitle="Side-by-side, weighted rating of buildings against a requirement. Every run is saved as a reproducible version."
         actions={<><ButtonLink variant="secondary" href="/toolkit/models">Rating models</ButtonLink><ButtonLink href="/toolkit/compare/new">New comparison</ButtonLink></>} />
       {rows.length === 0 ? (

@@ -11,7 +11,7 @@ export interface TourStep {
   placement?: "top" | "bottom" | "left" | "right" | "auto";
 }
 export interface Tour {
-  key: "database" | "signals" | "scoring" | "contacts" | "outreach" | "meetings";
+  key: "database" | "signals" | "scoring" | "contacts" | "outreach" | "meetings" | "toolkit";
   module: string;           // e.g. "Module 5"
   title: string;            // e.g. "Outreach engine"
   summary: string;          // one line for the tutorial card

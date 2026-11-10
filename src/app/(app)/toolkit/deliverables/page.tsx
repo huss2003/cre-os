@@ -25,7 +25,7 @@ export default async function DeliverablesPage({ searchParams }: { searchParams:
   const gen = (done.data ?? []) as Row[];
   return (
     <div className="mx-auto max-w-4xl space-y-10 pb-16">
-      <header>
+      <header data-tour="toolkit-deliverables">
         <Link href="/toolkit" className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">← Deal toolkit</Link>
         <h1 className="mt-2 font-serif text-3xl text-ink">Client deliverables</h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-soft">Choose a requirement and the analyses to include. You get an editable proposal (Word), a workbook with one sheet per analysis (Excel) and a decision summary (Word). Figures from analyses that are missing information, not approved or based on estimates are labelled in every file.</p>

@@ -9,7 +9,7 @@ export default async function FinancingPage() {
   const ctx = await requirePageContext();
   const [saved, partners] = await Promise.all([listAnalyses(ctx.db, ctx.workspaceId, { kind: "financing" }), loadPartners(ctx.db, ctx.workspaceId)]);
   return (
-    <div className="space-y-5">
+    <div data-tour="toolkit-financing" className="space-y-5">
       <PageHeader title="Fit-out financing" subtitle="EMI, full amortisation schedule, total interest, fees and month-by-month cash requirement. Formula loan-1.0 — deterministic, rounded to paise only per row." />
       <Card title="Saved financing analyses">
         {saved.length === 0 ? <EmptyState title="No financing analyses yet">Enter the amount, rate and tenure below. To compare partners, save one analysis per partner&apos;s terms.</EmptyState> : (

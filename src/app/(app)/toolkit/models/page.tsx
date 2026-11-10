@@ -14,7 +14,7 @@ export default async function RatingModelsPage({ searchParams }: { searchParams:
   const cur = rows.find((r) => r.id === edit);
   const init = cur ? { name: cur.name as string, factors: cur.factors as RatingFactor[], rules: cur.rules as RatingRule[], isDefault: !!cur.is_default } : { name: "", factors: DEFAULT_MODEL.factors, rules: DEFAULT_MODEL.rules, isDefault: rows.length === 0 };
   return (
-    <div className="max-w-4xl">
+    <div data-tour="toolkit-models" className="max-w-4xl">
       <PageHeader title="Rating models" subtitle="Weights and rules used by Property comparison. Saving creates a new version; past comparisons keep the version they used."
         actions={<ButtonLink variant="secondary" href="/toolkit/compare">Comparisons</ButtonLink>} />
       <Card title="Saved models" className="mb-5">

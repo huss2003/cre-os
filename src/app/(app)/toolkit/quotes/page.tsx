@@ -22,7 +22,7 @@ export default async function QuotesIntakePage() {
   ]);
   const all = [...expired, ...current];
   return (
-    <div className="space-y-5">
+    <div data-tour="toolkit-quotes" className="space-y-5">
       <PageHeader title="Quotation intake" subtitle="Upload or paste a landlord, managed-office operator or fit-out partner quote. Terms are extracted for you to check, then saved as a new quote version — earlier versions are never overwritten." />
 
       {expired.length ? (

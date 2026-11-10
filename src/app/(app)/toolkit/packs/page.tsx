@@ -15,7 +15,7 @@ export default async function PacksPage() {
   ]);
   const r = (reqs.data ?? []) as Row[], a = (assets.data ?? []) as Row[], p = (packs.data ?? []) as Row[];
   return (
-    <div className="space-y-5">
+    <div data-tour="toolkit-packs" className="space-y-5">
       <PageHeader title="Site visit pack & presentation" subtitle="Pick a requirement and the buildings to show. You get a Word site-visit pack (details, checklist, blank feedback) and an editable PowerPoint deck. Unverified and estimated figures are labelled." />
       <Card title="Generate" help={<Help>Commercial terms come from the latest quote version per building; comparison figures from the latest saved property comparison / lease economics for the requirement. Branding comes from your template settings.</Help>}>
         {!r.length || !a.length ? <EmptyState title="Nothing to pack yet">You need at least one requirement and one building. Add them under Requirements and Buildings.</EmptyState> : (

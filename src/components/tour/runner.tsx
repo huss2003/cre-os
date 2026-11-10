@@ -111,7 +111,9 @@ function TourRunner({ tour, index, onGo, onExit }: { tour: Tour; index: number; 
     let cancelled = false;
     const tick = () => {
       if (cancelled) return;
-      const found = routeMatches(step.route, window.location.pathname, window.location.search) ? document.querySelector(sel) : null;
+      let found = routeMatches(step.route, window.location.pathname, window.location.search) ? document.querySelector(sel) : null;
+      // A target that wraps a whole page would light up everything — point at its heading instead.
+      if (found && found.getBoundingClientRect().height > window.innerHeight * 0.6) found = found.querySelector("header, h1, h2") ?? found;
       if (found) {
         const r0 = found.getBoundingClientRect(); if (r0.top < 80 || r0.bottom > window.innerHeight - 80) found.scrollIntoView({ block: "center", behavior: "auto" });
         setEl(found); setSearching(false); return;

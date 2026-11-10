@@ -49,7 +49,7 @@ export default async function ToolkitPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-12 pb-16">
-      <header className="pt-2">
+      <header data-tour="toolkit-header" className="pt-2">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">Deal toolkit</p>
         <h1 className="mt-2 font-serif text-3xl leading-tight text-ink sm:text-4xl">Compare, cost and recommend.</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-soft">Every analysis is saved with its inputs and formula version, so any number in a client document can be traced and reproduced. Start from a requirement brief; finish with a client deliverable.</p>
@@ -64,7 +64,7 @@ export default async function ToolkitPage() {
         </section>
       )}
 
-      <section>
+      <section data-tour="toolkit-sections">
         <Heading>Toolkit sections</Heading>
         <ol className="divide-y divide-line">
           {SECTIONS.map((s) => {
@@ -99,7 +99,7 @@ export default async function ToolkitPage() {
               </li>))}</ul>
           )}
         </section>
-        <section>
+        <section data-tour="toolkit-needs-info">
           <Heading>Needs information</Heading>
           {needsInfo.length === 0 ? <p className="py-4 text-sm text-ink-soft">Nothing is waiting on information.</p> : (
             <ul className="divide-y divide-line">{needsInfo.map((r) => (

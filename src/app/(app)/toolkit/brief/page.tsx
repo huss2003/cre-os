@@ -15,7 +15,7 @@ export default async function BriefIndexPage() {
   const rows = (reqs.data ?? []) as Row[];
   return (
     <div className="mx-auto max-w-4xl space-y-8 pb-16">
-      <header>
+      <header data-tour="toolkit-brief">
         <Link href="/toolkit" className="text-xs font-semibold uppercase tracking-[0.2em] text-brand">← Deal toolkit</Link>
         <h1 className="mt-2 font-serif text-3xl text-ink">Requirement brief</h1>
         <p className="mt-2 max-w-2xl text-sm text-ink-soft">Pick a requirement to see its brief: every item marked Confirmed, Estimated, Assumption or Missing, with open questions and pending approvals.</p>

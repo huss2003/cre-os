@@ -11,7 +11,7 @@ export default async function NegotiationPage() {
   const ctx = await requirePageContext();
   const saved = await listAnalyses(ctx.db, ctx.workspaceId, { kind: "negotiation", limit: 30 });
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-16">
+    <div data-tour="toolkit-negotiation" className="mx-auto max-w-5xl space-y-6 pb-16">
       <PageHeader title="Negotiation comparison" subtitle="Every landlord offer is kept as its own version (Offer 1, Offer 2 …). See what moved, what it is worth (fin-1.0 NPV) and what is still open. Formula nego-1.0. CRE OS never accepts, rejects or sends anything." />
       <Card title="Negotiations">
         {saved.length === 0 ? <EmptyState title="No negotiations yet">Record the landlord&apos;s first offer below. Each later offer is added as a new version — nothing is overwritten.</EmptyState> : (

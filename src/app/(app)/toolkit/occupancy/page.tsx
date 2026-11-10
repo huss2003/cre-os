@@ -24,7 +24,7 @@ export default async function OccupancyPage({ searchParams }: { searchParams: Pr
   const r = out?.result;
   const so = inp?.overrides ?? {};
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-16">
+    <div data-tour="toolkit-occupancy" className="mx-auto max-w-5xl space-y-6 pb-16">
       <PageHeader title="Occupancy economics" subtitle="Nominal vs effective rent, cash needed up front, present value and peak cash. Formula occ-1.0 on the fin-1.0 engine; sensitivities recalculate on the server." />
       {cur && r ? (
         <Card title={<span>{cur.title} <span className="text-xs font-normal text-ink-soft">v{cur.current_version} · {cur.formula_version}</span></span>}>

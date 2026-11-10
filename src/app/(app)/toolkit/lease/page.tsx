@@ -69,7 +69,7 @@ export default async function LeasePage({ searchParams }: { searchParams: Promis
   const offers: LeaseTerms[] = (cur?.inputs as { offers?: LeaseTerms[] } | undefined)?.offers ?? [];
   const discount = offers[0]?.discountRatePct ?? "";
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-16">
+    <div data-tour="toolkit-lease" className="mx-auto max-w-5xl space-y-6 pb-16">
       <PageHeader title="Lease economics" subtitle="Rent, escalation, rent-free, CAM, parking and deposit over the tenure. Formula lease-1.0 on the fin-1.0 engine — deterministic; blanks are unknown, never zero." />
       {cur && out ? (
         <Card title={<span>{cur.title} <span className="text-xs font-normal text-ink-soft">v{cur.current_version} · {cur.formula_version}</span></span>}>

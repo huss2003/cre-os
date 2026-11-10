@@ -8,7 +8,7 @@ export default async function ManagedPage() {
   const ctx = await requirePageContext();
   const rows = await listAnalyses(ctx.db, ctx.workspaceId, { kind: "conventional_vs_managed", limit: 30 });
   return (
-    <div className="space-y-5">
+    <div data-tour="toolkit-managed" className="space-y-5">
       <PageHeader title="Conventional vs managed" subtitle="Compare a conventional lease with a managed-office quote on the same period, per usable seat, with included services counted once. Leave a box blank when you don't know — it is listed as missing, never taken as zero." />
       <Card title={<>New comparison<HelpFor k="Conventional vs managed" /></>}><ManagedForm /></Card>
       <Card title="Saved comparisons">

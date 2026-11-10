@@ -149,7 +149,7 @@ async function Results({ db, ws }: { db: Row; ws: string }) {
       <p data-tour="outreach-results" className="flex items-center text-sm text-ink-soft">Last {a.days} days. Every rate shows what it is divided by.<HelpFor k="Results" /></p>
       <dl className="grid grid-cols-2 gap-3 md:grid-cols-4">{tiles.map(([l, n, h]) => <div key={l} className={`${box} p-4`}><dt className="text-xs text-ink-soft">{l}</dt><dd className="mt-1 text-2xl font-bold tabular-nums">{n}</dd><dd className="mt-0.5 text-xs text-ink-soft">{h}</dd></div>)}</dl>
       <section className={`${box} p-4`}>
-        <h3 className="flex items-center text-sm font-semibold">After outreach<HelpFor k="After outreach" /></h3>
+        <h3 data-tour="outreach-after" className="flex items-center text-sm font-semibold">After outreach<HelpFor k="After outreach" /></h3>
         <p className="text-xs text-ink-soft">Records that appeared after a message — timing only, not proof the message caused them.</p>
         <dl className="mt-3 grid gap-3 sm:grid-cols-3">{after.map(([l, n, h]) => <div key={l}><dt className="text-xs text-ink-soft">{l}</dt><dd className="text-xl font-bold tabular-nums">{n}</dd><dd className="text-xs text-ink-soft">{h}</dd></div>)}</dl>
       </section>
@@ -157,7 +157,7 @@ async function Results({ db, ws }: { db: Row; ws: string }) {
         <section className={`${box} p-4`}><h3 className="text-sm font-semibold">How people replied <span className="font-normal text-ink-soft">(of {a.replies} replies)</span></h3>
           <ul className="mt-2 flex flex-wrap gap-2 text-sm">{outcomes.map(([k, v]) => <li key={k} className="rounded-full bg-canvas px-3 py-1">{OUTCOME_LABEL[k as keyof typeof OUTCOME_LABEL] ?? k} <b className="tabular-nums">{v}</b></li>)}</ul></section>
       ) : null}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div data-tour="outreach-breakdowns" className="grid gap-4 md:grid-cols-2">
         <Table title="By channel" rows={a.byChannel} /><Table title="By approach" rows={a.byScenario} />
         <Table title="Top companies" rows={a.byCompany} /><Table title="Top contacts" rows={a.byContact} />
       </div>

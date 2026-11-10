@@ -8,7 +8,7 @@ export default async function RenewalPage() {
   const ctx = await requirePageContext();
   const rows = await listAnalyses(ctx.db, ctx.workspaceId, { kind: "renewal_vs_relocation", limit: 30 });
   return (
-    <div className="space-y-5">
+    <div data-tour="toolkit-renewal" className="space-y-5">
       <PageHeader title="Renewal vs relocation" subtitle="Compare renewing the current lease with moving: totals, present value, month-by-month cumulative cost and break-even, plus a separate operational score. Blank = unknown and listed as missing, never zero." />
       <Card title={<>New analysis<HelpFor k="Renewal vs relocation" /></>}><RenewalForm /></Card>
       <Card title="Saved analyses">

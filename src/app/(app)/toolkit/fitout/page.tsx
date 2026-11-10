@@ -10,7 +10,7 @@ export default async function FitoutPage() {
   const ctx = await requirePageContext();
   const [saved, partners] = await Promise.all([listAnalyses(ctx.db, ctx.workspaceId, { kind: "fitout" }), loadPartners(ctx.db, ctx.workspaceId)]);
   return (
-    <div className="space-y-5">
+    <div data-tour="toolkit-fitout" className="space-y-5">
       <PageHeader title="Fit-out budget & quotations" subtitle="Estimated, approved and actual costs by category with tax shown separately, plus a like-for-like comparison of partner quotations. Formula fitout-1.0 — deterministic, no AI arithmetic." />
       <Card title="Saved budgets">
         {saved.length === 0 ? <EmptyState title="No fit-out budgets yet">Add line items below (amounts excluding tax, with each line&apos;s tax %), then add partner quotations to compare.</EmptyState> : (
