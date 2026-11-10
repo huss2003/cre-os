@@ -6,6 +6,9 @@ import { HelpFor } from "@/components/ui";
 import { gather, assessReadiness, MeetingError, type Item } from "@/modules/meetings/service";
 import { MEETING_TYPES, SITE_VISIT } from "@/modules/meetings/rules";
 import * as A from "@/modules/meetings/actions";
+import { materialLinks, FEEDBACK_FIELDS } from "@/modules/meetings/more";
+import { openClarifications } from "@/modules/meetings/service";
+import { MaterialUploader } from "@/modules/meetings/ui/upload";
 import { Tag, Dot, Avatar, AvatarStack, Gauge, Section, Kicker, Chip, Disclosure, Chevron, OUTCOME_LABEL, inp, linkBtn } from "@/modules/meetings/ui/dossier";
 
 export const metadata = { title: "Meeting brief" };
@@ -25,10 +28,15 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const rd = b ? (p.readiness_detail as Row) : assessReadiness(x, null);
   const score = b ? p.readiness : rd.score;
   const t = MEETING_TYPES[p.meeting_type] ?? MEETING_TYPES.discovery;
-  const [{ data: people }, { data: assets }] = await Promise.all([
+  const [{ data: people }, { data: assets }, { data: members }, links] = await Promise.all([
     ctx.db.from("person").select("id, full_name").eq("workspace_id", ctx.workspaceId).is("archived_at", null).order("full_name").limit(1000),
     ctx.db.from("asset").select("id, name").eq("workspace_id", ctx.workspaceId).is("archived_at", null).order("name").limit(1000),
+    ctx.db.from("membership").select("user_id, display_name, role").eq("workspace_id", ctx.workspaceId).limit(200),
+    materialLinks(ctx.db, x.materials),
   ]);
+  const liveFb = (aid: string) => (x.properties as Row[]).find((pp) => pp.id === aid)?.feedback as Row | null | undefined;
+  const isPropMeeting = ["site_visit", "property_presentation"].includes(p.meeting_type);
+  const clarOpen = openClarifications(p.outcome);
   const out = p.outcome?.proposed as Row | undefined;
   const cancelled = p.status === "cancelled";
   const canReschedule = editor && !cancelled && p.status !== "completed";
@@ -44,6 +52,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   ] as [string, string][]) : [];
   const numbered = sections.length;
   const num = (key: string) => { const i = sections.findIndex(([k]) => k === key); return i >= 0 && i < numbered ? String(i + 1).padStart(2, "0") : ""; };
+  if (isPropMeeting && x.properties.length && !cancelled) sections.push(["feedback", "Property feedback"]);
   if (p.meeting_type === "site_visit") sections.push(["checklist", "Site visit checklist"]);
   if (editor && b && !cancelled) sections.push(["after", "After the meeting"]);
   if (editor) sections.push(["manage", "Manage"]);
@@ -215,6 +224,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                       {(pp.missing as string[]).map((v, i) => <Chip key={`u${i}`} tone="muted">Unknown: {v}</Chip>)}
                     </div> : null}
                     <p className="mt-2 text-xs text-ink-soft">Verify: {pp.verify.join(" · ")}</p>
+                    {liveFb(pp.id) ? <FeedbackSummary f={liveFb(pp.id)!} /> : null}
                   </li>))}</ul>
               </Section> : null}
 
@@ -226,6 +236,23 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               </Section>
             </article>
           )}
+
+          {isPropMeeting && x.properties.length && !cancelled ? (
+            <div className="print:hidden"><Section id="feedback" title="Property feedback" help="Property feedback" note="One form per property. A negative comment is general feedback — only tick “clearly rejected” when the client said no.">
+              <div className="border-t border-line">{(x.properties as Row[]).map((pp) => { const f = (pp.feedback ?? {}) as Row; return (
+                <Disclosure key={pp.id} title={pp.name} meta={pp.feedback ? (f.interest === "rejected" ? "rejected by client" : f.interest ? `${f.interest} · ${f.overall ?? "?"}/5` : "saved") : "no feedback yet"}>
+                  {editor ? <ActionForm action={A.feedbackAction.bind(null, id, pp.id)} className="space-y-3 text-sm">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="block space-y-1"><span className="text-ink-soft">Overall impression (1–5)</span><select name="overall" defaultValue={f.overall ?? ""} className={inp}><option value="">Not rated</option>{[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}</select></label>
+                      <label className="block space-y-1"><span className="text-ink-soft">Interest</span><select name="interest" defaultValue={f.interest ?? ""} className={inp}><option value="">Not stated</option><option value="interested">Interested</option><option value="maybe">Maybe</option><option value="rejected">Rejected</option></select></label>
+                    </div>
+                    <label className="flex min-h-10 items-center gap-2"><input type="checkbox" name="explicit_rejection" value="1" defaultChecked={!!f.explicit_rejection} className="h-4 w-4 accent-brand" /> The client clearly rejected it (not just general feedback)</label>
+                    {FEEDBACK_FIELDS.map(([k, l]) => <label key={k} className="block space-y-1"><span className="text-ink-soft">{l}</span><textarea name={k} defaultValue={f[k] ?? ""} rows={k === "notes" ? 3 : 1} className={inp} /></label>)}
+                    <Submit variant="secondary">Save feedback</Submit>
+                  </ActionForm> : pp.feedback ? <FeedbackSummary f={f} /> : <p className="text-sm text-ink-soft">No feedback recorded.</p>}
+                </Disclosure>); })}</div>
+            </Section></div>
+          ) : null}
 
           {p.meeting_type === "site_visit" ? (
             <div className="print:hidden"><Section id="checklist" title="Site visit checklist">
@@ -241,7 +268,20 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               {!out ? (
                 <ActionForm action={A.structureAction.bind(null, id)} className="space-y-3"><textarea name="text" rows={5} placeholder="What happened? Area, budget, dates, who decides, objections, what you promised… (notes from Meeting mode are included)" className={inp} /><Submit>Structure my notes</Submit></ActionForm>
               ) : p.outcome?.applied ? (
-                <p>Applied {new Date(p.outcome.applied.at).toLocaleString("en-IN")}: {p.outcome.applied.proposals} update(s) to Review, {p.outcome.applied.tasks} task(s). <Link href="/approvals" className="text-brand underline underline-offset-4">Open Review</Link></p>
+                <div className="space-y-5">
+                  <p>Applied {new Date(p.outcome.applied.at).toLocaleString("en-IN")}: {p.outcome.applied.proposals} update(s) to Review, {p.outcome.applied.tasks} task(s). <Link href="/approvals" className="text-brand underline underline-offset-4">Open Review</Link></p>
+                  <Analysis o={out} />
+                  <div className="rounded-xl bg-surface p-4">
+                    <Kicker>Follow-up pack</Kicker><p className="mt-1 text-xs text-ink-soft">Drafts only — nothing is sent. Open them in Outreach to review, then send from your own mail or WhatsApp.</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <ActionForm action={A.emailFollowupAction.bind(null, id)}><Submit variant="secondary">{p.outcome.applied.draft ? "Another email draft" : "Client email draft"}</Submit></ActionForm>
+                      <ActionForm action={A.whatsappAction.bind(null, id)}><Submit variant="secondary">WhatsApp draft</Submit></ActionForm>
+                      <a href={`/api/v1/meetings/${id}/report`} className={`${linkBtn} border border-line bg-surface hover:bg-canvas`}>Internal report (.md)</a>
+                      <ActionForm action={A.agendaAction.bind(null, id)}><Submit variant="secondary">Next-meeting agenda</Submit></ActionForm>
+                    </div>
+                    {x.notes.filter((n) => n.kind === "note" && String(n.text).startsWith("Agenda")).map((n) => <pre key={n.id} className="mt-3 whitespace-pre-wrap font-sans text-sm">{n.text}</pre>)}
+                  </div>
+                </div>
               ) : out.outcome === "no_show" ? (
                 <div className="space-y-5 rounded-xl bg-surface p-5">
                   <div><p className="text-lg font-semibold tracking-tight">This meeting didn&apos;t take place</p>{out.summary ? <p className="mt-1 text-ink-soft">{out.summary}</p> : null}</div>
@@ -259,13 +299,33 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   {out.commitments.length ? <div><Kicker>Commitments</Kicker><ul className="mt-2 space-y-1.5">{(out.commitments as Row[]).map((c, i) => <li key={i} className="flex gap-2.5"><Dot tone="muted" /><span>{c.who === "us" ? "We" : "They"}: {c.what}{c.due ? ` (by ${c.due})` : ""}</span></li>)}</ul></div> : null}
                   {out.objections.length ? <p><span className="font-medium">Objections:</span> {out.objections.join(" · ")}</p> : null}
                   {out.decision_process ? <p><span className="font-medium">Decision process:</span> {out.decision_process}</p> : null}
-                  <ActionForm action={A.applyAction.bind(null, id)} className="space-y-1 rounded-xl bg-surface p-4">
+                  <Analysis o={out} />
+                  {(out.contact_updates ?? []).length || (out.company_notes ?? []).length || (out.new_stakeholders ?? []).length ? <div><Kicker>Other proposed updates</Kicker><ul className="mt-2 space-y-1.5 text-sm">
+                    {(out.contact_updates as Row[] ?? []).map((c, i) => <li key={`c${i}`} className="flex gap-2.5"><Dot tone="muted" /><span>{c.name}: {c.field} → <b>{c.value}</b> <span className="text-ink-soft">(“{c.quote}”)</span></span></li>)}
+                    {(out.company_notes as Row[] ?? []).map((c, i) => <li key={`o${i}`} className="flex gap-2.5"><Dot tone="muted" /><span>Company note: {c.text} <span className="text-ink-soft">(“{c.quote}”)</span></span></li>)}
+                    {(out.new_stakeholders as Row[] ?? []).map((c, i) => <li key={`s${i}`} className="flex gap-2.5"><Dot tone="muted" /><span>New stakeholder: {c.name} ({c.role}) <span className="text-ink-soft">(“{c.quote}”)</span></span></li>)}
+                  </ul></div> : null}
+                  {clarOpen.length ? (
+                    <ActionForm action={A.clarifyAction.bind(null, id)} className="space-y-3 rounded-xl border border-warn/40 p-4">
+                      <Kicker>Please clarify before applying</Kicker>
+                      {clarOpen.map((q) => <label key={q.i} className="block space-y-1 text-sm"><span>{q.question} <span className="text-xs text-ink-soft">({q.about})</span></span><input name={`q_${q.i}`} required className={inp} /></label>)}
+                      <Submit>Save answers</Submit>
+                    </ActionForm>
+                  ) : null}
+                  {!clarOpen.length ? <ActionForm action={A.applyAction.bind(null, id)} className="space-y-1 rounded-xl bg-surface p-4">
                     <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="interaction" value="1" defaultChecked className="h-4 w-4 accent-brand" /> Save the meeting to history</label>
                     <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="requirement" value="1" defaultChecked className="h-4 w-4 accent-brand" /> Send requirement / deal changes to Review</label>
                     <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="tasks" value="1" defaultChecked className="h-4 w-4 accent-brand" /> Create tasks for our commitments</label>
+                    <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="contacts" value="1" defaultChecked={(out.contact_updates ?? []).length > 0} className="h-4 w-4 accent-brand" /> Send contact detail changes to Review</label>
+                    <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="company" value="1" defaultChecked={(out.company_notes ?? []).length > 0} className="h-4 w-4 accent-brand" /> Send company notes to Review</label>
+                    <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="stakeholders" value="1" defaultChecked={(out.new_stakeholders ?? []).length > 0} className="h-4 w-4 accent-brand" /> Propose new stakeholders on the requirement</label>
                     <label className="flex min-h-10 items-center gap-2.5"><input type="checkbox" name="followup" value="1" className="h-4 w-4 accent-brand" /> Draft a follow-up email (in Outreach, for your approval)</label>
+                    <div className="grid gap-3 pt-2 sm:grid-cols-2">
+                      <label className="block space-y-1 text-sm"><span className="text-ink-soft">Tasks assigned to</span><select name="assignee" defaultValue={ctx.userId} className={inp}>{((members ?? []) as Row[]).map((mm) => <option key={mm.user_id} value={mm.user_id}>{mm.user_id === ctx.userId ? "Me" : mm.display_name ?? `Member (${mm.role})`}</option>)}</select></label>
+                      {p.opportunity_id ? <label className="block space-y-1 text-sm"><span className="text-ink-soft">Next action date on the deal (to Review)</span><input type="date" name="next_action_date" defaultValue={out.followup_date ?? ""} className={inp} /></label> : null}
+                    </div>
                     <div className="pt-2"><Submit>Approve selected</Submit></div>
-                  </ActionForm>
+                  </ActionForm> : null}
                 </div>
               )}
             </Section></div>
@@ -292,7 +352,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   <ActionForm action={A.attendeeAction.bind(null, id)} className="mt-3 flex flex-wrap gap-2"><select name="person_id" className="min-h-10 flex-1 rounded-lg border border-line bg-surface px-2 text-sm"><option value="">Saved contact…</option>{((people ?? []) as Row[]).map((pp) => <option key={pp.id} value={pp.id}>{pp.full_name}</option>)}</select><input name="name" placeholder="or name" className="min-h-10 w-28 rounded-lg border border-line bg-surface px-2 text-sm" /><input name="email" placeholder="email" className="min-h-10 w-36 rounded-lg border border-line bg-surface px-2 text-sm" /><Submit variant="secondary">Add</Submit></ActionForm>
                 </Disclosure>
                 <Disclosure title="Materials" meta={String(x.materials.length)}>
-                  <ul className="space-y-1.5 text-sm">{x.materials.map((mt) => <li key={mt.id}>{mt.url ? <a href={mt.url} target="_blank" rel="noreferrer noopener" className="text-brand underline underline-offset-4">{mt.title}</a> : mt.title} <span className="text-xs text-ink-soft">{mt.internal_only ? "internal only" : "OK to share"}</span></li>)}</ul>
+                  <ul className="space-y-1.5 text-sm">{x.materials.map((mt) => <li key={mt.id}>{mt.storage_object ? (links[mt.id] ? <a href={links[mt.id]} target="_blank" rel="noreferrer noopener" className="text-brand underline underline-offset-4">{mt.title}</a> : <span>{mt.title} <span className="text-xs text-bad">(file unavailable)</span></span>) : mt.url ? <a href={mt.url} target="_blank" rel="noreferrer noopener" className="text-brand underline underline-offset-4">{mt.title}</a> : mt.title} <span className="text-xs text-ink-soft">{mt.storage_object ? `${String(mt.mime ?? "").includes("pdf") ? "PDF" : "photo"} · ` : ""}{mt.internal_only ? "internal only" : "OK to share"}</span></li>)}</ul>
+                  <ActionForm action={A.uploadMaterialAction.bind(null, id)} className="mt-4 space-y-2 border-t border-line pt-4"><p className="text-xs text-ink-soft">Or upload a photo, PDF or floor plan (max 25 MB).</p><MaterialUploader workspaceId={ctx.workspaceId} prepId={id} /><input name="title" placeholder="Name (optional)" className={inp} /><label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="shareable" value="1" className="h-4 w-4 accent-brand" /> OK to share with attendees</label><Submit variant="secondary">Attach</Submit></ActionForm>
                   <ActionForm action={A.materialAction.bind(null, id)} className="mt-3 space-y-2"><input name="title" placeholder="e.g. Kharadi rent comparison" className={inp} /><input name="url" placeholder="Link (Drive, SharePoint…)" className={inp} /><label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="shareable" value="1" className="h-4 w-4 accent-brand" /> OK to share with attendees</label><Submit variant="secondary">Add</Submit></ActionForm>
                 </Disclosure>
                 {b ? <Disclosure title="Edit the brief">
@@ -329,6 +390,32 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+const INTEREST_LABEL: Record<string, string> = { interested: "Interested", maybe: "Maybe", rejected: "Rejected", unclear: "Unclear" };
+function FeedbackSummary({ f }: { f: Row }) {
+  const rej = f.interest === "rejected" && f.explicit_rejection;
+  return (
+    <div className="mt-3 rounded-lg bg-surface p-3 text-sm">
+      <p className="flex flex-wrap items-center gap-2"><Kicker>Site-visit feedback</Kicker>{f.overall ? <span className="tabular-nums">{f.overall}/5</span> : null}{f.interest ? <Chip tone={rej ? "bad" : f.interest === "interested" ? "ok" : "muted"}>{rej ? "Rejected by client" : INTEREST_LABEL[f.interest]}</Chip> : null}</p>
+      <dl className="mt-1.5 space-y-0.5">{FEEDBACK_FIELDS.filter(([k]) => f[k]).map(([k, l]) => <div key={k}><dt className="inline text-ink-soft">{l}: </dt><dd className="inline">{f[k]}</dd></div>)}</dl>
+    </div>
+  );
+}
+function Basis({ b }: { b: string }) { return <Tag k={b === "statement" ? "fact" : "inference"} />; }
+/** Deeper analysis of the notes: statements (quoted) vs our interpretation, clearly labelled. */
+function Analysis({ o }: { o: Row }) {
+  const groups: [string, Row[]][] = [["Buying signals", o.buying_signals ?? []], ["Risks", o.risks ?? []], ["Unresolved questions", o.unresolved_questions ?? []]];
+  const ppi = (o.per_property_interest ?? []) as Row[];
+  if (!groups.some(([, v]) => v.length) && !ppi.length && !(o.confidence_notes ?? []).length) return null;
+  return (
+    <div className="space-y-4">
+      <p className="text-xs text-ink-soft">“Confirmed” items were said in the meeting (quoted); “Not confirmed” items are our reading of the notes.</p>
+      {groups.filter(([, v]) => v.length).map(([h, v]) => <div key={h}><Kicker>{h}</Kicker><ul className="mt-2 space-y-1.5">{v.map((it, i) => <li key={i} className="flex gap-2.5"><Dot tone={h === "Risks" ? "warn" : "muted"} /><span>{it.text}<Basis b={it.basis} />{it.quote && it.quote !== it.text ? <span className="text-sm text-ink-soft"> (“{it.quote}”)</span> : null}</span></li>)}</ul></div>)}
+      {ppi.length ? <div><Kicker>Interest per property</Kicker><ul className="mt-2 space-y-1.5">{ppi.map((x, i) => <li key={i} className="flex flex-wrap items-center gap-2"><span className="font-medium">{x.property}</span><Chip tone={x.interest === "interested" ? "ok" : x.interest === "rejected" ? "bad" : "muted"}>{INTEREST_LABEL[x.interest] ?? x.interest}</Chip><Basis b={x.basis} />{x.quote ? <span className="text-sm text-ink-soft">“{x.quote}”</span> : null}</li>)}</ul></div> : null}
+      {(o.confidence_notes ?? []).length ? <p className="text-xs text-ink-soft">Confidence: {(o.confidence_notes as string[]).join(" · ")}</p> : null}
     </div>
   );
 }

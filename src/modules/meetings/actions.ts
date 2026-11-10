@@ -5,6 +5,7 @@ import { requireContext } from "@/lib/auth/context";
 import { errorMessage } from "@/modules/admin/http";
 import type { ActionState } from "@/modules/admin/ui/client";
 import * as S from "./service";
+import * as M from "./more";
 
 const s = (f: FormData, k: string) => { const v = f.get(k); return typeof v === "string" ? v.trim() : ""; };
 const fail = (e: unknown): ActionState => ({ error: e instanceof S.MeetingError ? e.message : errorMessage(e) });
@@ -77,7 +78,7 @@ export async function structureAction(id: string, _p: ActionState, f: FormData):
 export async function applyAction(id: string, _p: ActionState, f: FormData): Promise<ActionState> {
   try {
     const ctx = await requireContext("editor");
-    const r = await S.applyOutcome(ctx.db, ctx.workspaceId, ctx.userId, id, { requirement: f.get("requirement") === "1", tasks: f.get("tasks") === "1", interaction: f.get("interaction") === "1", followupDraft: f.get("followup") === "1" });
+    const r = await S.applyOutcome(ctx.db, ctx.workspaceId, ctx.userId, id, { requirement: f.get("requirement") === "1", tasks: f.get("tasks") === "1", interaction: f.get("interaction") === "1", followupDraft: f.get("followup") === "1", contacts: f.get("contacts") === "1", company: f.get("company") === "1", stakeholders: f.get("stakeholders") === "1", nextActionDate: s(f, "next_action_date") || null, assigneeUserId: s(f, "assignee") || null });
     return done(`Done: ${r.proposals} update(s) sent to Review, ${r.tasks} task(s)${r.interaction ? ", meeting saved to history" : ""}${r.draft ? ", follow-up draft ready in Outreach" : ""}.`, id);
   } catch (e) { return fail(e); }
 }
@@ -92,4 +93,45 @@ export async function noShowAction(id: string, _p: ActionState, f: FormData): Pr
 }
 export async function discardOutcomeAction(id: string): Promise<ActionState> {
   try { const ctx = await requireContext("editor"); await S.discardOutcome(ctx.db, ctx.workspaceId, id); return done("Notes summary cleared.", id); } catch (e) { return fail(e); }
+}
+export async function clarifyAction(id: string, _p: ActionState, f: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const answers: Record<string, string> = {};
+    for (const [k, v] of f.entries()) if (k.startsWith("q_") && typeof v === "string" && v.trim()) answers[k.slice(2)] = v.trim().slice(0, 300);
+    await S.answerClarifications(ctx.db, ctx.workspaceId, id, answers); return done("Answers saved.", id);
+  } catch (e) { return fail(e); }
+}
+export async function feedbackAction(id: string, assetId: string, _p: ActionState, f: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const input: M.FeedbackInput = { overall: s(f, "overall") ? Number(s(f, "overall")) : null, interest: s(f, "interest") || null, explicit_rejection: f.get("explicit_rejection") === "1" };
+    for (const [k] of M.FEEDBACK_FIELDS) input[k] = s(f, k);
+    await M.saveFeedback(ctx.db, ctx.workspaceId, ctx.userId, id, assetId, input); return done("Feedback saved.", id);
+  } catch (e) { return fail(e); }
+}
+export async function uploadMaterialAction(id: string, _p: ActionState, f: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    if (!s(f, "storage_path")) return { error: "Choose a file and wait for the upload to finish." };
+    await M.addUploadedMaterial(ctx.db, ctx.workspaceId, ctx.userId, id, { title: s(f, "title"), path: s(f, "storage_path"), mime: s(f, "mime"), internalOnly: f.get("shareable") !== "1" });
+    return done("File attached.", id);
+  } catch (e) { return fail(e); }
+}
+export async function whatsappAction(id: string): Promise<ActionState> {
+  try { const ctx = await requireContext("editor"); await M.whatsappFollowup(ctx.db, ctx.workspaceId, ctx.userId, id); return done("WhatsApp follow-up draft ready in Outreach — nothing was sent.", id); } catch (e) { return fail(e); }
+}
+export async function emailFollowupAction(id: string): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const x = await S.gather(ctx.db, ctx.workspaceId, id);
+    const target = x.attendees.find((a) => a.personId && !a.doNotContact);
+    if (!target) return { error: "No attendee is a saved contact who can be contacted." };
+    const { createOutreach } = await import("@/modules/outreach/service");
+    await createOutreach(ctx.db, ctx.workspaceId, ctx.userId, { personId: target.personId!, channels: ["meeting_followup"], scenario: "meeting_followup", opportunityId: x.prep.opportunity_id });
+    return done("Email follow-up draft ready in Outreach — nothing was sent.", id);
+  } catch (e) { return fail(e); }
+}
+export async function agendaAction(id: string): Promise<ActionState> {
+  try { const ctx = await requireContext("editor"); await M.nextAgenda(ctx.db, ctx.workspaceId, ctx.userId, id); return done("Next-meeting agenda saved to the notes.", id); } catch (e) { return fail(e); }
 }

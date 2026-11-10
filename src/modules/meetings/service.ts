@@ -118,13 +118,13 @@ export async function gather(db: Db, ws: string, prepId: string) {
   const attendeeIds = ((att ?? []) as Row[]).map((a) => a.person_id).filter(Boolean);
   const orgId: string | null = p.org_id;
   const q = <T,>(cond: boolean, f: () => PromiseLike<{ data: T | null }>) => (cond ? f() : Promise.resolve({ data: null as T | null }));
-  const [org, leases, signals, reqs, opps, people, links, outreach, tasks, materials, notes, scores, stakeholders, trans] = await Promise.all([
+  const [org, leases, signals, reqs, opps, people, links, outreach, tasks, materials, notes, scores, stakeholders, trans, feedback] = await Promise.all([
     q<Row>(!!orgId, () => db.from("organisation").select("id, display_name, legal_name, sector, hq_country, headcount_min, headcount_max, is_gcc, domain, updated_at").eq("id", orgId!).maybeSingle()),
     q<Row[]>(!!orgId, () => db.from("lease").select("id, area_sf, contractual_expiry, status, fact_status, asset:asset_id(id, name, address, micro_market:micro_market_id(name), locality:locality_id(name)), lease_event(event_type, event_date, confirmed, date_basis)").eq("workspace_id", ws).eq("tenant_org_id", orgId!).limit(30)),
     q<Row[]>(!!orgId, () => db.from("signal").select("id, title, summary, category, verification, confidence, event_date, latest_evidence_on, detected_at, status").eq("workspace_id", ws).eq("org_id", orgId!).not("status", "in", "(rejected,dismissed)").order("detected_at", { ascending: false }).limit(8)),
     q<Row[]>(!!orgId, () => db.from("requirement").select("*").eq("workspace_id", ws).eq("org_id", orgId!).is("archived_at", null).order("updated_at", { ascending: false }).limit(5)),
     q<Row[]>(!!orgId, () => db.from("opportunity").select("id, name, stage, outcome, next_action, next_action_due, risks, expected_close, requirement_id, temperature").eq("workspace_id", ws).eq("org_id", orgId!).is("archived_at", null).limit(10)),
-    q<Row[]>(attendeeIds.length > 0, () => db.from("person").select("id, full_name, do_not_contact, employment(title, is_current, start_date, end_date, org:org_id(display_name)), contact_method(method_type, value, verify_status, suppressed), contact_role_assessment(role_class, cre_relevance, active, rationale)").in("id", attendeeIds)),
+    q<Row[]>(attendeeIds.length > 0, () => db.from("person").select("id, full_name, do_not_contact, employment(title, is_current, start_date, end_date, org:org_id(display_name)), contact_method(method_type, value, verify_status, suppressed), contact_role_assessment(role_class, cre_relevance, active, reason)").in("id", attendeeIds)),
     q<Row[]>(attendeeIds.length > 0 || !!orgId, () => db.from("interaction_link").select("entity_type, entity_id, interaction:interaction_id(id, occurred_at, channel, direction, subject, summary, promises, objections, owner_user_id, is_meaningful)").eq("workspace_id", ws).in("entity_id", [...attendeeIds, ...(orgId ? [orgId] : [])]).limit(400)),
     q<Row[]>(attendeeIds.length > 0, () => db.from("outreach_item").select("id, channel, status, reason, sent_at, response, person_id").eq("workspace_id", ws).in("person_id", attendeeIds).order("updated_at", { ascending: false }).limit(20)),
     q<Row[]>(true, () => db.from("task").select("id, title, due_at, status, linked_entity_type, linked_entity_id").eq("workspace_id", ws).eq("status", "open").in("linked_entity_id", [...attendeeIds, ...(orgId ? [orgId] : []), ...(p.opportunity_id ? [p.opportunity_id] : []), prepId]).limit(30)),
@@ -133,6 +133,7 @@ export async function gather(db: Db, ws: string, prepId: string) {
     q<Row[]>(true, () => db.from("score_result").select("model_key, entity_id, score, band").eq("workspace_id", ws).eq("is_current", true).in("entity_id", [...attendeeIds, ...(orgId ? [orgId] : []), ...(p.opportunity_id ? [p.opportunity_id] : [])])),
     q<Row[]>(!!p.requirement_id, () => db.from("stakeholder").select("person_id, role").eq("workspace_id", ws).eq("requirement_id", p.requirement_id!)),
     q<Row[]>(!!orgId, () => db.from("market_transaction").select("id, deal_type, period_start, area_sf, asset:asset_id(name)").eq("workspace_id", ws).eq("tenant_org_id", orgId!).order("period_start", { ascending: false }).limit(5)),
+    q<Row[]>((p.asset_ids ?? []).length > 0, () => db.from("meeting_property_feedback").select("id, asset_id, fields, updated_at").eq("prep_id", prepId).is("archived_at", null)),
   ]);
   const requirement = ((reqs.data ?? []) as Row[]).find((r) => r.id === p.requirement_id) ?? (p.requirement_id ? null : (reqs.data ?? [])[0] ?? null);
   const opportunity = ((opps.data ?? []) as Row[]).find((o) => o.id === p.opportunity_id) ?? null;
@@ -141,7 +142,7 @@ export async function gather(db: Db, ws: string, prepId: string) {
   let properties: Row[] = [];
   if ((p.asset_ids ?? []).length) {
     const { data: assets } = await db.from("asset").select("id, name, address, grade, status, floors, developer:developer_org_id(display_name), micro_market:micro_market_id(name), locality:locality_id(name), space(id, floor_text, carpet_sf, chargeable_sf, seats, configuration, availability(as_of, status, available_from, asking_rent_min, asking_rent_max, rent_basis, fitout_basis, fact_status))").in("id", p.asset_ids);
-    properties = ((assets ?? []) as Row[]).map((a) => matchProperty(a, requirement));
+    properties = ((assets ?? []) as Row[]).map((a) => ({ ...matchProperty(a, requirement), feedback: (((feedback.data ?? []) as Row[]).find((f) => f.asset_id === a.id)?.fields ?? null) as Row | null }));
   }
   const sc = (scores.data ?? []) as Row[];
   const attendees = ((att ?? []) as Row[]).map((a) => {
@@ -153,7 +154,7 @@ export async function gather(db: Db, ws: string, prepId: string) {
     return {
       id: a.id, personId: a.person_id, name: pr?.full_name ?? a.raw_name ?? a.raw_email ?? "Unknown", email: a.raw_email, match: a.match_status, matchReason: a.match_reason,
       title: emp?.title ?? null, company: emp?.org?.display_name ?? null, department: emp?.title ? deptOf(emp.title) : null,
-      role: ra?.role_class ?? "unknown", relevance: ra?.cre_relevance ?? null, roleBasis: ra?.rationale ?? null,
+      role: ra?.role_class ?? "unknown", relevance: ra?.cre_relevance ?? null, roleBasis: ra?.reason ?? null,
       previous: (pr?.employment ?? []).filter((e: Row) => !e.is_current).map((e: Row) => `${e.title ?? "role"} at ${e.org?.display_name ?? "?"}`).slice(0, 3),
       channels, interactions: theirInts.length, lastInteraction: theirInts.at(-1)?.occurred_at?.slice(0, 10) ?? null, doNotContact: !!pr?.do_not_contact,
       contactScore: sc.find((s) => s.model_key === "contact" && s.entity_id === a.person_id)?.score ?? null,
@@ -389,45 +390,143 @@ export async function addNote(db: Db, ws: string, userId: string, prepId: string
 }
 
 // ------------------------------------------------------------------ post-meeting: structure → proposals (never silent writes)
+const Basis = z.enum(["statement", "interpretation"]);
+const Extract = z.object({ text: z.string(), basis: Basis, quote: z.string().nullable() });
 const Out = z.object({
   summary: z.string(), outcome: z.enum(["positive", "neutral", "negative", "no_show"]), topics: z.array(z.string()),
   requirement_updates: z.array(z.object({ field: z.enum(["seats_target", "area_target_sf", "budget_max", "occupation_date", "decision_date", "objective"]), value: z.string(), quote: z.string() })),
   decision_process: z.string().nullable(), objections: z.array(z.string()), property_feedback: z.array(z.object({ property: z.string(), feedback: z.string() })),
   commitments: z.array(z.object({ who: z.enum(["us", "them"]), what: z.string(), due: z.string().nullable() })),
   next_meeting: z.string().nullable(), followup_date: z.string().nullable(),
+  // deeper analysis — each item says whether it is a statement (quoted from the notes) or our interpretation
+  buying_signals: z.array(Extract), risks: z.array(Extract), unresolved_questions: z.array(Extract),
+  per_property_interest: z.array(z.object({ property: z.string(), interest: z.enum(["interested", "maybe", "rejected", "unclear"]), quote: z.string().nullable(), basis: Basis })),
+  confidence_notes: z.array(z.string()),
+  clarifications_needed: z.array(z.object({ question: z.string(), about: z.enum(["name", "date", "amount", "commitment"]) })),
+  contact_updates: z.array(z.object({ name: z.string(), field: z.enum(["title", "phone", "email"]), value: z.string(), quote: z.string() })),
+  company_notes: z.array(z.object({ text: z.string(), quote: z.string() })),
+  new_stakeholders: z.array(z.object({ name: z.string(), role: z.enum(["sponsor", "user", "finance", "procurement", "legal", "technical", "approver", "influencer", "other"]), quote: z.string() })),
 });
 export type Outcome = z.infer<typeof Out>;
+const lines = (all: string) => all.split(/\n|(?<=[.!?।])\s+/).map((l) => l.replace(/^\[\w+\]\s*/, "").trim()).filter(Boolean);
+const st = (l: string) => ({ text: l.slice(0, 200), basis: "statement" as const, quote: l.slice(0, 200) });
+/** Deterministic mock analysis (AI off). Understands common English / Hindi / Hinglish phrasing; never invents names, dates or amounts. */
+export function mockOutcome(all: string, ctx: { properties: string[]; attendees: string[]; feedback: { property: string; interest: string; explicit: boolean }[] }): Outcome {
+  const L = lines(all);
+  const seats = all.match(/(\d{2,5})\s*(seats|people|headcount|log|logon|seat)/i); const area = all.match(/(\d[\d,]{2,})\s*(sq\.?\s*ft|sqft|sf|square feet)/i); const date = all.match(/\d{4}-\d{2}-\d{2}/);
+  const neg = /not interested|no need|interest nahi|nahi chahiye|zaroorat nahi/i.test(all);
+  const interestOf = (l: string): Outcome["per_property_interest"][number]["interest"] => /reject|not interested|pasand nahi|nahi chahiye|no go|ruled out|cancel kar/i.test(l) ? "rejected" : /maybe|shayad|sochenge|will think|not sure|dekhte/i.test(l) ? "maybe" : /like|liked|pasand|interested|accha|achha|good|shortlist/i.test(l) ? "interested" : "unclear";
+  const ppi: Outcome["per_property_interest"] = [];
+  for (const f of ctx.feedback) ppi.push({ property: f.property, interest: (f.interest === "rejected" && !f.explicit ? "maybe" : f.interest) as "maybe", quote: "Site-visit feedback form", basis: "statement" });
+  for (const name of ctx.properties) {
+    if (ppi.some((p) => p.property === name)) continue;
+    const key = name.toLowerCase().split(/\s+/)[0];
+    const l = L.find((x) => x.toLowerCase().includes(key));
+    if (l) ppi.push({ property: name, interest: interestOf(l), quote: l.slice(0, 200), basis: "interpretation" });
+  }
+  const clar: Outcome["clarifications_needed"] = [];
+  const vagueDate = L.find((l) => /next week|soon|agle hafte|jaldi|kuch din|end of (the )?month|mahine ke end/i.test(l) && !/\d{4}-\d{2}-\d{2}/.test(l));
+  if (vagueDate) clar.push({ question: `Which exact date was meant by: "${vagueDate.slice(0, 120)}"?`, about: "date" });
+  const vagueAmt = L.find((l) => /budget|rent|kiraya|price|rate/i.test(l) && !/\d/.test(l));
+  if (vagueAmt) clar.push({ question: `What amount was discussed in: "${vagueAmt.slice(0, 120)}"?`, about: "amount" });
+  const contact_updates: Outcome["contact_updates"] = [];
+  for (const l of L) {
+    const who = ctx.attendees.find((n) => n && l.toLowerCase().includes(n.toLowerCase().split(/\s+/)[0]));
+    if (!who) continue;
+    const em = l.match(/[\w.+-]+@[\w-]+\.[\w.]+/); const ph = l.match(/(\+91[\s-]?)?[6-9]\d{9}\b/); const ti = l.match(/(?:title is|is now|new role|designation)\s*:?\s*([A-Za-z][A-Za-z &]{2,60})/i);
+    if (em) contact_updates.push({ name: who, field: "email", value: em[0].toLowerCase(), quote: l.slice(0, 200) });
+    if (ph) contact_updates.push({ name: who, field: "phone", value: ph[0].replace(/[\s-]/g, ""), quote: l.slice(0, 200) });
+    if (ti) contact_updates.push({ name: who, field: "title", value: ti[1].trim(), quote: l.slice(0, 200) });
+  }
+  const ROLE: Record<string, Outcome["new_stakeholders"][number]["role"]> = { finance: "finance", cfo: "finance", procurement: "procurement", legal: "legal", it: "technical", admin: "user", hr: "user", ceo: "approver", md: "approver" };
+  const new_stakeholders: Outcome["new_stakeholders"] = [];
+  for (const m of all.matchAll(/\b([A-Z][a-z]+(?: [A-Z][a-z]+)?) (?:from|in|se|\()\s*(finance|cfo|procurement|legal|IT|admin|HR|CEO|MD)\b/g)) {
+    if (ctx.attendees.some((a) => a.toLowerCase() === m[1].toLowerCase())) continue;
+    new_stakeholders.push({ name: m[1], role: ROLE[m[2].toLowerCase()] ?? "other", quote: m[0] });
+  }
+  return {
+    summary: all.slice(0, 240), outcome: (/did ?n.t happen|not held|no.show|cancell?ed|postponed|didn.t meet|meeting nahi hui/i.test(all) ? "no_show" : neg ? "negative" : "positive") as Outcome["outcome"], topics: [],
+    requirement_updates: [...(seats ? [{ field: "seats_target" as const, value: seats[1], quote: seats[0] }] : []), ...(area ? [{ field: "area_target_sf" as const, value: area[1].replace(/,/g, ""), quote: area[0] }] : []), ...(date && /move|shift/i.test(all) ? [{ field: "occupation_date" as const, value: date[0], quote: date[0] }] : [])],
+    decision_process: null, objections: /broker/i.test(all) ? ["Mentioned an existing broker"] : [], property_feedback: [],
+    commitments: L.filter((l) => /\b(we will|i will|send|share|bhej|bhejenge|bhejunga)\b/i.test(l)).map((l) => ({ who: "us" as const, what: l.slice(0, 160), due: null })),
+    next_meeting: null, followup_date: null,
+    buying_signals: L.filter((l) => /shortlist|site visit|proposal|approved|pasand|interested|ready to|finali[sz]e|loi|term sheet/i.test(l) && !/not interested|pasand nahi/i.test(l)).map(st),
+    risks: L.filter((l) => /concern|worried|expensive|mehenga|mahanga|delay|broker|competitor|budget (is )?tight|problem|issue/i.test(l)).map(st),
+    unresolved_questions: L.filter((l) => /\?$|tbd|pata nahi|not sure|to confirm|confirm karna|unclear/i.test(l)).map(st),
+    per_property_interest: ppi,
+    confidence_notes: ["Rule-based extraction (AI off): only explicit phrases were picked up; review before applying."],
+    clarifications_needed: clar, contact_updates, company_notes: [], new_stakeholders,
+  };
+}
 export async function structureOutcome(db: Db, ws: string, userId: string, prepId: string, text: string, ai: Ai = callStructured) {
-  const { data: notes } = await db.from("meeting_note").select("kind, text").eq("prep_id", prepId).is("archived_at", null).order("created_at");
+  const { data: p } = await db.from("meeting_prep").select("asset_ids, meeting_prep_attendee(raw_name, person:person_id(full_name))").eq("workspace_id", ws).eq("id", prepId).maybeSingle();
+  if (!p) throw new MeetingError("Meeting not found.");
+  const [{ data: notes }, { data: assets }, { data: fb }] = await Promise.all([
+    db.from("meeting_note").select("kind, text").eq("prep_id", prepId).is("archived_at", null).order("created_at"),
+    (p.asset_ids ?? []).length ? db.from("asset").select("id, name").in("id", p.asset_ids) : Promise.resolve({ data: [] as Row[] }),
+    db.from("meeting_property_feedback").select("asset_id, fields").eq("prep_id", prepId).is("archived_at", null),
+  ]);
+  const nameOf = (id: string) => ((assets ?? []) as Row[]).find((a) => a.id === id)?.name ?? "Property";
+  const feedback = ((fb ?? []) as Row[]).map((f) => ({ property: nameOf(f.asset_id), interest: String(f.fields?.interest ?? "unclear"), explicit: !!f.fields?.explicit_rejection, text: feedbackLine(nameOf(f.asset_id), f.fields) }));
   const all = [text, ...((notes ?? []) as Row[]).map((n) => `[${n.kind}] ${n.text}`)].filter((s) => s.trim()).join("\n");
-  if (!all.trim()) throw new MeetingError("Add notes first.");
-  const r = await ai({ workspaceId: ws, workflow: "meetings.outcome", tier: "luna", schema: Out, schemaName: "meeting_outcome", maxOutputTokens: 1500,
-    system: "Structure a commercial real-estate adviser's meeting notes. Extract only what the notes say; quote the words behind each requirement update. Dates YYYY-MM-DD only if stated. Numbers as plain digits.",
-    input: "Structure these notes.", evidence: all,
-    mock: () => {
-      const seats = all.match(/(\d{2,5})\s*(seats|people|headcount)/i); const area = all.match(/(\d[\d,]{2,})\s*(sq\.?\s*ft|sqft|sf)/i); const date = all.match(/\d{4}-\d{2}-\d{2}/);
-      return { summary: all.slice(0, 240), outcome: (/did ?n.t happen|not held|no.show|cancell?ed|postponed|didn.t meet/i.test(all) ? "no_show" : /not interested|no need/i.test(all) ? "negative" : "positive") as Outcome["outcome"], topics: [] as string[],
-        requirement_updates: [...(seats ? [{ field: "seats_target" as const, value: seats[1], quote: seats[0] }] : []), ...(area ? [{ field: "area_target_sf" as const, value: area[1].replace(/,/g, ""), quote: area[0] }] : []), ...(date && /move/i.test(all) ? [{ field: "occupation_date" as const, value: date[0], quote: date[0] }] : [])],
-        decision_process: null, objections: /broker/i.test(all) ? ["Mentioned an existing broker"] : [], property_feedback: [],
-        commitments: all.split(/\n/).filter((l) => /\b(we will|i will|send|share)\b/i.test(l)).map((l) => ({ who: "us" as const, what: l.replace(/^\[\w+\]\s*/, "").slice(0, 160), due: null })),
-        next_meeting: null, followup_date: null };
-    } });
-  await db.from("meeting_prep").update({ outcome: { proposed: r.data, notes_text: text.slice(0, 8000), structured_at: new Date().toISOString(), applied: null } }).eq("id", prepId);
+  if (!all.trim() && !feedback.length) throw new MeetingError("Add notes first.");
+  const attendees = ((p.meeting_prep_attendee ?? []) as Row[]).map((a) => a.person?.full_name ?? a.raw_name).filter(Boolean) as string[];
+  const evidence = [all, feedback.length ? `Structured site-visit feedback (entered by the adviser):\n${feedback.map((f) => `- ${f.text}`).join("\n")}` : ""].filter(Boolean).join("\n\n");
+  const r = await ai({ workspaceId: ws, workflow: "meetings.outcome", tier: "luna", schema: Out, schemaName: "meeting_outcome", maxOutputTokens: 2500,
+    system: [
+      "Structure a commercial real-estate adviser's meeting notes (Pune, India).",
+      "Notes may be in English, Hindi (Devanagari) or Hinglish (Hindi in Latin script mixed with English, e.g. 'unko 300 seats chahiye', 'Baner wala pasand nahi aaya'). Understand all three; write summary and fields in English; keep every quote verbatim in the original language.",
+      "Extract only what the notes say; quote the words behind each requirement update, contact update, company note and stakeholder. Dates YYYY-MM-DD only if stated. Numbers as plain digits (1 lakh = 100000, 1 crore = 10000000).",
+      "For buying_signals, risks and unresolved_questions mark basis 'statement' when the notes say it directly (quote it) and 'interpretation' when you infer it (quote may be null).",
+      "per_property_interest: 'rejected' ONLY when the client clearly said no to that property; negative remarks alone are 'maybe'. Structured feedback marked 'explicit rejection' is a rejection; otherwise it is general feedback.",
+      "If a name, date, amount or commitment is ambiguous (e.g. 'next week', 'budget is ok', 'he will check'), add a clarifications_needed question instead of guessing. Never invent people, phone numbers, emails or titles.",
+      "confidence_notes: short notes on what is uncertain.",
+    ].join(" "),
+    input: `Structure these notes. Attendees on record: ${attendees.join(", ") || "none"}. Properties discussed: ${((assets ?? []) as Row[]).map((a) => a.name).join(", ") || "none"}.`, evidence,
+    mock: () => mockOutcome(evidence, { properties: ((assets ?? []) as Row[]).map((a) => a.name), attendees, feedback }) });
+  await db.from("meeting_prep").update({ outcome: { proposed: r.data, notes_text: text.slice(0, 8000), structured_at: new Date().toISOString(), applied: null, clarifications: {} } }).eq("id", prepId);
   return r.data;
 }
+export function feedbackLine(property: string, f: Row) {
+  const interest = f.interest === "rejected" ? (f.explicit_rejection ? "EXPLICIT REJECTION by client" : "negative feedback (not a rejection)") : f.interest ?? "interest not recorded";
+  const parts = [["location", "location & connectivity"], ["commute", "commute/accessibility"], ["layout", "layout & space"], ["quality", "building quality & amenities"], ["parking", "parking & operations"], ["pricing", "pricing concerns"], ["stakeholders", "stakeholder reactions"], ["notes", "notes"]].filter(([k]) => f[k]).map(([k, l]) => `${l}: ${f[k]}`);
+  return `${property}: overall ${f.overall ?? "?"}/5, ${interest}${parts.length ? "; " + parts.join("; ") : ""}`;
+}
+/** The user answers ambiguous points before applying; answers are kept with the outcome. */
+export async function answerClarifications(db: Db, ws: string, prepId: string, answers: Record<string, string>) {
+  const { data: p } = await db.from("meeting_prep").select("outcome").eq("workspace_id", ws).eq("id", prepId).single();
+  if (!p?.outcome?.proposed) throw new MeetingError("Structure the notes first.");
+  await db.from("meeting_prep").update({ outcome: { ...p.outcome, clarifications: { ...(p.outcome.clarifications ?? {}), ...answers } } }).eq("id", prepId);
+}
+export function openClarifications(outcome: Row | null | undefined) {
+  const qs = ((outcome?.proposed?.clarifications_needed ?? []) as { question: string; about: string }[]);
+  return qs.map((q, i) => ({ ...q, i, answer: (outcome?.clarifications ?? {})[String(i)] ?? "" })).filter((q) => !String(q.answer).trim());
+}
 
-/** User approves selected parts. Requirement/opportunity changes become change proposals; tasks + interaction are created. */
-export async function applyOutcome(db: Db, ws: string, userId: string, prepId: string, sel: { requirement: boolean; tasks: boolean; interaction: boolean; followupDraft: boolean }) {
+export interface ApplySel { requirement: boolean; tasks: boolean; interaction: boolean; followupDraft: boolean; contacts?: boolean; company?: boolean; stakeholders?: boolean; nextActionDate?: string | null; assigneeUserId?: string | null }
+/** User approves selected parts. Requirement/opportunity/contact/company/stakeholder changes become change proposals; tasks + interaction are created. */
+export async function applyOutcome(db: Db, ws: string, userId: string, prepId: string, sel: ApplySel) {
   const x = await gather(db, ws, prepId);
   const o = x.prep.outcome?.proposed as Outcome | undefined;
   if (!o) throw new MeetingError("Structure the notes first.");
   if (x.prep.outcome?.applied) throw new MeetingError("Already applied.");
   if (o.outcome === "no_show") throw new MeetingError("The notes say the meeting didn't happen — use 'Meeting didn't happen' instead.");
+  const open = openClarifications(x.prep.outcome);
+  if (open.length) throw new MeetingError(`Answer the ${open.length} clarification question(s) first.`);
+  const clar = ((o.clarifications_needed ?? []) as Row[]).map((q, i) => `${q.question} → ${(x.prep.outcome?.clarifications ?? {})[String(i)]}`);
+  let assignee = userId;
+  if (sel.assigneeUserId && sel.assigneeUserId !== userId) {
+    const { data: mem } = await db.from("membership").select("user_id").eq("workspace_id", ws).eq("user_id", sel.assigneeUserId).maybeSingle();
+    if (!mem) throw new MeetingError("That person isn't a member of this workspace.");
+    assignee = sel.assigneeUserId;
+  }
   const res = { proposals: 0, tasks: 0, interaction: null as string | null, draft: null as string | null };
+  const reason = (what: string) => `From meeting "${x.meeting.title}" (${x.meeting.start_at.slice(0, 10)}): ${what}`.slice(0, 900);
   if (sel.interaction) {
     const key = `meeting:${prepId}`;
     const prev = (await db.from("interaction").select("id").eq("workspace_id", ws).eq("source_message_id", key).maybeSingle()).data;
-    const ins = prev ?? (await db.from("interaction").insert({ workspace_id: ws, occurred_at: x.meeting.start_at, channel: x.prep.meeting_type === "site_visit" ? "visit" : "meeting", direction: "internal", subject: x.meeting.title, summary: o.summary, promises: o.commitments, objections: o.objections.map((t) => ({ text: t })), opportunity_id: x.prep.opportunity_id, is_meaningful: true, source_message_id: key, owner_user_id: userId }).select("id").single()).data!;
+    const summary = [o.summary, ...(clar.length ? [`Clarified: ${clar.join("; ")}`] : [])].join("\n");
+    const ins = prev ?? (await db.from("interaction").insert({ workspace_id: ws, occurred_at: x.meeting.start_at, channel: x.prep.meeting_type === "site_visit" ? "visit" : "meeting", direction: "internal", subject: x.meeting.title, summary, promises: o.commitments, objections: o.objections.map((t) => ({ text: t })), opportunity_id: x.prep.opportunity_id, is_meaningful: true, source_message_id: key, owner_user_id: userId }).select("id").single()).data!;
     res.interaction = ins.id;
     if (!prev) await db.from("interaction_link").insert([...x.attendees.filter((a) => a.personId).map((a) => ({ workspace_id: ws, interaction_id: ins.id, entity_type: "person", entity_id: a.personId, role: "participant" })), ...(x.prep.org_id ? [{ workspace_id: ws, interaction_id: ins.id, entity_type: "organisation", entity_id: x.prep.org_id, role: "mentioned" }] : [])]);
   }
@@ -436,16 +535,52 @@ export async function applyOutcome(db: Db, ws: string, userId: string, prepId: s
     await proposeChange(db, ws, { targetType: "requirement", targetId: x.requirement.id, patch, reason: `From meeting notes "${x.meeting.title}": ${o.requirement_updates.map((u) => `"${u.quote}"`).join(", ")}`, proposedByKind: "model", idempotencyKey: `meeting:${prepId}:req`, ownerUserId: userId });
     res.proposals++;
   }
-  if (sel.requirement && x.prep.opportunity_id && o.followup_date) {
-    await proposeChange(db, ws, { targetType: "opportunity", targetId: x.prep.opportunity_id, patch: [{ op: "replace", path: "/next_action", value: o.next_meeting ?? "Follow up after meeting" }, { op: "replace", path: "/next_action_due", value: o.followup_date }], reason: `Meeting "${x.meeting.title}" next step`, proposedByKind: "model", idempotencyKey: `meeting:${prepId}:opp`, ownerUserId: userId }).catch(() => null);
+  const nextDate = sel.nextActionDate && /^\d{4}-\d{2}-\d{2}$/.test(sel.nextActionDate) ? sel.nextActionDate : sel.requirement ? o.followup_date : null;
+  if (x.prep.opportunity_id && nextDate) {
+    const ok = await proposeChange(db, ws, { targetType: "opportunity", targetId: x.prep.opportunity_id, patch: [{ op: "replace", path: "/next_action", value: o.next_meeting ?? "Follow up after meeting" }, { op: "replace", path: "/next_action_due", value: nextDate }], reason: reason("next step"), proposedByKind: "model", idempotencyKey: `meeting:${prepId}:opp`, ownerUserId: userId }).then(() => true).catch(() => false);
+    if (ok) res.proposals++;
+  }
+  const personByName = (n: string) => x.attendees.find((a) => a.personId && a.name.toLowerCase() === n.toLowerCase()) ?? x.attendees.find((a) => a.personId && a.name.toLowerCase().split(/\s+/)[0] === n.toLowerCase().split(/\s+/)[0]);
+  if (sel.contacts) {
+    for (const [i, c] of (o.contact_updates ?? []).entries()) {
+      const a = personByName(c.name); if (!a) continue;
+      if (c.field === "title") {
+        const { data: emp } = await db.from("employment").select("id").eq("workspace_id", ws).eq("person_id", a.personId!).eq("is_current", true).limit(1).maybeSingle();
+        if (!emp) continue;
+        await proposeChange(db, ws, { targetType: "employment", targetId: emp.id, patch: [{ op: "replace", path: "/title", value: c.value.slice(0, 120) }], reason: reason(`"${c.quote}"`), proposedByKind: "model", idempotencyKey: `meeting:${prepId}:contact:${i}`, ownerUserId: userId });
+      } else {
+        await proposeChange(db, ws, { targetType: "contact_method", operation: "create", patch: [{ op: "add", path: "/person_id", value: a.personId }, { op: "add", path: "/method_type", value: c.field }, { op: "add", path: "/value", value: c.value.slice(0, 200) }], reason: reason(`"${c.quote}"`), proposedByKind: "model", idempotencyKey: `meeting:${prepId}:contact:${i}`, ownerUserId: userId });
+      }
+      res.proposals++;
+    }
+  }
+  if (sel.company && x.org && (o.company_notes ?? []).length) {
+    const prev = (await db.from("organisation").select("account_owner_note").eq("id", x.org.id).maybeSingle()).data?.account_owner_note ?? "";
+    const add = o.company_notes.map((n) => `${x.meeting.start_at.slice(0, 10)} meeting: ${n.text}`).join("\n");
+    await proposeChange(db, ws, { targetType: "organisation", targetId: x.org.id, patch: [{ op: "replace", path: "/account_owner_note", value: [prev, add].filter(Boolean).join("\n").slice(-4000) }], reason: reason(o.company_notes.map((n) => `"${n.quote}"`).join(", ")), proposedByKind: "model", idempotencyKey: `meeting:${prepId}:org`, ownerUserId: userId });
     res.proposals++;
+  }
+  if (sel.stakeholders && x.requirement && (o.new_stakeholders ?? []).length) {
+    for (const [i, s] of o.new_stakeholders.entries()) {
+      const known = personByName(s.name)?.personId ?? (await db.from("person").select("id").eq("workspace_id", ws).ilike("full_name", s.name).limit(2)).data?.filter((_, __, arr) => arr.length === 1)[0]?.id ?? null;
+      if (known) {
+        await proposeChange(db, ws, { targetType: "stakeholder", operation: "create", patch: [{ op: "add", path: "/requirement_id", value: x.requirement.id }, { op: "add", path: "/person_id", value: known }, { op: "add", path: "/role", value: s.role }, { op: "add", path: "/influence_basis", value: `Mentioned in meeting: "${s.quote}"`.slice(0, 300) }], reason: reason(`"${s.quote}"`), proposedByKind: "model", idempotencyKey: `meeting:${prepId}:stk:${i}`, ownerUserId: userId });
+      } else {
+        // Unknown person: propose the contact (review-required) and leave a task to link them as a stakeholder once approved.
+        await proposeChange(db, ws, { targetType: "person", operation: "create", patch: [{ op: "add", path: "/full_name", value: s.name.slice(0, 120) }], reason: reason(`new stakeholder (${s.role}): "${s.quote}"`), proposedByKind: "model", idempotencyKey: `meeting:${prepId}:stkp:${i}`, ownerUserId: userId });
+        const key = `meeting:${prepId}:stktask:${i}`;
+        if (!(await db.from("task").select("id").eq("workspace_id", ws).eq("idempotency_key", key).limit(1)).data?.length)
+          await db.from("task").insert({ workspace_id: ws, title: `After approval, add ${s.name} as ${s.role} stakeholder on "${x.requirement.title}"`.slice(0, 200), due_at: `${addDays(today(), 3)}T09:00:00+05:30`, assigned_user_id: assignee, linked_entity_type: "requirement", linked_entity_id: x.requirement.id, source: "meeting", idempotency_key: key, owner_user_id: userId });
+      }
+      res.proposals++;
+    }
   }
   if (sel.tasks) {
     for (const [i, c] of o.commitments.entries()) {
       if (c.who !== "us") continue;
       const key = `meeting:${prepId}:${i}`;
       if ((await db.from("task").select("id").eq("workspace_id", ws).eq("idempotency_key", key).limit(1)).data?.length) continue;
-      await db.from("task").insert({ workspace_id: ws, title: c.what.slice(0, 200), due_at: `${c.due && /^\d{4}-\d{2}-\d{2}$/.test(c.due) ? c.due : addDays(today(), 2)}T09:00:00+05:30`, assigned_user_id: userId, linked_entity_type: x.prep.opportunity_id ? "opportunity" : "organisation", linked_entity_id: x.prep.opportunity_id ?? x.prep.org_id, source: "meeting", idempotency_key: key, owner_user_id: userId });
+      await db.from("task").insert({ workspace_id: ws, title: c.what.slice(0, 200), due_at: `${c.due && /^\d{4}-\d{2}-\d{2}$/.test(c.due) ? c.due : addDays(today(), 2)}T09:00:00+05:30`, assigned_user_id: assignee, linked_entity_type: x.prep.opportunity_id ? "opportunity" : "organisation", linked_entity_id: x.prep.opportunity_id ?? x.prep.org_id, source: "meeting", idempotency_key: key, owner_user_id: userId });
       res.tasks++;
     }
   }
@@ -457,7 +592,7 @@ export async function applyOutcome(db: Db, ws: string, userId: string, prepId: s
       res.draft = r?.ids[0] ?? null;
     }
   }
-  await db.from("meeting_prep").update({ status: "completed", outcome: { ...x.prep.outcome, applied: { at: new Date().toISOString(), by: userId, ...res } } }).eq("id", prepId);
+  await db.from("meeting_prep").update({ status: "completed", outcome: { ...x.prep.outcome, applied: { at: new Date().toISOString(), by: userId, assignee, ...res } } }).eq("id", prepId);
   await db.from("meeting_visit").update({ status: "completed" }).eq("id", x.prep.meeting_visit_id);
   return res;
 }

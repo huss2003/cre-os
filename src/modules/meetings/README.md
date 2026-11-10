@@ -20,6 +20,22 @@ what to ask, which objections may come up, and what outcome to aim for. After th
 - `meeting_material`: a title plus a link or `document_version_id`, and `internal_only` (default true). Nothing is shared automatically.
 - `meeting_note`: notes, actions, commitments and feedback captured in meeting mode.
 
+## Additions (`20261108001300_meetings_more.sql`, `more.ts`)
+- `meeting_property_feedback` (make_business_table): one row per (prep, property) with `fields` jsonb — overall 1–5, interest (interested / maybe / rejected), `explicit_rejection`, location & connectivity, commute, layout, building quality, parking & operations, pricing, stakeholder reactions, notes. "Rejected" is only accepted when the user ticks that the client clearly said no; otherwise negative comments are general feedback. Shown in the brief's property section, the internal report, and passed to outcome structuring.
+- `meeting_material.mime`, `meeting_material.storage_object`: uploaded photos/PDFs/floor plans live in `mudar-workspace-files` at `<ws>/meetings/<prepId>/<uuid>-<file>` (client-side upload, `ui/upload.tsx`); `url` holds the storage path; listed with 10-minute signed links. `internal_only` defaults to true.
+- `meeting_prep.auto_brief_for`: the meeting start an automatic brief was last attempted for (one attempt per start).
+
+| Function (`more.ts`) | What it does |
+|---|---|
+| `autoBriefs` | Meetings starting in 60–75 min with no brief, or a brief built for another start time (rescheduled), get a brief. Idempotent per start. |
+| `todayView`, `pendingFollowups` | Today tab: today's meetings (IST) in time order with prep status; completed meetings with open tasks from `applyOutcome`, overdue flagged. |
+| `saveFeedback` | Upserts the per-property feedback form. |
+| `addUploadedMaterial`, `materialLinks` | Registers an uploaded file (path/mime validated); signed download links. |
+| `whatsappFollowup`, `nextAgenda`, `meetingReportMarkdown` | Follow-up pack: WhatsApp draft via Outreach (`whatsapp`, scenario `meeting_followup`), next-meeting agenda saved as a note starting "Agenda" (updated, not duplicated), internal report. |
+| `meetingReports` | Reports tab: by company / contact / property (count, last date, outcomes), requirements & opportunities created ≤30 days after a meeting with that company ("after meeting"), pending / overdue follow-ups; every rate has its denominator. |
+
+Outcome structuring (`structureOutcome`) now also returns buying signals, risks, unresolved questions (each `statement` with a quote, or `interpretation`), interest per property, confidence notes, clarification questions (name / date / amount / commitment), contact updates, company notes and new stakeholders. Notes may be English, Hindi or Hinglish; the rule-based mock understands common Hinglish phrasing. Open clarification questions must be answered (`answerClarifications`) before `applyOutcome`. `applyOutcome` optionally proposes contact changes (title → employment, phone/email → new contact_method), company notes (organisation.account_owner_note), stakeholders (known person → stakeholder; unknown → person proposal + a task to link them), the deal's next-action date, and can assign tasks to any workspace member. All of these go to Review via `proposeChange`.
+
 ## Rules (`rules.ts`, no AI)
 - **Meeting types:** 10, each with a purpose, question groups and a target outcome. A type is inferred from the title for imported meetings.
 - **Question bank:** each question has a check against records. Questions already answered move down and are flagged. The brief shows 5 essential + 5 additional + 3 strategic questions.
@@ -54,8 +70,11 @@ what to ask, which objections may come up, and what outcome to aim for. After th
 | `/meetings/[id]` | The full brief, readiness, setup, attendees, materials, edit, site-visit checklist, after the meeting, reschedule/cancel |
 | `/meetings/[id]/live` | Meeting mode for phone or tablet: purpose, attendees, 5 questions, talking points, earlier promises, key facts, properties, quick notes |
 | `GET /api/v1/meetings/[id]/brief` | Markdown export. The page also prints cleanly to PDF. |
+| `GET /api/v1/meetings/[id]/report` | Internal meeting report (Markdown). |
+| `/meetings?tab=today` (default) / `?tab=reports` | Today view + pending follow-ups; reports. |
 
 ## Jobs
+- `meetings.autobrief` (every tick, 15-minute dedupe): automatic brief about an hour before.
 - `meetings.remind` (hourly): prep reminder tasks.
 - `meetings.calendar` (hourly): creates preps for newly synced calendar events. Does nothing if no calendar is connected.
 
@@ -65,7 +84,6 @@ what to ask, which objections may come up, and what outcome to aim for. After th
   - live calendar sync (Google/Microsoft OAuth in the integrations module; `syncFromCalendar` uses whatever it has synced);
   - AI wording (Anthropic key; without it, rule-based wording is used).
 - **Partially implemented:**
-  - File uploads for materials: links only. Restricted files stay in Documents (Module 1 permissions apply).
   - Custom meeting types: the types are in code; there is no admin screen yet.
 - **Not implemented, by design:** recording or transcription (needs consent and an authorised integration), and changing external calendar events.
 
@@ -84,5 +102,5 @@ what to ask, which objections may come up, and what outcome to aim for. After th
 Run with `npx vitest run src/modules/meetings`.
 
 ## Rollback
-Drop `meeting_note`, `meeting_material`, `meeting_brief_version`, `meeting_prep_attendee` and `meeting_prep`, in that order, and remove `meetings` from `src/lib/jobs/registry.ts`.
+Drop `meeting_property_feedback`, the columns `meeting_material.mime/storage_object` and `meeting_prep.auto_brief_for`, then `meeting_note`, `meeting_material`, `meeting_brief_version`, `meeting_prep_attendee` and `meeting_prep`, in that order, and remove `meetings` from `src/lib/jobs/registry.ts`.
 `meeting_visit` rows created here stay as ordinary meetings.
