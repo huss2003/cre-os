@@ -82,6 +82,14 @@ export const NAV: NavSection[] = [
 export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
 /** Screens shown in the menu while in focus mode. */
 export const FOCUS_MENU = [
+  // Module 1 — Database
+  "/capture", "/approvals", "/companies", "/people", "/buildings", "/deals", "/requirements", "/database", "/geography", "/imports",
+  // Module 2 — Signals & research
+  "/signals", "/research",
+  // Module 3 — Scoring
+  "/scoring",
+  // Module 4 — Contact enrichment
+  "/contacts",
   // Module 5 — Outreach
   "/outreach",
   // Module 7 — Meeting preparation
