@@ -186,6 +186,12 @@ export const HELP_TEXT: Record<string, string> = {
   "Occupancy economics": "The true cost of occupying: effective rent after incentives, cash needed upfront, present value and what-if changes. Refundable deposits are shown separately.",
   "Negotiation": "Each landlord offer is kept as a version. See exactly what changed, its money impact, and what each concession package is worth. Nothing is accepted or sent automatically.",
   "Recommendation": "The best property that meets every must-have. A higher score can't win if it fails a mandatory condition.",
+  // Module 12 — AI assistant
+  "Ask AI": "Ask questions about your companies, buildings, leases, meetings and deals in plain words. Each step the assistant takes is shown. It never sends anything, and changes to client data wait for your approval.",
+  "Missing / not verified": "Facts the assistant could not find or confirm. They are listed so nothing is assumed — check them before relying on the answer.",
+  "Approval needed": "The assistant wants to change client data. Nothing changes until you approve; rejecting leaves the record as it is.",
+  "Saved commands": "Questions you ask often, saved so you can run them with one tap. Scheduled commands only run if you turn scheduling on.",
+  "Memory": "What the assistant remembers about people, companies and requirements, with where each fact came from. Correct, restrict or forget any item.",
 };
 
 export function helpFor(title: unknown): string | undefined {

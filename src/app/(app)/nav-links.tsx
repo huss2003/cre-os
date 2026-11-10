@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import clsx from "clsx";
+import { AskAiButton } from "@/modules/assistant/ui/ask-ai-button";
 import { sectionFor, type BadgeKey, type NavGroup, type NavSection } from "@/lib/nav";
 
 const P = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -10,6 +11,7 @@ const P = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLineca
 export function SectionIcon({ k, className = "h-5 w-5" }: { k: string; className?: string }) {
   const paths: Record<string, ReactNode> = {
     home: <><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" /></>,
+    assistant: <><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" /><path d="M18.5 15.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" /></>,
     today: <><circle cx="12" cy="12" r="8" /><path d="M12 8v4l3 2" /></>,
     leases: <><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 8h6M9 12h6M9 16h3" /></>,
     companies: <><rect x="4" y="4" width="10" height="16" rx="1" /><path d="M14 9h5a1 1 0 0 1 1 1v10H14M7 8h4M7 12h4M7 16h4" /></>,
@@ -203,7 +205,7 @@ export function AppShell({ groups, footer, badges, workspace, account, children 
           </div>
           <div className="hidden items-center gap-4 px-8 py-3 lg:flex">
             <SearchBox />
-            <div className="ml-auto"><NewMenu /></div>
+            <div className="ml-auto flex items-center gap-2"><AskAiButton variant="bar" /><NewMenu /></div>
           </div>
         </header>
 
@@ -212,6 +214,7 @@ export function AppShell({ groups, footer, badges, workspace, account, children 
           {children}
         </main>
 
+        <AskAiButton variant="fab" />
         <nav aria-label="Quick" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] text-center text-[11px] backdrop-blur lg:hidden">
           {bottom.map((s) => {
             const on = active?.key === s.key;

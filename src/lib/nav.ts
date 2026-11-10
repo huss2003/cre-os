@@ -15,7 +15,11 @@ const one = (key: string, label: string, hint: string, href: string, extra: Part
 
 /** The sidebar, in order. Plain-language groups, one per module. */
 export const NAV_GROUPS: NavGroup[] = [
-  { key: "home", label: null, items: [one("home", "Home", "Today at a glance", "/home")] },
+  { key: "home", label: null, items: [
+    one("home", "Home", "Today at a glance", "/home"),
+    { key: "assistant", label: "Ask AI", hint: "Ask questions, get briefs and drafts", href: "/assistant", tabs: [
+      { href: "/assistant", label: "Chat" }, { href: "/assistant/memory", label: "Memory" }, { href: "/assistant/commands", label: "Saved commands" }] },
+  ] },
   { key: "plan", label: "Plan", items: [
     { key: "today", label: "Today", hint: "Your plan, tasks and visits", href: "/today", tabs: [
       { href: "/today", label: "Plan" }, { href: "/tasks", label: "Tasks" }, { href: "/calendar", label: "Calendar & visits" }] },
@@ -75,6 +79,8 @@ export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
 /** Screens shown in the menu while in focus mode. */
 export const FOCUS_MENU = [
   "/home",
+  // Module 12 — AI assistant
+  "/assistant",
   // Module 1 — Database
   "/capture", "/approvals", "/companies", "/people", "/buildings", "/deals", "/requirements", "/database", "/geography", "/imports",
   // Module 2 — Signals & research
