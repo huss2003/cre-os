@@ -55,7 +55,7 @@ async function Body({ tab }: { tab: string }) {
           <section className="rounded-2xl border border-line bg-surface p-5"><h2 className="flex items-center font-semibold">Import from your calendar<HelpFor k="Import from your calendar" /></h2><p className="mt-1 text-sm text-ink-soft">Export an .ics file from Google/Outlook and upload it. Re-importing the same file won't create duplicates.</p>
             <ActionForm action={icsAction} className="mt-3 flex flex-wrap items-center gap-3"><input type="file" name="file" accept=".ics,text/calendar" required className="text-sm" /><Submit variant="secondary">Import</Submit></ActionForm></section>
           <section className="rounded-2xl border border-line bg-surface p-5"><h2 className="font-semibold">Connected calendar</h2><p className="mt-1 text-sm text-ink-soft">If Google or Outlook is connected, new meetings get a preparation page automatically every hour.</p>
-            <ActionForm action={syncAction} className="mt-3"><Submit variant="secondary">Check now</Submit></ActionForm></section>
+            <div className="mt-3 flex flex-wrap gap-2"><Link href="/settings/connections" className="inline-flex min-h-10 items-center rounded-xl bg-brand px-4 text-sm font-semibold text-white">Connect Google / Outlook</Link><ActionForm action={syncAction}><Submit variant="secondary">Check now</Submit></ActionForm></div></section>
         </div>
       ) : null}
     </div>

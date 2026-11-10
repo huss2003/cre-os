@@ -82,7 +82,7 @@ export const FOCUS_MENU = [
   "/meetings",
 ];
 /** Reachable by link from a signal, but not shown in the menu. */
-const FOCUS_LINKED = ["/contacts", "/drafts", "/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search", "/scoring", "/research"];
+const FOCUS_LINKED = ["/settings/connections", "/contacts", "/drafts", "/companies", "/people", "/buildings", "/requirements", "/deals", "/signals", "/tasks", "/approvals", "/search", "/scoring", "/research"];
 export const HIDDEN_PREFIXES: string[] = [];
 const under = (path: string, list: string[]) => list.some((h) => path === h || path.startsWith(h + "/"));
 export function isHiddenPath(path: string): boolean {
