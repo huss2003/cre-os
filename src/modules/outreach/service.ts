@@ -83,7 +83,7 @@ export async function buildContext(db: Db, ws: string, personId: string, opts: {
     level: R.relationshipLevel(ints, notInterested), interactions: ints.slice(0, 5), lastInteraction: ints[0] ?? null, promises,
     signals, leaseEvents, opportunity, requirement, leadScore: (score.data as Row)?.score ?? null,
     channels: { email: pick("email"), phone: pick("phone"), linkedin: pick("linkedin") ?? pick("profile") },
-    blocked: { all, email: all ?? (await suppressedFor(db, ws, personId, "email")), whatsapp: all ?? (await suppressedFor(db, ws, personId, "whatsapp")), linkedin: all ?? (await suppressedFor(db, ws, personId, "linkedin")) },
+    blocked: await (async () => { if (all) return { all, email: all, whatsapp: all, linkedin: all }; const [e, w, l] = await Promise.all(["email", "whatsapp", "linkedin"].map((ch) => suppressedFor(db, ws, personId, ch))); return { all, email: e, whatsapp: w, linkedin: l }; })(),
     facts, unknowns,
   };
 }
@@ -205,12 +205,18 @@ export async function createOutreach(db: Db, ws: string, userId: string, inp: Cr
   const sender = await senderName(db, ws);
   const planKey = `p:${inp.personId}:${Date.now().toString(36)}`;
   const ids: string[] = []; let mocked = false;
-  for (const ch of [...new Set(inp.channels)]) {
+  const chans = [...new Set(inp.channels)].filter((ch) => {
     const dch = R.draftChannel(ch);
     const block = dch && dch !== "introduction" ? c.blocked[dch] : null;
-    if (block) { warnings.push({ kind: "suppressed", text: `${R.CHANNEL_LABEL[ch]} skipped: ${block}.` }); continue; }
-    if (ch === "introduction" && !via) throw new OutreachError("Pick who should make the introduction.");
-    const g = await generate(db, ws, userId, c, { channel: ch, scenario, reason, lang: inp.language ?? "en", via, sender }, ai);
+    if (block) warnings.push({ kind: "suppressed", text: `${R.CHANNEL_LABEL[ch]} skipped: ${block}.` });
+    return !block;
+  });
+  if (chans.includes("introduction") && !via) throw new OutreachError("Pick who should make the introduction.");
+  // All channels are written at the same time (one AI call each, in parallel) — much faster than one after another.
+  const gens = await Promise.all(chans.map((ch) => generate(db, ws, userId, c, { channel: ch, scenario, reason, lang: inp.language ?? "en", via, sender }, ai)));
+  for (const [gi, ch] of chans.entries()) {
+    const dch = R.draftChannel(ch);
+    const g = gens[gi];
     mocked ||= g.mocked;
     const addr = ch === "email" || ch === "meeting_followup" ? c.channels.email : ch === "whatsapp" ? c.channels.phone : ch === "linkedin" ? c.channels.linkedin
       : ch === "introduction" ? ((via?.contact_method ?? []) as Row[]).find((m) => !m.suppressed && m.method_type === "email")?.value ?? null : null;

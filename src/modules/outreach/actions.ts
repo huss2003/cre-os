@@ -32,7 +32,7 @@ export async function saveAction(id: string, _p: ActionState, f: FormData): Prom
   catch (e) { return fail(e); }
 }
 export async function aiAction(id: string, _p: ActionState, f: FormData): Promise<ActionState> {
-  try { const ctx = await requireContext("editor"); await S.aiEdit(ctx.db, ctx.workspaceId, ctx.userId, id, s(f, "op")); return done("Rewritten — check it before approving.", id); }
+  try { const ctx = await requireContext("editor"); const op = s(f, "op") === "translate" ? s(f, "lang") || "english" : s(f, "op"); await S.aiEdit(ctx.db, ctx.workspaceId, ctx.userId, id, op); return done("Rewritten — the message above now shows the new version.", id); }
   catch (e) { return fail(e); }
 }
 export async function requestAction(id: string): Promise<ActionState> {

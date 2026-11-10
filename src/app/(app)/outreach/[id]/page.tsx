@@ -86,7 +86,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <section className={`${card} space-y-5`}>
               <div className="flex items-center gap-3"><Icon c="✉" /><h2 className="flex items-center text-lg font-semibold">Compose message<HelpFor k="Message" /></h2></div>
               {editable ? (
-                <ActionForm action={saveAction.bind(null, id)} className="space-y-3">
+                <ActionForm key={draft.content_hash} action={saveAction.bind(null, id)} className="space-y-3">
                   <div className="grid items-center gap-x-4 gap-y-3 sm:grid-cols-[72px_1fr]">
                     <label htmlFor="to" className="text-sm text-ink-soft">To</label>
                     <input id="to" name="to" defaultValue={draft.recipient_address ?? ""} placeholder={draft.channel === "whatsapp" ? "+91…" : draft.channel === "linkedin" ? "linkedin.com/in/…" : "name@company.com"} className={field} />
@@ -115,13 +115,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {editable ? (
             <section className="rounded-2xl border border-brand/15 bg-brand-soft/40 p-5">
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h2 className="flex items-center font-semibold">✨ Rewrite with AI</h2><p className="text-sm text-ink-soft">Each rewrite is saved as a new version — check it before approving.</p></div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {OPS.map(([op, l]) => <ActionForm key={op} action={aiAction.bind(null, id)}><input type="hidden" name="op" value={op} /><Submit variant="ghost" className={chip}>{l}</Submit></ActionForm>)}
-                <ActionForm action={aiAction.bind(null, id)} className="ml-auto flex items-center gap-2">
-                  <select name="op" defaultValue={it.language === "hi" ? "hindi" : it.language === "hinglish" ? "hinglish" : "english"} aria-label="Language" className="min-h-9 rounded-xl border border-line bg-surface px-3 text-sm"><option value="english">🌐 English</option><option value="hinglish">🌐 Hinglish</option><option value="hindi">🌐 Hindi</option></select>
-                  <Submit variant="ghost" className={chip}>Translate</Submit>
-                </ActionForm>
-              </div>
+              {/* One form: every chip is a submit button carrying its own op, so the result message sits below the group instead of breaking the row. */}
+              <ActionForm action={aiAction.bind(null, id)} className="mt-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {OPS.map(([op, l]) => <Submit key={op} variant="ghost" name="op" value={op} className={chip}>{l}</Submit>)}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-brand/10 pt-3">
+                  <span className="text-sm text-ink-soft">Language</span>
+                  <select name="lang" defaultValue={it.language === "hi" ? "hindi" : it.language === "hinglish" ? "hinglish" : "english"} aria-label="Language" className="min-h-9 rounded-xl border border-line bg-surface px-3 text-sm"><option value="english">English</option><option value="hinglish">Hinglish</option><option value="hindi">Hindi</option></select>
+                  <Submit variant="ghost" name="op" value="translate" className={chip}>Translate</Submit>
+                </div>
+              </ActionForm>
               {(s.openings ?? []).length || (s.ctas ?? []).length ? (
                 <details className="mt-4 text-sm"><summary className="cursor-pointer font-medium text-brand">Other openings and calls to action</summary>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-ink-soft">{[...(s.openings ?? []), ...(s.ctas ?? [])].map((o: string, i: number) => <li key={i}>{o}</li>)}</ul></details>

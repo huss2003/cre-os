@@ -48,26 +48,35 @@ async function Today({ db, ws, editor }: { db: Row; ws: string; editor: boolean 
       <section className="space-y-3">
         <h2 className="flex items-center font-semibold">New conversations to start<HelpFor k="New conversations to start" /></h2>
         {!sug.length ? <Empty title="No new reasons to reach out today" text="Suggestions come from recent signals and upcoming lease dates for companies where a relevant contact is saved. Add signals in Signals, or find people in Contacts." /> : (
-          <ul className="grid gap-3 md:grid-cols-2">
-            {sug.map((x) => (
-              <li key={x.personId} className={`${box} p-4`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0"><Link href={`/contacts/${x.personId}`} className="font-semibold hover:text-brand">{x.name}</Link><p className="truncate text-sm text-ink-soft">{x.title ?? "Designation unknown"} · {x.org}</p></div>
-                  {x.score !== null ? <span className="shrink-0 rounded-full bg-canvas px-2 py-0.5 text-xs tabular-nums" title="Lead score (Module 3)">{x.score}</span> : null}
+          <ul className="grid gap-4 md:grid-cols-2">
+            {sug.map((x) => {
+              const tone = x.scenario === "lease_renewal" ? "bg-sky-50 text-sky-800" : x.scenario === "expansion" || x.scenario === "gcc" ? "bg-emerald-50 text-emerald-800" : "bg-violet-50 text-violet-800";
+              const ini = x.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+              const title = x.title && !/named in import/i.test(x.title) ? x.title : null;
+              return (
+              <li key={x.personId} className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm transition hover:border-brand/40 hover:shadow-md">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft font-semibold text-brand">{ini}</span>
+                  <div className="min-w-0 flex-1">
+                    <Link href={`/contacts/${x.personId}`} className="block truncate font-semibold hover:text-brand">{x.name}</Link>
+                    <p className="truncate text-sm text-ink-soft">{title ? `${title} · ` : ""}{x.org}</p>
+                  </div>
+                  {x.score !== null ? <span className="shrink-0 rounded-lg bg-canvas px-2 py-1 text-center leading-none" title="Lead score (0–100)"><span className="block text-base font-bold tabular-nums">{x.score}</span><span className="text-[10px] text-ink-soft">lead</span></span> : null}
                 </div>
-                <p className="mt-2 text-sm"><span className="font-medium">{SCENARIOS[x.scenario].label}:</span> {x.reason}</p>
-                {x.why.length > 1 ? <p className="mt-1 text-xs text-ink-soft">{x.why.slice(1).join(" · ")}</p> : null}
+                <div className="mt-4 rounded-xl bg-canvas px-3.5 py-3">
+                  <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}>{SCENARIOS[x.scenario].label}</span>
+                  <p className="mt-1.5 text-sm font-medium">{x.reason}</p>
+                  {x.why.length > 1 ? <p className="mt-0.5 text-xs text-ink-soft">{[...new Set(x.why.slice(1))].join(" · ")}</p> : null}
+                </div>
                 {editor ? (
-                  <ActionForm action={createAction} className="mt-3 flex flex-wrap items-center gap-3">
+                  <ActionForm action={createAction} className="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <input type="hidden" name="person_id" value={x.personId} /><input type="hidden" name="scenario" value={x.scenario} />{x.signalId ? <input type="hidden" name="signal_id" value={x.signalId} /> : null}
-                    <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" name="channel" value="email" defaultChecked /> Email</label>
-                    <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" name="channel" value="whatsapp" defaultChecked /> WhatsApp</label>
-                    <label className="flex items-center gap-1.5 text-sm"><input type="checkbox" name="channel" value="call" /> Call</label>
+                    <div className="flex flex-wrap gap-1.5">{([["email", "Email", true], ["whatsapp", "WhatsApp", true], ["call", "Call", false]] as const).map(([v, l, on]) => (
+                      <label key={v} className="cursor-pointer"><input type="checkbox" name="channel" value={v} defaultChecked={on} className="peer sr-only" /><span className="inline-flex min-h-8 items-center rounded-full border border-line px-3 text-sm text-ink-soft peer-checked:border-brand peer-checked:bg-brand-soft peer-checked:text-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand/30">{l}</span></label>))}</div>
                     <Submit>Prepare drafts</Submit>
                   </ActionForm>
                 ) : null}
-              </li>
-            ))}
+              </li>); })}
           </ul>
         )}
       </section>
