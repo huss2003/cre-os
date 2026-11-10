@@ -11,7 +11,7 @@ import { getJson } from "./http";
  */
 const GMAIL = "https://gmail.googleapis.com/gmail/v1/users/me";
 const GCAL = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
-const MAX_MESSAGES = 100;
+const MAX_MESSAGES = 60;   // first sync stays well under Gmail per-user quota
 
 interface GPart { mimeType?: string; filename?: string; headers?: { name: string; value: string }[]; body?: { data?: string; size?: number; attachmentId?: string }; parts?: GPart[] }
 interface GMessage { id: string; threadId?: string; labelIds?: string[]; internalDate?: string; payload?: GPart; historyId?: string }

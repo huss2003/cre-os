@@ -28,8 +28,11 @@ export async function getJson<T = unknown>(
     const res = await f(url, { headers: { authorization: `Bearer ${token}`, accept: "application/json", ...(opts.headers ?? {}) } });
     if (res.ok) return (await res.json()) as T;
     const text = await res.text().catch(() => "");
-    if (res.status === 429 || res.status === 503) {
-      const wait = retryAfterSeconds(res.headers.get("retry-after"));
+    // Google returns quota/rate limits as 403 (rateLimitExceeded / userRateLimitExceeded / "Quota exceeded") — that is
+    // a temporary slow-down, NOT revoked consent.
+    const rateLimited403 = res.status === 403 && /rateLimitExceeded|userRateLimitExceeded|quotaExceeded|Quota exceeded|RATE_LIMIT_EXCEEDED/i.test(text);
+    if (res.status === 429 || res.status === 503 || rateLimited403) {
+      const wait = rateLimited403 ? 60 : retryAfterSeconds(res.headers.get("retry-after"));
       if (attempt === 0 && wait <= (opts.maxInlineWaitSec ?? 5)) {
         await sleep(wait * 1000);
         continue;
