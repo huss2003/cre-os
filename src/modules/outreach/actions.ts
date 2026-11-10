@@ -21,7 +21,7 @@ export async function createAction(_p: ActionState, f: FormData): Promise<Action
     const ctx = await requireContext("editor");
     const channels = f.getAll("channel").map(String) as Channel[];
     if (!channels.length) return { error: "Pick at least one channel." };
-    const r = await S.createOutreach(ctx.db, ctx.workspaceId, ctx.userId, { personId: s(f, "person_id"), channels, scenario: (s(f, "scenario") || undefined) as Scenario | undefined, signalId: s(f, "signal_id") || null, language: (s(f, "language") || "en") as Lang, viaPersonId: s(f, "via") || null });
+    const r = await S.createOutreach(ctx.db, ctx.workspaceId, ctx.userId, { personId: s(f, "person_id"), channels, scenario: (s(f, "scenario") || undefined) as Scenario | undefined, signalId: s(f, "signal_id") || null, language: (s(f, "language") || "en") as Lang, viaPersonId: s(f, "via") || null, mentionAvailabilityIds: f.getAll("mention").map(String).filter(Boolean) });
     first = r.ids[0];
   } catch (e) { return fail(e); }
   revalidatePath("/outreach");
@@ -64,7 +64,8 @@ export async function responseAction(id: string, _p: ActionState, f: FormData): 
   try {
     const ctx = await requireContext("editor");
     const r = await S.recordResponse(ctx.db, ctx.workspaceId, ctx.userId, id, s(f, "text"));
-    return done(`Reply saved (${r.outcome.replace(/_/g, " ")}). ${r.tasks.length ? `${r.tasks.length} task(s) created. ` : ""}${r.proposals.length ? "Deal update sent to Review. " : ""}Next: ${r.nextAction}`, id);
+    const sent = [r.proposals.length && r.proposalKinds.length < r.proposals.length ? "deal update" : "", ...r.proposalKinds].filter(Boolean);
+    return done(`Reply saved (${S.OUTCOME_LABEL[r.outcome].toLowerCase()}). ${r.tasks.length ? `${r.tasks.length} task(s) created. ` : ""}${sent.length ? `Sent to Review: ${sent.join(", ")}. ` : ""}${r.resumeOn ? `Follow-up replanned for after ${r.resumeOn}. ` : ""}Next: ${r.nextAction}`, id);
   } catch (e) { return fail(e); }
 }
 export async function pauseAction(id: string, _p: ActionState, f: FormData): Promise<ActionState> {
@@ -84,10 +85,22 @@ export async function closeAction(id: string, _p: ActionState, f: FormData): Pro
   catch (e) { return fail(e); }
 }
 export async function sweepAction(): Promise<ActionState> {
-  try { const ctx = await requireContext("editor"); const r = await S.sweep(ctx.db, ctx.workspaceId); return done(`Checked ${r.checked}; paused ${r.paused}.`); }
+  try { const ctx = await requireContext("editor"); const r = await S.sweep(ctx.db, ctx.workspaceId); return done(`Checked ${r.checked}; paused ${r.paused}; ${r.tasks} follow-up reminder task(s) added.`); }
   catch (e) { return fail(e); }
 }
 export async function restoreAction(id: string, version: number): Promise<ActionState> {
   try { const ctx = await requireContext("editor"); await S.restoreVersion(ctx.db, ctx.workspaceId, ctx.userId, id, version); return done(`Version ${version} restored.`, id); }
+  catch (e) { return fail(e); }
+}
+export async function variantsAction(id: string): Promise<ActionState> {
+  try { const ctx = await requireContext("editor"); const v = await S.generateVariants(ctx.db, ctx.workspaceId, ctx.userId, id); return done(`${v.length} versions ready — pick one to use it.`, id); }
+  catch (e) { return fail(e); }
+}
+export async function pickVariantAction(id: string, n: number): Promise<ActionState> {
+  try { const ctx = await requireContext("editor"); await S.pickVariant(ctx.db, ctx.workspaceId, ctx.userId, id, n); return done("Using that version — saved as a new version. Review it before approving.", id); }
+  catch (e) { return fail(e); }
+}
+export async function mentionAction(id: string, availabilityId: string): Promise<ActionState> {
+  try { const ctx = await requireContext("editor"); const on = await S.toggleMention(ctx.db, ctx.workspaceId, ctx.userId, id, availabilityId); return done(on ? "Added as a fact the AI may use on the next rewrite. The text hasn't changed." : "Removed from the facts.", id); }
   catch (e) { return fail(e); }
 }

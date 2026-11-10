@@ -15,6 +15,8 @@ const SECTIONS: { n: string; title: string; blurb: string; links: { href: string
   { n: "08", title: "Negotiation", blurb: "Positions, concessions and walk-away points.", links: [{ href: "/toolkit/negotiation" }], kinds: ["negotiation"] },
   { n: "09", title: "Client deliverables", blurb: "Proposal, workbook and decision summary from saved analyses.", links: [{ href: "/toolkit/deliverables" }], kinds: ["deliverable"] },
   { n: "10", title: "Specialist models", blurb: "Further models for particular deal types.", links: [{ href: "/toolkit/models" }], kinds: [] },
+  { n: "11", title: "Quotes & evidence", blurb: "Upload a quote; AI reads the terms; every version kept.", links: [{ href: "/toolkit/quotes" }], kinds: [] },
+  { n: "12", title: "Visit packs & decks", blurb: "Site-visit pack and presentation deck for a shortlist.", links: [{ href: "/toolkit/packs" }], kinds: [] },
 ];
 const hrefFor = (kind: string) => SECTIONS.find((s) => s.kinds.includes(kind))?.links[0].href ?? "/toolkit";
 const day = (d: string) => new Date(`${d}T00:00:00Z`).getTime();

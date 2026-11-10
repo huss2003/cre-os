@@ -149,3 +149,130 @@ export function templateDraft(i: { channel: Channel; scenario: Scenario; first: 
     { objection: "We already have a broker.", reply: "That's fine — I'm happy to share market data you can compare against, with no obligation." }], close: ask } : null;
   return { subject, body, opening_alternatives: [opener, known ? `Hi ${i.first}, a quick one about ${i.company}.` : `Hi ${i.first}, reaching out with a specific reason.`], cta_alternatives: [ask, "Would it help if I sent a one-page comparison of current options?"], call_script, forwardable };
 }
+
+// ───────────────────────────── Round 2: variants, follow-ups, replies, relationships, analytics, properties ──
+const DAY = 864e5;
+export const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / DAY);
+export const plusDays = (d: string, n: number) => new Date(Date.parse(`${d.slice(0, 10)}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
+
+/** "Show 3 versions": complete alternatives for the same channel, each a different angle. */
+export type Angle = "concise" | "value" | "question";
+export const VARIANT_ANGLES: { key: Angle; label: string; instruction: string }[] = [
+  { key: "concise", label: "Concise", instruction: "Write a complete alternative that is as short as possible: the reason and one question only." },
+  { key: "value", label: "Value-led", instruction: "Write a complete alternative that leads with the concrete value for this role, using only the listed facts." },
+  { key: "question", label: "Question-led", instruction: "Write a complete alternative that opens with a specific, easy-to-answer question about their plans." },
+];
+/** Offline variant built from the current text — never adds facts that weren't in it. */
+export function variantMock(cur: { subject: string | null; body: string }, angle: Angle, first: string, question: string): { subject: string | null; body: string } {
+  const sentences = cur.body.replace(/\n+/g, " ").split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean);
+  const reason = sentences.find((s) => /noticed|lease|reports|since we last|came up/i.test(s)) ?? sentences[1] ?? sentences[0] ?? "";
+  const ask = sentences.find((s) => s.endsWith("?")) ?? "Would a short call be useful?";
+  const signoff = /\nRegards,\n(.+)$/.exec(cur.body)?.[1];
+  const end = signoff ? `\n\nRegards,\n${signoff}` : "";
+  if (angle === "concise") return { subject: cur.subject, body: `Hi ${first}, ${reason.replace(/^Hi [^,]+,\s*/, "")} ${ask}${end}`.trim() };
+  if (angle === "question") return { subject: cur.subject ? `Quick question, ${first}` : null, body: `Hi ${first}, quick question: ${question.charAt(0).toLowerCase()}${question.slice(1)}\n\n${reason} If useful, I can share what comparable companies are doing.${end}` };
+  return { subject: cur.subject, body: `Hi ${first},\n\n${reason} Planning early usually means more options and better terms than deciding when timelines are tight.\n\n${ask}${end}` };
+}
+
+/** Follow-up timing state for a planned item. */
+export function followupState(plannedOn: string | null, today: string): "overdue" | "due" | "upcoming" | null {
+  if (!plannedOn) return null;
+  const d = daysBetween(today, plannedOn);
+  return d < 0 ? "overdue" : d === 0 ? "due" : "upcoming";
+}
+export const followupTaskKey = (itemId: string) => `outreach-followup:${itemId}`;
+
+/** After 2+ sends with no reply: suggest a different approach instead of another identical follow-up. */
+export interface Alternative { kind: "warm_intro" | "switch_channel" | "pause"; text: string; channel?: Channel; viaPersonId?: string }
+export function alternativeApproach(x: { unansweredSends: number; channelsUsed: string[]; available: { email?: boolean; whatsapp?: boolean; linkedin?: boolean; phone?: boolean }; warmPath?: { personId: string; name: string } | null }): Alternative | null {
+  if (x.unansweredSends < 2) return null;
+  if (x.warmPath) return { kind: "warm_intro", text: `${x.unansweredSends} messages without a reply. Ask ${x.warmPath.name} for an introduction instead (they haven't agreed yet — ask first).`, channel: "introduction", viaPersonId: x.warmPath.personId };
+  const order: [Channel, keyof typeof x.available][] = [["call", "phone"], ["whatsapp", "whatsapp"], ["linkedin", "linkedin"], ["email", "email"]];
+  const used = new Set(x.channelsUsed);
+  const next = order.find(([c, k]) => !used.has(c) && (x.available[k] || (c === "whatsapp" && x.available.phone)));
+  if (next) return { kind: "switch_channel", text: `${x.unansweredSends} ${[...used].map((c) => CHANNEL_LABEL[c as Channel] ?? c).join("/")} messages without a reply. Try a ${CHANNEL_LABEL[next[0]]} instead of another one.`, channel: next[0] };
+  return { kind: "pause", text: `${x.unansweredSends} messages without a reply and no other channel or introduction path. Pause and revisit when there's a new reason.` };
+}
+
+/** Out-of-office: resume date stated in the reply, else a safe default (+14 days). Dates as YYYY-MM-DD or "20 Nov"/"Nov 20". */
+const MON = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+export function resumeDateFrom(text: string, today: string): string {
+  const iso = /\b(20\d{2}-\d{2}-\d{2})\b/.exec(text)?.[1];
+  if (iso && iso > today) return iso;
+  const m = /\b(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3})[a-z]*\b|\b([A-Za-z]{3})[a-z]*\s+(\d{1,2})(?:st|nd|rd|th)?\b/.exec(text);
+  if (m) {
+    const day = Number(m[1] ?? m[4]); const mon = MON.indexOf(String(m[2] ?? m[3]).toLowerCase());
+    if (mon >= 0 && day >= 1 && day <= 31) {
+      let y = Number(today.slice(0, 4)); let d = `${y}-${String(mon + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      if (d <= today) { y++; d = `${y}-${d.slice(5)}`; }
+      return d;
+    }
+  }
+  if (/next week/i.test(text)) return plusDays(today, 7);
+  if (/next month/i.test(text)) return plusDays(today, 30);
+  return plusDays(today, 14);
+}
+
+/** Deterministic extraction used by the offline (mock) reply classifier. Only what the reply literally states. */
+export function extractReply(text: string): { referred: { name: string; email: string | null } | null; unavailable: boolean; updates: { title: string | null; email: string | null; phone: string | null }; companyNote: string | null } {
+  const emails = text.match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? [];
+  const ref = /(?:reach out to|get in touch with|speak (?:to|with)|talk to|contact|looping in|loop in|cc'?ing|refer(?:ring)? you to)\s+(?:my colleague\s+)?([A-Z][a-z]+(?:\s[A-Z][a-z]+){0,2})/.exec(text);
+  const unavailable = /out of (?:the )?office|on leave|away until|on vacation|on holiday|back on|returning on|limited access to email/i.test(text);
+  const title = /(?:[Mm]y new (?:role|title|designation) is|I(?:'m| am) now (?:the )?|I have moved to the role of )\s*([A-Z][^.,;\n]{2,60})/.exec(text)?.[1]?.trim() ?? null;
+  const phone = /(\+?\d[\d\s-]{8,}\d)/.exec(text)?.[1]?.replace(/[\s-]/g, "") ?? null;
+  const note = /\b(we (?:have|are|'ve|'re) (?:moved|moving|relocat\w+|expand\w*|consolidat\w*|shift\w*|hiring)[^.\n]*)/i.exec(text)?.[1] ?? null;
+  const referred = ref ? { name: ref[1].trim(), email: emails[0] ?? null } : null;
+  return { referred, unavailable, updates: { title, email: referred ? null : emails[0] ?? null, phone }, companyNote: note ? `${note.charAt(0).toUpperCase()}${note.slice(1)}`.slice(0, 300) : null };
+}
+
+/** Relationship status for the Relationships tab. Needs-attention wins over recency. */
+export type RelStatus = "needs_attention" | "active" | "cooling" | "inactive";
+export const REL_LABEL: Record<RelStatus, string> = { needs_attention: "Needs attention", active: "Active", cooling: "Cooling", inactive: "Inactive" };
+export function relationshipStatus(x: { lastAt: string | null; today: string; openCommitments: number; unansweredInbound: boolean }): RelStatus {
+  if (x.openCommitments > 0 || x.unansweredInbound) return "needs_attention";
+  if (!x.lastAt) return "inactive";
+  const d = daysBetween(x.lastAt, x.today);
+  return d < 45 ? "active" : d <= 90 ? "cooling" : "inactive";
+}
+/** Engagement summary from a person's interactions (newest first or any order). */
+export function engagement(ints: { occurred_at: string; direction: string | null; promises?: unknown[] | null }[], today: string) {
+  const s = [...ints].sort((a, b) => b.occurred_at.localeCompare(a.occurred_at));
+  const last = s[0] ?? null;
+  const lastOut = s.find((i) => i.direction === "outbound");
+  const unansweredInbound = !!last && last.direction === "inbound";
+  const since = lastOut?.occurred_at ?? "";
+  const promises = s.filter((i) => i.occurred_at > since).flatMap((i) => (i.promises ?? []) as unknown[])
+    .filter((p) => typeof p === "string" || (p as { who?: string }).who !== "them")
+    .map((p) => (typeof p === "string" ? p : String((p as { what?: string }).what ?? (p as { text?: string }).text ?? "")).trim()).filter(Boolean);
+  return { lastAt: last?.occurred_at ?? null, last90: s.filter((i) => daysBetween(i.occurred_at, today) <= 90).length, unansweredInbound, promises };
+}
+
+/** Rate that always carries its denominator. */
+export interface Rate { n: number; d: number; pct: string; label: string }
+export function rate(n: number, d: number, of: string): Rate {
+  const pct = d ? `${Math.round((n / d) * 100)}%` : "—";
+  return { n, d, pct, label: d ? `${pct} (${n} of ${d} ${of})` : `— (no ${of} yet)` };
+}
+/** Group sent items by a key → sends, replies, meetings, reply rate. */
+export function breakdown<T extends { sent_at?: string | null; responded_at?: string | null; status?: string; response?: { outcome?: string } | null }>(items: T[], key: (i: T) => string | null, top = 10) {
+  const m = new Map<string, T[]>();
+  for (const i of items) { if (!i.sent_at) continue; const k = key(i) ?? "Unknown"; m.set(k, [...(m.get(k) ?? []), i]); }
+  return [...m.entries()].map(([k, xs]) => {
+    const replies = xs.filter((x) => x.responded_at).length;
+    const meetings = xs.filter((x) => x.status === "meeting" || x.response?.outcome === "meeting_scheduled").length;
+    return { key: k, sends: xs.length, replies, meetings, replyRate: rate(replies, xs.length, "sent") };
+  }).sort((a, b) => b.sends - a.sends || b.replies - a.replies).slice(0, top);
+}
+/** "After outreach" window: a record created within `days` after a send to that org (never claimed as caused by it). */
+export function afterOutreach(sends: { org_id: string | null; sent_at: string }[], rec: { org_id: string | null; created_at: string }, days = 30): boolean {
+  if (!rec.org_id) return false;
+  return sends.some((s) => s.org_id === rec.org_id && rec.created_at >= s.sent_at && daysBetween(s.sent_at, rec.created_at) <= days);
+}
+
+/** Availability label for property suggestions — verified only if confirmed within 30 days. */
+export function availabilityLabel(a: { status: string; as_of: string; fact_status?: string | null }, today: string): { verified: boolean; text: string } {
+  const age = daysBetween(a.as_of, today);
+  if (a.status === "available" && a.fact_status === "currently_confirmed" && age <= 30) return { verified: true, text: `Availability verified ${a.as_of}` };
+  if (a.status === "unverified") return { verified: false, text: `Availability not verified (reported ${a.as_of}) — check before mentioning` };
+  return { verified: false, text: `Reported ${a.status.replace(/_/g, " ")} as of ${a.as_of} (${age} days ago) — confirm before mentioning` };
+}

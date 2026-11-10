@@ -58,10 +58,24 @@ Rules are pure in `rules.ts`: scenarios with their questions, role focus, relati
 - Every call has a deterministic mock, so the whole flow works without a key.
 - Permissions, suppression, duplicates, approval validity, pause rules and database writes are plain code.
 
+## Round 2 additions (no migration — uses existing columns)
+| Function | What it does |
+|---|---|
+| `generateVariants` / `pickVariant` | "Show 3 versions": concise / value-led / question-led complete drafts for the same channel, stored in `outreach_item.script.variants`. Picking one = new version (`kind regenerated`, `op variant:<n>`); approval resets. |
+| `sweep` (extended) | Also adds one reminder task per due/overdue planned follow-up (`idempotency_key outreach-followup:<id>`). Never drafts or sends. |
+| `alternativeFor`, `alternativesToday` | After 2+ unanswered sends: warm intro (if a `relationship_edge` path exists) → other channel → pause. Shown on the item and in Today. |
+| `recordResponse` (extended) | Outcomes `referred` (proposes a new `person` via `proposeChange`) and `unavailable` (out-of-office: resume date from the reply or +14 days, follow-up replanned to the day after; marked `Out-of-office reply` so the sweep doesn't pause it). Stated new title → `employment` proposal; new email/phone → `contact_method` create proposal; company update → `organisation.account_owner_note` proposal. Nothing is written directly. |
+| `relationships` | Relationships tab: last interaction, interactions in 90 days, status (Needs attention / Active <45d / Cooling 45–90d / Inactive >90d), open commitments (open tasks + our promises since our last message), warm-intro count. |
+| `analytics` (extended) | Breakdowns by channel, approach, top-10 companies and contacts; follow-up completion; reply outcomes; opportunities/requirements created ≤30 days after a send to that company ("after outreach", not attribution). Every rate carries `n/d`. |
+| `propertySuggestions`, `propertyFacts`, `toggleMention` | Up to 3 spaces for the company's open requirement (shortlist first, else available spaces by preferred geography + size band), each labelled with availability verification. "Mention in draft" only adds a fact (`script.mentions`) the AI may use on the next rewrite/versions. |
+
+Pure rules in `rules.ts`: `VARIANT_ANGLES`, `variantMock`, `followupState`, `alternativeApproach`, `resumeDateFrom`, `extractReply`, `relationshipStatus`, `engagement`, `rate`, `breakdown`, `afterOutreach`, `availabilityLabel`. Tests: `outreach-more.db.test.ts`.
+Known gaps: referred person's email is kept in the proposal reason (a contact_method needs the person to exist first); company notes append to `account_owner_note` (no dedicated notes table).
+
 ## Routes
 | Route | What's there |
 |---|---|
-| `/outreach` | Tabs: Today, Messages (drafts / waiting approval / ready to send), Conversations (awaiting reply / replies / history), Paused, Results |
+| `/outreach` | Tabs: Today (overdue follow-ups in red, count badge, alternative approaches), Messages, Conversations, Relationships, Paused, Results (breakdowns) |
 | `/outreach/new?person=&signal=` | Context, warnings, scenario/channels/language and warm introductions |
 | `/outreach/[id]` | Editor, AI rewrite, approval, confirm-and-open, I sent it, reply, why now, questions, history and versions |
 

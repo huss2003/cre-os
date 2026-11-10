@@ -18,6 +18,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
 const ago = (iso: string | null | undefined) => (iso ? Math.floor((Date.now() - Date.parse(iso)) / 864e5) : null);
 const OPEN = ["planned", "draft", "pending_approval", "approved"];
+const OOO_SUBJECT = "Out-of-office reply";
 
 export interface Fact { text: string; source_type: string; source_id: string | null; date?: string | null }
 export interface Context {
@@ -144,7 +145,7 @@ async function styleNotes(db: Db, ws: string, userId: string, channel: string): 
   return mine.length ? `\nThe user approved these as examples of their style (match tone and length, not content):\n${mine.map((v) => `---\n${String(v.body).slice(0, 600)}`).join("\n")}` : "";
 }
 
-async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string } }, ai: Ai): Promise<{ out: GenOut; mocked: boolean; model: string }> {
+async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string }; mock?: () => GenOut }, ai: Ai): Promise<{ out: GenOut; mocked: boolean; model: string }> {
   const tpl = R.templateDraft({ channel: a.channel, scenario: a.scenario, first: c.first, company: c.org?.display_name ?? "your company", level: c.level, reason: a.reason, roleKey: c.roleKey, sender: a.sender, via: a.via?.full_name?.split(/\s+/)[0] ?? null, lang: a.lang });
   const focus = R.ROLE_FOCUS[c.roleKey] ?? R.ROLE_FOCUS.other;
   const input = [
@@ -159,7 +160,7 @@ async function generate(db: Db, ws: string, userId: string, c: Context, a: { cha
     `Sender name: ${a.sender}. Language: ${a.lang}.`,
     a.current ? `Rewrite this draft — instruction: ${a.instruction}\nSubject: ${a.current.subject ?? ""}\n${a.current.body}` : `Suggest up to 3 discovery questions from: ${R.SCENARIOS[a.scenario].questions.join(" | ")}`,
   ].filter(Boolean).join("\n\n") + await styleNotes(db, ws, userId, a.channel);
-  const mock = (): GenOut => a.current ? mockEdit(a.current, a.instruction ?? "", tpl) : { ...tpl, value_prop: R.SCENARIOS[a.scenario].value, assumptions: c.unknowns.map((u) => `Unknown: ${u}`), questions: R.SCENARIOS[a.scenario].questions.slice(0, 3) };
+  const mock = a.mock ?? ((): GenOut => a.current ? mockEdit(a.current, a.instruction ?? "", tpl) : { ...tpl, value_prop: R.SCENARIOS[a.scenario].value, assumptions: c.unknowns.map((u) => `Unknown: ${u}`), questions: R.SCENARIOS[a.scenario].questions.slice(0, 3) });
   const r = await ai({ workspaceId: ws, workflow: "outreach.draft", tier: "luna", system: SYSTEM, input, schema: Gen, schemaName: "outreach_draft", maxOutputTokens: 2500, classification: "corporate_confidential", mock });
   const out = r.data;
   if (a.channel !== "email" && a.channel !== "meeting_followup" && a.channel !== "introduction") out.subject = null;
@@ -190,12 +191,14 @@ export async function senderName(db: Db, ws: string): Promise<string> {
   return (data?.value as Row)?.sender_name ?? "[Your name]";
 }
 
-export interface CreateInput { personId: string; channels: R.Channel[]; scenario?: R.Scenario; signalId?: string | null; opportunityId?: string | null; language?: R.Lang; viaPersonId?: string | null; plannedOn?: string; ai?: Ai }
+export interface CreateInput { personId: string; channels: R.Channel[]; scenario?: R.Scenario; signalId?: string | null; opportunityId?: string | null; language?: R.Lang; viaPersonId?: string | null; plannedOn?: string; mentionAvailabilityIds?: string[]; ai?: Ai }
 /** Create a conversation plan: one item per chosen channel (e.g. email + WhatsApp alternative), all step 1. */
 export async function createOutreach(db: Db, ws: string, userId: string, inp: CreateInput) {
   const ai = inp.ai ?? callStructured;
   const t0 = Date.now();
   const c = await buildContext(db, ws, inp.personId, { signalId: inp.signalId, opportunityId: inp.opportunityId });
+  const mentions = inp.mentionAvailabilityIds?.length ? await propertyFacts(db, ws, inp.mentionAvailabilityIds) : [];
+  c.facts.push(...mentions);
   if (c.blocked.all) throw new OutreachError(`Can't prepare outreach: ${c.blocked.all}.`);
   if (c.level === "not_interested") throw new OutreachError("This person said they're not interested. Respect that — record a new reason in Capture before reaching out again.");
   const sig = c.signals.find((s) => s.id === inp.signalId) ?? null;
@@ -229,7 +232,7 @@ export async function createOutreach(db: Db, ws: string, userId: string, inp: Cr
     const { data: item, error } = await db.from("outreach_item").insert({
       workspace_id: ws, person_id: inp.personId, org_id: c.org?.id ?? null, opportunity_id: c.opportunity?.id ?? null, requirement_id: c.requirement?.id ?? null, signal_id: sig?.id ?? null,
       plan_key: planKey, step: 1, scenario, channel: ch, reason, value_prop: g.out.value_prop || R.SCENARIOS[scenario].value, facts: c.facts, assumptions: g.out.assumptions, questions: g.out.questions.slice(0, 4),
-      script: { call: g.out.call_script, forwardable: g.out.forwardable, openings: g.out.opening_alternatives, ctas: g.out.cta_alternatives, warnings },
+      script: { call: g.out.call_script, forwardable: g.out.forwardable, openings: g.out.opening_alternatives, ctas: g.out.cta_alternatives, warnings, mentions },
       draft_id: draftId, language: inp.language ?? "en", status: "draft", assigned_user_id: userId, planned_on: inp.plannedOn ?? today(), intro_via_person_id: via?.id ?? null, owner_user_id: userId, prep_seconds: Math.round((Date.now() - t0) / 1000),
     }).select("id").single();
     if (error) throw error;
@@ -248,7 +251,7 @@ async function loadItem(db: Db, ws: string, id: string) {
 }
 
 /** Manual edit → new immutable version; any earlier approval is invalidated (the DB guard drops it on content change). */
-export async function editItem(db: Db, ws: string, userId: string, id: string, e: { subject?: string | null; body: string; recipientAddress?: string | null; learn?: boolean }, kind: "user_edit" | "ai_edit" = "user_edit", op?: string) {
+export async function editItem(db: Db, ws: string, userId: string, id: string, e: { subject?: string | null; body: string; recipientAddress?: string | null; learn?: boolean }, kind: "user_edit" | "ai_edit" | "regenerated" = "user_edit", op?: string) {
   const it = await loadItem(db, ws, id);
   if (!it.draft_id) throw new OutreachError("Call scripts are edited in the script panel.");
   if (["sent", "replied", "meeting", "declined", "closed"].includes(it.status)) throw new OutreachError("Already sent — create a follow-up instead.");
@@ -279,6 +282,7 @@ export async function aiEdit(db: Db, ws: string, userId: string, id: string, op:
   if (!it.draft_id) throw new OutreachError("Nothing to rewrite.");
   const d = await getDraft(db, ws, it.draft_id);
   const c = await buildContext(db, ws, it.person_id, { signalId: it.signal_id, opportunityId: it.opportunity_id });
+  c.facts.push(...(((it.script ?? {}) as Row).mentions ?? []));
   const via = it.intro_via_person_id ? (await db.from("person").select("id, full_name").eq("id", it.intro_via_person_id).maybeSingle()).data : null;
   const lang: R.Lang = op === "hindi" ? "hi" : op === "hinglish" ? "hinglish" : op === "english" ? "en" : it.language;
   const g = await generate(db, ws, userId, c, { channel: it.channel, scenario: it.scenario, reason: it.reason, lang, via, sender: await senderName(db, ws), instruction: AI_OPS[op] ?? op, current: op === "regenerate" ? undefined : { subject: d.subject, body: d.body } }, ai);
@@ -387,14 +391,14 @@ async function sweepOne(db: Db, ws: string, it: Row): Promise<string | null> {
   const { data: p } = await db.from("person").select("do_not_contact").eq("id", it.person_id).maybeSingle();
   const { data: first } = await db.from("outreach_item").select("sent_at").eq("workspace_id", ws).eq("plan_key", it.plan_key).not("sent_at", "is", null).order("sent_at").limit(1).maybeSingle();
   const since = first?.sent_at ?? it.created_at;
-  const { data: links } = await db.from("interaction_link").select("interaction:interaction_id(occurred_at, direction, channel, owner_user_id, source_message_id, objections)").eq("workspace_id", ws).eq("entity_type", "person").eq("entity_id", it.person_id).limit(100);
+  const { data: links } = await db.from("interaction_link").select("interaction:interaction_id(occurred_at, direction, channel, owner_user_id, source_message_id, objections, subject)").eq("workspace_id", ws).eq("entity_type", "person").eq("entity_id", it.person_id).limit(100);
   const after = ((links ?? []) as Row[]).map((l) => l.interaction).filter((i) => i && i.occurred_at > since);
   const { data: opp } = it.opportunity_id ? await db.from("opportunity").select("stage, outcome").eq("id", it.opportunity_id).maybeSingle() : { data: null };
   const { data: mtg } = await db.from("meeting_visit").select("id").eq("workspace_id", ws).eq("linked_entity_type", "person").eq("linked_entity_id", it.person_id).gte("start_at", new Date().toISOString()).neq("status", "cancelled").limit(1);
   const ch = R.draftChannel(it.channel);
   const reason = R.pauseReason({
     doNotContact: !!p?.do_not_contact, suppressed: ch ? !!(await suppressedFor(db, ws, it.person_id, ch)) : false,
-    replied: after.some((i) => i.direction === "inbound"), meetingScheduled: !!mtg?.length,
+    replied: after.some((i) => i.direction === "inbound" && i.subject !== OOO_SUBJECT), meetingScheduled: !!mtg?.length,
     objection: after.some((i) => (i.objections ?? []).length), declined: false,
     colleagueContactedSince: after.some((i) => i.direction === "outbound" && i.owner_user_id !== it.assigned_user_id && !String(i.source_message_id ?? "").startsWith(`outreach:`)),
     opportunityStage: opp?.stage, opportunityOutcome: opp?.outcome,
@@ -409,9 +413,14 @@ async function sweepOne(db: Db, ws: string, it: Row): Promise<string | null> {
 /** Daily job + on-demand: never let a sequence continue just because its date arrived. */
 export async function sweep(db: Db, ws: string) {
   const { data } = await db.from("outreach_item").select("*").eq("workspace_id", ws).is("archived_at", null).in("status", ["planned", "draft", "pending_approval", "approved"]).limit(500);
-  let paused = 0;
-  for (const it of (data ?? []) as Row[]) if (await sweepOne(db, ws, it)) paused++;
-  return { checked: (data ?? []).length, paused };
+  let paused = 0; let tasks = 0;
+  const day = today();
+  for (const it of (data ?? []) as Row[]) {
+    if (await sweepOne(db, ws, it)) { paused++; continue; }
+    // A reminder task for each due/overdue planned follow-up (idempotent per item). It never drafts or sends.
+    if (it.status === "planned" && it.planned_on && it.planned_on <= day) if (await followupTask(db, ws, it)) tasks++;
+  }
+  return { checked: (data ?? []).length, paused, tasks };
 }
 
 export async function pauseItem(db: Db, ws: string, userId: string, id: string, reason: string) {
@@ -431,42 +440,64 @@ export async function resumeItem(db: Db, ws: string, userId: string, id: string)
 }
 
 const Resp = z.object({
-  outcome: z.enum(["interested", "meeting_scheduled", "info_requested", "not_now", "objection", "declined", "do_not_contact", "other"]),
+  outcome: z.enum(["interested", "meeting_scheduled", "info_requested", "not_now", "objection", "declined", "do_not_contact", "referred", "unavailable", "other"]),
   summary: z.string(), objection: z.string().nullable(),
   commitments: z.array(z.object({ who: z.enum(["us", "them"]), what: z.string(), due: z.string().nullable() })),
   next_action: z.string(), next_action_days: z.number().int().nullable(),
   crm_updates: z.array(z.object({ field: z.enum(["next_action", "stage"]), value: z.string(), reason: z.string() })),
+  referred: z.object({ name: z.string(), email: z.string().nullable() }).nullable().optional().default(null),
+  resume_on: z.string().nullable().optional().default(null),
+  contact_updates: z.object({ title: z.string().nullable(), email: z.string().nullable(), phone: z.string().nullable() }).nullable().optional().default(null),
+  company_note: z.string().nullable().optional().default(null),
 });
-/** Spec §13: a reply improves the record — interaction, commitments → tasks, proposed CRM updates, pause outdated follow-ups. */
+type RespOut = z.infer<typeof Resp>;
+export const OUTCOME_LABEL: Record<RespOut["outcome"], string> = { interested: "Interested", meeting_scheduled: "Meeting", info_requested: "Wants information", not_now: "Not now", objection: "Objection", declined: "Declined", do_not_contact: "Do not contact", referred: "Referred someone else", unavailable: "Away / out of office", other: "Other" };
+
+/** Offline classifier: deterministic, from the reply text only. */
+export function mockResponse(text: string, day = today()): RespOut {
+  const t = text.toLowerCase();
+  const ex = R.extractReply(text);
+  const outcome: RespOut["outcome"] = /do not contact|unsubscribe|stop messag/.test(t) ? "do_not_contact" : /not interested|no thanks|no need/.test(t) ? "declined"
+    : ex.unavailable ? "unavailable" : ex.referred ? "referred"
+    : /meet|call on|tuesday|monday|wednesday|thursday|friday|tomorrow/.test(t) ? "meeting_scheduled" : /send|share|details|brochure/.test(t) ? "info_requested" : /later|next quarter|not now/.test(t) ? "not_now" : "interested";
+  const resume = outcome === "unavailable" ? R.resumeDateFrom(text, day) : null;
+  return { outcome, summary: text.slice(0, 200), objection: outcome === "declined" ? text.slice(0, 120) : null,
+    commitments: outcome === "info_requested" ? [{ who: "us", what: "Send the requested details", due: null }] : outcome === "meeting_scheduled" ? [{ who: "us", what: "Prepare for the meeting", due: null }]
+      : outcome === "referred" && ex.referred ? [{ who: "us", what: `Contact ${ex.referred.name} (referred)`, due: null }] : [],
+    next_action: outcome === "declined" || outcome === "do_not_contact" ? "Close this conversation" : outcome === "not_now" ? "Check back later" : outcome === "unavailable" ? `Follow up after they're back (${resume})` : outcome === "referred" ? `Reach out to ${ex.referred?.name}, mentioning the referral` : "Reply and confirm next step",
+    next_action_days: outcome === "not_now" ? 60 : outcome === "unavailable" ? R.daysBetween(day, resume!) + 1 : 2,
+    crm_updates: outcome === "meeting_scheduled" || outcome === "interested" ? [{ field: "stage", value: "engaged", reason: "Prospect replied positively to outreach" }] : [],
+    referred: outcome === "referred" ? ex.referred : null, resume_on: resume,
+    contact_updates: ex.updates.title || ex.updates.email || ex.updates.phone ? ex.updates : null, company_note: ex.companyNote };
+}
+
+/** Spec §13: a reply improves the record — interaction, commitments → tasks, proposed CRM/contact/company updates, pause or replan follow-ups. */
 export async function recordResponse(db: Db, ws: string, userId: string, id: string, text: string, ai: Ai = callStructured) {
   const it = await loadItem(db, ws, id);
   if (!text.trim()) throw new OutreachError("Paste or type the reply.");
-  const r = await ai({ workspaceId: ws, workflow: "outreach.response", tier: "luna", schema: Resp, schemaName: "outreach_response", maxOutputTokens: 900,
-    system: "Classify a reply to a commercial real-estate outreach message. Extract only what the reply says. Dates as YYYY-MM-DD only if stated. 'stage' updates may only be one of: engaged, qualified_discussion.",
-    input: `Our message reason: ${it.reason}. Opportunity: ${it.opportunity_id ? "linked" : "none"}.`, evidence: text,
-    mock: () => {
-      const t = text.toLowerCase();
-      const outcome = /do not contact|unsubscribe|stop messag/.test(t) ? "do_not_contact" : /not interested|no thanks|no need/.test(t) ? "declined" : /meet|call on|tuesday|monday|wednesday|thursday|friday|tomorrow/.test(t) ? "meeting_scheduled" : /send|share|details|brochure/.test(t) ? "info_requested" : /later|next quarter|not now/.test(t) ? "not_now" : "interested";
-      return { outcome: outcome as z.infer<typeof Resp>["outcome"], summary: text.slice(0, 200), objection: outcome === "declined" ? text.slice(0, 120) : null,
-        commitments: outcome === "info_requested" ? [{ who: "us" as const, what: "Send the requested details", due: null }] : outcome === "meeting_scheduled" ? [{ who: "us" as const, what: "Prepare for the meeting", due: null }] : [],
-        next_action: outcome === "declined" || outcome === "do_not_contact" ? "Close this conversation" : outcome === "not_now" ? "Check back later" : "Reply and confirm next step", next_action_days: outcome === "not_now" ? 60 : 2,
-        crm_updates: outcome === "meeting_scheduled" || outcome === "interested" ? [{ field: "stage" as const, value: "engaged", reason: "Prospect replied positively to outreach" }] : [] };
-    } });
+  const r = await ai({ workspaceId: ws, workflow: "outreach.response", tier: "luna", schema: Resp, schemaName: "outreach_response", maxOutputTokens: 1100,
+    system: "Classify a reply to a commercial real-estate outreach message. Extract only what the reply says. Dates as YYYY-MM-DD only if stated. 'stage' updates may only be one of: engaged, qualified_discussion. outcome 'referred' = they point us to another person (fill referred with the name and an email only if written). 'unavailable' = out of office / on leave (fill resume_on if a return date is stated). contact_updates only for a new title/email/phone the sender states for themselves. company_note only for a factual company update they state.",
+    input: `Our message reason: ${it.reason}. Opportunity: ${it.opportunity_id ? "linked" : "none"}. Today: ${today()}.`, evidence: text, mock: () => mockResponse(text) });
   const x = r.data;
   const now = new Date().toISOString();
-  const { data: inter, error } = await db.from("interaction").insert({ workspace_id: ws, occurred_at: now, channel: it.channel === "whatsapp" ? "whatsapp" : it.channel === "linkedin" ? "linkedin" : it.channel === "call" ? "call" : "email", direction: "inbound", subject: "Reply to outreach", summary: x.summary, promises: x.commitments, objections: x.objection ? [{ text: x.objection, outcome: x.outcome }] : [], opportunity_id: it.opportunity_id, is_meaningful: !["other"].includes(x.outcome), owner_user_id: userId }).select("id").single();
+  const away = x.outcome === "unavailable";
+  const resumeOn = away ? (x.resume_on && /^\d{4}-\d{2}-\d{2}$/.test(x.resume_on) && x.resume_on > today() ? x.resume_on : R.resumeDateFrom(text, today())) : null;
+  const { data: inter, error } = await db.from("interaction").insert({ workspace_id: ws, occurred_at: now, channel: it.channel === "whatsapp" ? "whatsapp" : it.channel === "linkedin" ? "linkedin" : it.channel === "call" ? "call" : "email", direction: "inbound", subject: away ? OOO_SUBJECT : "Reply to outreach", summary: x.summary, promises: x.commitments, objections: x.objection ? [{ text: x.objection, outcome: x.outcome }] : [], opportunity_id: it.opportunity_id, is_meaningful: !["other", "unavailable"].includes(x.outcome), owner_user_id: userId }).select("id").single();
   if (error) throw error;
   await db.from("interaction_link").insert([{ workspace_id: ws, interaction_id: inter.id, entity_type: "person", entity_id: it.person_id, role: "from" }, ...(it.org_id ? [{ workspace_id: ws, interaction_id: inter.id, entity_type: "organisation", entity_id: it.org_id, role: "mentioned" }] : [])]);
   const status = x.outcome === "meeting_scheduled" ? "meeting" : x.outcome === "declined" || x.outcome === "do_not_contact" ? "declined" : "replied";
-  await db.from("outreach_item").update({ status, responded_at: now, response: { ...x, text: text.slice(0, 4000), interaction_id: inter.id } }).eq("id", id);
+  await db.from("outreach_item").update({ status, responded_at: now, response: { ...x, resume_on: resumeOn, text: text.slice(0, 4000), interaction_id: inter.id } }).eq("id", id);
   await event(db, ws, id, x.outcome === "meeting_scheduled" ? "meeting" : status === "declined" ? "declined" : "response", userId, { outcome: x.outcome });
   // pause every other open/planned item for this person (outdated follow-ups)
   const { data: open } = await db.from("outreach_item").select("id, draft_id").eq("workspace_id", ws).eq("person_id", it.person_id).in("status", OPEN).neq("id", id);
   for (const o of (open ?? []) as Row[]) {
-    await db.from("outreach_item").update({ status: "paused", pause_reason: status === "declined" ? "Recipient declined" : "A reply was received" }).eq("id", o.id);
-    if (o.draft_id) await setDraftPaused(db, ws, o.draft_id, true, "reply received", userId).catch(() => null);
-    await event(db, ws, o.id, "paused", userId, { reason: "reply received", auto: true });
+    const why = status === "declined" ? "Recipient declined" : away ? `Away until ${resumeOn} — replanned` : "A reply was received";
+    await db.from("outreach_item").update({ status: "paused", pause_reason: why }).eq("id", o.id);
+    if (o.draft_id) await setDraftPaused(db, ws, o.draft_id, true, why, userId).catch(() => null);
+    await event(db, ws, o.id, "paused", userId, { reason: why, auto: true });
   }
+  let replanned: string | null = null;
+  if (away && resumeOn) replanned = await replanAfter(db, ws, userId, it, R.plusDays(resumeOn, 1), `They were away until ${resumeOn} — check in after their return`);
   if (x.outcome === "do_not_contact") await db.from("person").update({ do_not_contact: true }).eq("workspace_id", ws).eq("id", it.person_id);
   const tasks: string[] = [];
   for (const [i, cmt] of x.commitments.entries()) {
@@ -477,14 +508,74 @@ export async function recordResponse(db: Db, ws: string, userId: string, id: str
     if (t) tasks.push(t.id);
   }
   const proposals: string[] = [];
+  const propose = async (input: Parameters<typeof proposeChange>[2]) => { const p = await proposeChange(db, ws, { proposedByKind: "model", ownerUserId: userId, ...input }).catch(() => null); if (p) proposals.push((p as Row).id ?? ""); return p; };
   if (it.opportunity_id) {
     for (const u of x.crm_updates) {
       if (u.field === "stage" && !["engaged", "qualified_discussion"].includes(u.value)) continue;
-      const p = await proposeChange(db, ws, { targetType: "opportunity", targetId: it.opportunity_id, patch: [{ op: "replace", path: `/${u.field}`, value: u.value }], reason: `Outreach reply: ${u.reason}`, proposedByKind: "model", idempotencyKey: `outreach:${id}:${u.field}`, ownerUserId: userId }).catch(() => null);
-      if (p) proposals.push((p as Row).id ?? "");
+      await propose({ targetType: "opportunity", targetId: it.opportunity_id, patch: [{ op: "replace", path: `/${u.field}`, value: u.value }], reason: `Outreach reply: ${u.reason}`, idempotencyKey: `outreach:${id}:${u.field}` });
     }
   }
-  return { outcome: x.outcome, status, tasks, proposals, mocked: r.mocked, nextAction: x.next_action };
+  const proposalKinds: string[] = [];
+  // Contact updates the sender states about themselves → Review (never written directly).
+  const cu = x.contact_updates;
+  if (cu?.title) {
+    const { data: emp } = await db.from("employment").select("id, title").eq("workspace_id", ws).eq("person_id", it.person_id).eq("is_current", true).limit(1).maybeSingle();
+    if (emp && emp.title !== cu.title && await propose({ targetType: "employment", targetId: emp.id, patch: [{ op: "replace", path: "/title", value: cu.title.slice(0, 120) }], reason: `Outreach reply states a new title: "${cu.title}"`, idempotencyKey: `outreach:${id}:title` })) proposalKinds.push("title");
+  }
+  for (const [kind, value] of [["email", cu?.email], ["phone", cu?.phone]] as const) {
+    if (!value) continue;
+    const { data: has } = await db.from("contact_method").select("id").eq("workspace_id", ws).eq("person_id", it.person_id).eq("value", value).limit(1);
+    if (has?.length) continue;
+    if (await propose({ targetType: "contact_method", operation: "create", patch: [{ op: "add", path: "/person_id", value: it.person_id }, { op: "add", path: "/method_type", value: kind }, { op: "add", path: "/value", value }, { op: "add", path: "/verify_status", value: "user_provided" }, { op: "add", path: "/source_name", value: "outreach reply" }], reason: `Outreach reply states a ${kind}: ${value}`, idempotencyKey: `outreach:${id}:${kind}` })) proposalKinds.push(kind);
+  }
+  if (x.company_note && it.org_id) {
+    const { data: org } = await db.from("organisation").select("account_owner_note").eq("id", it.org_id).maybeSingle();
+    const note = `${today()} (outreach reply): ${x.company_note}`;
+    if (await propose({ targetType: "organisation", targetId: it.org_id, patch: [{ op: "replace", path: "/account_owner_note", value: [org?.account_owner_note, note].filter(Boolean).join("\n").slice(-4000) }], reason: `Company update stated in a reply: ${x.company_note}`, idempotencyKey: `outreach:${id}:company_note` })) proposalKinds.push("company note");
+  }
+  // Referred person → proposed new contact (never created directly). Email kept in the reason for the reviewer.
+  let referred: { name: string; email: string | null; proposalId: string | null } | null = null;
+  if (x.outcome === "referred" && x.referred?.name) {
+    const p = await propose({ targetType: "person", operation: "create", patch: [{ op: "add", path: "/full_name", value: x.referred.name.slice(0, 120) }], reason: `Referred by the recipient of an outreach reply${x.referred.email ? ` (email given: ${x.referred.email})` : ""}${it.org_id ? "" : ""}`, idempotencyKey: `outreach:${id}:referred` });
+    referred = { ...x.referred, proposalId: (p as Row | null)?.id ?? null };
+    if (p) proposalKinds.push("referred contact");
+  }
+  return { outcome: x.outcome, status, tasks, proposals, proposalKinds, referred, resumeOn, replanned, mocked: r.mocked, nextAction: x.next_action };
+}
+
+/** Plan (or move) the next follow-up of this conversation to a date. Only a plan — drafted when the user asks. */
+async function replanAfter(db: Db, ws: string, userId: string, it: Row, on: string, reason: string): Promise<string> {
+  const ch = it.channel === "call" ? "email" : it.channel;
+  const { data: nx } = await db.from("outreach_item").select("id, status, draft_id").eq("workspace_id", ws).eq("plan_key", it.plan_key).eq("step", it.step + 1).eq("channel", ch).is("archived_at", null).limit(1).maybeSingle();
+  if (nx && ["planned", "paused"].includes(nx.status) && !nx.draft_id) {
+    await db.from("outreach_item").update({ status: "planned", planned_on: on, pause_reason: null, reason }).eq("id", nx.id);
+    await event(db, ws, nx.id, "resumed", userId, { reason: `replanned to ${on}` });
+    return nx.id;
+  }
+  const { data } = await db.from("outreach_item").insert({ workspace_id: ws, person_id: it.person_id, org_id: it.org_id, opportunity_id: it.opportunity_id, requirement_id: it.requirement_id, signal_id: it.signal_id, plan_key: it.plan_key, step: nx ? it.step + 2 : it.step + 1, scenario: it.scenario, channel: ch, reason, value_prop: it.value_prop, facts: it.facts, questions: it.questions, status: "planned", planned_on: on, assigned_user_id: it.assigned_user_id ?? userId, language: it.language, owner_user_id: it.owner_user_id ?? userId }).select("id").single();
+  return data?.id ?? "";
+}
+
+/** Reminder task for a due/overdue planned follow-up. Idempotent: key outreach-followup:<id>. */
+async function followupTask(db: Db, ws: string, it: Row): Promise<boolean> {
+  const key = R.followupTaskKey(it.id);
+  if ((await db.from("task").select("id").eq("workspace_id", ws).eq("idempotency_key", key).limit(1)).data?.length) return false;
+  const { data: p } = await db.from("person").select("full_name").eq("id", it.person_id).maybeSingle();
+  const { error } = await db.from("task").insert({ workspace_id: ws, title: `Follow up with ${p?.full_name ?? "contact"} (${R.CHANNEL_LABEL[it.channel as R.Channel] ?? it.channel})`.slice(0, 200), description: `${it.reason}. Open /outreach/${it.id} to draft it — nothing is sent automatically.`, due_at: `${it.planned_on}T09:00:00+05:30`, assigned_user_id: it.assigned_user_id, linked_entity_type: "person", linked_entity_id: it.person_id, source: "outreach", idempotency_key: key, owner_user_id: it.owner_user_id ?? it.assigned_user_id });
+  return !error;
+}
+
+/** Different approach after 2+ unanswered sends for this person (warm intro → other channel → pause). */
+export async function alternativeFor(db: Db, ws: string, userId: string, personId: string): Promise<R.Alternative | null> {
+  const { data } = await db.from("outreach_item").select("channel, sent_at, responded_at, status").eq("workspace_id", ws).eq("person_id", personId).is("archived_at", null).not("sent_at", "is", null).order("sent_at", { ascending: false }).limit(20);
+  const rows = (data ?? []) as Row[];
+  if (rows.some((r) => r.responded_at)) { const lastReply = rows.findIndex((r) => r.responded_at); rows.splice(lastReply); }
+  if (rows.length < 2) return null;
+  const { data: cm } = await db.from("contact_method").select("method_type, suppressed, verify_status").eq("workspace_id", ws).eq("person_id", personId).is("archived_at", null);
+  const ok = ((cm ?? []) as Row[]).filter((m) => !m.suppressed && m.verify_status !== "invalid");
+  const has = (t: string) => ok.some((m) => m.method_type === t);
+  const paths = await warmPaths(db, ws, userId, personId);
+  return R.alternativeApproach({ unansweredSends: rows.length, channelsUsed: [...new Set(rows.map((r) => r.channel))], available: { email: has("email"), phone: has("phone"), whatsapp: has("whatsapp") || has("phone"), linkedin: has("linkedin") }, warmPath: paths[0] ? { personId: paths[0].personId, name: paths[0].name } : null });
 }
 
 export async function closeItem(db: Db, ws: string, userId: string, id: string, outcome: "no_response" | "closed") {
@@ -546,22 +637,166 @@ export async function warmPaths(db: Db, ws: string, userId: string, targetPerson
 /** Business-useful analytics with explicit denominators (spec §18). Drafts never count as outreach. */
 export async function analytics(db: Db, ws: string, days = 90) {
   const since = new Date(Date.now() - days * 864e5).toISOString();
-  const { data } = await db.from("outreach_item").select("id, person_id, org_id, status, sent_at, sent_evidence, responded_at, response, prep_seconds, created_at, opportunity_id").eq("workspace_id", ws).gte("created_at", since).limit(5000);
+  const { data } = await db.from("outreach_item").select("id, person_id, org_id, status, channel, scenario, step, planned_on, sent_at, sent_evidence, responded_at, response, prep_seconds, created_at, opportunity_id, person:person_id(full_name), org:org_id(display_name)").eq("workspace_id", ws).gte("created_at", since).limit(5000);
   const items = (data ?? []) as Row[];
   const sent = items.filter((i) => i.sent_at);
   const replied = sent.filter((i) => i.responded_at);
-  const meaningful = replied.filter((i) => !["other"].includes(i.response?.outcome));
+  const meaningful = replied.filter((i) => !["other", "unavailable"].includes(i.response?.outcome));
   const meetings = sent.filter((i) => i.status === "meeting" || i.response?.outcome === "meeting_scheduled");
   const { data: ev } = await db.from("outreach_event").select("event").eq("workspace_id", ws).gte("created_at", since).limit(10000);
   const n = (e: string) => ((ev ?? []) as Row[]).filter((x) => x.event === e).length;
   const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "—");
+  const contacts = new Set(sent.map((i) => i.person_id)).size;
+  // Follow-ups whose date has arrived: completed = sent; still planned/drafted = open; paused/closed = stopped.
+  const dueFu = items.filter((i) => i.step > 1 && i.planned_on && i.planned_on <= today());
+  const fuDone = dueFu.filter((i) => i.sent_at).length;
+  const fuStopped = dueFu.filter((i) => !i.sent_at && ["paused", "closed"].includes(i.status)).length;
+  const fuActionable = dueFu.length - fuStopped;
+  // "After outreach": opportunities / requirements created ≤30 days after a send to that company. Not attribution.
+  const orgIds = [...new Set(sent.map((i) => i.org_id).filter(Boolean))] as string[];
+  const [opps, reqs] = orgIds.length ? await Promise.all([
+    db.from("opportunity").select("id, org_id, created_at").eq("workspace_id", ws).in("org_id", orgIds).gte("created_at", since).limit(2000),
+    db.from("requirement").select("id, org_id, created_at, status").eq("workspace_id", ws).in("org_id", orgIds).gte("created_at", since).limit(2000),
+  ]) : [{ data: [] }, { data: [] }];
+  const sends = sent.map((i) => ({ org_id: i.org_id, sent_at: i.sent_at }));
+  const oppsAfter = ((opps.data ?? []) as Row[]).filter((o) => R.afterOutreach(sends, o as never));
+  const reqsAfter = ((reqs.data ?? []) as Row[]).filter((o) => R.afterOutreach(sends, o as never));
+  const qualified = reqsAfter.filter((r) => r.status === "client_confirmed");
+  const outcomes: Record<string, number> = {};
+  for (const i of replied) { const k = String(i.response?.outcome ?? "other"); outcomes[k] = (outcomes[k] ?? 0) + 1; }
   return {
     days, drafts: n("drafted"), approved: n("approved"), sentManual: sent.filter((i) => i.sent_evidence === "user_assertion").length, sentProvider: sent.filter((i) => String(i.sent_evidence).startsWith("provider:")).length,
-    attempts: sent.length, contacts: new Set(sent.map((i) => i.person_id)).size, companies: new Set(sent.map((i) => i.org_id).filter(Boolean)).size,
+    attempts: sent.length, contacts, companies: new Set(sent.map((i) => i.org_id).filter(Boolean)).size,
     replies: replied.length, meaningful: meaningful.length, meetings: meetings.length, paused: items.filter((i) => i.status === "paused").length,
-    replyRate: pct(replied.length, sent.length), meetingRate: pct(meetings.length, new Set(sent.map((i) => i.person_id)).size),
+    replyRate: pct(replied.length, sent.length), meetingRate: pct(meetings.length, contacts),
+    rates: { reply: R.rate(replied.length, sent.length, "sent"), meaningful: R.rate(meaningful.length, sent.length, "sent"), meeting: R.rate(meetings.length, contacts, "people contacted"), followup: R.rate(fuDone, fuActionable, "due follow-ups"),
+      referred: R.rate(outcomes.referred ?? 0, replied.length, "replies"), unavailable: R.rate(outcomes.unavailable ?? 0, replied.length, "replies") },
+    outcomes,
+    followups: { due: dueFu.length, done: fuDone, stopped: fuStopped, open: fuActionable - fuDone },
+    after: { opportunities: oppsAfter.length, requirements: reqsAfter.length, qualified: qualified.length, companies: orgIds.length },
+    byChannel: R.breakdown(sent, (i) => R.CHANNEL_LABEL[i.channel as R.Channel] ?? i.channel),
+    byScenario: R.breakdown(sent, (i) => R.SCENARIOS[i.scenario as R.Scenario]?.label ?? i.scenario),
+    byCompany: R.breakdown(sent, (i) => i.org?.display_name ?? null, 10),
+    byContact: R.breakdown(sent, (i) => i.person?.full_name ?? null, 10),
     prepMinutes: Math.round(items.reduce((a, i) => a + (i.prep_seconds ?? 0), 0) / 60),
   };
+}
+
+/** "Show 3 versions": 2–3 complete alternatives for the same channel, persisted in script.variants (survive reload). */
+export async function generateVariants(db: Db, ws: string, userId: string, id: string, ai: Ai = callStructured) {
+  const it = await loadItem(db, ws, id);
+  if (!it.draft_id) throw new OutreachError("Call scripts don't have alternative versions.");
+  if (!["draft", "pending_approval", "approved"].includes(it.status)) throw new OutreachError("Already sent — create a follow-up instead.");
+  const d = await getDraft(db, ws, it.draft_id);
+  const c = await buildContext(db, ws, it.person_id, { signalId: it.signal_id, opportunityId: it.opportunity_id });
+  c.facts.push(...(((it.script ?? {}) as Row).mentions ?? []));
+  const sender = await senderName(db, ws);
+  const q = (it.questions as string[] | null)?.[0] ?? R.SCENARIOS[it.scenario as R.Scenario].questions[0];
+  const gens = await Promise.all(R.VARIANT_ANGLES.map((v) => generate(db, ws, userId, c, { channel: it.channel, scenario: it.scenario, reason: it.reason, lang: it.language, sender, instruction: v.instruction, current: { subject: d.subject, body: d.body },
+    mock: () => ({ ...R.variantMock({ subject: d.subject, body: d.body }, v.key, c.first, q), value_prop: "", assumptions: [], questions: [], opening_alternatives: [], cta_alternatives: [], call_script: null, forwardable: null }) }, ai)));
+  const seen = new Set<string>([d.body.trim()]);
+  const variants = gens.map((g, i) => ({ n: i + 1, angle: R.VARIANT_ANGLES[i].key, label: R.VARIANT_ANGLES[i].label, subject: g.out.subject ?? d.subject, body: g.out.body.trim() }))
+    .filter((v) => v.body && !seen.has(v.body) && seen.add(v.body)).slice(0, 3);
+  if (variants.length < 2) throw new OutreachError("Couldn't produce distinct versions this time — nothing was changed.");
+  const fresh = await loadItem(db, ws, id);
+  await db.from("outreach_item").update({ script: { ...(fresh.script ?? {}), variants, variants_at: new Date().toISOString(), variants_from_hash: d.content_hash } }).eq("id", id);
+  await event(db, ws, id, "variants_generated", userId, { count: variants.length, mocked: gens.some((g) => g.mocked) });
+  return variants;
+}
+/** Pick one alternative → new version (kind regenerated, op variant:<n>). Approval resets as with any edit. */
+export async function pickVariant(db: Db, ws: string, userId: string, id: string, n: number) {
+  const it = await loadItem(db, ws, id);
+  const v = (((it.script ?? {}) as Row).variants ?? []).find((x: Row) => x.n === n);
+  if (!v) throw new OutreachError("That version is no longer available — generate them again.");
+  const after = await editItem(db, ws, userId, id, { subject: v.subject, body: v.body }, "regenerated", `variant:${n}`);
+  const fresh = await loadItem(db, ws, id);
+  await db.from("outreach_item").update({ script: { ...(fresh.script ?? {}), picked_variant: n } }).eq("id", id);
+  return after;
+}
+
+export interface PropertyOption { availabilityId: string; spaceId: string; asset: string; microMarket: string | null; area: number | null; rent: string | null; availableFrom: string | null; label: { verified: boolean; text: string }; fit: number | null; source: "shortlist" | "search" }
+/** Up to 3 properties for the company's open requirement: shortlist first (deals matching), else available spaces by micro-market and size. */
+export async function propertySuggestions(db: Db, ws: string, orgId: string | null, limit = 3): Promise<{ requirement: Row | null; options: PropertyOption[] }> {
+  if (!orgId) return { requirement: null, options: [] };
+  const { data: req } = await db.from("requirement").select("id, title, status, area_min_sf, area_target_sf, area_max_sf, preferred_geography_ids").eq("workspace_id", ws).eq("org_id", orgId).neq("status", "closed").is("archived_at", null).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (!req) return { requirement: null, options: [] };
+  const day = today();
+  const AV = "id, space_id, status, as_of, available_from, asking_rent_min, asking_rent_max, rent_basis, fact_status, space:space_id(id, carpet_sf, chargeable_sf, asset:asset_id(name, micro_market:micro_market_id(name)))";
+  const toOpt = (a: Row, fit: number | null, source: PropertyOption["source"]): PropertyOption => ({ availabilityId: a.id, spaceId: a.space_id, asset: a.space?.asset?.name ?? "Building", microMarket: a.space?.asset?.micro_market?.name ?? null, area: a.space?.chargeable_sf ?? a.space?.carpet_sf ?? null,
+    rent: a.asking_rent_min != null ? `₹${a.asking_rent_min}${a.asking_rent_max && a.asking_rent_max !== a.asking_rent_min ? `–${a.asking_rent_max}` : ""}/${a.rent_basis === "seat" ? "seat" : "sq ft"}` : null, availableFrom: a.available_from, label: R.availabilityLabel(a as never, day), fit, source });
+  const { data: sl } = await db.from("shortlist_option").select(`fit_score, eligible, option_status, availability:availability_id(${AV})`).eq("workspace_id", ws).eq("requirement_id", req.id).neq("option_status", "rejected").is("archived_at", null).order("fit_score", { ascending: false, nullsFirst: false }).limit(limit);
+  const out: PropertyOption[] = ((sl ?? []) as Row[]).filter((o) => o.availability && o.eligible !== false).map((o) => toOpt(o.availability, o.fit_score, "shortlist"));
+  if (out.length >= limit) return { requirement: req, options: out.slice(0, limit) };
+  const { data: av } = await db.from("availability").select(AV).eq("workspace_id", ws).in("status", ["available", "unverified"]).is("archived_at", null).gte("as_of", addDays(day, -180)).order("as_of", { ascending: false }).limit(300);
+  const lo = Number(req.area_min_sf ?? (req.area_target_sf ? req.area_target_sf * 0.8 : 0)); const hi = Number(req.area_max_sf ?? (req.area_target_sf ? req.area_target_sf * 1.25 : 1e12));
+  const geos = (req.preferred_geography_ids ?? []) as string[];
+  const { data: assetsInGeo } = geos.length ? await db.from("asset").select("id").eq("workspace_id", ws).or(`micro_market_id.in.(${geos.join(",")}),locality_id.in.(${geos.join(",")})`).limit(1000) : { data: null };
+  const inGeo = assetsInGeo ? new Set(((assetsInGeo ?? []) as Row[]).map((a) => a.id)) : null;
+  const { data: spaces } = inGeo ? await db.from("space").select("id, asset_id").eq("workspace_id", ws).in("asset_id", [...inGeo].slice(0, 500)) : { data: null };
+  const okSpace = spaces ? new Set(((spaces ?? []) as Row[]).map((x) => x.id)) : null;
+  const seen = new Set(out.map((o) => o.spaceId));
+  for (const a of (av ?? []) as Row[]) {
+    if (out.length >= limit) break;
+    if (seen.has(a.space_id)) continue; seen.add(a.space_id);   // latest snapshot per space only
+    if (okSpace && !okSpace.has(a.space_id)) continue;
+    const area = Number(a.space?.chargeable_sf ?? a.space?.carpet_sf ?? NaN);
+    if ((lo || hi < 1e12) && (Number.isNaN(area) || area < lo || area > hi)) continue;
+    out.push(toOpt(a, null, "search"));
+  }
+  return { requirement: req, options: out };
+}
+/** Facts for "mention in draft" — the AI may use them; it never gets more than what's on the record. */
+export async function propertyFacts(db: Db, ws: string, availabilityIds: string[]): Promise<Fact[]> {
+  if (!availabilityIds.length) return [];
+  const { data } = await db.from("availability").select("id, status, as_of, fact_status, available_from, space:space_id(carpet_sf, chargeable_sf, asset:asset_id(name, micro_market:micro_market_id(name)))").eq("workspace_id", ws).in("id", availabilityIds.slice(0, 3));
+  return ((data ?? []) as Row[]).map((a) => {
+    const l = R.availabilityLabel(a as never, today()); const area = a.space?.chargeable_sf ?? a.space?.carpet_sf;
+    return { text: `Option: ${a.space?.asset?.name ?? "a building"}${a.space?.asset?.micro_market?.name ? ` (${a.space.asset.micro_market.name})` : ""}${area ? `, ~${Number(area).toLocaleString("en-IN")} sq ft` : ""} — ${l.verified ? "availability verified" : "availability NOT verified: say 'may be available' or omit"}`, source_type: "availability", source_id: a.id, date: a.as_of };
+  });
+}
+/** Toggle a property in the facts the AI may use for this message's next rewrite. Doesn't change the text itself. */
+export async function toggleMention(db: Db, ws: string, userId: string, id: string, availabilityId: string) {
+  const it = await loadItem(db, ws, id);
+  const sc = (it.script ?? {}) as Row;
+  const cur = (sc.mentions ?? []) as Fact[];
+  const has = cur.some((f) => f.source_id === availabilityId);
+  const mentions = has ? cur.filter((f) => f.source_id !== availabilityId) : [...cur, ...(await propertyFacts(db, ws, [availabilityId]))].slice(-3);
+  await db.from("outreach_item").update({ script: { ...sc, mentions } }).eq("id", id);
+  await event(db, ws, id, "edited", userId, { mention: availabilityId, on: !has });
+  return !has;
+}
+
+export interface RelRow { personId: string; name: string; title: string | null; org: string | null; orgId: string | null; lastAt: string | null; last90: number; status: R.RelStatus; commitments: string[]; unansweredInbound: boolean; warmIntros: number; openOutreach: number }
+/** Relationships tab: everyone with a recorded interaction or outreach, with deterministic status. */
+export async function relationships(db: Db, ws: string, limit = 200): Promise<RelRow[]> {
+  const day = today();
+  const [{ data: links }, { data: items }, { data: tasks }] = await Promise.all([
+    db.from("interaction_link").select("entity_id, interaction:interaction_id(occurred_at, direction, promises)").eq("workspace_id", ws).eq("entity_type", "person").limit(10000),
+    db.from("outreach_item").select("person_id, status").eq("workspace_id", ws).is("archived_at", null).limit(5000),
+    db.from("task").select("title, linked_entity_id, status").eq("workspace_id", ws).eq("linked_entity_type", "person").in("status", ["open", "snoozed"]).is("archived_at", null).limit(5000),
+  ]);
+  const byP = new Map<string, Row[]>();
+  for (const l of (links ?? []) as Row[]) if (l.interaction) byP.set(l.entity_id, [...(byP.get(l.entity_id) ?? []), l.interaction]);
+  for (const i of (items ?? []) as Row[]) if (i.person_id && !byP.has(i.person_id)) byP.set(i.person_id, []);
+  const ids = [...byP.keys()].slice(0, 1000);
+  if (!ids.length) return [];
+  const [{ data: people }, { data: edges }] = await Promise.all([
+    db.from("person").select("id, full_name, do_not_contact, archived_at, employment(title, is_current, org:org_id(id, display_name))").eq("workspace_id", ws).in("id", ids),
+    db.from("relationship_edge").select("to_person_id").eq("workspace_id", ws).in("to_person_id", ids).not("from_person_id", "is", null).is("archived_at", null),
+  ]);
+  const rows: RelRow[] = [];
+  for (const p of (people ?? []) as Row[]) {
+    if (p.archived_at) continue;
+    const e = R.engagement((byP.get(p.id) ?? []) as never, day);
+    const openTasks = ((tasks ?? []) as Row[]).filter((t) => t.linked_entity_id === p.id).map((t) => String(t.title));
+    const commitments = [...new Set([...openTasks, ...e.promises])].slice(0, 5);
+    const emp = (p.employment ?? []).find((x: Row) => x.is_current);
+    rows.push({ personId: p.id, name: p.full_name, title: emp?.title ?? null, org: emp?.org?.display_name ?? null, orgId: emp?.org?.id ?? null, lastAt: e.lastAt, last90: e.last90,
+      status: R.relationshipStatus({ lastAt: e.lastAt, today: day, openCommitments: commitments.length, unansweredInbound: e.unansweredInbound }), commitments, unansweredInbound: e.unansweredInbound,
+      warmIntros: ((edges ?? []) as Row[]).filter((x) => x.to_person_id === p.id).length, openOutreach: ((items ?? []) as Row[]).filter((i) => i.person_id === p.id && OPEN.includes(i.status)).length });
+  }
+  const ord: Record<R.RelStatus, number> = { needs_attention: 0, cooling: 1, active: 2, inactive: 3 };
+  return rows.sort((a, b) => ord[a.status] - ord[b.status] || (b.lastAt ?? "").localeCompare(a.lastAt ?? "")).slice(0, limit);
 }
 
 export async function detail(db: Db, ws: string, id: string) {
@@ -574,4 +809,17 @@ export async function detail(db: Db, ws: string, id: string) {
     db.from("person").select("id, full_name").eq("id", it.person_id).maybeSingle(),
   ]);
   return { item: it, draft: d, versions: versions.data ?? [], events: events.data ?? [], siblings: siblings.data ?? [], person: person.data };
+}
+
+/** Today: people with 2+ unanswered sends and nothing open → suggest a different approach. */
+export async function alternativesToday(db: Db, ws: string, userId: string, limit = 5) {
+  const { data } = await db.from("outreach_item").select("person_id, status, sent_at, responded_at, person:person_id(full_name), org:org_id(display_name)").eq("workspace_id", ws).is("archived_at", null).not("sent_at", "is", null).gte("sent_at", addDays(today(), -120)).order("sent_at", { ascending: false }).limit(2000);
+  const { data: open } = await db.from("outreach_item").select("person_id").eq("workspace_id", ws).is("archived_at", null).in("status", ["draft", "pending_approval", "approved"]).limit(2000);
+  const busy = new Set(((open ?? []) as Row[]).map((o) => o.person_id));
+  const by = new Map<string, Row[]>();
+  for (const r of (data ?? []) as Row[]) by.set(r.person_id, [...(by.get(r.person_id) ?? []), r]);
+  const cands = [...by.entries()].filter(([pid, rs]) => !busy.has(pid) && !rs.some((r) => r.responded_at) && rs.length >= 2).slice(0, limit);
+  const out: { personId: string; name: string; org: string | null; alt: R.Alternative }[] = [];
+  for (const [pid, rs] of cands) { const alt = await alternativeFor(db, ws, userId, pid); if (alt) out.push({ personId: pid, name: rs[0].person?.full_name ?? "—", org: rs[0].org?.display_name ?? null, alt }); }
+  return out;
 }

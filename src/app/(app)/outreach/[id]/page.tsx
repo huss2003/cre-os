@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { HelpFor } from "@/components/ui";
-import { detail, OutreachError, buildContext } from "@/modules/outreach/service";
-import { saveAction, aiAction, restoreAction, requestAction, approveAction, rejectAction, openAction, sentAction, responseAction, pauseAction, resumeAction, prepareAction, closeAction } from "@/modules/outreach/actions";
+import { detail, OutreachError, buildContext, alternativeFor, propertySuggestions, OUTCOME_LABEL } from "@/modules/outreach/service";
+import { saveAction, aiAction, restoreAction, requestAction, approveAction, rejectAction, openAction, sentAction, responseAction, pauseAction, resumeAction, prepareAction, closeAction, variantsAction, pickVariantAction, mentionAction } from "@/modules/outreach/actions";
 import { SendPanel } from "@/modules/outreach/ui/send";
 import { SCENARIOS, CHANNEL_LABEL, LEVEL_LABEL } from "@/modules/outreach/rules";
 
@@ -26,11 +26,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const editor = hasRole(ctx, "editor");
   let d; try { d = await detail(ctx.db, ctx.workspaceId, id); } catch (e) { if (e instanceof OutreachError) notFound(); throw e; }
   const { item: it, draft } = d;
-  const c = await buildContext(ctx.db, ctx.workspaceId, it.person_id).catch(() => null);
+  const [c, alt, props] = await Promise.all([
+    buildContext(ctx.db, ctx.workspaceId, it.person_id).catch(() => null),
+    alternativeFor(ctx.db, ctx.workspaceId, ctx.userId, it.person_id).catch(() => null),
+    propertySuggestions(ctx.db, ctx.workspaceId, it.org_id).catch(() => ({ requirement: null, options: [] })),
+  ]);
   const st = it.status as string;
   const editable = editor && ["draft", "pending_approval", "approved"].includes(st) && !!draft;
   const s = (it.script ?? {}) as Row;
   const name = d.person?.full_name ?? "—";
+  const variants = ((s.variants ?? []) as Row[]);
+  const mentioned = new Set(((s.mentions ?? []) as Row[]).map((m) => m.source_id));
   const warnings = [...new Set(((s.warnings ?? []) as Row[]).map((w) => String(w.text)))];
   const relevance = c?.relevance === "high" ? "High relevance" : c?.relevance === "medium" ? "Medium relevance" : null;
   const keyRows: [string, string, string][] = [];
@@ -59,6 +65,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       </header>
 
       {st === "paused" ? <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><span aria-hidden>⏸</span><span className="flex-1"><b>Paused:</b> {it.pause_reason}</span>{editor ? <ActionForm action={resumeAction.bind(null, id)}><Submit variant="secondary">Resume</Submit></ActionForm> : null}</div> : null}
+      {alt && !["replied", "meeting", "declined", "closed"].includes(st) ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 text-sm">
+          <span aria-hidden className="text-ink-soft">↻</span><p className="min-w-0 flex-1"><b>Try a different approach.</b> <span className="text-ink-soft">{alt.text}</span></p>
+          {editor && alt.kind !== "pause" ? <Link href={`/outreach/new?person=${it.person_id}${alt.viaPersonId ? `&via=${alt.viaPersonId}` : ""}${alt.channel ? `&channel=${alt.channel}` : ""}`} className="rounded-xl border border-line px-3 py-1.5 font-medium hover:border-brand/50">{alt.kind === "warm_intro" ? "Plan an introduction" : `Plan a ${CHANNEL_LABEL[alt.channel!]}`} →</Link> : null}
+          {editor && alt.kind === "pause" && ["draft", "pending_approval", "approved", "planned"].includes(st) ? <ActionForm action={pauseAction.bind(null, id)}><input type="hidden" name="reason" value="No reply after several attempts" /><Submit variant="secondary">Pause</Submit></ActionForm> : null}
+        </div>
+      ) : null}
       {warnings.length && ["draft", "pending_approval", "approved"].includes(st) ? (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           <span aria-hidden>⚠️</span><p className="min-w-0 flex-1"><b>Possible duplicate outreach:</b> {warnings.join(" ")}</p>
@@ -133,6 +146,27 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </section>
           ) : null}
 
+          {editable && draft ? (
+            <section className={card}>
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <div><h2 className="flex items-center font-semibold">Other ways to say it<HelpFor k="Show 3 versions" /></h2><p className="text-sm text-ink-soft">Complete alternatives for this {CHANNEL_LABEL[it.channel as keyof typeof CHANNEL_LABEL]}: concise, value-led and question-led.</p></div>
+                <ActionForm action={variantsAction.bind(null, id)}><Submit variant="secondary">{variants.length ? "Write new versions" : "Show 3 versions"}</Submit></ActionForm>
+              </div>
+              {variants.length ? (
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  {variants.map((v) => { const using = s.picked_variant === v.n && v.body.trim() === draft.body.trim(); return (
+                    <article key={v.n} className={`flex flex-col rounded-xl border p-4 text-sm ${using ? "border-brand bg-brand-soft/30" : "border-line"}`}>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{v.label}</p>
+                      {v.subject ? <p className="mt-2 font-medium">{v.subject}</p> : null}
+                      <p className="mt-1 max-h-56 flex-1 overflow-auto whitespace-pre-wrap leading-relaxed">{v.body}</p>
+                      <div className="mt-3 border-t border-line pt-3">{using ? <span className="text-xs text-brand">In use</span> : <ActionForm action={pickVariantAction.bind(null, id, v.n)}><Submit variant="ghost" className={chip}>Use this one</Submit></ActionForm>}</div>
+                    </article>); })}
+                </div>
+              ) : null}
+              {variants.length && s.variants_at ? <p className="mt-2 text-xs text-ink-soft">Written {new Date(s.variants_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}. Using one saves it as a new version and resets approval.</p> : null}
+            </section>
+          ) : null}
+
           {/* Approval / send / reply — one clear next step */}
           {editor && draft && st === "draft" ? (
             <section className={`${card} flex flex-wrap items-center justify-between gap-3`}>
@@ -158,8 +192,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           ) : null}
           {it.response ? (
             <section className={card}><h2 className="font-semibold">Their reply</h2>
-              <p className="mt-2 text-sm"><span className="mr-1 rounded-full bg-canvas px-2 py-0.5 text-xs">{String(it.response.outcome).replace(/_/g, " ")}</span>{it.response.summary}</p>
+              <p className="mt-2 text-sm"><span className="mr-1 rounded-full bg-canvas px-2 py-0.5 text-xs">{OUTCOME_LABEL[it.response.outcome as keyof typeof OUTCOME_LABEL] ?? String(it.response.outcome).replace(/_/g, " ")}</span>{it.response.summary}</p>
               {(it.response.commitments ?? []).length ? <ul className="mt-2 list-disc pl-5 text-sm">{(it.response.commitments as Row[]).map((m, i) => <li key={i}>{m.who === "us" ? "We" : "They"}: {m.what}{m.due ? ` (by ${m.due})` : ""}</li>)}</ul> : null}
+              {it.response.outcome === "referred" && it.response.referred ? <div className="mt-3 rounded-xl bg-canvas p-3 text-sm"><p><b>Referred to:</b> {it.response.referred.name}{it.response.referred.email ? ` · ${it.response.referred.email}` : ""}</p><p className="mt-1 text-ink-soft">A new contact was proposed for Review — it's created only once approved.</p><div className="mt-2 flex gap-3"><Link href="/approvals" className="text-brand hover:underline">Open Review →</Link><Link href="/contacts" className="text-brand hover:underline">Contacts →</Link></div></div> : null}
+              {it.response.outcome === "unavailable" ? <p className="mt-3 rounded-xl bg-canvas p-3 text-sm"><b>Away until {it.response.resume_on ?? "unknown"}.</b> <span className="text-ink-soft">The next follow-up is replanned for after they're back. It's drafted only when you ask.</span></p> : null}
+              {it.response.contact_updates || it.response.company_note ? <p className="mt-2 text-xs text-ink-soft">Details they mentioned ({[it.response.contact_updates?.title && "title", it.response.contact_updates?.email && "email", it.response.contact_updates?.phone && "phone", it.response.company_note && "company update"].filter(Boolean).join(", ")}) were sent to <Link href="/approvals" className="text-brand hover:underline">Review</Link> — nothing was changed directly.</p> : null}
               <p className="mt-2 text-sm"><b>Next:</b> {it.response.next_action}</p>
             </section>
           ) : null}
@@ -189,6 +226,23 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm">{(it.questions as string[]).map((q, i) => <li key={i}>{q}</li>)}</ul></section>
           ) : null}
 
+          {props.requirement ? (
+            <section className={card}>
+              <h2 className="flex items-center text-lg font-semibold">Spaces that may fit<HelpFor k="Spaces that may fit" /></h2>
+              <p className="mt-1 text-xs text-ink-soft">For {props.requirement.title}. Only mention a space after checking it's still available.</p>
+              {props.options.length ? (
+                <ul className="mt-3 divide-y divide-line">{props.options.map((o) => (
+                  <li key={o.availabilityId} className="py-3 text-sm">
+                    <p className="font-medium">{o.asset}{o.microMarket ? <span className="font-normal text-ink-soft"> · {o.microMarket}</span> : null}</p>
+                    <p className="text-xs text-ink-soft">{[o.area ? `~${Number(o.area).toLocaleString("en-IN")} sq ft` : null, o.rent, o.availableFrom ? `from ${o.availableFrom}` : null, o.source === "shortlist" ? "on shortlist" : null].filter(Boolean).join(" · ")}</p>
+                    <p className={`mt-1 text-xs ${o.label.verified ? "text-emerald-700" : "text-amber-800"}`}>{o.label.text}</p>
+                    {editable && it.channel !== "call" ? <ActionForm action={mentionAction.bind(null, id, o.availabilityId)} className="mt-2"><Submit variant="ghost" className="text-xs text-brand hover:underline">{mentioned.has(o.availabilityId) ? "✓ Mentioned — remove" : "Mention in draft"}</Submit></ActionForm> : null}
+                  </li>))}</ul>
+              ) : <p className="mt-2 text-sm text-ink-soft">No matching available spaces on record yet. Add availability in Buildings, or run matching on the requirement.</p>}
+              {mentioned.size ? <p className="mt-2 text-xs text-ink-soft">Mentioned spaces are facts the AI may use on the next rewrite or new versions — the current text isn't changed.</p> : null}
+            </section>
+          ) : null}
+
           <section className={card}>
             <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">🕘 Earlier conversations</h2><Link href={`/contacts/${it.person_id}`} className="text-sm text-brand hover:underline">View all →</Link></div>
             {c?.interactions.length ? (
@@ -211,7 +265,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   <details className="group rounded-xl border border-line open:border-brand/40 open:bg-brand-soft/30">
                     <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm">
                       <span className="rounded-md bg-canvas px-1.5 py-0.5 text-xs font-semibold tabular-nums">v{v.version}</span>
-                      <span className="min-w-0 flex-1 truncate">{v.kind === "generated" ? "First draft" : v.op?.startsWith("restored") ? `Restored ${v.op.slice(9)}` : v.kind === "ai_edit" ? `AI: ${(OPS.find(([o]) => o === v.op)?.[1] ?? v.op ?? "rewrite")}` : "Your edit"}</span>
+                      <span className="min-w-0 flex-1 truncate">{v.kind === "generated" ? "First draft" : v.op?.startsWith("variant:") ? `Alternative ${v.op.slice(8)}` : v.op?.startsWith("restored") ? `Restored ${v.op.slice(9)}` : v.kind === "ai_edit" ? `AI: ${(OPS.find(([o]) => o === v.op)?.[1] ?? v.op ?? "rewrite")}` : "Your edit"}</span>
                       {i === 0 ? <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-800">Current</span> : <span className="text-xs text-ink-soft">{new Date(v.created_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}</span>}
                       <span className="text-ink-soft transition group-open:rotate-180">▾</span>
                     </summary>

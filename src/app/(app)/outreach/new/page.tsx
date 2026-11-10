@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { HelpFor } from "@/components/ui";
-import { buildContext, warmPaths, duplicateCheck, OutreachError } from "@/modules/outreach/service";
+import { buildContext, warmPaths, duplicateCheck, propertySuggestions, OutreachError } from "@/modules/outreach/service";
 import { createAction } from "@/modules/outreach/actions";
 import { SCENARIOS, CHANNEL_LABEL, LEVEL_LABEL, ROLE_FOCUS, type Channel, type Scenario } from "@/modules/outreach/rules";
 
@@ -11,7 +11,7 @@ type Row = Record<string, any>;
 const sel = "min-h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm";
 const box = "rounded-2xl border border-line bg-surface p-5";
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ person?: string; signal?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ person?: string; signal?: string; via?: string; channel?: string }> }) {
   const sp = await searchParams;
   const ctx = await requirePageContext("editor");
   if (!sp.person) {
@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
     );
   }
   let c; try { c = await buildContext(ctx.db, ctx.workspaceId, sp.person, { signalId: sp.signal }); } catch (e) { return <p className="text-bad">{e instanceof OutreachError ? e.message : "Couldn't load this contact."}</p>; }
-  const [paths, warn] = await Promise.all([warmPaths(ctx.db, ctx.workspaceId, ctx.userId, sp.person), duplicateCheck(ctx.db, ctx.workspaceId, sp.person, ctx.userId)]);
+  const [paths, warn, props] = await Promise.all([warmPaths(ctx.db, ctx.workspaceId, ctx.userId, sp.person), duplicateCheck(ctx.db, ctx.workspaceId, sp.person, ctx.userId), propertySuggestions(ctx.db, ctx.workspaceId, c.org?.id ?? null).catch(() => ({ requirement: null, options: [] }))]);
   const blocked = c.blocked.all;
   const avail: Record<Channel, string | null> = { email: c.channels.email ? null : "no email saved", whatsapp: c.channels.phone ? null : "no phone saved", linkedin: null, call: c.channels.phone ? null : "no phone saved", introduction: paths.length ? null : "no mutual contact recorded", meeting_followup: c.lastInteraction ? null : "no meeting recorded" };
   return (
@@ -45,8 +45,14 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
               <input type="hidden" name="person_id" value={sp.person} />{sp.signal ? <input type="hidden" name="signal_id" value={sp.signal} /> : null}
               <label className="block text-sm font-medium">Situation<select name="scenario" className={`${sel} mt-1`} defaultValue=""><option value="">Pick automatically from records</option>{(Object.keys(SCENARIOS) as Scenario[]).map((k) => <option key={k} value={k}>{SCENARIOS[k].label}</option>)}</select></label>
               <fieldset><legend className="text-sm font-medium">Channels (one draft each, written for that channel)</legend>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">{(["email", "whatsapp", "linkedin", "call", "meeting_followup"] as Channel[]).map((ch) => <label key={ch} className={`flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm ${avail[ch] ? "text-ink-soft" : ""}`}><input type="checkbox" name="channel" value={ch} defaultChecked={ch === "email" && !avail.email} disabled={!!avail[ch] && ch !== "linkedin"} /> {CHANNEL_LABEL[ch]}{avail[ch] ? <span className="text-xs">— {avail[ch]}</span> : null}</label>)}</div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">{(["email", "whatsapp", "linkedin", "call", "meeting_followup"] as Channel[]).map((ch) => <label key={ch} className={`flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm ${avail[ch] ? "text-ink-soft" : ""}`}><input type="checkbox" name="channel" value={ch} defaultChecked={sp.channel ? ch === sp.channel && !avail[ch] : ch === "email" && !avail.email} disabled={!!avail[ch] && ch !== "linkedin"} /> {CHANNEL_LABEL[ch]}{avail[ch] ? <span className="text-xs">— {avail[ch]}</span> : null}</label>)}</div>
               </fieldset>
+              {props.options.length ? (
+                <fieldset><legend className="flex items-center text-sm font-medium">Mention a space? (optional)<HelpFor k="Spaces that may fit" /></legend>
+                  <p className="text-xs text-ink-soft">Ticked spaces become facts the AI may use — with their availability status. For {props.requirement?.title}.</p>
+                  <div className="mt-2 space-y-2">{props.options.map((o) => <label key={o.availabilityId} className="flex items-start gap-2 rounded-xl border border-line px-3 py-2 text-sm"><input type="checkbox" name="mention" value={o.availabilityId} className="mt-1" /><span><b>{o.asset}</b>{o.microMarket ? ` · ${o.microMarket}` : ""}{o.area ? ` · ~${Number(o.area).toLocaleString("en-IN")} sq ft` : ""}<span className={`block text-xs ${o.label.verified ? "text-emerald-700" : "text-amber-800"}`}>{o.label.text}</span></span></label>)}</div>
+                </fieldset>
+              ) : props.requirement ? <p className="text-xs text-ink-soft">No available spaces on record match {props.requirement.title} yet.</p> : null}
               <label className="block text-sm font-medium">Language<select name="language" className={`${sel} mt-1`}><option value="en">English</option><option value="hinglish">Hinglish</option><option value="hi">Hindi</option></select></label>
               <Submit>Prepare drafts</Submit>
             </ActionForm>
@@ -55,7 +61,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
             <div className="mt-6 border-t border-line pt-4">
               <h3 className="flex items-center font-semibold">Warm introduction<HelpFor k="Warm introduction" /></h3>
               <ul className="mt-2 space-y-2">{paths.slice(0, 4).map((p) => (
-                <li key={p.personId} className="flex flex-wrap items-center gap-3 rounded-xl bg-canvas p-3 text-sm">
+                <li key={p.personId} className={`${sp.via === p.personId ? "ring-2 ring-brand/30 " : ""}flex flex-wrap items-center gap-3 rounded-xl bg-canvas p-3 text-sm`}>
                   <span className="min-w-0 flex-1"><b>{p.name}</b><span className="block text-xs text-ink-soft">Knows them: {p.theirLink} · You: {p.yourLink}{p.introPermission ? " · has agreed to introduce before" : ""}</span></span>
                   <ActionForm action={createAction}><input type="hidden" name="person_id" value={sp.person} /><input type="hidden" name="via" value={p.personId} /><input type="hidden" name="channel" value="introduction" /><Submit variant="secondary">Ask {p.name.split(" ")[0]}</Submit></ActionForm>
                 </li>))}</ul>
