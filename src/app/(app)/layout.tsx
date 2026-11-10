@@ -1,53 +1,62 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { TourProvider, TourUrlStarter } from "@/components/tour/runner";
-import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { NAV, MOBILE_BAR, HOME, isHiddenPath, inFocusMenu, type NavSection } from "@/lib/nav";
+import { requirePageContext, hasRole, type AppContext } from "@/lib/auth/context";
+import { NAV_GROUPS, NAV_FOOTER, inFocusMenu, type NavSection } from "@/lib/nav";
+import { atLocal, localDate } from "@/lib/util/time";
 import { WorkspaceSwitcher } from "./workspace-switcher";
-import { NavLinks, SectionTabs, MobileBar } from "./nav-links";
+import { AppShell, type Badges } from "./nav-links";
+
+/** Cheap head-only counts for menu badges. Any failure just hides that badge. */
+async function loadBadges(ctx: AppContext): Promise<Badges> {
+  if (!ctx.workspaceId) return {};
+  const ws = ctx.workspaceId;
+  const day = localDate(new Date(), ctx.timezone);
+  const start = atLocal(day, "00:00", ctx.timezone);
+  const end = new Date(start.getTime() + 24 * 3600 * 1000);
+  const count = async (q: PromiseLike<{ count: number | null; error: unknown }>) => {
+    try { const r = await q; return r.error ? undefined : r.count ?? undefined; } catch { return undefined; }
+  };
+  const [review, outreach, meetings] = await Promise.all([
+    count(ctx.db.from("change_proposal").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("state", "proposed").is("archived_at", null)),
+    count(ctx.db.from("outreach_item").select("id", { count: "exact", head: true }).eq("workspace_id", ws).in("status", ["draft", "pending_approval"]).is("archived_at", null)),
+    count(ctx.db.from("meeting_visit").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null)
+      .gte("start_at", start.toISOString()).lt("start_at", end.toISOString())),
+  ]);
+  return { review, outreach, meetings };
+}
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requirePageContext();
   const allowed = (r?: NavSection["minRole"], platformOnly?: boolean) => (platformOnly ? ctx.isPlatformAdmin : !r || hasRole(ctx, r));
-  const sections = NAV.filter((s) => allowed(s.minRole))
-    .map((s) => ({ ...s, tabs: s.tabs.filter((t) => allowed(t.minRole, t.platformOnly) && inFocusMenu(t.href)) }))
-    .filter((s) => s.tabs.length > 0)
-    .map((s) => ({ ...s, href: s.tabs.some((t) => t.href === s.href) ? s.href : s.tabs[0].href }));
-  const mobile = sections.filter((s) => (MOBILE_BAR as readonly string[]).includes(s.key));
+  const fit = (s: NavSection, focus: boolean): NavSection | null => {
+    if (!allowed(s.minRole, s.platformOnly)) return null;
+    const tabs = s.tabs.filter((t) => allowed(t.minRole, t.platformOnly) && (!focus || inFocusMenu(t.href)));
+    if (!tabs.length) return null;
+    return { ...s, tabs, href: tabs.some((t) => t.href === s.href) ? s.href : tabs[0].href };
+  };
+  const groups = NAV_GROUPS
+    .map((g) => ({ ...g, items: g.items.map((s) => fit(s, true)).filter((s): s is NavSection => !!s) }))
+    .filter((g) => g.items.length > 0);
+  const footer = NAV_FOOTER.map((s) => fit(s, false)).filter((s): s is NavSection => !!s);
+  const badges = await loadBadges(ctx);
+
+  const account = (
+    <div className="rounded-xl bg-canvas p-3 text-xs text-ink-soft">
+      <div className="truncate font-medium text-ink">{ctx.email}</div>
+      <div className="capitalize">{ctx.role}{ctx.isPlatformAdmin ? " · platform admin" : ""}</div>
+      <form action="/auth/signout" method="post">
+        <button className="mt-1 min-h-11 font-semibold text-brand hover:underline">Sign out</button>
+      </form>
+    </div>
+  );
+
   return (
     <TourProvider>
-    <Suspense fallback={null}><TourUrlStarter /></Suspense>
-    <div className="min-h-screen lg:grid lg:grid-cols-[240px_1fr]">
-      <aside className="hidden border-r border-line bg-surface lg:block">
-        <div className="sticky top-0 flex h-screen flex-col overflow-y-auto p-4">
-          <Link href={HOME} className="mb-5 flex items-center gap-2 px-1 text-lg font-bold tracking-tight">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sm text-white">C</span>CRE OS
-          </Link>
-          <WorkspaceSwitcher current={ctx.workspaceId} workspaces={ctx.workspaces} />
-          <NavLinks sections={sections} />
-          <div className="mt-auto rounded-xl bg-canvas p-3 text-xs text-ink-soft">
-            <div className="truncate font-medium text-ink">{ctx.email}</div>
-            <div className="capitalize">{ctx.role}{ctx.isPlatformAdmin ? " · platform admin" : ""}</div>
-            <form action="/auth/signout" method="post"><button className="mt-2 font-semibold text-brand hover:underline">Sign out</button></form>
-          </div>
-        </div>
-      </aside>
-      <div className="min-w-0">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-surface/95 px-4 py-3 backdrop-blur lg:hidden">
-          <Link href={HOME} className="flex items-center gap-2 font-bold"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-xs text-white">C</span>CRE OS</Link>
-          <details className="relative">
-            <summary className="cursor-pointer list-none rounded-xl border border-line px-3 py-1.5 text-sm font-medium">Menu</summary>
-            <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-line bg-surface p-3 shadow-xl">
-              <WorkspaceSwitcher current={ctx.workspaceId} workspaces={ctx.workspaces} />
-              <NavLinks sections={sections} />
-              <form action="/auth/signout" method="post"><button className="mt-2 px-3 text-sm font-semibold text-brand">Sign out</button></form>
-            </div>
-          </details>
-        </header>
-        <main className="mx-auto w-full max-w-6xl p-4 pb-24 sm:p-8"><SectionTabs sections={sections} />{children}</main>
-        <MobileBar sections={mobile} />
-      </div>
-    </div>
+      <Suspense fallback={null}><TourUrlStarter /></Suspense>
+      <AppShell groups={groups} footer={footer} badges={badges} account={account}
+        workspace={<WorkspaceSwitcher current={ctx.workspaceId} workspaces={ctx.workspaces} />}>
+        {children}
+      </AppShell>
     </TourProvider>
   );
 }

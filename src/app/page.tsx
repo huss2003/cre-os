@@ -1,2 +1,3 @@
 import { redirect } from "next/navigation";
-export default function Home() { redirect("/today"); }
+import { HOME } from "@/lib/nav";
+export default function Home() { redirect(HOME); }

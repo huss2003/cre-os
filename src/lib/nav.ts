@@ -4,73 +4,65 @@
  */
 export type Role = "viewer" | "editor" | "admin" | "owner";
 export interface NavTab { href: string; label: string; minRole?: Role; platformOnly?: boolean }
-export interface NavSection { key: string; label: string; hint: string; href: string; tabs: NavTab[]; minRole?: Role }
+/** One menu entry. `tabs` lists every screen that belongs to it (shown as tabs above the page when >1). */
+export interface NavSection { key: string; label: string; hint: string; href: string; tabs: NavTab[]; minRole?: Role; platformOnly?: boolean; badge?: BadgeKey }
+export type BadgeKey = "review" | "outreach" | "meetings";
+/** A labelled group of menu entries (one per module). `label` null = no heading. */
+export interface NavGroup { key: string; label: string | null; items: NavSection[] }
 
-export const NAV: NavSection[] = [
-  { key: "today", label: "Today", hint: "Your plan, tasks and visits", href: "/today", tabs: [
-    { href: "/today", label: "Plan" },
-    { href: "/tasks", label: "Tasks" },
-    { href: "/calendar", label: "Calendar & visits" },
+const one = (key: string, label: string, hint: string, href: string, extra: Partial<NavSection> = {}): NavSection =>
+  ({ key, label, hint, href, tabs: [{ href, label }], ...extra });
+
+/** The sidebar, in order. Plain-language groups, one per module. */
+export const NAV_GROUPS: NavGroup[] = [
+  { key: "home", label: null, items: [one("home", "Home", "Today at a glance", "/home")] },
+  { key: "plan", label: "Plan", items: [
+    { key: "today", label: "Today", hint: "Your plan, tasks and visits", href: "/today", tabs: [
+      { href: "/today", label: "Plan" }, { href: "/tasks", label: "Tasks" }, { href: "/calendar", label: "Calendar & visits" }] },
+    one("leases", "Lease radar", "Leases coming up for renewal", "/leases"),
   ]},
-  { key: "capture", label: "Capture", hint: "Log a call, meeting or visit", href: "/capture", tabs: [
-    { href: "/capture", label: "Capture" },
+  { key: "records", label: "Records", items: [
+    one("companies", "Companies", "Every company you track", "/companies"),
+    one("people", "People", "Contacts at those companies", "/people"),
+    one("buildings", "Buildings", "Campuses, towers and space", "/buildings"),
+    one("requirements", "Requirements", "What each client is looking for", "/requirements"),
+    { key: "deals", label: "Deals", hint: "Opportunities in progress", href: "/deals", tabs: [
+      { href: "/deals", label: "Pipeline" }, { href: "/finance", label: "Financials" }, { href: "/documents", label: "Documents" }, { href: "/fees", label: "Fees" }] },
+    one("capture", "Capture", "Log a call, meeting or visit", "/capture"),
+    one("review", "Review", "Check changes before they apply", "/approvals", { badge: "review" }),
+    one("imports", "Imports", "Bring in a spreadsheet", "/imports", { minRole: "editor" }),
+    one("database", "Database", "Browse all tables", "/database", { minRole: "editor" }),
+    one("geography", "Places", "Cities, micro-markets", "/geography", { minRole: "editor" }),
   ]},
-  { key: "review", label: "Review", hint: "Check changes before they apply", href: "/approvals", tabs: [
-    { href: "/approvals", label: "Review" },
-    { href: "/drafts", label: "Drafts & messages" },
+  { key: "signals", label: "Signals & research", items: [
+    one("signals", "Signals", "Events that may need action", "/signals"),
+    one("research", "Research", "Look into a company", "/research"),
   ]},
-  { key: "records", label: "Records", hint: "Companies, people, buildings", href: "/search", tabs: [
-    { href: "/search", label: "Search" },
-    { href: "/companies", label: "Companies" },
-    { href: "/people", label: "People" },
-    { href: "/buildings", label: "Buildings" },
-    { href: "/leases", label: "Lease radar" },
+  { key: "intel", label: "Intelligence", items: [
+    { key: "intel", label: "Market & reports", hint: "Market, network, legal, content", href: "/market", tabs: [
+      { href: "/market", label: "Market" }, { href: "/network", label: "Network" }, { href: "/legal", label: "Legal" },
+      { href: "/content", label: "Content" }, { href: "/insights", label: "Reports" }] },
   ]},
-  { key: "deals", label: "Deals", hint: "Requirements and opportunities", href: "/deals", tabs: [
-    { href: "/deals", label: "Pipeline" },
-    { href: "/requirements", label: "Requirements" },
-    { href: "/finance", label: "Financials" },
-    { href: "/documents", label: "Documents" },
-    { href: "/fees", label: "Fees" },
+  { key: "scoring", label: "Scoring", items: [one("scoring", "Scores", "Who to focus on first", "/scoring")] },
+  { key: "contacts", label: "Contacts", items: [one("contacts", "Find contacts", "Find and verify decision-makers", "/contacts")] },
+  { key: "outreach", label: "Outreach", items: [
+    { key: "outreach", label: "Outreach", hint: "Who to contact and what to say", href: "/outreach", badge: "outreach", tabs: [
+      { href: "/outreach", label: "Outreach" }, { href: "/drafts", label: "Drafts & messages" }] },
   ]},
-  { key: "signals", label: "Signals", hint: "Events that may need action", href: "/signals", tabs: [
-    { href: "/signals", label: "Signals" },
-  ]},
-  { key: "contacts", label: "Contacts", hint: "Find and verify decision-makers", href: "/contacts", tabs: [
-    { href: "/contacts", label: "Contacts" },
-  ]},
-  { key: "meetings", label: "Meetings", hint: "Prepare for every meeting", href: "/meetings", tabs: [
-    { href: "/meetings", label: "Meetings" },
-  ]},
-  { key: "toolkit", label: "Deal toolkit", hint: "Compare, cost and recommend", href: "/toolkit", tabs: [
-    { href: "/toolkit", label: "Toolkit" },
-  ]},
-  { key: "tutorials", label: "Tutorials", hint: "Guided walk-throughs", href: "/tutorials", tabs: [
-    { href: "/tutorials", label: "Tutorials" },
-  ]},
-  { key: "outreach", label: "Outreach", hint: "Who to contact today and what to say", href: "/outreach", tabs: [
-    { href: "/outreach", label: "Outreach" },
-  ]},
-  { key: "scoring", label: "Scoring", hint: "Who to focus on first", href: "/scoring", tabs: [
-    { href: "/scoring", label: "Scores" },
-  ]},
-  { key: "intel", label: "Intelligence", hint: "Market, research, network", href: "/market", tabs: [
-    { href: "/market", label: "Market" },
-    { href: "/research", label: "Research" },
-    { href: "/network", label: "Network" },
-    { href: "/legal", label: "Legal" },
-    { href: "/content", label: "Content" },
-    { href: "/insights", label: "Reports" },
-  ]},
-  { key: "setup", label: "Setup", hint: "Database, places, imports", href: "/database", minRole: "editor", tabs: [
-    { href: "/database", label: "Database", minRole: "editor" },
-    { href: "/geography", label: "Geography", minRole: "editor" },
-    { href: "/imports", label: "Imports", minRole: "editor" },
-    { href: "/settings", label: "Settings", minRole: "admin" },
-    { href: "/admin", label: "Health", minRole: "admin" },
-    { href: "/platform", label: "Tenants", platformOnly: true },
-  ]},
+  { key: "meetings", label: "Meetings", items: [one("meetings", "Meetings", "Prepare for every meeting", "/meetings", { badge: "meetings" })] },
+  { key: "toolkit", label: "Deal toolkit", items: [one("toolkit", "Deal toolkit", "Compare, cost and recommend", "/toolkit")] },
+  { key: "learn", label: "Learn", items: [one("tutorials", "Tutorials", "Guided walk-throughs", "/tutorials")] },
 ];
+
+/** Shown at the bottom of the sidebar, next to the account. Not affected by focus mode. */
+export const NAV_FOOTER: NavSection[] = [
+  { key: "settings", label: "Settings", hint: "Workspace settings", href: "/settings", minRole: "admin", tabs: [
+    { href: "/settings", label: "Settings", minRole: "admin" }, { href: "/admin", label: "Health", minRole: "admin" },
+    { href: "/platform", label: "Tenants", platformOnly: true }] },
+];
+
+/** Flat list (used for active-section lookup and page tabs). */
+export const NAV: NavSection[] = [...NAV_GROUPS.flatMap((g) => g.items), ...NAV_FOOTER];
 
 /**
  * FOCUS MODE (owner request, Nov 2026): only Module 5 (Outreach) and Module 7 (Meetings) are shown in the menu.
@@ -82,6 +74,7 @@ export const NAV: NavSection[] = [
 export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
 /** Screens shown in the menu while in focus mode. */
 export const FOCUS_MENU = [
+  "/home",
   // Module 1 — Database
   "/capture", "/approvals", "/companies", "/people", "/buildings", "/deals", "/requirements", "/database", "/geography", "/imports",
   // Module 2 — Signals & research
@@ -113,7 +106,7 @@ export function isHiddenPath(path: string): boolean {
 export function inFocusMenu(path: string): boolean {
   return !FOCUS_MODE || under(path, FOCUS_MENU);
 }
-export const HOME = FOCUS_MODE ? "/outreach" : "/today";
+export const HOME = "/home";
 
 /** The section a path belongs to: the tab with the longest matching prefix wins. */
 export function sectionFor(path: string, sections: NavSection[] = NAV): NavSection | null {
@@ -124,5 +117,5 @@ export function sectionFor(path: string, sections: NavSection[] = NAV): NavSecti
   return best?.s ?? null;
 }
 
-/** Mobile bottom bar: the five daily sections. */
-export const MOBILE_BAR = ["today", "capture", "review", "records", "deals", "signals", "scoring", "contacts", "intel", "setup"] as const;
+/** Mobile bottom tab bar (plus a "More" button that opens the full menu). */
+export const MOBILE_BAR = ["home", "outreach", "meetings", "toolkit"] as const;
