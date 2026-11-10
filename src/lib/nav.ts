@@ -42,6 +42,9 @@ export const NAV: NavSection[] = [
   { key: "meetings", label: "Meetings", hint: "Prepare for every meeting", href: "/meetings", tabs: [
     { href: "/meetings", label: "Meetings" },
   ]},
+  { key: "toolkit", label: "Deal toolkit", hint: "Compare, cost and recommend", href: "/toolkit", tabs: [
+    { href: "/toolkit", label: "Toolkit" },
+  ]},
   { key: "tutorials", label: "Tutorials", hint: "Guided walk-throughs", href: "/tutorials", tabs: [
     { href: "/tutorials", label: "Tutorials" },
   ]},
@@ -83,6 +86,8 @@ export const FOCUS_MENU = [
   "/outreach",
   // Module 7 — Meeting preparation
   "/meetings",
+  // Module 8 — Deal toolkit
+  "/toolkit",
   // Guided tutorials
   "/tutorials",
 ];

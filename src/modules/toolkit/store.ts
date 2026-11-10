@@ -1,5 +1,6 @@
 import "server-only";
 import type { Db } from "@/lib/supabase/server";
+import { stableStringify } from "@/modules/deals/finance/engine";
 
 /**
  * Module 8 shared persistence. Every workbench analysis (any kind) is saved through `saveAnalysis`: it writes the
@@ -58,4 +59,5 @@ export async function approveAnalysis(db: Db, ws: string, userId: string, id: st
 }
 
 /** Re-run a stored version with its calculator; returns whether outputs are identical (reproducibility check). */
-export function sameOutputs(a: unknown, b: unknown) { return JSON.stringify(a) === JSON.stringify(b); }
+// jsonb reorders keys, so compare key-sorted forms.
+export function sameOutputs(a: unknown, b: unknown) { return stableStringify(a) === stableStringify(b); }

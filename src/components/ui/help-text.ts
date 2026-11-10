@@ -150,6 +150,33 @@ export const HELP_TEXT: Record<string, string> = {
   "Desired outcome": "The best result to aim for, acceptable fallbacks and what to do afterwards.",
   "Site visit checklist": "Before, during and after the visit. Tap to tick \u2014 works on a phone.",
   "After the meeting": "Type or paste your notes. AI pulls out requirement changes, promises and objections. You choose what to apply \u2014 changes go to Review, never straight into records.",
+  // Deal toolkit (Module 8)
+  "Toolkit sections": "The ten parts of the deal toolkit. The number on the right is how many analyses are saved in each part.",
+  "Recently updated": "Analyses changed most recently, with their version and status.",
+  "Needs information": "Analyses saved with missing inputs. They cannot be approved until the missing items are filled in.",
+  "Requirements awaiting analysis": "Requirements with no saved analysis yet. Start with a requirement brief.",
+  "Quotes expiring soon": "Landlord quotes whose validity ends in the next 14 days. Expired quotes are shown at the top of the page.",
+  "A. Client and purpose": "Why the client is looking and which entity will sign.",
+  "B. Timing": "Decision date, move-in date and the notice deadline on the current lease.",
+  "C. Space and people": "Area range, measurement basis, seats, growth and attendance.",
+  "D. Budget and terms": "Approved budget, what it includes, tenure, lock-in and how fit-out is paid for.",
+  "E. Location and building": "Preferred and excluded areas, commute catchments and building requirements.",
+  "F. Decision and authority": "Who can approve the deal and what the procurement process is.",
+  "G. Mandate and status": "Whether we hold a mandate and whether the conflict check is done.",
+  "Brief stakeholders": "The people the deal depends on: decision-maker, financial approver, procurement, facilities, admin and legal. Missing roles are risks.",
+  "Meeting outcomes": "Summaries recorded after meetings linked to this requirement.",
+  "Open questions": "What still needs asking: mandatory unknowns first, then estimates the client must confirm.",
+  "Pending approvals": "Changes to confirmed requirement details waiting in Review. They apply only after approval.",
+  "Brief snapshots": "A frozen copy of the brief (formula brief-1.0). Each save is a new version; approval needs no mandatory item missing.",
+  "Generate deliverables": "Builds an editable proposal, an analysis workbook and a decision summary. Unconfirmed or incomplete figures are labelled in the files.",
+  "Generated deliverables": "Files generated earlier, with the analysis versions they were built from. Download any of them again.",
+  // Module 8
+  "Conventional vs managed": "Compares a normal lease with a managed office on equal terms: total monthly cost, cost per seat and total over the same period. Services already in the managed price aren't counted twice.",
+  "Renewal vs relocation": "Compares staying with moving, including fit-out, moving, overlap rent and restoration \u2014 not just the rent. Shows break-even month and which option is better financially and operationally.",
+  "Lease economics": "Rent, CAM, escalation, rent-free and deposits worked out month by month with tested formulas. Blank fields stay unknown \u2014 never zero.",
+  "Occupancy economics": "The true cost of occupying: effective rent after incentives, cash needed upfront, present value and what-if changes. Refundable deposits are shown separately.",
+  "Negotiation": "Each landlord offer is kept as a version. See exactly what changed, its money impact, and what each concession package is worth. Nothing is accepted or sent automatically.",
+  "Recommendation": "The best property that meets every must-have. A higher score can't win if it fails a mandatory condition.",
 };
 
 export function helpFor(title: unknown): string | undefined {
