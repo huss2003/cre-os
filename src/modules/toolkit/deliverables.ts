@@ -22,7 +22,7 @@ export const DELIVERABLE_FORMULA = "deliverable-1.0";
 export const KIND_LABEL: Record<string, string> = {
   brief: "Requirement brief", property_comparison: "Property comparison", lease_economics: "Lease economics", occupancy: "Occupancy economics",
   conventional_vs_managed: "Conventional vs managed", renewal_vs_relocation: "Renewal vs relocation", fitout: "Fit-out", financing: "Financing",
-  negotiation: "Negotiation", deliverable: "Client deliverable",
+  negotiation: "Negotiation", deliverable: "Client deliverable", bts: "Built-to-suit", investment: "Investment analysis",
 };
 const UNVERIFIED = new Set(["estimated", "reported", "ai_inference", "assumption", "unknown", "unverified", "indicative"]);
 

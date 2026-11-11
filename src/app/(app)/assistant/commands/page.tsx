@@ -7,15 +7,15 @@ import { saveCommandAction, addTemplateAction, duplicateAction, deleteAction, sc
 import { fmt } from "@/lib/util/time";
 
 export const metadata = { title: "Saved commands" };
-type SP = { edit?: string; new?: string };
+type SP = { edit?: string; new?: string; prompt?: string };
 const RUN_STATUS: Record<string, "ok" | "warn" | "bad" | "neutral"> = { completed: "ok", partial: "warn", failed: "bad", waiting_approval: "warn", running: "neutral", queued: "neutral" };
 
-function CommandForm({ c }: { c?: CommandRow }) {
+function CommandForm({ c, prompt }: { c?: CommandRow; prompt?: string }) {
   return (
     <ActionForm action={saveCommandAction.bind(null, c?.id ?? null)} className="space-y-3">
       <Field label="Name"><Input name="name" defaultValue={c?.name} required maxLength={120} /></Field>
       <Field label="Description"><Input name="description" defaultValue={c?.description ?? ""} maxLength={500} /></Field>
-      <Field label="What to ask" hint="Write it as you'd ask the assistant. Use {{city}}-style placeholders for things that change each time."><Textarea name="prompt" defaultValue={c?.prompt} required className="min-h-32" /></Field>
+      <Field label="What to ask" hint="Write it as you'd ask the assistant. Use {{city}}-style placeholders for things that change each time."><Textarea name="prompt" defaultValue={c?.prompt ?? prompt?.slice(0, 2000)} required className="min-h-32" /></Field>
       <Field label="Inputs" hint="One per line: key | Label | required | default. Example: city | City | required | Pune">
         <Textarea name="inputs" defaultValue={(c?.inputs ?? []).map((i) => [i.key, i.label, i.required ? "required" : "", i.default ?? ""].join(" | ")).join("\n")} placeholder="city | City | required | Pune" />
       </Field>
@@ -86,7 +86,7 @@ export default async function CommandsPage({ searchParams }: { searchParams: Pro
           ) : null}
         </div>
         <div className="space-y-5">
-          {sp.new && editor ? <Card title="New command"><CommandForm /></Card> : null}
+          {sp.new && editor ? <Card title="New command"><CommandForm prompt={sp.prompt} /></Card> : null}
           {cur ? (
             <>
               <Card title={cur.name} actions={<ButtonLink href={`/assistant?command=${cur.id}`}>Run now</ButtonLink>}>

@@ -9,7 +9,7 @@
  * No arithmetic on money here: figures are copied from stored quotes / saved deterministic analyses (S5).
  */
 import { createHash } from "node:crypto";
-import { AlignmentType, Document, Footer, Header, HeadingLevel, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
+import { AlignmentType, Document, Footer, Header, HeadingLevel, ImageRun, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from "docx";
 import { type DealsCtx, DealsError, must } from "@/modules/deals/ctx";
 import { brandFrom, type Brand } from "@/modules/deals/documents/model";
 import { SITE_VISIT } from "@/modules/meetings/rules";
@@ -21,10 +21,26 @@ export const PACKS_FORMULA = "packs-1.0";
 export const PACK_BUCKET = "mudar-workspace-files";
 export type VerificationLabel = "Verified" | "Unverified" | "Estimated" | "Conflicting" | "Unknown";
 
+/** Site-visit checklist topics (§8.10 site visit pack) — rated 1–5 with notes for every property. */
+export const PACK_CHECKLIST: { key: string; label: string; prompt: string }[] = [
+  { key: "commute", label: "Commute", prompt: "Travel time from main employee catchments; public transport; peak-hour access" },
+  { key: "connectivity", label: "Connectivity", prompt: "Metro / bus / highway access; telecom & ISP options; mobile signal" },
+  { key: "layout", label: "Layout", prompt: "Floor plate shape, column grid, core position, efficiency, natural light" },
+  { key: "building_quality", label: "Building quality", prompt: "Grade, façade, lobby, lifts, HVAC, power back-up, maintenance, certifications" },
+  { key: "amenities", label: "Amenities", prompt: "Food court, crèche, gym, retail, breakout areas" },
+  { key: "parking", label: "Parking", prompt: "Ratio offered vs needed; 2/4-wheeler; visitor parking; cost" },
+  { key: "operational", label: "Operational constraints", prompt: "Working hours, 24×7 access, security, loading, fit-out rules, signage" },
+  { key: "price", label: "Price concerns", prompt: "Rent vs budget, CAM, escalations, deposit, hidden charges" },
+  { key: "stakeholders", label: "Stakeholder reactions", prompt: "What each attendee liked / disliked; decision-maker's view" },
+  { key: "suitability", label: "Overall suitability", prompt: "Fit against the requirement; keep / drop / maybe" },
+];
+export interface PackMedia { kind: "photo" | "floor_plan"; title: string; image?: { data: Buffer; type: "png" | "jpg"; width: number; height: number } | null }
+
 export interface PackTerm { label: string; value: string; verification: VerificationLabel; source: string }
 export interface PackProperty {
   id: string; name: string; address: string | null; location: string | null; grade: string | null; floors: string | null;
   amenities: string[]; specs: [string, string][]; commercial: PackTerm[]; notes: string[];
+  media?: PackMedia[];
 }
 export interface PackFigureRow { name: string; cells: string[]; estimated: boolean }
 export interface PackFigures { title: string; source: string; head: string[]; rows: PackFigureRow[] }
@@ -78,13 +94,23 @@ export async function buildSiteVisitDocx(m: PackModel): Promise<Buffer> {
       ...pr.specs,
     ], color, font));
     children.push(h("Amenities", HeadingLevel.HEADING_2), p(pr.amenities.length ? pr.amenities.join(", ") : "Not recorded — check on site."));
-    children.push(h("Commercial details", HeadingLevel.HEADING_2));
+    children.push(h("Key commercials", HeadingLevel.HEADING_2));
     children.push(pr.commercial.length ? tbl(["Term", "Value", "Verification", "Source"], pr.commercial.map((t) => [t.label, t.value, t.verification, t.source]), color, font) : p("No quote or asking rent on record. Ask for a written quote.", { italic: true }));
     for (const n of pr.notes) children.push(p(`⚠ ${n}`, { color: m.brand.accent }));
+    const media = pr.media ?? [];
+    children.push(h("Photos and layouts", HeadingLevel.HEADING_2));
+    if (!media.length) children.push(p("No photos or floor plans attached — attach them as evidence on the requirement's analysis to include them here.", { italic: true }));
+    for (const md of media) {
+      children.push(p(`${md.kind === "floor_plan" ? "Floor plan" : "Photo"}: ${md.title}`, { bold: true }));
+      if (md.image) { const w = Math.min(520, md.image.width), hh = Math.round(md.image.height * (w / Math.max(1, md.image.width))); children.push(new Paragraph({ children: [new ImageRun({ type: md.image.type, data: md.image.data, transformation: { width: w, height: hh } })] })); }
+      else children.push(p("(file not embeddable — open it from the evidence list)", { italic: true }));
+    }
     children.push(h("Inspection checklist", HeadingLevel.HEADING_2));
     children.push(tbl(["Check", "OK?", "Notes"], SITE_VISIT.during.map((c) => [c.label, "☐", ""]), color, font));
-    children.push(h("Client feedback", HeadingLevel.HEADING_2));
-    children.push(blankLine("Overall impression (1–5)"), blankLine("Liked"), blankLine("Concerns / objections"), blankLine("Information requested"), blankLine("Keep on shortlist? (Yes / No / Maybe)"), blankLine("Attendee signatures"));
+    children.push(h("Site assessment (rate 1–5)", HeadingLevel.HEADING_2));
+    children.push(tbl(["Topic", "What to look for", "Rating 1–5", "Notes"], PACK_CHECKLIST.map((c) => [c.label, c.prompt, "", ""]), color, font));
+    children.push(h("Client feedback form", HeadingLevel.HEADING_2));
+    children.push(blankLine("Overall impression (1–5)"), blankLine("Liked"), blankLine("Concerns / objections"), blankLine("Price concerns"), blankLine("Stakeholder reactions (who said what)"), blankLine("Information requested"), blankLine("Keep on shortlist? (Yes / No / Maybe)"), blankLine("Attendee signatures"));
   }
   children.push(h("After the visit"), ...SITE_VISIT.after.map((c) => p(`☐ ${c.label}`)));
   children.push(h("Sources"), ...m.sources.map((s) => p(s)));
@@ -98,6 +124,43 @@ export async function buildSiteVisitDocx(m: PackModel): Promise<Buffer> {
     }],
   });
   return Buffer.from(await Packer.toBuffer(doc));
+}
+
+// ───────────────────────── PDF: site visit pack (print version) ─────────────────────────
+/** Same content as the DOCX, rendered with the shared pdf-lib renderer (text only; photos stay in the DOCX). */
+export async function buildSiteVisitPdf(m: PackModel): Promise<Buffer> {
+  const { buildPdf } = await import("@/modules/assistant/outputs/render");
+  const blank = "________________________________";
+  const sections = [
+    { heading: "Requirement", paragraphs: m.requirement.missing.length ? [`Open questions: ${m.requirement.missing.join("; ")}`] : [], bullets: [], table: { columns: ["Item", "Detail"], rows: m.requirement.lines.map(([k, v]) => [k, v]) } },
+    { heading: "How to read the labels", paragraphs: [], bullets: (Object.keys(LABEL_NOTE) as VerificationLabel[]).map((k) => `[${k}] — ${LABEL_NOTE[k]}`) },
+    { heading: "Before the visit", paragraphs: [], bullets: SITE_VISIT.before.map((c) => `[ ] ${c.label}`) },
+    ...m.properties.flatMap((pr, i) => [
+      { heading: `${i + 1}. ${pr.name}`, paragraphs: [], bullets: [], table: { columns: ["Property details", ""], rows: [["Address", pr.address ?? "Unknown"], ["Location", pr.location ?? "Unknown"], ["Grade", pr.grade ?? "Unknown"], ["Floors", pr.floors ?? "Unknown"], ["Amenities", pr.amenities.join(", ") || "Not recorded — check on site"], ...pr.specs] } },
+      { heading: "Key commercials", paragraphs: pr.commercial.length ? pr.notes.map((n) => `! ${n}`) : ["No quote or asking rent on record. Ask for a written quote."], bullets: [], table: pr.commercial.length ? { columns: ["Term", "Value", "Verification", "Source"], rows: pr.commercial.map((t) => [t.label, t.value, t.verification, t.source]) } : undefined },
+      { heading: "Photos and layouts", paragraphs: [(pr.media ?? []).length ? "Attached (see the Word pack for images):" : "None attached."], bullets: (pr.media ?? []).map((md) => `${md.kind === "floor_plan" ? "Floor plan" : "Photo"}: ${md.title}`) },
+      { heading: "Inspection checklist", paragraphs: [], bullets: SITE_VISIT.during.map((c) => `[ ] ${c.label}`) },
+      { heading: "Site assessment (rate 1–5)", paragraphs: [], bullets: [], table: { columns: ["Topic", "What to look for", "Rating", "Notes"], rows: PACK_CHECKLIST.map((c) => [c.label, c.prompt, "", ""]) } },
+      { heading: "Client feedback form", paragraphs: ["Overall impression (1–5)", "Liked", "Concerns / objections", "Price concerns", "Stakeholder reactions (who said what)", "Information requested", "Keep on shortlist? (Yes / No / Maybe)", "Attendee signatures"].map((l) => `${l}: ${blank}`), bullets: [] },
+    ]),
+    { heading: "After the visit", paragraphs: [], bullets: SITE_VISIT.after.map((c) => `[ ] ${c.label}`) },
+  ];
+  return buildPdf({ title: m.title, subtitle: `Prepared for ${m.clientName} · ${m.brand.name} · ${m.generatedAt.slice(0, 10)} · ${m.watermark}`, brand: m.brand, sections, sources: m.sources.map((label) => ({ label })), missing: m.requirement.missing });
+}
+
+/** Width/height from a PNG or JPEG header (pure); null when not recognised. */
+export function imageInfo(buf: Buffer): { type: "png" | "jpg"; width: number; height: number } | null {
+  if (buf.length > 24 && buf.readUInt32BE(0) === 0x89504e47) return { type: "png", width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let o = 2;
+    while (o + 9 < buf.length) {
+      if (buf[o] !== 0xff) { o++; continue; }
+      const marker = buf[o + 1], len = buf.readUInt16BE(o + 2);
+      if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) return { type: "jpg", height: buf.readUInt16BE(o + 5), width: buf.readUInt16BE(o + 7) };
+      o += 2 + len;
+    }
+  }
+  return null;
 }
 
 // ───────────────────────── PPTX: presentation deck ─────────────────────────
@@ -252,6 +315,23 @@ export async function assemblePackModel(ctx: DealsCtx, g: PackRequest, asOf = lo
   const missingAssets = g.assetIds.filter((id) => !assets.some((a) => a.id === id));
   if (missingAssets.length) throw new DealsError(404, "One or more buildings were not found.");
 
+  // Photos / floor plans attached as evidence to any analysis of this requirement; matched to a building by name in the title.
+  const reqAnalysisIds = ((await ctx.db.from("deal_analysis").select("id").eq("workspace_id", ctx.workspaceId).eq("requirement_id", g.requirementId).is("archived_at", null)).data ?? []).map((x: Row) => x.id as string);
+  const mediaEv = reqAnalysisIds.length ? ((await ctx.db.from("deal_evidence").select("kind, title, storage_path").eq("workspace_id", ctx.workspaceId).in("analysis_id", reqAnalysisIds).in("kind", ["photo", "floor_plan"]).is("archived_at", null).order("created_at").limit(40)).data ?? []) as Row[] : [];
+  let embedded = 0;
+  for (const e of mediaEv) {
+    const target = properties.find((pr) => String(e.title).toLowerCase().includes(pr.name.toLowerCase())) ?? (properties.length === 1 ? properties[0] : null);
+    if (!target) continue;
+    let image: PackMedia["image"] = null;
+    if (e.storage_path && String(e.storage_path).startsWith(`${ctx.workspaceId}/`) && embedded < 12) {
+      const dl = await ctx.db.storage.from(PACK_BUCKET).download(e.storage_path);
+      if (!dl.error && dl.data && dl.data.size <= 4_000_000) {
+        const data = Buffer.from(await dl.data.arrayBuffer()); const info = imageInfo(data);
+        if (info) { image = { data, ...info }; embedded++; }
+      }
+    }
+    (target.media ??= []).push({ kind: e.kind, title: String(e.title), image });
+  }
   const figures = used.map((a) => figuresFromAnalysis(a as never)).filter(Boolean) as PackFigures[];
   const cmp = used.find((a) => a.kind === "property_comparison");
   const recommendation = cmp?.outputs?.recommendation?.explanation ? [String(cmp.outputs.recommendation.explanation), `From ${cmp.title} v${cmp.current_version}.`] : [];
@@ -275,13 +355,14 @@ export async function assemblePackModel(ctx: DealsCtx, g: PackRequest, asOf = lo
 /** Build both files, store them, and record the generation (kind "deliverable", formula packs-1.0). */
 export async function generatePacks(ctx: DealsCtx, g: PackRequest) {
   const { model, analysisRefs, quoteRefs, orgId } = await assemblePackModel(ctx, g);
-  const [docx, pptx] = await Promise.all([buildSiteVisitDocx(model), buildPackPptx(model)]);
+  const [docx, pptx, pdf] = await Promise.all([buildSiteVisitDocx(model), buildPackPptx(model), buildSiteVisitPdf(model)]);
   const stamp = Date.now();
   const files = [{ kind: "docx", label: "Site visit pack", buf: docx, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+    { kind: "pdf", label: "Site visit pack (print)", buf: pdf, mime: "application/pdf" },
     { kind: "pptx", label: "Presentation deck", buf: pptx, mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }];
   const stored: { label: string; kind: string; path: string; sha256: string; bytes: number }[] = [];
   for (const f of files) {
-    const path = `${ctx.workspaceId}/packs/${g.requirementId}/${stamp}-${f.kind === "docx" ? "site-visit" : "deck"}.${f.kind}`;
+    const path = `${ctx.workspaceId}/packs/${g.requirementId}/${stamp}-${f.kind === "pptx" ? "deck" : "site-visit"}.${f.kind}`;
     const up = await ctx.db.storage.from(PACK_BUCKET).upload(path, f.buf, { contentType: f.mime, upsert: false });
     if (up.error) throw new DealsError(500, `storage upload failed: ${up.error.message}`);
     stored.push({ label: f.label, kind: f.kind, path, sha256: createHash("sha256").update(f.buf).digest("hex"), bytes: f.buf.length });

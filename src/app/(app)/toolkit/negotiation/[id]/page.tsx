@@ -1,3 +1,4 @@
+import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import { notFound } from "next/navigation";
 import { Table, Td, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
@@ -38,6 +39,7 @@ export default async function NegotiationDetail({ params }: { params: Promise<{ 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-16">
       <ToolHeader eyebrow="Negotiation" title={a.title} back={{ href: "/toolkit/negotiation", label: "All negotiations" }} purpose={`${versions.length} offer version${versions.length === 1 ? "" : "s"} · analysis v${a.current_version} · ${a.formula_version} · all offers compared over ${out.horizonMonths} months`} steps={STEPS} current={step} />
+      <DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={a.id} />
       <NothingSent />
       <Legend />
 

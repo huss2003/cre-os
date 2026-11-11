@@ -17,6 +17,8 @@ import { DayPlanCard, RelationshipCard } from "./day-plan";
 import { computeDailyPlan, latestPlan } from "@/modules/brief/plan";
 import { computeRelationshipSuggestions } from "@/modules/brief/caretaker-data";
 import { loadRadar } from "@/modules/brief/radar-data";
+import { loadToday } from "@/modules/brief/today";
+import { TodaySections } from "./today-sections";
 
 
 const ALERT_LABEL: Record<string, string> = { urgent_alert: "Urgent", brief_alert: "Brief alert", promise_overdue: "Overdue promise", lease_event_alert: "Lease event", deadline_48h: "Due ≤ 48 h" };
@@ -43,7 +45,8 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
   const content: BriefContent = stored?.content ?? buildBrief(await gatherBriefInputs(lc, settings, date, new Date(), { persistPlan: false }));
   const synthesis = (stored?.content as { synthesis?: SynthesisOutcome } | undefined)?.synthesis ?? null;
 
-  const [overdueLive, preMeeting, urgent, storedPlan, radar] = await Promise.all([
+  const [today, overdueLive, preMeeting, urgent, storedPlan, radar] = await Promise.all([
+    loadToday({ db: ctx.db, workspaceId: ctx.workspaceId, userId: ctx.userId, timezone: tz }),
     listTasks(ctx.db, ctx.workspaceId, ctx.userId, { state: "overdue", scope: "mine" }, { staleAfterDays: settings.staleTaskAfterDays, limit: 50 }),
     loadPreMeetingBriefs(ctx, date),
     loadUrgent(ctx),
@@ -77,6 +80,8 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
       {content.sources.filter((s) => s.state === "failed" || s.state === "stale").map((s) => <StaleBanner key={s.key}>{s.note}</StaleBanner>)}
       {stored?.synthesis_status === "fallback_no_ai" ? <StaleBanner>{synthesis?.notice ?? "AI synthesis missing — deterministic brief shown in full."}</StaleBanner> : null}
       {content.modeNote ? <div className="rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink-soft">{content.modeNote}</div> : null}
+
+      <TodaySections view={today} />
 
       {urgent.data?.length ? (
         <Card title="Urgent (private alerts)">
@@ -129,6 +134,7 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
       </div>
 
       <Card title={`Targets (${content.targets.length})`} actions={content.capacity ? <span className="text-xs text-ink-soft">{content.capacity.callMinutesAvailable} call min · max {content.capacity.maxTargets}</span> : null}>
+        {"scoreSource" in plan && plan.scoreSource === "lead_score_legacy" ? <p className="mb-2 text-xs text-warn">Legacy lead_score used — the current lead model has not scored this workspace yet.</p> : null}
         {content.targets.length ? (
           <ul className="space-y-3">{content.targets.map((t) => <TargetCard key={t.orgId} t={t} canEdit={canEdit} />)}</ul>
         ) : (

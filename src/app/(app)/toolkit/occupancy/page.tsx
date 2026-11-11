@@ -1,3 +1,4 @@
+import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import { Table, Td, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
@@ -28,6 +29,7 @@ export default async function OccupancyPage({ searchParams }: { searchParams: Pr
   return (
     <div data-tour="toolkit-occupancy" className="mx-auto max-w-5xl space-y-6 pb-16">
       <ToolHeader eyebrow="Deal toolkit" title="Occupancy economics" purpose="Nominal vs effective rent, cash needed up front, present value and peak cash — plus “what if” checks that show how much each change moves the numbers." steps={STEPS} current={cur && r ? 3 : 0} />
+      {sp.id ? <DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={sp.id} /> : null}
       <Legend />
 
       {cur && r ? (

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 import { DEFAULT_BRAND } from "@/modules/deals/documents/model";
-import { buildPackPptx, buildSiteVisitDocx, figuresFromAnalysis, quoteTerms, type PackModel } from "./packs";
+import { PDFDocument } from "pdf-lib";
+import { buildPackPptx, buildSiteVisitDocx, buildSiteVisitPdf, figuresFromAnalysis, imageInfo, quoteTerms, PACK_CHECKLIST, type PackModel } from "./packs";
 import { evidenceSummary } from "./evidence";
 
 const unverified = quoteTerms({ version: 2, approved_at: null, valid_until: "2026-10-31", terms_json: { rent: 85, rent_basis: "chargeable", deposit_months: 6, escalation_pct: 5, escalation_every_months: 36 } }, "2026-11-10");
@@ -36,6 +37,21 @@ describe("packs", () => {
   it("site visit pack is a valid DOCX with verification labels, checklist and feedback section", async () => {
     const xml = await zipText(await buildSiteVisitDocx(model), /^word\/document\.xml$/);
     for (const s of ["EON Tower B", "Unverified", "Estimated", "Verified", "Building access", "Client feedback", "Concerns / objections", "expired on 2026-10-31"]) expect(xml).toContain(s);
+  });
+  it("site visit pack covers every assessment topic, attached layouts and a blank feedback form", async () => {
+    // 1×1 PNG
+    const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+    expect(imageInfo(png)).toEqual({ type: "png", width: 1, height: 1 });
+    expect(imageInfo(Buffer.from("not an image"))).toBeNull();
+    const withMedia: PackModel = { ...model, properties: [{ ...model.properties[0], media: [{ kind: "floor_plan", title: "EON Tower B floor 5 plan", image: { data: png, type: "png", width: 1, height: 1 } }, { kind: "photo", title: "EON lobby", image: null }] }, ...model.properties.slice(1)] };
+    const buf = await buildSiteVisitDocx(withMedia);
+    const xml = await zipText(buf, /^word\/document\.xml$/);
+    for (const c of PACK_CHECKLIST) expect(xml).toContain(c.label);
+    for (const s of ["Commute", "Operational constraints", "Price concerns", "Stakeholder reactions", "Overall suitability", "Key commercials", "Floor plan: EON Tower B floor 5 plan", "Client feedback form", "No photos or floor plans attached"]) expect(xml).toContain(s);
+    expect(Object.keys((await JSZip.loadAsync(buf)).files).some((n) => n.startsWith("word/media/"))).toBe(true);
+    const pdf = await buildSiteVisitPdf(withMedia);
+    expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    expect((await PDFDocument.load(pdf)).getPageCount()).toBeGreaterThan(2);
   });
   it("presentation deck is a valid PPTX with comparison figures and labels", async () => {
     const xml = await zipText(await buildPackPptx(model), /^ppt\/slides\/slide\d+\.xml$/);

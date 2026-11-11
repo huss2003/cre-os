@@ -1,3 +1,4 @@
+import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import Decimal from "decimal.js";
 import { Table, Td, inr } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
@@ -92,6 +93,7 @@ export default async function LeasePage({ searchParams }: { searchParams: Promis
   return (
     <div data-tour="toolkit-lease" className="mx-auto max-w-6xl space-y-6 pb-16">
       <ToolHeader eyebrow="Deal toolkit" title="Lease economics" purpose="What an offer really costs: rent, escalation, rent-free, CAM, parking and deposit over the whole tenure. Add up to four offers to compare them side by side." steps={STEPS} current={step} />
+      {sp.id ? <DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={sp.id} /> : null}
       <Legend />
 
       {cur && out ? (

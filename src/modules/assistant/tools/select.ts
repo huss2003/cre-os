@@ -9,13 +9,13 @@ import type { Intent } from "../engine/router";
 import type { EntityType } from "../types";
 
 export const TOOL_GROUPS = {
-  core: ["search_companies", "get_company_profile", "search_contacts", "get_contact_profile", "search_opportunities", "get_opportunity_details", "recall_memories"],
+  core: ["find_accounts", "search_companies", "get_company_profile", "search_contacts", "get_contact_profile", "search_opportunities", "get_opportunity_details", "recall_memories"],
   properties: ["search_properties", "get_property_details", "search_requirements", "get_requirement_details", "calculate_distance", "show_on_map"],
   meetings: ["get_upcoming_meetings", "get_meeting_history", "get_commitments", "generate_meeting_brief", "create_internal_task"],
   outreach: ["get_outreach_history", "find_decision_makers", "generate_outreach_draft", "prepare_send"],
   scoring: ["get_scores", "rank_priority_accounts", "get_research_signals"],
   leases: ["find_leases_expiring"],
-  finance: ["compare_properties", "calculate_lease_economics", "compare_renewal_vs_relocation", "calculate_occupancy_cost", "compare_quotes", "analyse_fitout"],
+  finance: ["compare_properties", "calculate_lease_economics", "compare_renewal_vs_relocation", "calculate_occupancy_cost", "compare_quotes", "analyse_fitout", "run_bts_model", "run_investment_model"],
   deals: ["explain_deal_stuck", "generate_deal_review", "get_commitments", "get_meeting_history"],
   documents: ["search_documents", "retrieve_document_content", "extract_lease_terms", "save_lease_terms"],
   research: ["web_research", "get_research_signals", "search_properties", "calculate_distance", "show_on_map"],
@@ -24,7 +24,7 @@ export const TOOL_GROUPS = {
   commands: ["list_saved_commands", "save_command"],
   data: ["search_company_locations", "add_company_location", "save_landlord_offer", "revise_landlord_offer", "compare_landlord_offers"],
   briefs: ["morning_brief", "capture_meeting_notes"],
-  outputs: ["export_deliverable", "show_on_map"],
+  outputs: ["export_deliverable", "show_on_map", "generate_deck"],
 } as const;
 export type ToolGroup = keyof typeof TOOL_GROUPS;
 export const GROUP_ORDER = Object.keys(TOOL_GROUPS) as ToolGroup[];

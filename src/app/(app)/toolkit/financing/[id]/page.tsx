@@ -1,3 +1,4 @@
+import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Certainty, Legend, MissingNote, Readout, Status, ToolHeader, btn } from "@/modules/toolkit/ui/kit";
@@ -29,6 +30,7 @@ export default async function FinancingView({ params, searchParams }: { params: 
         purpose="The key numbers first, then the month-by-month schedule. Edit the loan details below to save a new version."
         back={{ href: "/toolkit/financing", label: "All analyses" }} steps={["Loan details", "Calculate", "Read the schedule"]} current={2}
         action={<span className="flex items-center gap-2 text-sm text-ink-soft">Terms: <Certainty c={cert} /></span>} />
+      <DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={id} />
       {ver ? <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">! Viewing older version {ver.version}. <Link className={btn.link} href={`/toolkit/financing/${id}`}>Back to current</Link></div> : null}
       <MissingNote items={r.missing} />
       <Legend />

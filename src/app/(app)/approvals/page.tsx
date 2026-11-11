@@ -8,6 +8,8 @@ import { listQueue, type QueueTab } from "@/modules/changes/service";
 import { ProposalCard } from "@/modules/changes/ui/proposal-card";
 import { ActionForm, Submit } from "@/modules/changes/ui/client";
 import { batchUndoAction } from "@/modules/changes/actions";
+import { attentionQueues } from "@/modules/capture/docs/review";
+import { AttentionPanel, RequestInfo } from "@/modules/capture/docs/attention";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = Record<string, any>;
 
@@ -34,10 +36,11 @@ async function Body({ searchParams }: Props) {
   const sp = await searchParams;
   const tab = (TABS.find((t) => t.key === sp.tab)?.key ?? "records") as QueueTab;
   const ctx = await requirePageContext();
-  const [q, { data: caps }] = await Promise.all([
+  const [q, { data: caps }, attention] = await Promise.all([
     listQueue(ctx.db, ctx.workspaceId, tab),
     ctx.db.from("capture").select("id, kind, raw_text, transcript, source_at, extraction").eq("workspace_id", ctx.workspaceId)
       .eq("status", "needs_review").is("archived_at", null).order("created_at", { ascending: false }).limit(50),
+    attentionQueues(ctx.db, ctx.workspaceId, ctx.role),
   ]);
   const pendingCaptures = (caps ?? []) as AnyRow[];
   // Imports with rows still waiting (counted per source file); reviewed in bulk on the import summary page.
@@ -56,6 +59,7 @@ async function Body({ searchParams }: Props) {
       <div data-tour="review-header">
       <PageHeader title="Review" subtitle="Everything waiting for your OK. Captures appear first — open one, check it, press Reviewed and it is added to the right sections." />
       </div>
+      <AttentionPanel q={attention} editor={editor} />
       {importsWaiting.length ? (
         <Card title={`Imports to review (${importsWaiting.length})`} help="Large files are reviewed in one place: open the import to see what it contains, add all safe rows in one click, and check only the doubtful ones.">
           <ul className="divide-y divide-line">
@@ -108,7 +112,12 @@ async function Body({ searchParams }: Props) {
                 </ActionForm>
               </Card>
             ) : null}
-            {q.proposals.map((p) => <ProposalCard key={p.id} p={p} role={ctx.role} selectable={tab === "history" && editor && ["applied", "conflict"].includes(p.state)} />)}
+            {q.proposals.map((p) => (
+              <div key={p.id}>
+                <ProposalCard p={p} role={ctx.role} selectable={tab === "history" && editor && ["applied", "conflict"].includes(p.state)} />
+                {editor && ["proposed", "approved"].includes(p.state) ? <RequestInfo proposalId={p.id} /> : null}
+              </div>
+            ))}
             <p className="text-xs text-ink-soft">Undo cannot unsend messages or reverse commitments made outside CRE OS.</p>
           </div>
         )

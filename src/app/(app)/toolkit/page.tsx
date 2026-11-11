@@ -19,7 +19,7 @@ const TASKS: { title: string; blurb: string; href: string; cta: string; kinds: s
   { title: "Fit-out & loan", blurb: "Budget the fit-out, then decide how to pay for it.", href: "/toolkit/fitout", cta: "Fit-out budget", kinds: ["fitout", "financing"], extra: { href: "/toolkit/financing", label: "Financing" } },
   { title: "Make a client document", blurb: "Proposal, workbook and decision summary from saved work.", href: "/toolkit/deliverables", cta: "Make documents", kinds: ["deliverable"] },
   { title: "Site-visit pack & deck", blurb: "A visit pack and a presentation for a shortlist.", href: "/toolkit/packs", cta: "Make a pack", kinds: [] },
-  { title: "Specialist models", blurb: "Further models for particular deal types.", href: "/toolkit/models", cta: "See models", kinds: [] },
+  { title: "Specialist models", blurb: "Built-to-suit economics and investment returns (IRR, NPV, DSCR).", href: "/toolkit/bts", cta: "Built-to-suit", kinds: ["bts", "investment"], extra: { href: "/toolkit/investment", label: "Investment" } },
 ];
 const hrefFor = (kind: string) => TASKS.find((s) => s.kinds.includes(kind))?.href ?? "/toolkit";
 const day = (d: string) => new Date(`${d}T00:00:00Z`).getTime();

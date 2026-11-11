@@ -17,7 +17,10 @@ Calculators are pure, deterministic code in `calc/*.ts` — never an LLM (S5). U
 | 07 | Fit-out & financing | `/toolkit/fitout`, `/toolkit/financing` | `fitout`, `financing` | `fitout-1.0`, `loan-1.0` |
 | 08 | Negotiation | `/toolkit/negotiation` | `negotiation` | `nego-1.0` |
 | 09 | Client deliverables | `/toolkit/deliverables`, download `/toolkit/deliverables/[id]/[file]` | `deliverable` | `deliverable-1.0` |
-| 10 | Specialist models | `/toolkit/models` | — | per model |
+| 10 | Rating models | `/toolkit/models` | — | per model |
+| 11 | Built-to-suit (§8.11) | `/toolkit/bts`, `/toolkit/bts/[id]` | `bts` | `bts-1.0` |
+| 12 | Investment analysis (§8.11) | `/toolkit/investment`, `/toolkit/investment/[id]` | `investment` | `inv-1.0` |
+| — | Analysis deck (any kind) | POST `/toolkit/deck/[id]` (generate+download), GET `?doc=` (re-download) | — | `deck-1.0` |
 
 Dashboard `/toolkit`: section entry list with saved counts per kind, recently updated analyses, analyses needing
 information (status `needs_info` + missing items), requirements with no analysis, quotes expiring in 14 days and
@@ -50,6 +53,29 @@ Exported services: `buildBrief`, `parseFieldInput`, `loadBriefFor`, `generateDel
 pure builders `buildProposal`, `buildWorkbook`, `buildDecisionSummary`, `flatten`, `analysisFlags`, `prepare`.
 Server actions (`actions-core.ts`): `updateBriefFieldAction`, `saveBriefSnapshotAction`, `approveAnalysisAction`,
 `generateDeliverablesAction`.
+
+## Presentation decks (`deck.ts`)
+`generateDeck(db, ws, userId, analysisId, version?)` → editable PPTX: title, executive recommendation, options tables,
+NATIVE pptx charts from stored numbers (unknowns are left out of the chart and named, never plotted as 0), assumptions +
+method, missing info, sources, appendix (flattened inputs/outputs with labels). Brand: pptx `template_asset` (purpose
+containing "deck" preferred) else workspace name on a neutral layout. Stored at `<ws>/toolkit/decks/<analysisId>/…` and
+recorded as `document_version` (kind pptx, purpose `analysis_deck`, linked_entity deal_analysis; `input_versions` holds
+analysis id/version/formula/requirement_id). Lineage trigger chains versions. `DeckPanel` (`ui/deck-button.tsx`) shows
+"Download deck" + earlier decks on every result page. Pure: `deckModel`, `extract`, `chartOf`, `buildAnalysisDeck`.
+
+## Site visit pack (`packs.ts`)
+Per property: details, amenities, key commercials (verification-labelled), photos/floor plans (evidence of kind
+photo/floor_plan on any analysis of the requirement, matched to a building by name in the title; PNG/JPEG ≤4 MB embedded
+in the DOCX), SITE_VISIT inspection checklist, `PACK_CHECKLIST` assessment (commute, connectivity, layout, building quality,
+amenities, parking, operational constraints, price concerns, stakeholder reactions, suitability; rated 1–5) and a blank
+client feedback form. Outputs DOCX + PDF (`buildSiteVisitPdf`, via assistant `buildPdf`; text only) + PPTX.
+
+## Specialist models (`calc/bts.ts`, `calc/investment.ts`, `models-service.ts`)
+`runBts` / `runInvestment` compute + `saveAnalysis`. Form parsers `btsFromForm`, `investmentFromForm`. Actions in
+`actions-models.ts`. Unknown inputs → dependent outputs null with reasons in `nulls`; area basis stated, never converted;
+deposits separate. IRR: bracketed bisection with a convergence guard (`irr()` returns null if no root). Assistant tools
+`src/modules/assistant/tools/toolkit2.ts` → `toolkit2Tools` (run_bts_model, run_investment_model, generate_deck) — to be
+registered by the lead. Migration `20261111001300_toolkit_models.sql` widens `deal_analysis.kind`.
 
 ## Tables
 `deal_analysis`, `deal_analysis_version` (immutable versions, trigger), `property_rating_model` — migration

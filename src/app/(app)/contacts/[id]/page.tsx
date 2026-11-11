@@ -43,6 +43,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <Link href="/contacts" className="text-sm text-ink-soft hover:text-ink">Contacts</Link>
+      <p className="rounded-2xl border-l-4 border-brand bg-brand-soft px-4 py-3 text-sm">This page covers enrichment and verification. Relationship level, meetings, outreach, commitments and opportunities live in the <Link className="font-semibold text-brand" href={`/people/${id}`}>contact workspace</Link>.</p>
       <header className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-6 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold">{p.full_name}</h1>

@@ -18,7 +18,7 @@ import { loadMemberAccess, loadSettings, loadWorkspace, notify } from "./db";
 import { chunkKeys, rowsByKeys } from "./keys";
 import { loadApproaches, loadMeetings, loadOpenTasks, loadPipeline, loadSources, toTaskLite, type LoadCtx } from "./data";
 import { buildPreMeetingBrief, buildReconciliation, buildWeekly } from "./other-briefs";
-import { buildDailyPlan } from "./plan";
+import { buildDailyPlan, loadCurrentScoresWithSource, scoreResultToRow, type ScoreResultRow } from "./plan";
 import { loadRadar, persistCalculatedEvents, raiseRadarAlerts, raiseRadarTasks } from "./radar-data";
 import { runCaretaker } from "./caretaker-data";
 import { meetingVersionKey, planSchedule, staleMeetingJobs, type MeetingCtx, type WorkspaceCtx } from "./scheduler";
@@ -249,13 +249,13 @@ export async function runWeekly(m: MemberJobCtx, week: string, now = new Date())
   const weekStart = addDays(date, -6);
   const { count: doneThisWeek } = await admin.from("task").select("id", { count: "exact", head: true }).eq("workspace_id", c.workspaceId).eq("status", "done")
     .gte("completed_at", atLocal(weekStart, "00:00", c.tz).toISOString()).or(`assigned_user_id.eq.${c.userId},and(assigned_user_id.is.null,owner_user_id.eq.${c.userId})`);
-  const { data: scores } = await admin.from("lead_score").select("tier").eq("workspace_id", c.workspaceId).eq("is_current", true).limit(20000);
+  const { rows: scores } = await loadCurrentScoresWithSource(c); // score_result (lead model); legacy lead_score only if none
   const nowIso = now.toISOString();
   const content = buildWeekly({
     week, date, approachesThisMonth: approaches.thisMonth, cohortTarget: settings.cohortTarget, doneThisWeek: doneThisWeek ?? 0,
     overdue: tasks.filter((t) => effectiveTaskState(t, nowIso, settings.staleTaskAfterDays) === "overdue").length,
     stale: tasks.filter((t) => effectiveTaskState(t, nowIso, settings.staleTaskAfterDays) === "stale").length,
-    pipeline, sources, scoredAccounts: scores?.length ?? 0, actThisWeek: (scores ?? []).filter((s: any) => s.tier === "act_this_week").length,
+    pipeline, sources, scoredAccounts: scores.length, actThisWeek: scores.filter((s) => s.tier === "act_this_week").length,
   });
   const res = await saveBriefVersion(admin, c, { date, kind: "weekly", subjectKey: week, content: { ...content, content_hash: stableHash(content) }, synthesisStatus: "fallback_no_ai", sourceHealth: {} });
   return { briefId: res.brief.id, created: res.created };
@@ -297,8 +297,11 @@ export async function runPreMeeting(admin: Db, job: Pick<Job, "workspace_id" | "
   let recent: any[] = [];
   let radarItems: Awaited<ReturnType<typeof loadRadar>>["items"] = [];
   if (org) {
-    const { data: s } = await admin.from("lead_score").select("total, tier, overrides, components, evidence_confidence, warmth").eq("workspace_id", workspaceId)
-      .eq("subject_type", "organisation").eq("subject_id", org.id).eq("is_current", true).limit(1).maybeSingle();
+    const { data: sr } = await admin.from("score_result").select("entity_id, score, band, disqualified, confidence, completeness, factors, missing, recommended_action, calculated_at")
+      .eq("workspace_id", workspaceId).eq("model_key", "lead").eq("entity_type", "organisation").eq("entity_id", org.id).eq("is_current", true).is("archived_at", null).limit(1).maybeSingle();
+    // legacy lead_score only when Module 3 has not scored this company
+    const s: any = sr ? scoreResultToRow(sr as ScoreResultRow) : (await admin.from("lead_score").select("total, tier, overrides, components, evidence_confidence, warmth").eq("workspace_id", workspaceId)
+      .eq("subject_type", "organisation").eq("subject_id", org.id).eq("is_current", true).limit(1).maybeSingle()).data;
     if (s) {
       const rows = componentRows(s.components);
       score = { total: Number(s.total), tier: s.tier, why: explain({ total: Number(s.total), components: s.components, overrides: s.overrides ?? [] } as never), components: rows.map(({ label, points, max, band }) => ({ label, points, max, band })) };

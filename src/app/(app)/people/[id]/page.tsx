@@ -11,6 +11,9 @@ import { EndRole, LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, TierBadge, fmtDate } from "@/modules/admin/ui/parts";
 import { RelationshipPanel } from "@/modules/intelligence/network/ui";
 import { Flash } from "@/modules/intelligence/ui";
+import { loadContactExtras } from "@/modules/accounts/service";
+import * as A from "@/modules/accounts/ui";
+import { Chip, ROLE, REL } from "@/modules/contacts/ui/parts";
 
 export const metadata = { title: "Person" };
 
@@ -27,6 +30,10 @@ async function Body({ params, searchParams }: Props) {
   const person = p.person;
   const base = `/people/${id}`;
   const current = p.employment.filter((e) => e.current_at_as_of);
+  const x = await loadContactExtras(ctx.db, ctx.workspaceId, id);
+  const canEdit = hasRole(ctx, "editor") && !person.archived_at;
+  const ra = x.ra.ok ? x.ra.data[0] ?? null : null;
+  const relatedOrgs = [...new Map(p.employment.map((e) => [e.org_id, { id: e.org_id, name: e.org_name, current: e.current_at_as_of }])).values()];
   const anySuppressed = p.contacts.some((c) => c.effectively_suppressed) || p.consents.some((c) => c.suppressed || c.revoked_at);
 
   return (
@@ -35,7 +42,7 @@ async function Body({ params, searchParams }: Props) {
         subtitle={<span className="flex flex-wrap items-center gap-1.5"><ClassBadge value={person.classification} />
           {current.length ? current.map((e) => <span key={e.id}>{e.title ?? "Role unknown"} @ {e.org_name ?? "hidden organisation"}</span>) : <span>No current role on record{asOf ? ` on ${fmtDate(asOf)}` : ""}</span>}
           {person.archived_at ? <Badge tone="bad">Archived</Badge> : null}<RecordTrust db={ctx.db} workspaceId={ctx.workspaceId} type="person" id={person.id} /></span>}
-        actions={<>{hasRole(ctx, "editor") && !person.archived_at ? <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink> : null}<AsOfForm asOf={asOf} action={base} /></>} />
+        actions={<>{!person.do_not_contact ? <ButtonLink href={`/outreach/new?person=${id}`}>Plan outreach</ButtonLink> : null}<ButtonLink variant="secondary" href={`/contacts/${id}`}>Enrichment &amp; verification</ButtonLink>{hasRole(ctx, "editor") && !person.archived_at ? <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink> : null}<AsOfForm asOf={asOf} action={base} /></>} />
 
       <Flash sp={{ notice: typeof sp.notice === "string" ? sp.notice : undefined, error: typeof sp.error === "string" ? sp.error : undefined }} />
       {typeof sp.draft === "string" && !FOCUS_MODE ? <p className="text-sm"><ButtonLink variant="secondary" href="/drafts">Open Drafts</ButtonLink></p> : null}
@@ -82,6 +89,24 @@ async function Body({ params, searchParams }: Props) {
             ) : null}
           </Section>
 
+          <A.Meetings r={x.meetings} />
+
+          {x.outreach.ok ? <Section title="Outreach" empty="No outreach planned or sent to this person.">
+            {x.outreach.data.length ? <ul className="space-y-1 text-sm">{x.outreach.data.map((o) => <li key={o.id}><Link className="text-brand" href={`/outreach/${o.id}`}>{o.channel}{o.step > 1 ? ` follow-up ${o.step - 1}` : ""}</Link> <Badge>{o.status}</Badge> <span className="text-xs text-ink-soft">{o.sent_at ? `sent ${fmtDate(o.sent_at)}` : o.planned_on ? `planned ${fmtDate(o.planned_on)}` : ""}{o.responded_at ? ` · replied ${fmtDate(o.responded_at)}` : ""}{o.org?.display_name ? ` · ${o.org.display_name}` : ""}</span></li>)}</ul> : null}
+          </Section> : <A.CouldNotLoad what="outreach" error={x.outreach.error} />}
+
+          <Section title="Commitments" empty="No promises recorded in interactions.">
+            {x.commitments.length ? <ul className="space-y-1 text-sm">{x.commitments.map((c, i) => <li key={i}><span className="text-xs text-ink-soft">{fmtDate(c.at)}</span> {c.text}</li>)}</ul> : null}
+          </Section>
+
+          <Section title="Related companies & opportunities" empty="No employer or opportunity linked.">
+            {relatedOrgs.length || (x.opps.ok && x.opps.data.length) ? <ul className="space-y-1 text-sm">
+              {relatedOrgs.map((o) => <li key={o.id}><Badge>{o.current ? "Current employer" : "Past employer"}</Badge> <Link className="text-brand" href={`/companies/${o.id}`}>{o.name ?? "hidden organisation"}</Link></li>)}
+              {x.opps.ok ? x.opps.data.map((o) => <li key={o.id}><Badge tone="brand">Opportunity</Badge> <Link className="text-brand" href={`/deals/${o.id}`}>{o.name}</Link> <span className="text-ink-soft">{String(o.stage).replace(/_/g, " ")}</span></li>) : null}
+            </ul> : null}
+            {!x.opps.ok ? <A.CouldNotLoad what="opportunities" error={x.opps.error} /> : null}
+          </Section>
+
           <Section title="Signals" empty="No signals recorded for this person.">
             {p.signals.length ? (
               <ul className="space-y-1 text-sm">{p.signals.map((s) => <li key={s.id}>{s.claim_type}{s.predicate ? ` — ${s.predicate}` : ""} <FactBadge status={s.status} /> <TierBadge tier={s.evidence_tier} /></li>)}</ul>
@@ -92,11 +117,21 @@ async function Body({ params, searchParams }: Props) {
         </div>
 
         <div className="space-y-4">
+          <A.RelationshipLevelCard personId={id} current={x.current} ok={x.levelOk} suggestion={x.suggestion} history={x.hist} canEdit={canEdit} />
+
+          <Section title="Decision role" empty={<>Not assessed yet. <Link className="text-brand" href={`/contacts/${id}`}>Assess the CRE role</Link>.</>}>
+            {ra ? <div className="text-sm"><p className="font-medium">{ROLE[ra.role_class] ?? ra.role_class}</p><p>{REL[ra.cre_relevance] ?? ra.cre_relevance}{ra.department ? ` · ${ra.department}` : ""}</p><p className="mt-1 text-xs text-ink-soft">{ra.source === "user" ? "Set by your team" : "Assessed from title"}{ra.reason ? `: ${ra.reason}` : ""}</p></div> : null}
+          </Section>
+
+          <Section title="Assistant memories">
+            <p className="text-sm">{x.memories.ok ? `${x.memories.data.length} saved memor${x.memories.data.length === 1 ? "y" : "ies"} about this person.` : "Couldn't load memories."} <Link className="text-brand" href={`/assistant/memory?entity=${id}`}>Open memories</Link></p>
+          </Section>
+
           <Section title="Contact methods" empty="No contact methods. Never guess or invent an email or number." footer={<LinkedAdd kind="contact_method" hostId={id} backPath={`/people/${id}`} />}>
             {p.contacts.length ? (
               <ul className="space-y-2 text-sm">{p.contacts.map((c) => (
                 <li key={c.id} className={c.effectively_suppressed ? "text-ink-soft line-through" : ""}>
-                  <div className="flex flex-wrap items-center gap-1"><Badge>{c.method_type}</Badge> <span className="break-all">{c.value}</span></div>
+                  <div className="flex flex-wrap items-center gap-1"><Badge>{c.method_type}</Badge> {x.methodStatus.get(c.id) ? <Chip s={x.methodStatus.get(c.id)} /> : null} <span className="break-all">{c.value}</span></div>
                   <div className="flex flex-wrap gap-1 text-xs">
                     {c.verified_on ? <Badge tone="ok">verified {fmtDate(c.verified_on)}</Badge> : <Badge tone="warn">unverified</Badge>}
                     {c.preferred ? <Badge tone="brand">preferred</Badge> : null}

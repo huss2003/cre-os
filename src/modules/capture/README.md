@@ -95,3 +95,23 @@ No module-specific environment variables. `OPENAI_API_KEY` empty means the rule 
 - Hinglish coverage is rule-based (common phrasings, Roman script); Devanagari words other than digits are left to the model.
 - Record pages (`/companies`, `/people`, `/buildings`, owned by admin) do not yet render `FreshnessBadge` / the evidence link.
 - The documents tab lists `document_version` rows; the deals module owns their approval flow.
+
+## Round 3 — Capture drop zone + Review queues (migration `20261111001200_capture_docs.sql`)
+- Tables: `capture_document` (one per file, unique `(workspace_id, sha256)`; detected_type, detection, status
+  received|processing|needs_review|needs_input|done|failed|unsupported, links, result) and `capture_transcript` (text, segments with
+  start/end, has_timestamps, diarised=false ⇒ speakers uncertain). Both via `make_business_table`.
+- `docs/detect.ts` (pure): file family + keyword rules; model (`callStructured`, mock = unknown) only when ambiguous.
+- `docs/card.ts` (pure): `parseBusinessCard` (verbatim values only; phone types switchboard/direct/mobile/fax/unknown), `cardContactMethods`.
+- `docs/service.ts`: `intakeDocument`, `intakeFromStorage`, `processDocument`, `updateAndReprocess`, `getDocument`, `listDocuments`, `linkOptions`.
+  Routing: spreadsheet → `imports.uploadImport`; quotation → `toolkit.extractQuoteTerms` → `quote` create proposal (needs requirement link);
+  lease/LOI → assistant `lease-terms` (page-verified snippets) → `lease` create proposal (fact_status reported); meeting notes → `createCapture`;
+  business card → person/contact_method/organisation proposals (existing same-name org = uncertain match, not created);
+  photo/layout → meeting material (`meetings.addUploadedMaterial`) and/or building link; audio → transcript → meeting_note + capture
+  (`[mm:ss]` markers when segments have timestamps). Proposal keys `capture_doc:<id>:…`.
+- `docs/review.ts`: `attentionQueues`, `listFailedJobs`, `retryJob` (admin, `mudar_app.retry_job`), `requestMoreInfo` (uses existing `clarify` state + task linked to the proposal).
+- Job `capture.document` (payload `{documentId}`) — retry path, runs as the uploader.
+- Routes: `/capture` (drop zone + recent files), `/capture/documents/[id]`, `/approvals` attention panel + "Request more info";
+  `GET/POST /api/v1/captures/documents`, `GET/POST /api/v1/captures/documents/[id]`.
+- Gaps: `gateway.transcribe` returns text only (no verbose_json) ⇒ no timestamps with the real key until the gateway exposes segments;
+  no diarisation; contact methods for a NEW person are proposed after the person proposal is applied (press Process again);
+  photos in mock mode have no OCR (user types card text); building photo is linked via capture_document only (no building gallery UI).

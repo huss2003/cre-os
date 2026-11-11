@@ -60,12 +60,12 @@ describe("toolkit quote intake + evidence + packs (db)", () => {
     expect((await listEvidence(ctx, cmp.id))[0].verification).toBe("conflicting");
 
     const g = await generatePacks(ctx, { requirementId: reqId, assetIds: [assetId], preparedFor: "Client CFO" });
-    expect(g.files.map((f) => f.kind)).toEqual(["docx", "pptx"]);
+    expect(g.files.map((f) => f.kind)).toEqual(["docx", "pdf", "pptx"]);
     const a = await getAnalysis(db, WS1, g.id) as Record<string, any>;
     expect(a).toMatchObject({ kind: "deliverable", formula_version: PACKS_FORMULA });
     expect(a.inputs.analysisRefs).toEqual([{ id: cmp.id, kind: "property_comparison", version: 1 }]);
     expect(a.inputs.quoteRefs.length).toBe(1);
-    const dl = await db.storage.from("mudar-workspace-files").download(g.files[1].path);
+    const dl = await db.storage.from("mudar-workspace-files").download(g.files[2].path);
     expect(Buffer.from(await dl.data!.arrayBuffer()).subarray(0, 2).toString()).toBe("PK");
   });
 });

@@ -28,6 +28,8 @@ export interface DailyPlan {
   agenda: DayAgenda | null;
   generatedAt: string;
   persisted: boolean;
+  /** Where the priority scores came from (legacy fallback is labelled on screen). */
+  scoreSource?: ScoreSource;
 }
 
 /** Lease windows (≤ 30 days) for the day order: notice, break, expiry, rent escalation and option are separate kinds. */
@@ -74,19 +76,71 @@ export async function loadAgendaTasks(c: LoadCtx): Promise<{ tasks: AgendaTask[]
 
 export interface ScoreRow { subject_id: string; total: number | string; tier: Tier; overrides: string[]; components: Record<string, any>; evidence_confidence: string | null; warmth: string | null; computed_at: string }
 
-export async function loadCurrentScores(c: LoadCtx): Promise<(ScoreRow & { name: string })[]> {
-  const rows = await fetchAll<ScoreRow & { classification: string; owner_user_id: string | null; archived_at: string | null; id: string }>((f, t) => c.db.from("lead_score")
-    .select("id, subject_id, total, tier, overrides, components, evidence_confidence, warmth, computed_at, classification, owner_user_id, archived_at")
-    .eq("workspace_id", c.workspaceId).eq("subject_type", "organisation").eq("is_current", true).eq("score_version", SCORE_VERSION)
+/** Module 3 `score_result` row (lead model) as read for the plan. */
+export interface ScoreResultRow {
+  entity_id: string; score: number; band: string; disqualified: boolean; confidence: string; completeness: number;
+  factors: { key: string; label: string; points: number; max: number; known: boolean; explanation: string }[] | null;
+  missing: string[] | null; recommended_action: string | null; calculated_at: string;
+}
+export type ScoreSource = "score_result" | "lead_score_legacy" | "none";
+
+/** Lead-model factor → legacy component key (so the priority adviser / breakdown keep working). */
+const FACTOR_TO_COMPONENT: Record<string, ComponentKey> = { timing: "timing", fit: "fit", budget: "budget", engagement: "engagement", authority: "relationship", need: "trigger" };
+
+/** Tier from the current lead model. Unknown ≠ low: an "insufficient" score is parked for enrichment, not ranked low. */
+export function tierFromScoreResult(r: Pick<ScoreResultRow, "score" | "disqualified" | "confidence">): Tier {
+  if (r.disqualified) return "suppressed";
+  if (r.confidence === "insufficient") return "enrich_or_park";
+  return r.score >= 60 ? "act_this_week" : r.score >= 40 ? "validate_nurture" : "enrich_or_park";
+}
+
+/** Pure mapping score_result → ScoreRow (deterministic; no arithmetic beyond copying the stored points). */
+export function scoreResultToRow(r: ScoreResultRow): ScoreRow {
+  const components: Record<string, { points: number; max: number; band: string; evidence: string[] }> = {};
+  for (const f of r.factors ?? []) {
+    const k = FACTOR_TO_COMPONENT[f.key];
+    if (!k) continue;
+    components[k] = { points: Number(f.points ?? 0), max: Number(f.max ?? 0), band: f.known ? "known" : "unknown", evidence: f.explanation ? [f.explanation] : [] };
+  }
+  const evidence = (r.factors ?? []).find((f) => f.key === "evidence");
+  return {
+    subject_id: r.entity_id, total: r.score, tier: tierFromScoreResult(r), overrides: [], components,
+    evidence_confidence: evidence?.known && Number(evidence.points) > 0 ? "credible_reported" : "none", warmth: null, computed_at: r.calculated_at,
+  };
+}
+
+/**
+ * Current priority scores. Source of truth is Module 3 `score_result` (model_key = lead, is_current). Only when the
+ * workspace has NO lead score_result rows at all do we fall back to the legacy `lead_score` table — labelled.
+ */
+export async function loadCurrentScoresWithSource(c: LoadCtx): Promise<{ source: ScoreSource; rows: (ScoreRow & { name: string })[] }> {
+  const sr = await fetchAll<ScoreResultRow>((f, t) => c.db.from("score_result")
+    .select("entity_id, score, band, disqualified, confidence, completeness, factors, missing, recommended_action, calculated_at")
+    .eq("workspace_id", c.workspaceId).eq("model_key", "lead").eq("entity_type", "organisation").eq("is_current", true)
     .is("archived_at", null).order("id").range(f, t), { cap: 20_000 });
-  // visibility follows the organisation (shares are on the org, not on lead_score)
+  let rows: ScoreRow[];
+  let source: ScoreSource;
+  if (sr.length) { rows = sr.map(scoreResultToRow); source = "score_result"; }
+  else {
+    rows = await fetchAll<ScoreRow>((f, t) => c.db.from("lead_score")
+      .select("id, subject_id, total, tier, overrides, components, evidence_confidence, warmth, computed_at")
+      .eq("workspace_id", c.workspaceId).eq("subject_type", "organisation").eq("is_current", true).eq("score_version", SCORE_VERSION)
+      .is("archived_at", null).order("id").range(f, t), { cap: 20_000 });
+    source = rows.length ? "lead_score_legacy" : "none";
+  }
+  // visibility follows the organisation (shares are on the org, not on the score row)
   const names = await orgNames(c, rows.map((r) => r.subject_id));
-  return rows.filter((r) => names.has(r.subject_id)).map((r) => ({ ...r, name: names.get(r.subject_id)! }));
+  return { source, rows: rows.filter((r) => names.has(r.subject_id)).map((r) => ({ ...r, name: names.get(r.subject_id)! })) };
+}
+
+export async function loadCurrentScores(c: LoadCtx): Promise<(ScoreRow & { name: string })[]> {
+  return (await loadCurrentScoresWithSource(c)).rows;
 }
 
 function toCandidate(r: ScoreRow & { name: string }, approached: Set<string>): Candidate {
   const comps = r.components ?? {};
   const deadline = (r.overrides ?? []).includes("deadline_within_90d");
+  // score_result rows carry no legacy deadline override; nextDeadline stays unknown (S6) rather than guessed
   // nextDeadline is not stored on lead_score; recover the date from the timing evidence line when present
   const m = deadline ? /(\d{4}-\d{2}-\d{2}) \((\d+) days/.exec((comps.timing?.evidence ?? []).join(" ")) : null;
   return {
@@ -105,10 +159,11 @@ function toCandidate(r: ScoreRow & { name: string }, approached: Set<string>): C
 export async function computeDailyPlan(c: LoadCtx, settings: BriefSettings, date: string, opts: { now?: Date } = {}): Promise<Omit<DailyPlan, "id" | "persisted" | "generatedAt">> {
   const workday = isWorkday(date, settings.workdays);
   const now = opts.now ?? new Date();
-  const [scores, approaches, meetings, approvals, prefs, agendaTasks, replies, radar] = await Promise.all([
-    loadCurrentScores(c), loadApproaches(c, date), loadMeetings(c, date), loadApprovals(c), loadUserPrefs(c.db, c.workspaceId, c.userId),
+  const [scored, approaches, meetings, approvals, prefs, agendaTasks, replies, radar] = await Promise.all([
+    loadCurrentScoresWithSource(c), loadApproaches(c, date), loadMeetings(c, date), loadApprovals(c), loadUserPrefs(c.db, c.workspaceId, c.userId),
     loadAgendaTasks(c), loadReplies(c, new Date(now.getTime() - 24 * 3_600_000).toISOString()), loadRadar(c.db, c.workspaceId, date, settings, c.access ?? undefined),
   ]);
+  const scores = scored.rows;
   const rel = await computeRelationshipSuggestions(c.db, c.workspaceId, date, radar.items, { access: c.access, userId: c.userId });
   const snoozed = activeSnoozes(prefs, date);
   const capacity = computeCapacity({
@@ -138,7 +193,7 @@ export async function computeDailyPlan(c: LoadCtx, settings: BriefSettings, date
     a: approvals.changes + approvals.drafts, z: [...snoozed].sort(), cap: settings.capacity, ap: approaches.approached.size,
     g: agenda,
   }).slice(0, 24);
-  return { planDate: date, inputVersion, mode: capacity.mode, capacity, targets, displaced: sel.displaced, agenda };
+  return { planDate: date, inputVersion, scoreSource: scored.source, mode: capacity.mode, capacity, targets, displaced: sel.displaced, agenda };
 }
 
 /** Compute + store (idempotent on user+date+input version). Viewers (no insert right) still get the computed plan. */

@@ -8,7 +8,7 @@ import { stableStringify } from "@/modules/deals/finance/engine";
  * formula version). `reproduce` re-runs a stored version with the same pure calculator and checks the outputs match.
  * Calculators are PURE functions in src/modules/toolkit/calc/*.ts — never AI.
  */
-export type AnalysisKind = "brief" | "property_comparison" | "lease_economics" | "occupancy" | "conventional_vs_managed" | "renewal_vs_relocation" | "fitout" | "financing" | "negotiation" | "deliverable";
+export type AnalysisKind = "brief" | "property_comparison" | "lease_economics" | "occupancy" | "conventional_vs_managed" | "renewal_vs_relocation" | "fitout" | "financing" | "negotiation" | "deliverable" | "bts" | "investment";
 type Row = Record<string, any>;
 
 export interface SaveInput {

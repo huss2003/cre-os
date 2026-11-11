@@ -1,3 +1,4 @@
+import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Legend, MissingNote, Status, ToolHeader, btn } from "@/modules/toolkit/ui/kit";
@@ -27,6 +28,7 @@ export default async function FitoutView({ params, searchParams }: { params: Pro
       <ToolHeader eyebrow={`Fit-out budget · version ${ver ? ver.version : a.current_version} · formula ${src.formula_version}`} title={a.title}
         purpose={`Totals and partner ranking first; edit below to save a new version.${outputs.asOf ? ` Quote validity checked against ${outputs.asOf}.` : ""}`}
         back={{ href: "/toolkit/fitout", label: "All budgets" }} steps={["Add budget lines", "Add partner quotes", "Compare"]} current={2} />
+      <DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={id} />
       {ver ? <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">! Viewing older version {ver.version}. <Link className={btn.link} href={`/toolkit/fitout/${id}`}>Back to current</Link></div> : null}
       {!ver ? <MissingNote items={(a.missing ?? []) as string[]} /> : null}
       <Legend />

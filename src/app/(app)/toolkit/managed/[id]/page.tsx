@@ -1,3 +1,4 @@
+import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import { notFound } from "next/navigation";
 import { Legend, Status, ToolHeader, btn } from "@/modules/toolkit/ui/kit";
 import { Panel } from "@/modules/toolkit/ui/options/parts";
@@ -26,6 +27,7 @@ export default async function ManagedView({ params, searchParams }: { params: Pr
         purpose="Read the answer first, then the numbers behind it. Change any input below and compare again — that saves a new version."
         back={{ href: "/toolkit/managed", label: "All comparisons" }} steps={["Describe the lease option", "Describe the managed option", "Compare", "Read the recommendation"]} current={3}
         action={<span className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">Formula {formula} {reproducible === true ? <Status s="approved" label="Reproduced" /> : reproducible === false ? <Status s="expired" label="Does not reproduce" /> : null}</span>} />
+      <DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={id} />
       {ver ? <div role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">! You are viewing an older version. Comparing again below creates a new version from these inputs. <Link className={btn.link} href={`/toolkit/managed/${id}`}>Back to current</Link></div> : null}
       <Legend />
       <ManagedResults r={outputs} />

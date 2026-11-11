@@ -1,3 +1,4 @@
+import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HelpFor } from "@/components/ui";
@@ -50,6 +51,7 @@ export default async function BriefPage({ params }: { params: Promise<{ requirem
         purpose="Everything the client needs, each item marked Confirmed, Estimated, Assumption or Missing. Click any value to change it."
         steps={["Fill the gaps", "Save a snapshot", "Approve it", "Use in client documents"]} current={step}
         action={snapshotActions || undefined} />
+      {analysis?.id ? <DeckPanel db={app.db} ws={app.workspaceId} analysisId={analysis?.id} /> : null}
       <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
         <Link className={btn.link} href={`/requirements/${requirementId}`}>Open requirement</Link>
         {analysis ? <span className="flex items-center gap-2">Latest snapshot version {analysis.current_version} <Status s={String(analysis.status)} />{approvedAt ? <span className="text-ink-soft">approved {approvedAt}</span> : null}</span> : <Status s="draft" label="No snapshot yet" />}

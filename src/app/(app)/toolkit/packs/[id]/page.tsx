@@ -20,7 +20,7 @@ export default async function PackView({ params }: { params: Promise<{ id: strin
     <div className="mx-auto max-w-4xl space-y-6 pb-16">
       <ToolHeader back={{ href: "/toolkit/packs", label: "All packs" }} eyebrow={`${a.requirement?.title ?? "—"} · version ${a.current_version}`} title={a.title}
         purpose="Download the files and share them yourself — nothing is sent from here. Attach the evidence you relied on below."
-        steps={["Choose the requirement", "Tick the buildings", "Generate both files", "Download"]} current={3} />
+        steps={["Choose the requirement", "Tick the buildings", "Generate the files", "Download"]} current={3} />
       <Card title="Downloads">
         <ul className="space-y-3 text-sm">
           {files.map((f, i) => <li key={f.path} className="flex items-center justify-between gap-2">{links[i] ? <a className={btn.primary} href={links[i]!}>↓ {f.label} (.{f.kind})</a> : <span className="text-ink-soft">{f.label} — file unavailable</span>}<span className="text-xs text-ink-soft">{Math.round(f.bytes / 1024)} KB</span></li>)}

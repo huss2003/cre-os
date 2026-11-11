@@ -6,20 +6,55 @@ import { fmt } from "@/lib/util/time";
 import { listCaptures } from "@/modules/capture/service";
 import { QuickCapture } from "@/modules/capture/ui/quick-capture";
 import { StatusBadge } from "@/modules/capture/ui/parts";
+import { DropZone } from "@/modules/capture/docs/drop-zone";
+import { linkOptions, listDocuments } from "@/modules/capture/docs/service";
+import { TYPE_LABEL, type DocType } from "@/modules/capture/docs/detect";
+
+const DOC_STATUS: Record<string, [string, "neutral" | "brand" | "ok" | "warn" | "bad"]> = {
+  received: ["Received", "neutral"], processing: ["Reading", "brand"], needs_review: ["In Review", "warn"], needs_input: ["Needs your input", "warn"],
+  done: ["Done", "ok"], failed: ["Failed", "bad"], unsupported: ["Not supported", "bad"],
+};
 
 export const metadata = { title: "Capture" };
 
 async function Body() {
   const ctx = await requirePageContext();
-  const recent = await listCaptures(ctx.db, ctx.workspaceId);
+  const editor = hasRole(ctx, "editor");
+  const [recent, docs, options] = await Promise.all([listCaptures(ctx.db, ctx.workspaceId), listDocuments(ctx.db, ctx.workspaceId), editor ? linkOptions(ctx.db, ctx.workspaceId) : null]);
   return (
     <div className="space-y-4">
       <PageHeader title="Capture" subtitle="Tell CRE OS what happened after a call, meeting or site visit. It files the meeting, creates follow-up tasks and asks before changing any record." />
-      {hasRole(ctx, "editor") ? (
+      {editor ? (
         <Card title="New capture"><QuickCapture workspaceId={ctx.workspaceId} /></Card>
       ) : (
         <Card><p className="text-sm text-ink-soft">Viewers can read captures but not create them. Ask an admin for editor access.</p></Card>
       )}
+      {editor && options ? (
+        <Card title="Add files" help="Any file in one place. CRE OS works out what it is and sends it to the right reader. Nothing changes a record until you approve it in Review; the original file is always kept.">
+          <DropZone workspaceId={ctx.workspaceId} options={options} />
+        </Card>
+      ) : null}
+      {docs.length ? (
+        <Card title="Recent files">
+          <ul className="divide-y divide-line">
+            {docs.map((d) => {
+              const [label, tone] = DOC_STATUS[d.status] ?? [d.status, "neutral"];
+              return (
+                <li key={d.id} className="py-3">
+                  <Link href={`/capture/documents/${d.id}`} className="block space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
+                      <Badge tone={tone}>{label}</Badge><Badge>{TYPE_LABEL[d.detected_type as DocType] ?? d.detected_type}</Badge><span>{fmt(d.created_at)}</span>
+                      {d.result?.proposal_ids?.length ? <Badge tone="brand">{d.result.proposal_ids.length} for approval</Badge> : null}
+                    </div>
+                    <p className="truncate text-sm">{d.file_name}</p>
+                    {d.error ? <p className={`text-xs ${d.status === "failed" || d.status === "unsupported" ? "text-bad" : "text-ink-soft"}`}>{d.error}</p> : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      ) : null}
       <Card title="Recent captures">
         {recent.length === 0 ? (
           <EmptyState title="No captures yet">

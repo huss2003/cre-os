@@ -1,3 +1,4 @@
+import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -57,6 +58,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
       <ToolHeader back={{ href: "/toolkit/compare", label: "All comparisons" }} eyebrow="Property comparison" title={a.title}
         purpose={`${a.requirement?.title ?? "No requirement linked"} · rating model ${out.model.name}${out.model.version ? ` v${out.model.version}` : ""} · lease term ${out.termMonths} months${out.termAssumed ? " (assumed)" : ""} · formula ${out.formula}`}
         steps={COMPARE_STEPS} current={2} />
+      <DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={id} />
       <Legend />
 
       <section data-tour="compare-recommendation" aria-labelledby="rec-h" className={`rounded-2xl border p-5 ${rec ? "border-brand/40 bg-brand-soft" : "border-amber-200 bg-amber-50"}`}>

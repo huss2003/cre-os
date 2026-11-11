@@ -25,7 +25,7 @@ export interface MorningBrief {
   counts: Record<string, number>;
 }
 
-async function timeboxed<T>(label: string, p: () => Promise<T>, failed: string[], ms = SOURCE_TIMEOUT_MS): Promise<T | null> {
+export async function timeboxed<T>(label: string, p: () => Promise<T>, failed: string[], ms = SOURCE_TIMEOUT_MS): Promise<T | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
