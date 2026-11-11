@@ -1,58 +1,66 @@
 {
-  "durationMs": 85223,
+  "durationMs": 69436,
   "steps": [
     {
       "caption": "Open Ask AI, then the Notes tab.",
-      "ms": 3606
+      "ms": 3605
     },
     {
       "caption": "Speak notes uses your microphone; here we paste them.",
-      "ms": 14971
+      "ms": 9734
     },
     {
       "caption": "Paste what was said on the call.",
-      "ms": 19044
+      "ms": 12914
     },
     {
-      "caption": "Link it to the requirement it's about (opened from the requirement, the ID is filled in).",
-      "ms": 35308
+      "caption": "Open 'Link to a meeting, company or requirement' — it is optional, but links the changes to the right record.",
+      "ms": 19445
+    },
+    {
+      "caption": "Pick the company: type 'Zentrix' and choose it.",
+      "ms": 23289
+    },
+    {
+      "caption": "The requirement box now offers Zentrix's open requirements. Choose the 25,000 sf Kharadi one.",
+      "ms": 28732
     },
     {
       "caption": "Press Find updates.",
-      "ms": 45222
+      "ms": 35001
     },
     {
       "caption": "'Left unknown' lists what it would not guess.",
-      "ms": 50143
+      "ms": 38873
     },
     {
       "caption": "Each change shows old → new value and the exact words it came from.",
-      "ms": 53399
+      "ms": 42058
     },
     {
       "caption": "'Needs approval' — critical values like area, budget and dates also go to Review.",
-      "ms": 56656
+      "ms": 45209
     },
     {
       "caption": "Untick what's wrong. Here we keep the area at 25,000 for now.",
-      "ms": 60197
+      "ms": 48362
     },
     {
       "caption": "Tasks: your promises from the call. Unclear dates are flagged — which Friday?",
-      "ms": 65228
+      "ms": 52175
     },
     {
       "caption": "Press Approve selected. Unticked items are discarded; nothing is sent to anyone.",
-      "ms": 68519
+      "ms": 55324
     },
     {
       "caption": "Tasks are saved now; record changes wait in Review.",
-      "ms": 73251
+      "ms": 59162
     },
     {
       "caption": "Open Review to finish the record changes.",
-      "ms": 76691
+      "ms": 62311
     }
   ],
-  "bytes": 871984
+  "bytes": 826562
 }

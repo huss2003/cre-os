@@ -28,7 +28,7 @@ export interface TourStep {
   waitFor?: WaitFor;
 }
 export interface Tour {
-  key: "database" | "signals" | "scoring" | "contacts" | "outreach" | "meetings" | "toolkit" | "automation" | "input";
+  key: "database" | "signals" | "scoring" | "contacts" | "outreach" | "meetings" | "toolkit" | "automation" | "input" | "intelligence";
   module: string;           // e.g. "Module 5"
   title: string;            // e.g. "Outreach engine"
   summary: string;          // one line for the tutorial card

@@ -249,21 +249,27 @@ const FLOWS = [
     },
   },
   {
-    slug: "notes-to-changes", category: "Ask AI & automation", title: "Paste or speak notes → tick changes → approve",
+    slug: "notes-to-changes-v2", category: "Ask AI & automation", title: "Paste or speak notes → tick changes → approve",
     learn: "Paste call notes (or speak them). CRE OS lists each record change and task with the words it came from; tick the ones you want and approve.", tryRoute: "/assistant/notes",
     async run(t) {
       const p = t.page;
+      await p.context().addCookies([{ name: "cre_ws", value: WS, url: t.BASE }]);
       await t.goto("/today");
       await t.title("Notes → changes you approve", "Paste or speak call notes. Tick the updates you want; nothing is saved until you approve.");
       await t.step("Open Ask AI, then the Notes tab.", async () => { await t.moveAndClick(navLink(p, "Ask AI")); await t.moveAndClick(tab(p, "Notes")); });
       await t.step("Speak notes uses your microphone; here we paste them.", () => t.point(main(p).getByRole("button", { name: "Speak notes" })));
       await t.step("Paste what was said on the call.", () => t.type(main(p).locator("textarea[name=notes]"),
         "Call with Ananya Rao at Zentrix Analytics. They now need 30,000 sq ft in Kharadi and the budget is Rs 90 per sq ft. Move-in by June 2027. Send revised options by Friday.", 14));
-      await t.step("Link it to the requirement it's about (opened from the requirement, the ID is filled in).", async () => {
-        const txt = await main(p).locator("textarea[name=notes]").inputValue();
-        await t.goto("/assistant/notes?requirement=88fb0b73-7486-5053-8bbe-5af8609b361e");
-        await main(p).locator("textarea[name=notes]").fill(txt);
-        await t.moveAndClick(main(p).getByText(/Link to a meeting/)); await t.point(main(p).locator("input[name=requirementId]"));
+      await t.step("Open 'Link to a meeting, company or requirement' — it is optional, but links the changes to the right record.", () => t.moveAndClick(main(p).getByRole("button", { name: /Link to a meeting, company or requirement/ })));
+      await t.step("Pick the company: type 'Zentrix' and choose it.", async () => {
+        const box = main(p).getByRole("combobox").nth(1);
+        await t.type(box, "Zentrix", 60);
+        await t.moveAndClick(p.getByRole("option", { name: /^Zentrix Analytics/ }).first());
+      });
+      await t.step("The requirement box now offers Zentrix's open requirements. Choose the 25,000 sf Kharadi one.", async () => {
+        const box = main(p).getByRole("combobox").nth(2);
+        await t.moveAndClick(box); await box.pressSequentially("Kharadi", { delay: 60 });
+        await t.moveAndClick(p.getByRole("option", { name: /25,000 sf in Kharadi/ }).first());
       });
       await t.step("Press Find updates.", () => t.moveAndClick(main(p).getByRole("button", { name: "Find updates" })));
       await t.step("'Left unknown' lists what it would not guess.", async () => { await p.waitForURL(/notes\?id=/, { timeout: 60000 }); await t.point(main(p).getByText(/Left unknown/)); });
@@ -328,20 +334,25 @@ const FLOWS = [
   },
   // ------------------------------------------------------------------ Review & settings
   {
-    slug: "review-queues", category: "Review & settings", title: "Review — what waits for you, approve, reject, ask for more info",
+    slug: "review-queues-v2", category: "Review & settings", title: "Review — what waits for you, approve, reject, ask for more info",
     learn: "Review holds everything waiting for your OK: unverified contacts, captures, record changes, merges, drafts, documents. Approve, reject, edit or request more info.", tryRoute: "/approvals",
     async run(t) {
       const p = t.page;
+      // Not filmed: earlier tutorial runs left identical open proposals (same record, same change). Keep only the newest of each.
+      sql(`update mudar.change_proposal c set archived_at = now() where c.workspace_id = '${WS}' and c.archived_at is null and c.state in ('proposed','clarify')
+           and exists (select 1 from mudar.change_proposal d where d.workspace_id = c.workspace_id and d.archived_at is null and d.state in ('proposed','clarify')
+             and d.state = c.state and d.target_type = c.target_type and coalesce(d.target_id::text,'') = coalesce(c.target_id::text,'') and d.patch::text = c.patch::text and d.created_at > c.created_at)`);
+      await p.context().addCookies([{ name: "cre_ws", value: WS, url: t.BASE }]);
       await t.goto("/today");
       await t.title("Review — what waits for you", "Nothing material changes your records until you approve it here.");
       await t.step("Open Review. The badge counts what's waiting.", () => t.moveAndClick(navLink(p, "Review")));
-      await t.step("At the top: quick counts — unverified contact details and outreach drafts.", () => t.point(main(p).getByRole("link", { name: /Unverified contact details/ }).first()));
+      await t.step("At the top: quick counts — files needing input, needs more info, unverified contact details, outreach drafts and failed jobs.", () => t.point(main(p).getByRole("link", { name: /Unverified contact details/ }).first()));
       await t.step("Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.", () => t.point(main(p).getByText(/Unverified contact details \(/)));
       await t.step("Captures to review: notes and files from Capture. Open one, check it, press Reviewed.", () => t.point(main(p).getByText(/Captures to review/)));
       await t.step("Tabs split the rest. Record changes first.", () => t.moveAndClick(main(p).getByRole("link", { name: "Record changes" })));
       p.on("dialog", (d) => d.accept().catch(() => {}));
       const req = main(p).locator("article").filter({ hasText: "Max budget" }).first();
-      const lease = main(p).locator("article").filter({ hasText: /^lease:|Area/ }).filter({ hasText: "18500" }).first();
+      const lease = main(p).locator("article").filter({ hasText: /^lease:|Area/ }).filter({ hasText: "18500" }).filter({ has: p.getByText("proposed", { exact: true }) }).first();
       await t.step("Each card: the record, 'Material' tag, now vs proposed, and the evidence quote.", () => t.point(main(p).getByText("Max budget").first()));
       await t.step("'why do we believe this?' opens the source behind the proposal.", () => t.point(main(p).getByText("why do we believe this?").first()));
       await t.step("Buttons: Approve & apply, Approve only (apply later), Ask to clarify, Reject; or Edit proposed values.", () => t.point(req.getByRole("button", { name: "Approve only" })));
@@ -355,9 +366,9 @@ const FLOWS = [
       });
       await t.step("The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.", () => t.moveAndClick(main(p).locator("article").filter({ hasText: "Max budget" }).first().getByRole("button", { name: "Approve & apply" })));
       await t.step("Applied — it leaves the queue and appears in History & undo.", () => t.point(main(p).getByRole("link", { name: "History & undo" })));
-      await t.step("Identity merges: duplicate companies, people or buildings — never merged silently.", () => t.moveAndClick(main(p).getByRole("link", { name: "Identity merges" })));
-      await t.step("External drafts: outreach drafts waiting to be checked and sent by you.", () => t.moveAndClick(main(p).getByRole("link", { name: "External drafts" })));
-      await t.step("Documents: generated documents still in draft.", () => t.moveAndClick(main(p).getByRole("link", { name: "Documents" })));
+      await t.step("Identity merges: duplicate companies, people or buildings — never merged silently.", async () => { await t.moveAndClick(main(p).getByRole("link", { name: "Identity merges" })); await sleep(800); await t.point(main(p).getByRole("link", { name: "Identity merges" })); await t.scroll(250); });
+      await t.step("External drafts: outreach drafts waiting to be checked and sent by you.", async () => { await t.moveAndClick(main(p).getByRole("link", { name: "External drafts" })); await sleep(800); await t.point(main(p).getByRole("link", { name: "External drafts" })); await t.scroll(250); });
+      await t.step("Documents: generated documents still in draft.", async () => { await t.moveAndClick(main(p).getByRole("link", { name: "Documents" })); await sleep(800); await t.point(main(p).getByRole("link", { name: "Documents" })); await t.scroll(250); });
       await t.step("Conflicts: two sources disagree on a value — you choose.", () => t.moveAndClick(main(p).getByRole("link", { name: "Conflicts" })));
       await t.step("Stale records: data too old to trust until rechecked.", () => t.moveAndClick(main(p).getByRole("link", { name: "Stale records" })));
       await t.outro("worked through Review: approved one change and asked for more info on another.", "undo an applied change.");
@@ -384,7 +395,7 @@ const FLOWS = [
     },
   },
   {
-    slug: "capture-files", category: "Review & settings", title: "Capture any file — quote, business card, photo → proposals",
+    slug: "capture-files-v2", category: "Review & settings", title: "Capture any file — quote, business card, photo → proposals",
     learn: "Drop quotes, leases, notes, cards, photos or spreadsheets into Capture. CRE OS says what it found, page by page, and turns it into proposals you review.", tryRoute: "/capture",
     async run(t) {
       const p = t.page;

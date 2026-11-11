@@ -1,0 +1,70 @@
+{
+  "durationMs": 82212,
+  "steps": [
+    {
+      "caption": "Open More → Intelligence, then the Quality tab.",
+      "ms": 3605
+    },
+    {
+      "caption": "Totals: items to look at, open changes, recommendations and the number of checks.",
+      "ms": 11230
+    },
+    {
+      "caption": "Eleven checks, each with an exact count. A check that fails to run says 'Unavailable' — never zero.",
+      "ms": 14409
+    },
+    {
+      "caption": "Outdated information: requirements not updated for six months and old availability. Click a check to open it.",
+      "ms": 17574
+    },
+    {
+      "caption": "Missing information: live requirements with no area, budget or move-in date. Ask the client.",
+      "ms": 21949
+    },
+    {
+      "caption": "Contradictory information: two different values for the same thing, waiting for you to decide.",
+      "ms": 26323
+    },
+    {
+      "caption": "Stale property quotations: past their validity date — like the Skyline quote from February.",
+      "ms": 30687
+    },
+    {
+      "caption": "Also checked: unsupported assumptions, unverified requirements, old employment, records with no source and duplicates.",
+      "ms": 35976
+    },
+    {
+      "caption": "Detected changes: each with old → new value, date, source and which deals were flagged.",
+      "ms": 39159
+    },
+    {
+      "caption": "Correct status: if a change is wrong, open 'Correct status', choose a status and give a reason. It is kept in the history.",
+      "ms": 43357
+    },
+    {
+      "caption": "Choose 'historical' and type why.",
+      "ms": 47604
+    },
+    {
+      "caption": "Save.",
+      "ms": 52863
+    },
+    {
+      "caption": "Acknowledge: you have seen and handled the change. Dismiss: it doesn't matter. Acknowledge the area change.",
+      "ms": 58375
+    },
+    {
+      "caption": "At the bottom, Recommended next actions, each with why, evidence, sources and next step.",
+      "ms": 63767
+    },
+    {
+      "caption": "Scan for changes re-checks your records now. It also runs by itself whenever records change.",
+      "ms": 67956
+    },
+    {
+      "caption": "The result says how many changes were found. Nothing here edits a record or sends anything.",
+      "ms": 75827
+    }
+  ],
+  "bytes": 1886412
+}

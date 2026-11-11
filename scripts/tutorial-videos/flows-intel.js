@@ -53,23 +53,25 @@ async function prepare() {
 
 const FLOWS = [
   {
-    slug: "signal-paste", category: CAT, title: "Turn pasted news into a signal",
+    slug: "signal-paste-v2", category: CAT, title: "Turn pasted news into a signal",
     learn: "Paste an article or a note; CRE OS finds the event in it and adds an unverified signal you can review.", tryRoute: "/signals",
     async run(t) {
       const p = t.page;
+      await p.context().addCookies([{ name: "cre_ws", value: WS, url: t.BASE }]);
       await t.goto("/today");
       await t.title("Turn pasted news into a signal", "Saw something in the news? Paste it — CRE OS picks out the event and files it as a signal to check.");
       await t.step("Open Signals: news and events that may mean a company needs space.", () => side(t, "Signals"));
       await t.step("Top: how many signals are open and how many need action now. 'Scan now' re-checks your sources.", () => t.point(main(p).getByRole("button", { name: "Scan now" })));
-      await t.step("The 12-month strip shows dated events, like lease expiries, month by month.", () => t.point(main(p).getByText("Next 12 months")));
-      await t.step("Filters on the left: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.", () => t.point(main(p).getByRole("link", { name: /^Unverified/ })));
-      await t.step("Each card: type, headline, company, source and status. The bars show how strong the evidence is.", () => t.point(main(p).getByText("Zentrix Analytics plans Pune expansion")));
-      await t.step("Open 'Paste news or a note' at the top of the page.", () => t.moveAndClick(main(p).getByText("Paste news or a note")));
+      await t.step("Right next to it, at the top of the page: 'Paste news or a note'. Open it.", () => t.moveAndClick(main(p).getByText("Paste news or a note")));
       await t.step("Name the company it is about.", () => t.type(main(p).getByPlaceholder("ABC Technologies"), "Tamarind Stack Labs", 30));
       await t.step("Paste the article text. It is only read for events — instructions inside it are ignored.", () => t.type(main(p).getByPlaceholder("Paste the announcement or article"),
         "Tamarind Stack Labs is expanding in Pune: it plans a new office in Kharadi and is hiring 400 engineers next year.", 14));
       await t.step("Press Find signals.", () => t.moveAndClick(main(p).getByRole("button", { name: "Find signals" })));
-      await t.step("The new signal is listed — marked Unverified until you check it.", () => t.point(main(p).getByText(/Tamarind Stack Labs/).first()));
+      await t.step("The result line says how many signals were found and how many are new — the same news pasted twice is not added twice.", () => soft(t, main(p).getByText(/signal\(s\) found/)));
+      await t.step("The signal is listed, marked Unverified until you check it.", () => t.point(main(p).getByText(/Tamarind Stack Labs/).first()));
+      await t.step("Below the paste box: the 12-month strip of dated events, like lease expiries, month by month.", () => soft(t, main(p).getByText("Next 12 months")));
+      await t.step("Filters: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.", () => soft(t, main(p).getByRole("link", { name: /^Unverified/ })));
+      await t.step("Each card: type, headline, company, source and status. The bars show how strong the evidence is.", () => soft(t, main(p).getByText(/Tamarind Stack Labs: possible/).first()));
       await t.step("Open it to see the evidence and decide what to do.", () => t.moveAndClick(main(p).getByRole("link", { name: /Tamarind Stack Labs/ }).first()));
       await t.step("'What happened' quotes the event; the source is your pasted text.", () => t.point(main(p).getByText("1. What happened?")));
       await t.outro("pasted a news item and got an unverified signal for Tamarind Stack Labs.", "review a signal and decide what to do with it.");

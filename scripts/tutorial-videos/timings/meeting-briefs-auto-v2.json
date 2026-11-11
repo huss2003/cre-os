@@ -1,54 +1,54 @@
 {
-  "durationMs": 61652,
+  "durationMs": 55998,
   "steps": [
     {
       "caption": "The bell at the top shows new notifications. Click it.",
-      "ms": 3606
+      "ms": 3604
     },
     {
       "caption": "'Brief ready' — the Zentrix meeting starts in about an hour, so its brief was prepared automatically.",
-      "ms": 7864
+      "ms": 7524
     },
     {
       "caption": "The full list lives in More → Automation → Notifications.",
-      "ms": 11160
+      "ms": 10692
     },
     {
       "caption": "It lists what is still missing for the meeting: decision-maker, verified contacts, budget, documents.",
-      "ms": 17051
+      "ms": 16157
     },
     {
-      "caption": "'Urgent' because the meeting is close. Informational notices wait for your working hours.",
-      "ms": 20219
+      "caption": "Urgent notices come straight away; informational ones wait for your working hours and quiet hours.",
+      "ms": 19306
     },
     {
       "caption": "Open the notification to go to the meeting.",
-      "ms": 27531
+      "ms": 22457
     },
     {
       "caption": "The meeting page: the brief has been generated (version 1) with a readiness score.",
-      "ms": 31414
+      "ms": 26350
     },
     {
       "caption": "Scroll through the brief: company, requirement, open questions to ask.",
-      "ms": 38922
+      "ms": 33660
     },
     {
       "caption": "Unknown facts stay unknown — the brief says what to find out, it never guesses.",
-      "ms": 42272
+      "ms": 36966
     },
     {
       "caption": "How it works: the job is due 60 minutes before the start. Move the meeting and the job moves with it.",
-      "ms": 45601
+      "ms": 40276
     },
     {
       "caption": "Cancel the meeting and the prep job and its reminders are cancelled too; the meeting record is kept.",
-      "ms": 49723
+      "ms": 44392
     },
     {
       "caption": "Back in Notifications, press Done when you have read it.",
-      "ms": 52888
+      "ms": 47541
     }
   ],
-  "bytes": 1152119
+  "bytes": 1189423
 }

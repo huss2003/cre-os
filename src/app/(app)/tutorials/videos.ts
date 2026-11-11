@@ -395,65 +395,73 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "notes-to-changes",
+    "slug": "notes-to-changes-v2",
     "title": "Paste or speak notes → tick changes → approve",
     "category": "Ask AI & automation",
-    "seconds": 85,
+    "seconds": 69,
     "learn": "Paste call notes (or speak them). CRE OS lists each record change and task with the words it came from; tick the ones you want and approve.",
     "tryRoute": "/assistant/notes",
     "featured": false,
     "steps": [
       {
         "caption": "Open Ask AI, then the Notes tab.",
-        "ms": 3606
+        "ms": 3605
       },
       {
         "caption": "Speak notes uses your microphone; here we paste them.",
-        "ms": 14971
+        "ms": 9734
       },
       {
         "caption": "Paste what was said on the call.",
-        "ms": 19044
+        "ms": 12914
       },
       {
-        "caption": "Link it to the requirement it's about (opened from the requirement, the ID is filled in).",
-        "ms": 35308
+        "caption": "Open 'Link to a meeting, company or requirement' — it is optional, but links the changes to the right record.",
+        "ms": 19445
+      },
+      {
+        "caption": "Pick the company: type 'Zentrix' and choose it.",
+        "ms": 23289
+      },
+      {
+        "caption": "The requirement box now offers Zentrix's open requirements. Choose the 25,000 sf Kharadi one.",
+        "ms": 28732
       },
       {
         "caption": "Press Find updates.",
-        "ms": 45222
+        "ms": 35001
       },
       {
         "caption": "'Left unknown' lists what it would not guess.",
-        "ms": 50143
+        "ms": 38873
       },
       {
         "caption": "Each change shows old → new value and the exact words it came from.",
-        "ms": 53399
+        "ms": 42058
       },
       {
         "caption": "'Needs approval' — critical values like area, budget and dates also go to Review.",
-        "ms": 56656
+        "ms": 45209
       },
       {
         "caption": "Untick what's wrong. Here we keep the area at 25,000 for now.",
-        "ms": 60197
+        "ms": 48362
       },
       {
         "caption": "Tasks: your promises from the call. Unclear dates are flagged — which Friday?",
-        "ms": 65228
+        "ms": 52175
       },
       {
         "caption": "Press Approve selected. Unticked items are discarded; nothing is sent to anyone.",
-        "ms": 68519
+        "ms": 55324
       },
       {
         "caption": "Tasks are saved now; record changes wait in Review.",
-        "ms": 73251
+        "ms": 59162
       },
       {
         "caption": "Open Review to finish the record changes.",
-        "ms": 76691
+        "ms": 62311
       }
     ]
   },
@@ -576,81 +584,81 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "review-queues",
+    "slug": "review-queues-v2",
     "title": "Review — what waits for you, approve, reject, ask for more info",
     "category": "Review & settings",
-    "seconds": 83,
+    "seconds": 71,
     "learn": "Review holds everything waiting for your OK: unverified contacts, captures, record changes, merges, drafts, documents. Approve, reject, edit or request more info.",
     "tryRoute": "/approvals",
     "featured": false,
     "steps": [
       {
         "caption": "Open Review. The badge counts what's waiting.",
-        "ms": 3621
+        "ms": 3605
       },
       {
         "caption": "At the top: quick counts — unverified contact details and outreach drafts.",
-        "ms": 8467
+        "ms": 7552
       },
       {
         "caption": "Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.",
-        "ms": 12797
+        "ms": 10740
       },
       {
         "caption": "Captures to review: notes and files from Capture. Open one, check it, press Reviewed.",
-        "ms": 16217
+        "ms": 13921
       },
       {
         "caption": "Tabs split the rest. Record changes first.",
-        "ms": 19830
+        "ms": 17170
       },
       {
         "caption": "Each card: the record, 'Material' tag, now vs proposed, and the evidence quote.",
-        "ms": 24781
+        "ms": 21090
       },
       {
         "caption": "'why do we believe this?' opens the source behind the proposal.",
-        "ms": 28127
+        "ms": 24292
       },
       {
         "caption": "Buttons: Approve & apply, Approve only (apply later), Ask to clarify, Reject; or Edit proposed values.",
-        "ms": 31842
+        "ms": 27486
       },
       {
         "caption": "The lease proposal from the PDF (area 18,000 → 18,500). Something to check first? Request more info.",
-        "ms": 35088
+        "ms": 30654
       },
       {
         "caption": "Say what's missing and press Ask — it moves to 'Needs more info' and adds a linked task.",
-        "ms": 41247
+        "ms": 35449
       },
       {
         "caption": "The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.",
-        "ms": 48713
+        "ms": 41482
       },
       {
         "caption": "Applied — it leaves the queue and appears in History & undo.",
-        "ms": 53702
+        "ms": 45352
       },
       {
         "caption": "Identity merges: duplicate companies, people or buildings — never merged silently.",
-        "ms": 57117
+        "ms": 48518
       },
       {
         "caption": "External drafts: outreach drafts waiting to be checked and sent by you.",
-        "ms": 61855
+        "ms": 52390
       },
       {
         "caption": "Documents: generated documents still in draft.",
-        "ms": 66186
+        "ms": 56280
       },
       {
         "caption": "Conflicts: two sources disagree on a value — you choose.",
-        "ms": 71099
+        "ms": 60109
       },
       {
         "caption": "Stale records: data too old to trust until rechecked.",
-        "ms": 75514
+        "ms": 63986
       }
     ]
   },
@@ -698,7 +706,7 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "capture-files",
+    "slug": "capture-files-v2",
     "title": "Capture any file — quote, business card, photo → proposals",
     "category": "Review & settings",
     "seconds": 67,
@@ -832,220 +840,268 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "automation-overview",
+    "slug": "automation-overview-v2",
     "title": "Automation: what runs by itself",
     "category": "Ask AI & automation",
-    "seconds": 80,
-    "learn": "More → Automation shows every background job: what needs you, what is running, what can be started, every workflow and its trigger, recent results, connections and usage limits.",
+    "seconds": 88,
+    "learn": "More → Automation shows whether automation is active (with one-click pause), counts of workflows by status, system alerts, capacity warnings, what needs you, what is running, what can be started, schedules, every workflow and its trigger, recent results, connections and usage per resource.",
     "tryRoute": "/automation",
     "featured": false,
     "steps": [
       {
         "caption": "Open More in the sidebar, then Automation.",
-        "ms": 3604
-      },
-      {
-        "caption": "Five tabs: Overview, Daily plan, Weekly review, Budgets & usage and Notifications.",
-        "ms": 11254
-      },
-      {
-        "caption": "The counters: workflows switched on, jobs running now, failed jobs, jobs waiting for an approval and changes waiting in Review.",
-        "ms": 14504
-      },
-      {
-        "caption": "Capacity warnings: today's clashes — overlapping meetings, too many meetings, overdue promises.",
-        "ms": 17885
-      },
-      {
-        "caption": "Needs attention: failed, paused and waiting jobs, plus records that became out of date. Start here every day.",
-        "ms": 21271
-      },
-      {
-        "caption": "Each row shows the job, its status chip (Failed, Paused…), how far it got and the error in plain words.",
-        "ms": 24507
-      },
-      {
-        "caption": "Running now lists jobs in progress. Empty means nothing is working in the background right now.",
-        "ms": 27883
-      },
-      {
-        "caption": "Start a job: run a workflow yourself — here, prepare tomorrow's meetings and list open commitments.",
-        "ms": 31365
-      },
-      {
-        "caption": "Scheduled shows recurring jobs and when they will run next.",
-        "ms": 34655
-      },
-      {
-        "caption": "All workflows: each one, whether it is On or Paused, what starts it and how many steps it has.",
-        "ms": 38189
-      },
-      {
-        "caption": "For example: 'Reassess after requirement change' runs by itself whenever a client's requirement changes.",
-        "ms": 41377
-      },
-      {
-        "caption": "Recently finished: the last jobs and how they ended (Done, Partly done, Failed, Cancelled).",
-        "ms": 44663
-      },
-      {
-        "caption": "Connections: when mail or calendar last worked. A broken connection is shown here — never hidden.",
-        "ms": 47854
-      },
-      {
-        "caption": "Usage and limits: AI and research spending against any limits an admin has set.",
-        "ms": 51041
-      },
-      {
-        "caption": "Open a workflow to see exactly what it does.",
-        "ms": 54209
-      },
-      {
-        "caption": "What it does, what starts it, when it last ran and when it runs next.",
-        "ms": 58127
-      },
-      {
-        "caption": "Steps in order. 'After: …' means a step waits for an earlier one; steps without it run in parallel.",
-        "ms": 61292
-      },
-      {
-        "caption": "Controls: Pause workflow stops new runs until you switch it on again. Priority decides which job goes first (admins only).",
-        "ms": 64552
-      },
-      {
-        "caption": "Recent runs, the records the last run touched and the change history are further down. Export log downloads a run's history.",
-        "ms": 67906
-      },
-      {
-        "caption": "The second tab in this area, Chains, holds the older record chains (signal → action, lease → renewal…).",
-        "ms": 72262
-      }
-    ]
-  },
-  {
-    "slug": "daily-plan",
-    "title": "Your 08:00 daily plan (and the weekly review)",
-    "category": "Ask AI & automation",
-    "seconds": 66,
-    "learn": "Every workday at 08:00 CRE OS builds your plan for the day from meetings, tasks and the brief: what to do first, capacity clashes and suggestions you decide on. Weekly review comes on Friday.",
-    "tryRoute": "/automation?view=daily",
-    "featured": false,
-    "steps": [
-      {
-        "caption": "Open More → Automation.",
         "ms": 3606
       },
       {
-        "caption": "Open the Daily plan tab.",
-        "ms": 9804
+        "caption": "At the top: 'Automation active' — background checks, research, scoring and updates are running. Pause automation stops them all.",
+        "ms": 9588
       },
       {
-        "caption": "Your plan for today. It is built by itself at 08:00 your time (India time by default).",
-        "ms": 13788
+        "caption": "Seven tabs: Overview, Daily plan, History, Background jobs, Weekly review, Budgets & usage and Notifications.",
+        "ms": 12752
       },
       {
-        "caption": "Want it earlier, or after a busy morning? Press Build now. It is rebuilt from the latest data.",
-        "ms": 16975
+        "caption": "A warning appears when many background jobs are waiting — results that depend on them may be out of date.",
+        "ms": 15916
       },
       {
-        "caption": "The plan is built from your meetings, tasks, calendar records and the daily brief — nothing is invented.",
-        "ms": 25147
+        "caption": "The counters: total workflows run, active now, scheduled, completed, failed, delayed, and items that need you.",
+        "ms": 19088
       },
       {
-        "caption": "Scroll through the sections: meetings to prepare, commitments due, deals needing attention, signals.",
-        "ms": 32708
+        "caption": "Total, Completed, Failed and Delayed are links — each opens the History tab filtered to those runs.",
+        "ms": 22250
       },
       {
-        "caption": "Capacity: minutes in meetings, free time and task work against your working hours.",
-        "ms": 36088
+        "caption": "System alerts: the most serious first — failed workflows, decisions waiting for you, stale outputs and changed information.",
+        "ms": 25400
       },
       {
-        "caption": "Warnings flag clashes: overlapping meetings, more meetings than your limit, overdue commitments.",
-        "ms": 39333
+        "caption": "Each alert has a label (Failed, Needs you, Stale, Changed…) and links to where you fix it.",
+        "ms": 28555
       },
       {
-        "caption": "Travel time says 'unknown' — CRE OS has no routing service, so it never guesses.",
-        "ms": 42583
+        "caption": "Capacity warnings: today's clashes — overlapping meetings, too many meetings, overdue promises.",
+        "ms": 31738
       },
       {
-        "caption": "Suggestions are only suggestions: you decide what to move. Nothing is rescheduled for you.",
-        "ms": 45789
+        "caption": "Needs attention: failed, paused and waiting jobs, plus records that became out of date. Start here every day.",
+        "ms": 34903
       },
       {
-        "caption": "Now the Weekly review tab.",
-        "ms": 50034
+        "caption": "Each row shows the job, its status chip (Failed, Paused…), how far it got and the error in plain words.",
+        "ms": 38048
       },
       {
-        "caption": "Built every Friday at 18:00: new opportunities, priority account changes, signals and meetings of the week.",
-        "ms": 55117
+        "caption": "Running now lists jobs in progress. Empty means nothing is working in the background right now.",
+        "ms": 41200
       },
       {
-        "caption": "Further down: overdue commitments, changed requirements and active deals — a checklist for next week.",
-        "ms": 58371
+        "caption": "Start a job: run a workflow yourself — here, prepare tomorrow's meetings and list open commitments.",
+        "ms": 44353
+      },
+      {
+        "caption": "Scheduled: the daily plan at 08:00 and the weekly review on Friday, with their next run.",
+        "ms": 47517
+      },
+      {
+        "caption": "All workflows: each one, whether it is On or Paused, what starts it and how many steps it has.",
+        "ms": 50664
+      },
+      {
+        "caption": "For example: 'Reassess after requirement change' runs by itself whenever a client's requirement changes.",
+        "ms": 53815
+      },
+      {
+        "caption": "Recently finished: the last jobs and how they ended (Done, Partly done, Failed, Cancelled).",
+        "ms": 56984
+      },
+      {
+        "caption": "Connections: when mail or calendar last worked. A broken connection is shown here — never hidden.",
+        "ms": 60132
+      },
+      {
+        "caption": "Usage and limits, per resource: research, contact enrichment, transcription and AI — used, limit and remaining.",
+        "ms": 63316
+      },
+      {
+        "caption": "Open a workflow to see exactly what it does.",
+        "ms": 66462
+      },
+      {
+        "caption": "What it does, what starts it, when it last ran and when it runs next.",
+        "ms": 71353
+      },
+      {
+        "caption": "Steps in order. 'After: …' means a step waits for an earlier one; steps without it run in parallel.",
+        "ms": 74497
+      },
+      {
+        "caption": "Controls: Pause workflow stops new runs of this one workflow. Priority decides which job goes first (admins only).",
+        "ms": 77646
+      },
+      {
+        "caption": "Recent runs, the records the last run touched and the change history are further down. Export log downloads a run's history.",
+        "ms": 80799
       }
     ]
   },
   {
-    "slug": "meeting-briefs-auto",
+    "slug": "daily-plan-v2",
+    "title": "Your daily plan on Today (and the weekly review)",
+    "category": "Ask AI & automation",
+    "seconds": 91,
+    "learn": "Today is your daily planner: the day's schedule, priority tasks you can tick off, overdue commitments, meetings needing prep, recommended next actions, capacity, approvals, signals, lease alerts, deals and priority accounts. It is built at 08:00 (Automation → Daily plan → Build now makes it earlier). Weekly review comes on Friday.",
+    "tryRoute": "/today",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Today at the top of the sidebar.",
+        "ms": 3605
+      },
+      {
+        "caption": "The date, and a one-line summary: meetings, follow-ups due, new signals, lease alerts and approvals.",
+        "ms": 7574
+      },
+      {
+        "caption": "‹ and › move to yesterday or tomorrow; 'Today' brings you back.",
+        "ms": 10734
+      },
+      {
+        "caption": "Getting started: a checklist for new workspaces. It disappears once everything is done.",
+        "ms": 13895
+      },
+      {
+        "caption": "Today's schedule: every meeting with its time, place and whether its brief is ready.",
+        "ms": 17062
+      },
+      {
+        "caption": "Priority tasks and follow-ups: due today or overdue. Tick the box to mark one done.",
+        "ms": 20234
+      },
+      {
+        "caption": "Mark the first task done.",
+        "ms": 23397
+      },
+      {
+        "caption": "Overdue commitments: promises made to clients that are past their date.",
+        "ms": 28746
+      },
+      {
+        "caption": "Meetings needing prep: what is still missing before each meeting.",
+        "ms": 31915
+      },
+      {
+        "caption": "Recommended next actions, numbered in order. Each says why — overdue promise, missing prep, a deal gone quiet.",
+        "ms": 35095
+      },
+      {
+        "caption": "Right-hand side: Capacity — minutes in meetings, free time and your working day.",
+        "ms": 38289
+      },
+      {
+        "caption": "Pending approvals, new signals, lease alerts, deals needing attention and priority accounts follow.",
+        "ms": 41449
+      },
+      {
+        "caption": "Each section links to the full list — e.g. All signals, Leases, Deals.",
+        "ms": 45663
+      },
+      {
+        "caption": "The plan is built by itself at 08:00. To see it in Automation, open More → Automation → Daily plan.",
+        "ms": 48830
+      },
+      {
+        "caption": "Build now rebuilds today's plan from the latest data; Open planner goes back to Today.",
+        "ms": 57470
+      },
+      {
+        "caption": "Press Build now. The rebuild is queued and the plan appears here within a few minutes.",
+        "ms": 60629
+      },
+      {
+        "caption": "Capacity warnings flag clashes: overlapping meetings, too many meetings, overdue promises, an overbooked day.",
+        "ms": 68482
+      },
+      {
+        "caption": "Suggestions are only suggestions: you decide what to move. Nothing is rescheduled for you.",
+        "ms": 71658
+      },
+      {
+        "caption": "Now the Weekly review tab.",
+        "ms": 75810
+      },
+      {
+        "caption": "Built every Friday at 18:00: new opportunities, priority account changes, signals and meetings of the week.",
+        "ms": 80550
+      },
+      {
+        "caption": "Further down: overdue commitments, changed requirements and active deals — a checklist for next week.",
+        "ms": 83710
+      }
+    ]
+  },
+  {
+    "slug": "meeting-briefs-auto-v2",
     "title": "Meeting briefs an hour before",
     "category": "Ask AI & automation",
-    "seconds": 62,
+    "seconds": 56,
     "learn": "About an hour before each client meeting CRE OS prepares the meeting brief by itself and notifies you, listing what is still missing. Rescheduling moves the job; cancelling stops it.",
     "tryRoute": "/automation?view=notifications",
     "featured": false,
     "steps": [
       {
         "caption": "The bell at the top shows new notifications. Click it.",
-        "ms": 3606
+        "ms": 3604
       },
       {
         "caption": "'Brief ready' — the Zentrix meeting starts in about an hour, so its brief was prepared automatically.",
-        "ms": 7864
+        "ms": 7524
       },
       {
         "caption": "The full list lives in More → Automation → Notifications.",
-        "ms": 11160
+        "ms": 10692
       },
       {
         "caption": "It lists what is still missing for the meeting: decision-maker, verified contacts, budget, documents.",
-        "ms": 17051
+        "ms": 16157
       },
       {
-        "caption": "'Urgent' because the meeting is close. Informational notices wait for your working hours.",
-        "ms": 20219
+        "caption": "Urgent notices come straight away; informational ones wait for your working hours and quiet hours.",
+        "ms": 19306
       },
       {
         "caption": "Open the notification to go to the meeting.",
-        "ms": 27531
+        "ms": 22457
       },
       {
         "caption": "The meeting page: the brief has been generated (version 1) with a readiness score.",
-        "ms": 31414
+        "ms": 26350
       },
       {
         "caption": "Scroll through the brief: company, requirement, open questions to ask.",
-        "ms": 38922
+        "ms": 33660
       },
       {
         "caption": "Unknown facts stay unknown — the brief says what to find out, it never guesses.",
-        "ms": 42272
+        "ms": 36966
       },
       {
         "caption": "How it works: the job is due 60 minutes before the start. Move the meeting and the job moves with it.",
-        "ms": 45601
+        "ms": 40276
       },
       {
         "caption": "Cancel the meeting and the prep job and its reminders are cancelled too; the meeting record is kept.",
-        "ms": 49723
+        "ms": 44392
       },
       {
         "caption": "Back in Notifications, press Done when you have read it.",
-        "ms": 52888
+        "ms": 47541
       }
     ]
   },
   {
-    "slug": "budgets-notifications",
+    "slug": "budgets-notifications-v2",
     "title": "Budgets and notifications",
     "category": "Ask AI & automation",
     "seconds": 76,
@@ -1055,248 +1111,429 @@ export const VIDEOS: TutorialVideo[] = [
     "steps": [
       {
         "caption": "Open More → Automation, then Budgets & usage.",
-        "ms": 3605
+        "ms": 3603
       },
       {
         "caption": "A budget is a daily or monthly limit. When it is reached, non-critical background work pauses — nothing is lost — and admins are alerted.",
-        "ms": 11519
+        "ms": 11349
       },
       {
         "caption": "Choose the resource — here 'research' (company research look-ups).",
-        "ms": 14675
+        "ms": 14495
       },
       {
         "caption": "Period: Monthly or Daily.",
-        "ms": 18528
+        "ms": 18357
       },
       {
         "caption": "Unit: calls (other resources use USD, credits, seconds, pages or runs).",
-        "ms": 21682
+        "ms": 21516
       },
       {
         "caption": "Limit: 10 calls a month. Alert at 80% warns admins before the limit.",
-        "ms": 24861
+        "ms": 24671
       },
       {
         "caption": "Save budget.",
-        "ms": 29585
+        "ms": 29028
       },
       {
         "caption": "The budget line shows used / limit, the alert level and when it resets.",
-        "ms": 34948
+        "ms": 34344
       },
       {
         "caption": "A budget never switches to another provider to keep going — it just pauses.",
-        "ms": 38131
+        "ms": 37494
       },
       {
         "caption": "Usage this month: by resource, AI cost by module and by workflow.",
-        "ms": 45451
+        "ms": 44813
       },
       {
         "caption": "Now the Notifications tab.",
-        "ms": 49582
+        "ms": 48944
       },
       {
         "caption": "Each notification says what happened and links to the record. Here: a requirement change reassessed the Zentrix comparisons.",
-        "ms": 54418
+        "ms": 53725
       },
       {
         "caption": "Done: you dealt with it. Snooze 3h: bring it back later. Dismiss: remove it (it stays in the history).",
-        "ms": 57589
+        "ms": 56877
       },
       {
         "caption": "Snooze this one for three hours.",
-        "ms": 60749
+        "ms": 60027
       },
       {
         "caption": "Similar notices are grouped, urgent ones come straight away, others wait for working hours and quiet hours.",
-        "ms": 66100
+        "ms": 65440
       },
       {
         "caption": "The bell at the top of every page shows the same list.",
-        "ms": 69252
+        "ms": 68592
       }
     ]
   },
   {
-    "slug": "ask-ai-workflow",
+    "slug": "ask-ai-workflow-v2",
     "title": "Ask AI to run a workflow",
     "category": "Ask AI & automation",
-    "seconds": 43,
+    "seconds": 42,
     "learn": "Ask AI in plain words — e.g. \"prepare tomorrow's meetings and list pending client commitments\" — and it starts the matching workflow, then shows the result and a link to the run.",
     "tryRoute": "/assistant",
     "featured": false,
     "steps": [
       {
         "caption": "Open Ask AI from the sidebar.",
-        "ms": 3605
+        "ms": 3604
       },
       {
         "caption": "Start a new conversation.",
-        "ms": 7667
+        "ms": 7547
       },
       {
         "caption": "Type the request in plain words: prepare tomorrow's meetings and list pending client commitments.",
-        "ms": 11230
+        "ms": 10827
       },
       {
         "caption": "The answer: tomorrow's meetings, briefs prepared, and open or overdue commitments.",
-        "ms": 20936
+        "ms": 20459
       },
       {
         "caption": "Press 'Open the run' to see each step.",
-        "ms": 25232
+        "ms": 24666
       },
       {
         "caption": "The run page: progress, each step with what it found, and the records involved.",
-        "ms": 33362
+        "ms": 32502
       },
       {
         "caption": "The same request works from the Ask AI panel on any page. You can also ask 'what failed?' or 'pause that job'.",
-        "ms": 36568
+        "ms": 35686
       }
     ]
   },
   {
-    "slug": "failed-job",
+    "slug": "failed-job-v2",
     "title": "Fix a failed job (retry, pause, cancel)",
     "category": "Ask AI & automation",
-    "seconds": 79,
+    "seconds": 78,
     "learn": "When a background job fails, Automation → Needs attention shows it. The run page says what failed, what was affected and what to do; Retry re-runs only the failed steps. Pause, Resume and Cancel control a run.",
     "tryRoute": "/automation",
     "featured": false,
     "steps": [
       {
         "caption": "Open More → Automation. The Failed counter shows 1.",
-        "ms": 3605
+        "ms": 3604
       },
       {
         "caption": "In Needs attention, open the failed job.",
-        "ms": 10791
+        "ms": 11200
       },
       {
         "caption": "The run page: Failed, when it started and finished.",
-        "ms": 14732
+        "ms": 15036
       },
       {
         "caption": "Progress: 2 steps done, 1 failed.",
-        "ms": 17900
+        "ms": 18181
       },
       {
         "caption": "What went wrong: the failed step and its error in plain words — a timeout, after 3 attempts.",
-        "ms": 21067
+        "ms": 21331
       },
       {
         "caption": "Records affected: the meetings this job was working on.",
-        "ms": 24240
+        "ms": 24487
       },
       {
         "caption": "Steps that worked keep their results — they will not run again.",
-        "ms": 27410
+        "ms": 27652
       },
       {
         "caption": "Will it retry by itself? No — retries are used up. What to do: check the error, then use Retry.",
-        "ms": 30589
+        "ms": 30797
       },
       {
         "caption": "Press Retry failed steps.",
-        "ms": 33758
+        "ms": 33948
       },
       {
         "caption": "Only the failed step ran again. The job is now Done.",
-        "ms": 40708
+        "ms": 40808
       },
       {
         "caption": "History shows every action: started, step finished, manual retry — with who did it.",
-        "ms": 46075
+        "ms": 45497
       },
       {
         "caption": "Export log downloads this history.",
-        "ms": 50272
+        "ms": 49667
       },
       {
         "caption": "Back to Automation: the second job here is Paused.",
-        "ms": 53453
+        "ms": 52844
       },
       {
         "caption": "Open it.",
-        "ms": 58526
+        "ms": 57665
       },
       {
         "caption": "A paused run waits. Resume continues where it stopped. Running jobs show Pause instead.",
-        "ms": 62474
+        "ms": 61502
       },
       {
         "caption": "Cancel stops it for good (admins). Finished steps and their results are kept.",
-        "ms": 65662
+        "ms": 64665
       },
       {
         "caption": "The job is now Cancelled — nothing else will run for it.",
-        "ms": 69623
+        "ms": 68474
       }
     ]
   },
   {
-    "slug": "outdated-proposals",
+    "slug": "outdated-proposals-v2",
     "title": "Outdated proposals after a new quote or requirement change",
     "category": "Ask AI & automation",
-    "seconds": 68,
+    "seconds": 66,
     "learn": "When a quote arrives or a requirement changes, CRE OS recalculates comparisons as new versions and flags proposals built on the old figures. Review → Outdated proposals lists them: Review opens a recalculated result, Refresh re-runs one you entered yourself, Dismiss closes the note; approved ones are never overwritten.",
     "tryRoute": "/approvals/outdated",
     "featured": false,
     "steps": [
       {
         "caption": "Zentrix's requirement changed: maximum area went from 28,000 to 30,000 sq ft. Open Review.",
-        "ms": 3606
+        "ms": 3604
       },
       {
         "caption": "In the row of queues, open Stale records, then the Outdated proposals tab.",
-        "ms": 7914
+        "ms": 7659
       },
       {
         "caption": "Top: approved or shared proposals that used the old figures. They are never changed automatically — you decide.",
-        "ms": 14199
+        "ms": 13138
       },
       {
         "caption": "Below: drafts and analyses that need a refresh.",
-        "ms": 17406
+        "ms": 16294
       },
       {
         "caption": "'Recalculated — review': the comparison already re-ran as a new version; the old versions are kept.",
-        "ms": 20653
+        "ms": 19463
       },
       {
         "caption": "'what changed' shows the old and new values.",
-        "ms": 23847
+        "ms": 22631
       },
       {
         "caption": "Press Review to open the recalculated comparison and check the new result.",
-        "ms": 27021
+        "ms": 25795
       },
       {
         "caption": "Back in Review: once you've checked it, Dismiss closes the note (it stays in the history).",
-        "ms": 33622
+        "ms": 32163
       },
       {
         "caption": "Dismiss this one.",
-        "ms": 38514
+        "ms": 37060
       },
       {
         "caption": "Items you entered yourself show 'May be outdated' with a Refresh button instead.",
-        "ms": 44013
+        "ms": 42613
       },
       {
         "caption": "The same warning appears on the record itself. Open the Zentrix requirement.",
-        "ms": 47201
+        "ms": 45782
       },
       {
         "caption": "New rent quotations work the same way: comparisons recalculate, proposals using the old quote are flagged.",
-        "ms": 56640
+        "ms": 55194
       },
       {
         "caption": "Each reassessment is a job in Automation → Recently finished, with its steps and the records it flagged.",
-        "ms": 59833
+        "ms": 58378
+      }
+    ]
+  },
+  {
+    "slug": "automation-pause-resume",
+    "title": "Pause and resume all automation",
+    "category": "Ask AI & automation",
+    "seconds": 58,
+    "learn": "Automation → Pause automation stops background checks, research, scoring and scheduled runs for the whole workspace (your own actions, captures and meeting reminders still run). Nothing is lost: Resume automation releases the waiting jobs.",
+    "tryRoute": "/automation",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Automation.",
+        "ms": 3604
+      },
+      {
+        "caption": "The status bar says 'Automation active': checks, research, scoring and updates run in the background.",
+        "ms": 9434
+      },
+      {
+        "caption": "It is shown on every Automation tab, so you always know the state.",
+        "ms": 12586
+      },
+      {
+        "caption": "Press Pause automation. You are asked to confirm — nothing is lost, it continues when you resume.",
+        "ms": 15731
+      },
+      {
+        "caption": "The badge now reads 'Automation paused', with the time it was paused.",
+        "ms": 22137
+      },
+      {
+        "caption": "While paused, background checks, research, scoring and scheduled runs wait. Your own actions, captures and meeting reminders still run.",
+        "ms": 25282
+      },
+      {
+        "caption": "System alerts also show that automation is paused, so nobody wonders why scores stopped updating.",
+        "ms": 28457
+      },
+      {
+        "caption": "Switch tabs — the paused bar stays at the top.",
+        "ms": 31614
+      },
+      {
+        "caption": "Jobs that would have run stay in the list as Waiting — they are not dropped.",
+        "ms": 36346
+      },
+      {
+        "caption": "Press Resume automation.",
+        "ms": 39493
+      },
+      {
+        "caption": "Back to 'Automation active'. Held jobs are released and continue where they stopped.",
+        "ms": 45829
+      },
+      {
+        "caption": "To stop just one workflow instead, open it from All workflows and use Pause workflow.",
+        "ms": 48990
+      }
+    ]
+  },
+  {
+    "slug": "workflow-history",
+    "title": "Workflow history",
+    "category": "Ask AI & automation",
+    "seconds": 55,
+    "learn": "Automation → History lists every workflow run: what started it, when it started and finished, retries, the steps that ran and the ones that failed with the error. Filter by Failed, Delayed, Completed or Paused; open a run for its full log.",
+    "tryRoute": "/automation?view=history",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Automation.",
+        "ms": 3604
+      },
+      {
+        "caption": "The counter 'Total workflows' links straight to the history.",
+        "ms": 9510
+      },
+      {
+        "caption": "Open the History tab.",
+        "ms": 12660
+      },
+      {
+        "caption": "Workflow history, newest first. Each run has a name and a status chip.",
+        "ms": 16529
+      },
+      {
+        "caption": "The second line: what started it (a person, an event, a schedule), start and finish time, and how many retries.",
+        "ms": 19677
+      },
+      {
+        "caption": "A completed run lists the steps it did — here, a requirement change re-ran comparisons, scores and notifications.",
+        "ms": 22821
+      },
+      {
+        "caption": "A failed run says which step failed, in red, with the reason.",
+        "ms": 25974
+      },
+      {
+        "caption": "Filters: All, Failed, Delayed, Completed and Paused. Choose Failed.",
+        "ms": 29125
+      },
+      {
+        "caption": "Only failed runs now. Open one to see every step and fix it.",
+        "ms": 32945
+      },
+      {
+        "caption": "Open the run.",
+        "ms": 36090
+      },
+      {
+        "caption": "The run page: what went wrong, which records were affected and Retry failed steps.",
+        "ms": 39993
+      },
+      {
+        "caption": "Back in History, choose Paused to see runs waiting for you to resume or cancel them.",
+        "ms": 43142
+      },
+      {
+        "caption": "Completed shows everything that finished well. Delayed shows runs that are late.",
+        "ms": 48532
+      }
+    ]
+  },
+  {
+    "slug": "background-jobs",
+    "title": "Background jobs: which module, status, retries",
+    "category": "Ask AI & automation",
+    "seconds": 60,
+    "learn": "Automation → Background jobs (admins) lists each queued, running, completed or failed job: which module it belongs to, when it was due, when it finished, retries and the error. Below, 'Work handed to specialist modules' tracks events passed to other modules until they finish.",
+    "tryRoute": "/automation?view=jobs",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Automation, then the Background jobs tab.",
+        "ms": 3604
+      },
+      {
+        "caption": "Every background job, with its state: Waiting, Running, Completed, Failed — will retry, or Failed.",
+        "ms": 11150
+      },
+      {
+        "caption": "'Delayed' means it is past its due time — usually the scheduler is busy or not running.",
+        "ms": 14317
+      },
+      {
+        "caption": "Module: which part of CRE OS the job belongs to — Scoring, Research, Daily brief, Deal Toolkit…",
+        "ms": 21632
+      },
+      {
+        "caption": "When it was due, when it finished (and how long it took), and retries used out of the attempts allowed.",
+        "ms": 24781
+      },
+      {
+        "caption": "Failed jobs show the reason in red.",
+        "ms": 27931
+      },
+      {
+        "caption": "Filters: All, Waiting, Delayed, Failed, Completed. Choose Completed.",
+        "ms": 35248
+      },
+      {
+        "caption": "Completed jobs with their finish time.",
+        "ms": 39093
+      },
+      {
+        "caption": "Choose Failed to see what needs a look.",
+        "ms": 42244
+      },
+      {
+        "caption": "Failed jobs: the module and the error. Jobs that can retry say 'will retry'.",
+        "ms": 46076
+      },
+      {
+        "caption": "Work handed to specialist modules: events passed on (a signal, a meeting outcome, an employer change) and whether that module finished.",
+        "ms": 49227
+      },
+      {
+        "caption": "Only admins see job details; other users see a short note instead.",
+        "ms": 53365
       }
     ]
   },
@@ -2650,61 +2887,65 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "signal-paste",
+    "slug": "signal-paste-v2",
     "title": "Turn pasted news into a signal",
     "category": "Signals, scores & contacts",
-    "seconds": 61,
+    "seconds": 54,
     "learn": "Paste an article or a note; CRE OS finds the event in it and adds an unverified signal you can review.",
     "tryRoute": "/signals",
     "featured": false,
     "steps": [
       {
         "caption": "Open Signals: news and events that may mean a company needs space.",
-        "ms": 3613
+        "ms": 3605
       },
       {
         "caption": "Top: how many signals are open and how many need action now. 'Scan now' re-checks your sources.",
-        "ms": 9079
+        "ms": 7523
       },
       {
-        "caption": "The 12-month strip shows dated events, like lease expiries, month by month.",
-        "ms": 12376
-      },
-      {
-        "caption": "Filters on the left: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.",
-        "ms": 15651
-      },
-      {
-        "caption": "Each card: type, headline, company, source and status. The bars show how strong the evidence is.",
-        "ms": 19000
-      },
-      {
-        "caption": "Open 'Paste news or a note' at the bottom of the list.",
-        "ms": 22206
+        "caption": "Right next to it, at the top of the page: 'Paste news or a note'. Open it.",
+        "ms": 10680
       },
       {
         "caption": "Name the company it is about.",
-        "ms": 27110
+        "ms": 14502
       },
       {
         "caption": "Paste the article text. It is only read for events — instructions inside it are ignored.",
-        "ms": 32463
+        "ms": 18398
       },
       {
         "caption": "Press Find signals.",
-        "ms": 41634
+        "ms": 23865
       },
       {
-        "caption": "The new signal is listed — marked Unverified until you check it.",
-        "ms": 46437
+        "caption": "The result line says how many signals were found and how many are new — the same news pasted twice is not added twice.",
+        "ms": 27713
+      },
+      {
+        "caption": "The signal is listed, marked Unverified until you check it.",
+        "ms": 30878
+      },
+      {
+        "caption": "Below the paste box: the 12-month strip of dated events, like lease expiries, month by month.",
+        "ms": 34029
+      },
+      {
+        "caption": "Filters: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.",
+        "ms": 37187
+      },
+      {
+        "caption": "Each card: type, headline, company, source and status. The bars show how strong the evidence is.",
+        "ms": 40368
       },
       {
         "caption": "Open it to see the evidence and decide what to do.",
-        "ms": 49922
+        "ms": 43532
       },
       {
         "caption": "'What happened' quotes the event; the source is your pasted text.",
-        "ms": 54701
+        "ms": 47375
       }
     ]
   },
@@ -3408,6 +3649,751 @@ export const VIDEOS: TutorialVideo[] = [
       {
         "caption": "Time to stage: how many days deals take to reach each step.",
         "ms": 75653
+      }
+    ]
+  },
+  {
+    "slug": "memory-company",
+    "title": "Company memory: everything about an account in one place",
+    "category": "Signals, scores & contacts",
+    "seconds": 78,
+    "learn": "Open a company and expand Intelligence: a labelled summary, important changes, recommendations, live and past requirements, decision-makers, deals, occupancy, conversations, open promises, objections and unanswered questions — each with its source.",
+    "tryRoute": "/companies",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Companies in the sidebar and choose Nimbus Ledger Systems, a demo client.",
+        "ms": 3604
+      },
+      {
+        "caption": "Near the top is the Intelligence panel. The summary says: one live requirement, one deal, two open promises.",
+        "ms": 9660
+      },
+      {
+        "caption": "Click it to open the account's memory.",
+        "ms": 12891
+      },
+      {
+        "caption": "First, what is NOT known: industry and current offices. Unknown stays unknown — nothing is guessed.",
+        "ms": 17277
+      },
+      {
+        "caption": "The summary is built only from the records below. Here AI is off, so it is marked 'rule-based'. Check sources before relying on it.",
+        "ms": 20452
+      },
+      {
+        "caption": "Important changes: seven differences found in this account's records. Open the list.",
+        "ms": 23614
+      },
+      {
+        "caption": "Each change shows the old value crossed out, the new value, the date, how sure we are, the source and how many deals it affects.",
+        "ms": 27935
+      },
+      {
+        "caption": "Recommendations: suggested next steps with the reason and sources. Nothing is done for you.",
+        "ms": 31115
+      },
+      {
+        "caption": "For example: the requirement area changed by 50%, so refresh the shortlist and comparison.",
+        "ms": 35527
+      },
+      {
+        "caption": "Overview and current requirements: the live brief and whether the client confirmed it.",
+        "ms": 38727
+      },
+      {
+        "caption": "Decision-makers and contacts: who decides now, and who has left the company — Rahul Bhide, the old CFO.",
+        "ms": 42297
+      },
+      {
+        "caption": "Deals: open and earlier deals stay with the company, even when a contact moves on.",
+        "ms": 46730
+      },
+      {
+        "caption": "Occupancy and rent history: no leases are recorded, so occupancy is shown as unknown.",
+        "ms": 50293
+      },
+      {
+        "caption": "Relationship history: every recorded conversation, newest first. 'Full timeline' opens them all with filters.",
+        "ms": 54633
+      },
+      {
+        "caption": "Outstanding commitments: promises we made and when they were due. Red means overdue.",
+        "ms": 58219
+      },
+      {
+        "caption": "Objections the client raised — here, limited parking — with a link to the conversation.",
+        "ms": 62642
+      },
+      {
+        "caption": "Recent developments (news and signals) and unresolved questions still to ask the client.",
+        "ms": 66209
+      },
+      {
+        "caption": "Every line links to its source, so you can always check where a fact came from.",
+        "ms": 71774
+      }
+    ]
+  },
+  {
+    "slug": "memory-contact",
+    "title": "Contact memory: employer changes and relationship strength",
+    "category": "Signals, scores & contacts",
+    "seconds": 66,
+    "learn": "A contact's Intelligence panel keeps current and previous employers (the old job is history, its deals stay with the old company), decision roles, a relationship strength score with the reasons behind it, conversations, preferences and promises.",
+    "tryRoute": "/people",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open People in the sidebar and choose Kavita Menon.",
+        "ms": 3608
+      },
+      {
+        "caption": "The panel header already shows the relationship level: developing, 41 out of 100.",
+        "ms": 9650
+      },
+      {
+        "caption": "Open the Intelligence panel.",
+        "ms": 12824
+      },
+      {
+        "caption": "The summary: she is now a Director at Nimbus Ledger, and was previously at Orchid Fintech.",
+        "ms": 17318
+      },
+      {
+        "caption": "Important changes: CRE OS detected that she changed employer, with the date and source.",
+        "ms": 20532
+      },
+      {
+        "caption": "Recommendation: the relationship moves with the person, but Orchid's deal stays with Orchid — find a new contact there.",
+        "ms": 24140
+      },
+      {
+        "caption": "Current employer, title and seniority. 'Reported' means someone told us — not yet verified.",
+        "ms": 28635
+      },
+      {
+        "caption": "Previous employers are kept as history, marked 'Past'. Nothing is deleted when someone moves.",
+        "ms": 32238
+      },
+      {
+        "caption": "Decision-making role: approver on the Nimbus requirement; her old sponsor role at Orchid is marked Past.",
+        "ms": 35833
+      },
+      {
+        "caption": "Relationship strength is worked out from recorded evidence only — every factor and its points are listed.",
+        "ms": 39467
+      },
+      {
+        "caption": "How often you talk counts for little. Trust signals carry the weight: replies, sharing information, introductions, promises kept.",
+        "ms": 43074
+      },
+      {
+        "caption": "'No evidence of' lists what would make the relationship stronger.",
+        "ms": 46252
+      },
+      {
+        "caption": "Interaction timeline: every conversation, including the 2024 meeting from when she was at Orchid.",
+        "ms": 49488
+      },
+      {
+        "caption": "Known preferences, open commitments and objections she raised.",
+        "ms": 53128
+      },
+      {
+        "caption": "Deals: Nimbus's deal, and Orchid's deal shown as 'stays with Orchid Fintech' — it was not moved with her.",
+        "ms": 58768
+      }
+    ]
+  },
+  {
+    "slug": "memory-property",
+    "title": "Property memory: past quotes, rejections and reasons",
+    "category": "Signals, scores & contacts",
+    "seconds": 59,
+    "learn": "A building's Intelligence panel lists old quotations (always history, never current pricing), availability seen over time, rent/CAM changes, which clients looked at it and every rejection with its reason.",
+    "tryRoute": "/buildings",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Buildings in the sidebar and choose Skyline Business Park – Tower 2.",
+        "ms": 3605
+      },
+      {
+        "caption": "The Intelligence panel shows one quote and one client option on record. Open it.",
+        "ms": 9397
+      },
+      {
+        "caption": "Unknown: developer, landlord and property manager are not recorded, so they are not guessed.",
+        "ms": 13826
+      },
+      {
+        "caption": "The summary says plainly: the latest terms are a historical quote, not current pricing.",
+        "ms": 17000
+      },
+      {
+        "caption": "Recommendations: the quote from February is out of date — ask the landlord for refreshed terms.",
+        "ms": 20157
+      },
+      {
+        "caption": "Another recommendation: two buildings were rejected because of parking, so filter future options on parking.",
+        "ms": 24587
+      },
+      {
+        "caption": "Latest known commercial terms: rent 78, CAM unknown, with the date it was quoted.",
+        "ms": 27750
+      },
+      {
+        "caption": "Historical quotations: every version with its date and validity. Old quotes are history, not today's price.",
+        "ms": 31335
+      },
+      {
+        "caption": "Availability observations and rent / CAM changes, as they were seen over time.",
+        "ms": 34903
+      },
+      {
+        "caption": "Client interest: which requirements this building was proposed for, and the result.",
+        "ms": 41137
+      },
+      {
+        "caption": "Rejections and reasons: 'client said no' is the client's own decision, from the site-visit feedback.",
+        "ms": 44704
+      },
+      {
+        "caption": "'did not fit' means our matching ruled it out — it is not a client decision.",
+        "ms": 49133
+      },
+      {
+        "caption": "The reason is kept: not enough parking for the team. Shortlists for this client will warn about it.",
+        "ms": 52306
+      }
+    ]
+  },
+  {
+    "slug": "memory-requirement-history",
+    "title": "Requirement history: what changed and why",
+    "category": "Signals, scores & contacts",
+    "seconds": 59,
+    "learn": "Every requirement version is kept. The requirement's Intelligence panel shows the current brief with how sure we are of each field, and What changed: old → new value, when, which version and the reason. The original is never overwritten.",
+    "tryRoute": "/requirements",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Requirements in the sidebar and choose the Nimbus Ledger Pune office.",
+        "ms": 3604
+      },
+      {
+        "caption": "The Intelligence panel says this requirement has 4 changes. Open it.",
+        "ms": 9391
+      },
+      {
+        "caption": "Current requirement: each field with how sure we are — confirmed, our estimate or unknown.",
+        "ms": 13769
+      },
+      {
+        "caption": "Unknown fields, like seats and decision date, stay 'Unknown' until the client tells you.",
+        "ms": 17337
+      },
+      {
+        "caption": "What changed: every difference between versions, newest first.",
+        "ms": 20505
+      },
+      {
+        "caption": "Area: 10,000 → 15,000 sq ft. The old value is crossed out but kept.",
+        "ms": 24084
+      },
+      {
+        "caption": "Move-in date: December 2026 → March 2027.",
+        "ms": 27258
+      },
+      {
+        "caption": "Budget and preferred locations changed too (Hinjewadi → Kharadi).",
+        "ms": 30425
+      },
+      {
+        "caption": "Each line says which version (v1→v2) and why: a call with Kavita — headcount grew after funding.",
+        "ms": 33590
+      },
+      {
+        "caption": "Recommendations: refresh the shortlist and comparison, because they were built on the old brief.",
+        "ms": 36770
+      },
+      {
+        "caption": "Previous property options and rejection reasons stay with the requirement.",
+        "ms": 41066
+      },
+      {
+        "caption": "Open the full timeline for this requirement.",
+        "ms": 45921
+      },
+      {
+        "caption": "The timeline shows the requirement change as one event with all differences and the version it came from.",
+        "ms": 49791
+      },
+      {
+        "caption": "An old value counts as obsolete only when the client confirmed the new one; otherwise it is 'superseded, not confirmed yet'.",
+        "ms": 52933
+      }
+    ]
+  },
+  {
+    "slug": "memory-decision-maker",
+    "title": "Decision-maker changed: what it affects",
+    "category": "Signals, scores & contacts",
+    "seconds": 69,
+    "learn": "When the approver or sponsor on a requirement leaves or is replaced, CRE OS records the change, flags the affected deals for review and recommends updating the buying group — without assuming the new person shares the old one's views or authority.",
+    "tryRoute": "/intelligence/changes",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More in the sidebar, then Intelligence.",
+        "ms": 3602
+      },
+      {
+        "caption": "Open the Changes tab.",
+        "ms": 9514
+      },
+      {
+        "caption": "Filter by type of change: choose 'Decision-maker changed'.",
+        "ms": 13374
+      },
+      {
+        "caption": "Press Filter.",
+        "ms": 16544
+      },
+      {
+        "caption": "Approver: Rahul Bhide → Kavita Menon. The old name is crossed out but kept.",
+        "ms": 21236
+      },
+      {
+        "caption": "Impact: the open Nimbus deal is affected and has been flagged for review.",
+        "ms": 24412
+      },
+      {
+        "caption": "Memory quality shows the same change with a caveat. Open the Quality tab.",
+        "ms": 27562
+      },
+      {
+        "caption": "The caveat: the new person's preferences and commercial authority are NOT copied from the old one — confirm them.",
+        "ms": 31395
+      },
+      {
+        "caption": "It also says which modules were told: deals, comparisons and scoring re-check the deal.",
+        "ms": 34655
+      },
+      {
+        "caption": "Recommendations: update the buying group and confirm Kavita's priorities and authority.",
+        "ms": 37852
+      },
+      {
+        "caption": "On the requirement, Decision-makers now lists Kavita as approver.",
+        "ms": 42762
+      },
+      {
+        "caption": "On the company, Rahul is still listed — marked 'left' — so the history is not lost.",
+        "ms": 50219
+      },
+      {
+        "caption": "Back in Changes, Acknowledge the change once you have dealt with it. It stays in the history.",
+        "ms": 58746
+      }
+    ]
+  },
+  {
+    "slug": "memory-preferences",
+    "title": "Recurring preferences vs confirmed requirements",
+    "category": "Signals, scores & contacts",
+    "seconds": 78,
+    "learn": "If a client mentions something in several notes (e.g. \"Grade A, immediate occupancy\"), CRE OS recognises it as a recurring preference — counted once per independent source — but never turns it into a confirmed requirement. Only what the client confirms goes into the requirement.",
+    "tryRoute": "/intelligence/timeline",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Nimbus Ledger Systems from Companies.",
+        "ms": 3607
+      },
+      {
+        "caption": "Open the Intelligence panel, then Relationship history.",
+        "ms": 9524
+      },
+      {
+        "caption": "Open the full timeline to read the notes.",
+        "ms": 15142
+      },
+      {
+        "caption": "Show only conversations: choose Event type 'Conversation'.",
+        "ms": 19034
+      },
+      {
+        "caption": "Apply.",
+        "ms": 22195
+      },
+      {
+        "caption": "July: 'They prefer a Grade A building with immediate occupancy.'",
+        "ms": 26989
+      },
+      {
+        "caption": "September: the same again after the site visits.",
+        "ms": 30201
+      },
+      {
+        "caption": "October: and again on the requirement call. Three separate notes, three sources.",
+        "ms": 33355
+      },
+      {
+        "caption": "Now ask AI about the requirement. Open Ask AI.",
+        "ms": 36505
+      },
+      {
+        "caption": "Ask: has the Nimbus Ledger requirement changed?",
+        "ms": 40584
+      },
+      {
+        "caption": "Open 'Worked through' to read the full answer from the records.",
+        "ms": 48865
+      },
+      {
+        "caption": "At the end: 'Recurring preferences (not confirmed requirements): Grade A, immediate occupancy.'",
+        "ms": 53313
+      },
+      {
+        "caption": "A note captured twice counts once — only independent notes make it recurring.",
+        "ms": 56472
+      },
+      {
+        "caption": "Now the requirement itself. Open it from Requirements.",
+        "ms": 59647
+      },
+      {
+        "caption": "Current requirement holds only what the client confirmed: area, location, move-in, budget.",
+        "ms": 65499
+      },
+      {
+        "caption": "Building grade and fit-out are still Unknown — the preference was not copied in. Confirm it with the client first.",
+        "ms": 71191
+      }
+    ]
+  },
+  {
+    "slug": "memory-recommendations",
+    "title": "Recommendations: what to do next and why",
+    "category": "Signals, scores & contacts",
+    "seconds": 57,
+    "learn": "More → Intelligence → Recommendations lists suggested next actions from your records: what, why, the evidence, sources, confidence and the next step. Filter by type, confidence or record. Done / Dismiss for stored ones; rule-based ones clear by themselves when the record is updated. Nothing runs automatically.",
+    "tryRoute": "/intelligence/recommendations",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Intelligence. The overview counts open recommendations, changes and quality items.",
+        "ms": 3604
+      },
+      {
+        "caption": "Open the Recommendations tab.",
+        "ms": 9475
+      },
+      {
+        "caption": "Each card: what to do, how confident CRE OS is, and why.",
+        "ms": 13338
+      },
+      {
+        "caption": "Below 'Why': the evidence it found, and the sources — click one to check it.",
+        "ms": 16511
+      },
+      {
+        "caption": "'Next' is the suggested action. It is only a suggestion — nothing is sent or changed for you.",
+        "ms": 19674
+      },
+      {
+        "caption": "Filter by type, confidence or record. Choose High confidence.",
+        "ms": 22846
+      },
+      {
+        "caption": "Press Filter.",
+        "ms": 25996
+      },
+      {
+        "caption": "High confidence: the requirement changed, and an old quotation should not be used as current pricing.",
+        "ms": 31005
+      },
+      {
+        "caption": "Rule-based ones say 'Clears by itself' — they go away once the record is updated.",
+        "ms": 34207
+      },
+      {
+        "caption": "Stored ones have Done and Dismiss. Mark the budget change Done once you've checked it with the client.",
+        "ms": 37374
+      },
+      {
+        "caption": "It disappears from the open list; the decision is kept in the history.",
+        "ms": 45549
+      },
+      {
+        "caption": "Recommendations also appear on each record and in Today → Recommended next actions.",
+        "ms": 48715
+      }
+    ]
+  },
+  {
+    "slug": "memory-timeline",
+    "title": "Intelligence timeline with filters",
+    "category": "Signals, scores & contacts",
+    "seconds": 61,
+    "learn": "More → Intelligence → Timeline lists conversations, meetings, job changes, requirement versions, deal stages, quotes, commitments, objections and rejections, newest first. Filter by company, contact, event type and dates; building, requirement and deal filters come from those pages.",
+    "tryRoute": "/intelligence/timeline",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Intelligence, then the Timeline tab.",
+        "ms": 3604
+      },
+      {
+        "caption": "Without filters it shows everything, newest first.",
+        "ms": 11265
+      },
+      {
+        "caption": "Each line: date, event type, how sure we are, what happened and a link to its source.",
+        "ms": 14432
+      },
+      {
+        "caption": "Pick a company: type 'Nimbus' and choose it from the list.",
+        "ms": 17585
+      },
+      {
+        "caption": "You can also pick a contact, an event type and a date range.",
+        "ms": 23264
+      },
+      {
+        "caption": "Apply.",
+        "ms": 26487
+      },
+      {
+        "caption": "Now only Nimbus Ledger: tomorrow's meeting, the rejections, deal stage, job changes, requirement change and conversations.",
+        "ms": 31463
+      },
+      {
+        "caption": "The requirement change lists every difference and the version it came from.",
+        "ms": 34665
+      },
+      {
+        "caption": "Narrow it down: Event type 'Commitment'.",
+        "ms": 37815
+      },
+      {
+        "caption": "Promises we made, with due dates. Overdue ones say so.",
+        "ms": 44205
+      },
+      {
+        "caption": "Filters appear as chips. Click ✕ on a chip to remove that filter.",
+        "ms": 47413
+      },
+      {
+        "caption": "Building, requirement and deal filters are set from their own pages with 'Full timeline'.",
+        "ms": 50564
+      },
+      {
+        "caption": "'Clear all' removes every filter.",
+        "ms": 53715
+      }
+    ]
+  },
+  {
+    "slug": "memory-quality",
+    "title": "Memory quality: stale, missing and conflicting information",
+    "category": "Signals, scores & contacts",
+    "seconds": 82,
+    "learn": "More → Intelligence → Quality runs 11 checks with exact counts (outdated, missing, contradictory, assumptions, incomplete histories, unverified requirements, stale quotes, old employment, no source, duplicates, needs review). Scan for changes, Acknowledge / Dismiss changes and correct a status with a reason.",
+    "tryRoute": "/intelligence/quality",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Intelligence, then the Quality tab.",
+        "ms": 3605
+      },
+      {
+        "caption": "Totals: items to look at, open changes, recommendations and the number of checks.",
+        "ms": 11230
+      },
+      {
+        "caption": "Eleven checks, each with an exact count. A check that fails to run says 'Unavailable' — never zero.",
+        "ms": 14409
+      },
+      {
+        "caption": "Outdated information: requirements not updated for six months and old availability. Click a check to open it.",
+        "ms": 17574
+      },
+      {
+        "caption": "Missing information: live requirements with no area, budget or move-in date. Ask the client.",
+        "ms": 21949
+      },
+      {
+        "caption": "Contradictory information: two different values for the same thing, waiting for you to decide.",
+        "ms": 26323
+      },
+      {
+        "caption": "Stale property quotations: past their validity date — like the Skyline quote from February.",
+        "ms": 30687
+      },
+      {
+        "caption": "Also checked: unsupported assumptions, unverified requirements, old employment, records with no source and duplicates.",
+        "ms": 35976
+      },
+      {
+        "caption": "Detected changes: each with old → new value, date, source and which deals were flagged.",
+        "ms": 39159
+      },
+      {
+        "caption": "Correct status: if a change is wrong, open 'Correct status', choose a status and give a reason. It is kept in the history.",
+        "ms": 43357
+      },
+      {
+        "caption": "Choose 'historical' and type why.",
+        "ms": 47604
+      },
+      {
+        "caption": "Save.",
+        "ms": 52863
+      },
+      {
+        "caption": "Acknowledge: you have seen and handled the change. Dismiss: it doesn't matter. Acknowledge the area change.",
+        "ms": 58375
+      },
+      {
+        "caption": "At the bottom, Recommended next actions, each with why, evidence, sources and next step.",
+        "ms": 63767
+      },
+      {
+        "caption": "Scan for changes re-checks your records now. It also runs by itself whenever records change.",
+        "ms": 67956
+      },
+      {
+        "caption": "The result says how many changes were found. Nothing here edits a record or sends anything.",
+        "ms": 75827
+      }
+    ]
+  },
+  {
+    "slug": "memory-before-meeting",
+    "title": "Before a meeting: what you should know",
+    "category": "Signals, scores & contacts",
+    "seconds": 54,
+    "learn": "Open the meeting: the brief lists attendees with current titles (and where they worked before), previous discussions, promises on record, objections, the requirement, old quotes, open questions and 'From your records' — source-linked memory. Unknown means not recorded.",
+    "tryRoute": "/meetings",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Meetings in the sidebar and choose tomorrow's Nimbus Ledger meeting.",
+        "ms": 3603
+      },
+      {
+        "caption": "The brief is ready. Meeting purpose: walk Kavita through the Kharadi shortlist.",
+        "ms": 9088
+      },
+      {
+        "caption": "Attendees: Kavita's current title — and 'before: Head – Admin & Facilities at Orchid Fintech'.",
+        "ms": 12392
+      },
+      {
+        "caption": "Each attendee's decision role is shown as unknown until confirmed. Confirm it in the meeting.",
+        "ms": 15564
+      },
+      {
+        "caption": "Opportunity: the current requirement — 15,000 sq ft, budget 95, move-in March 2027.",
+        "ms": 18730
+      },
+      {
+        "caption": "Previous discussions: every conversation, including the 2024 Orchid meeting with Kavita.",
+        "ms": 21911
+      },
+      {
+        "caption": "Commitments on record and objections they raised — parking at Skyline.",
+        "ms": 25082
+      },
+      {
+        "caption": "'From your records': source-linked memory. Unknown means nothing is recorded — not that it didn't happen.",
+        "ms": 28248
+      },
+      {
+        "caption": "Attendees with relationship level and how many past conversations. Sanjay: none yet.",
+        "ms": 31461
+      },
+      {
+        "caption": "Pending commitments: two promises are overdue — deal with them before the meeting.",
+        "ms": 34630
+      },
+      {
+        "caption": "Commercial discussions: the old Skyline quote, clearly marked historical.",
+        "ms": 37814
+      },
+      {
+        "caption": "Pending questions to ask, and suggested discussion points.",
+        "ms": 40976
+      },
+      {
+        "caption": "Meeting strategy: opening, discovery, value, discussion, closing — and what to avoid.",
+        "ms": 44180
+      },
+      {
+        "caption": "Questions to ask: 'Already known' shows answers we have, so you don't ask twice.",
+        "ms": 47380
+      }
+    ]
+  },
+  {
+    "slug": "memory-ask-ai",
+    "title": "Ask AI about relationships and history",
+    "category": "Signals, scores & contacts",
+    "seconds": 67,
+    "learn": "Ask AI answers history questions from your records: how a requirement changed, who the decision-makers are, which buildings were rejected and why, what changed at an account. Every answer lists its sources and what is missing.",
+    "tryRoute": "/assistant",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Ask AI from the sidebar and start a new conversation.",
+        "ms": 3604
+      },
+      {
+        "caption": "Ask: has the Nimbus Ledger requirement changed?",
+        "ms": 7600
+      },
+      {
+        "caption": "The answer: changed once on 20 Oct — area, budget, location and move-in, with the source.",
+        "ms": 15621
+      },
+      {
+        "caption": "Sources list each record used, its date and whether it is verified or reported.",
+        "ms": 18789
+      },
+      {
+        "caption": "Ask: who are the decision-makers at Nimbus Ledger?",
+        "ms": 21937
+      },
+      {
+        "caption": "Kavita is the decision-maker (approver); Sanjay's role is unknown. Contact details are unverified.",
+        "ms": 30088
+      },
+      {
+        "caption": "Missing: nobody on record for finance, procurement or legal — people you may still need to meet.",
+        "ms": 33243
+      },
+      {
+        "caption": "Ask: which properties did Nimbus Ledger reject and why?",
+        "ms": 36407
+      },
+      {
+        "caption": "Rejected options: the buildings, the reason and whether it was the client's decision or our matching.",
+        "ms": 44664
+      },
+      {
+        "caption": "Ask: what changed at Nimbus Ledger?",
+        "ms": 47832
+      },
+      {
+        "caption": "The detected changes with recommended next steps and their sources.",
+        "ms": 55249
+      },
+      {
+        "caption": "'Worked through' shows which records were read. The assistant never sends anything and never changes records without approval.",
+        "ms": 58854
       }
     ]
   },
@@ -5205,7 +6191,7 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "capture",
+    "slug": "capture-v2",
     "title": "Capture a meeting note and approve it",
     "category": "Records & data",
     "seconds": 95,

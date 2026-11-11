@@ -315,7 +315,7 @@ const FLOWS = [
       const check = (label) => main(p).locator("li").filter({ has: p.getByText(label, { exact: true }) }).first();
       const openCheck = async (label) => { const c = check(label); await t.moveAndClick(c.locator("summary")); await sleep(500); return c; };
       await t.step("Eleven checks, each with an exact count. A check that fails to run says 'Unavailable' — never zero.", () => t.point(main(p).getByText("Quality checks").first()));
-      await t.step("Outdated information: requirements not updated for six months, old availability. Open it for examples.", () => openCheck("Outdated information"));
+      await t.step("Outdated information: requirements not updated for six months and old availability. Click a check to open it.", () => openCheck("Outdated information"));
       await t.step("Missing information: live requirements with no area, budget or move-in date. Ask the client.", () => openCheck("Missing information"));
       await t.step("Contradictory information: two different values for the same thing, waiting for you to decide.", () => openCheck("Contradictory information"));
       await t.step("Stale property quotations: past their validity date — like the Skyline quote from February.", async () => { const c = await openCheck("Stale property quotations"); await soft(t, c.getByText(/Skyline/)); });
@@ -396,7 +396,10 @@ const FLOWS = [
       await t.step("Ask: which properties did Nimbus Ledger reject and why?", () => ask("Which properties did Nimbus Ledger reject and why?"));
       await t.step("Rejected options: the buildings, the reason and whether it was the client's decision or our matching.", () => soft(t, main(p).getByText(/Rejected options/).last()));
       await t.step("Ask: what changed at Nimbus Ledger?", () => ask("What changed at Nimbus Ledger?"));
-      await t.step("The detected changes with recommended next steps and their sources.", () => soft(t, main(p).getByText(/What changed/).last()));
+      await t.step("The detected changes with recommended next steps and their sources.", async () => {
+        const h = main(p).getByText("What changed", { exact: true }).last();
+        await h.scrollIntoViewIfNeeded().catch(() => {}); await sleep(400); await soft(t, h);
+      });
       await t.step("'Worked through' shows which records were read. The assistant never sends anything and never changes records without approval.", async () => { await t.moveAndClick(main(p).getByRole("button", { name: /Worked through/ }).last()); await sleep(600); });
       await t.outro("asked AI about a requirement's history, decision-makers, rejections and changes.", "open a company's memory to check the details.");
     },

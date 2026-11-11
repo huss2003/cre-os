@@ -1,0 +1,58 @@
+{
+  "durationMs": 68753,
+  "steps": [
+    {
+      "caption": "Open More in the sidebar, then Intelligence.",
+      "ms": 3602
+    },
+    {
+      "caption": "Open the Changes tab.",
+      "ms": 9514
+    },
+    {
+      "caption": "Filter by type of change: choose 'Decision-maker changed'.",
+      "ms": 13374
+    },
+    {
+      "caption": "Press Filter.",
+      "ms": 16544
+    },
+    {
+      "caption": "Approver: Rahul Bhide → Kavita Menon. The old name is crossed out but kept.",
+      "ms": 21236
+    },
+    {
+      "caption": "Impact: the open Nimbus deal is affected and has been flagged for review.",
+      "ms": 24412
+    },
+    {
+      "caption": "Memory quality shows the same change with a caveat. Open the Quality tab.",
+      "ms": 27562
+    },
+    {
+      "caption": "The caveat: the new person's preferences and commercial authority are NOT copied from the old one — confirm them.",
+      "ms": 31395
+    },
+    {
+      "caption": "It also says which modules were told: deals, comparisons and scoring re-check the deal.",
+      "ms": 34655
+    },
+    {
+      "caption": "Recommendations: update the buying group and confirm Kavita's priorities and authority.",
+      "ms": 37852
+    },
+    {
+      "caption": "On the requirement, Decision-makers now lists Kavita as approver.",
+      "ms": 42762
+    },
+    {
+      "caption": "On the company, Rahul is still listed — marked 'left' — so the history is not lost.",
+      "ms": 50219
+    },
+    {
+      "caption": "Back in Changes, Acknowledge the change once you have dealt with it. It stays in the history.",
+      "ms": 58746
+    }
+  ],
+  "bytes": 1082600
+}

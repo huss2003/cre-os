@@ -1,0 +1,90 @@
+{
+  "durationMs": 91086,
+  "steps": [
+    {
+      "caption": "Open Today at the top of the sidebar.",
+      "ms": 3605
+    },
+    {
+      "caption": "The date, and a one-line summary: meetings, follow-ups due, new signals, lease alerts and approvals.",
+      "ms": 7574
+    },
+    {
+      "caption": "‹ and › move to yesterday or tomorrow; 'Today' brings you back.",
+      "ms": 10734
+    },
+    {
+      "caption": "Getting started: a checklist for new workspaces. It disappears once everything is done.",
+      "ms": 13895
+    },
+    {
+      "caption": "Today's schedule: every meeting with its time, place and whether its brief is ready.",
+      "ms": 17062
+    },
+    {
+      "caption": "Priority tasks and follow-ups: due today or overdue. Tick the box to mark one done.",
+      "ms": 20234
+    },
+    {
+      "caption": "Mark the first task done.",
+      "ms": 23397
+    },
+    {
+      "caption": "Overdue commitments: promises made to clients that are past their date.",
+      "ms": 28746
+    },
+    {
+      "caption": "Meetings needing prep: what is still missing before each meeting.",
+      "ms": 31915
+    },
+    {
+      "caption": "Recommended next actions, numbered in order. Each says why — overdue promise, missing prep, a deal gone quiet.",
+      "ms": 35095
+    },
+    {
+      "caption": "Right-hand side: Capacity — minutes in meetings, free time and your working day.",
+      "ms": 38289
+    },
+    {
+      "caption": "Pending approvals, new signals, lease alerts, deals needing attention and priority accounts follow.",
+      "ms": 41449
+    },
+    {
+      "caption": "Each section links to the full list — e.g. All signals, Leases, Deals.",
+      "ms": 45663
+    },
+    {
+      "caption": "The plan is built by itself at 08:00. To see it in Automation, open More → Automation → Daily plan.",
+      "ms": 48830
+    },
+    {
+      "caption": "Build now rebuilds today's plan from the latest data; Open planner goes back to Today.",
+      "ms": 57470
+    },
+    {
+      "caption": "Press Build now. The rebuild is queued and the plan appears here within a few minutes.",
+      "ms": 60629
+    },
+    {
+      "caption": "Capacity warnings flag clashes: overlapping meetings, too many meetings, overdue promises, an overbooked day.",
+      "ms": 68482
+    },
+    {
+      "caption": "Suggestions are only suggestions: you decide what to move. Nothing is rescheduled for you.",
+      "ms": 71658
+    },
+    {
+      "caption": "Now the Weekly review tab.",
+      "ms": 75810
+    },
+    {
+      "caption": "Built every Friday at 18:00: new opportunities, priority account changes, signals and meetings of the week.",
+      "ms": 80550
+    },
+    {
+      "caption": "Further down: overdue commitments, changed requirements and active deals — a checklist for next week.",
+      "ms": 83710
+    }
+  ],
+  "bytes": 2077039
+}

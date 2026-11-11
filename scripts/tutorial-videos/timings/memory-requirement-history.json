@@ -1,0 +1,62 @@
+{
+  "durationMs": 59306,
+  "steps": [
+    {
+      "caption": "Open Requirements in the sidebar and choose the Nimbus Ledger Pune office.",
+      "ms": 3604
+    },
+    {
+      "caption": "The Intelligence panel says this requirement has 4 changes. Open it.",
+      "ms": 9391
+    },
+    {
+      "caption": "Current requirement: each field with how sure we are — confirmed, our estimate or unknown.",
+      "ms": 13769
+    },
+    {
+      "caption": "Unknown fields, like seats and decision date, stay 'Unknown' until the client tells you.",
+      "ms": 17337
+    },
+    {
+      "caption": "What changed: every difference between versions, newest first.",
+      "ms": 20505
+    },
+    {
+      "caption": "Area: 10,000 → 15,000 sq ft. The old value is crossed out but kept.",
+      "ms": 24084
+    },
+    {
+      "caption": "Move-in date: December 2026 → March 2027.",
+      "ms": 27258
+    },
+    {
+      "caption": "Budget and preferred locations changed too (Hinjewadi → Kharadi).",
+      "ms": 30425
+    },
+    {
+      "caption": "Each line says which version (v1→v2) and why: a call with Kavita — headcount grew after funding.",
+      "ms": 33590
+    },
+    {
+      "caption": "Recommendations: refresh the shortlist and comparison, because they were built on the old brief.",
+      "ms": 36770
+    },
+    {
+      "caption": "Previous property options and rejection reasons stay with the requirement.",
+      "ms": 41066
+    },
+    {
+      "caption": "Open the full timeline for this requirement.",
+      "ms": 45921
+    },
+    {
+      "caption": "The timeline shows the requirement change as one event with all differences and the version it came from.",
+      "ms": 49791
+    },
+    {
+      "caption": "An old value counts as obsolete only when the client confirmed the new one; otherwise it is 'superseded, not confirmed yet'.",
+      "ms": 52933
+    }
+  ],
+  "bytes": 926662
+}

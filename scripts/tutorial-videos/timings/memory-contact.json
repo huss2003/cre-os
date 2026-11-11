@@ -1,0 +1,66 @@
+{
+  "durationMs": 66414,
+  "steps": [
+    {
+      "caption": "Open People in the sidebar and choose Kavita Menon.",
+      "ms": 3608
+    },
+    {
+      "caption": "The panel header already shows the relationship level: developing, 41 out of 100.",
+      "ms": 9650
+    },
+    {
+      "caption": "Open the Intelligence panel.",
+      "ms": 12824
+    },
+    {
+      "caption": "The summary: she is now a Director at Nimbus Ledger, and was previously at Orchid Fintech.",
+      "ms": 17318
+    },
+    {
+      "caption": "Important changes: CRE OS detected that she changed employer, with the date and source.",
+      "ms": 20532
+    },
+    {
+      "caption": "Recommendation: the relationship moves with the person, but Orchid's deal stays with Orchid — find a new contact there.",
+      "ms": 24140
+    },
+    {
+      "caption": "Current employer, title and seniority. 'Reported' means someone told us — not yet verified.",
+      "ms": 28635
+    },
+    {
+      "caption": "Previous employers are kept as history, marked 'Past'. Nothing is deleted when someone moves.",
+      "ms": 32238
+    },
+    {
+      "caption": "Decision-making role: approver on the Nimbus requirement; her old sponsor role at Orchid is marked Past.",
+      "ms": 35833
+    },
+    {
+      "caption": "Relationship strength is worked out from recorded evidence only — every factor and its points are listed.",
+      "ms": 39467
+    },
+    {
+      "caption": "How often you talk counts for little. Trust signals carry the weight: replies, sharing information, introductions, promises kept.",
+      "ms": 43074
+    },
+    {
+      "caption": "'No evidence of' lists what would make the relationship stronger.",
+      "ms": 46252
+    },
+    {
+      "caption": "Interaction timeline: every conversation, including the 2024 meeting from when she was at Orchid.",
+      "ms": 49488
+    },
+    {
+      "caption": "Known preferences, open commitments and objections she raised.",
+      "ms": 53128
+    },
+    {
+      "caption": "Deals: Nimbus's deal, and Orchid's deal shown as 'stays with Orchid Fintech' — it was not moved with her.",
+      "ms": 58768
+    }
+  ],
+  "bytes": 996896
+}

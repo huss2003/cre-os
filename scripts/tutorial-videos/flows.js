@@ -97,7 +97,7 @@ const FLOWS = [
   },
 
   {
-    slug: "capture", category: "Records & data", title: "Capture a meeting note and approve it",
+    slug: "capture-v2", category: "Records & data", title: "Capture a meeting note and approve it",
     learn: "Every part of Capture (speak, type, photo, files, links), the questions it asks, Reviewed, and where the result appears.", tryRoute: "/capture",
     async run(t) {
       const p = t.page;

@@ -1,0 +1,78 @@
+{
+  "durationMs": 78133,
+  "steps": [
+    {
+      "caption": "Open Companies in the sidebar and choose Nimbus Ledger Systems, a demo client.",
+      "ms": 3604
+    },
+    {
+      "caption": "Near the top is the Intelligence panel. The summary says: one live requirement, one deal, two open promises.",
+      "ms": 9660
+    },
+    {
+      "caption": "Click it to open the account's memory.",
+      "ms": 12891
+    },
+    {
+      "caption": "First, what is NOT known: industry and current offices. Unknown stays unknown — nothing is guessed.",
+      "ms": 17277
+    },
+    {
+      "caption": "The summary is built only from the records below. Here AI is off, so it is marked 'rule-based'. Check sources before relying on it.",
+      "ms": 20452
+    },
+    {
+      "caption": "Important changes: seven differences found in this account's records. Open the list.",
+      "ms": 23614
+    },
+    {
+      "caption": "Each change shows the old value crossed out, the new value, the date, how sure we are, the source and how many deals it affects.",
+      "ms": 27935
+    },
+    {
+      "caption": "Recommendations: suggested next steps with the reason and sources. Nothing is done for you.",
+      "ms": 31115
+    },
+    {
+      "caption": "For example: the requirement area changed by 50%, so refresh the shortlist and comparison.",
+      "ms": 35527
+    },
+    {
+      "caption": "Overview and current requirements: the live brief and whether the client confirmed it.",
+      "ms": 38727
+    },
+    {
+      "caption": "Decision-makers and contacts: who decides now, and who has left the company — Rahul Bhide, the old CFO.",
+      "ms": 42297
+    },
+    {
+      "caption": "Deals: open and earlier deals stay with the company, even when a contact moves on.",
+      "ms": 46730
+    },
+    {
+      "caption": "Occupancy and rent history: no leases are recorded, so occupancy is shown as unknown.",
+      "ms": 50293
+    },
+    {
+      "caption": "Relationship history: every recorded conversation, newest first. 'Full timeline' opens them all with filters.",
+      "ms": 54633
+    },
+    {
+      "caption": "Outstanding commitments: promises we made and when they were due. Red means overdue.",
+      "ms": 58219
+    },
+    {
+      "caption": "Objections the client raised — here, limited parking — with a link to the conversation.",
+      "ms": 62642
+    },
+    {
+      "caption": "Recent developments (news and signals) and unresolved questions still to ask the client.",
+      "ms": 66209
+    },
+    {
+      "caption": "Every line links to its source, so you can always check where a fact came from.",
+      "ms": 71774
+    }
+  ],
+  "bytes": 1163820
+}

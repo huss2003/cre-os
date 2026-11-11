@@ -1,74 +1,74 @@
 {
-  "durationMs": 83494,
+  "durationMs": 70975,
   "steps": [
     {
       "caption": "Open Review. The badge counts what's waiting.",
-      "ms": 3621
+      "ms": 3605
     },
     {
       "caption": "At the top: quick counts — unverified contact details and outreach drafts.",
-      "ms": 8467
+      "ms": 7552
     },
     {
       "caption": "Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.",
-      "ms": 12797
+      "ms": 10740
     },
     {
       "caption": "Captures to review: notes and files from Capture. Open one, check it, press Reviewed.",
-      "ms": 16217
+      "ms": 13921
     },
     {
       "caption": "Tabs split the rest. Record changes first.",
-      "ms": 19830
+      "ms": 17170
     },
     {
       "caption": "Each card: the record, 'Material' tag, now vs proposed, and the evidence quote.",
-      "ms": 24781
+      "ms": 21090
     },
     {
       "caption": "'why do we believe this?' opens the source behind the proposal.",
-      "ms": 28127
+      "ms": 24292
     },
     {
       "caption": "Buttons: Approve & apply, Approve only (apply later), Ask to clarify, Reject; or Edit proposed values.",
-      "ms": 31842
+      "ms": 27486
     },
     {
       "caption": "The lease proposal from the PDF (area 18,000 → 18,500). Something to check first? Request more info.",
-      "ms": 35088
+      "ms": 30654
     },
     {
       "caption": "Say what's missing and press Ask — it moves to 'Needs more info' and adds a linked task.",
-      "ms": 41247
+      "ms": 35449
     },
     {
       "caption": "The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.",
-      "ms": 48713
+      "ms": 41482
     },
     {
       "caption": "Applied — it leaves the queue and appears in History & undo.",
-      "ms": 53702
+      "ms": 45352
     },
     {
       "caption": "Identity merges: duplicate companies, people or buildings — never merged silently.",
-      "ms": 57117
+      "ms": 48518
     },
     {
       "caption": "External drafts: outreach drafts waiting to be checked and sent by you.",
-      "ms": 61855
+      "ms": 52390
     },
     {
       "caption": "Documents: generated documents still in draft.",
-      "ms": 66186
+      "ms": 56280
     },
     {
       "caption": "Conflicts: two sources disagree on a value — you choose.",
-      "ms": 71099
+      "ms": 60109
     },
     {
       "caption": "Stale records: data too old to trust until rechecked.",
-      "ms": 75514
+      "ms": 63986
     }
   ],
-  "bytes": 1259459
+  "bytes": 1185029
 }

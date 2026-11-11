@@ -54,7 +54,7 @@ describe("tutorial catalogue helpers", () => {
 
 describe("automation (Module 9) tutorials", async () => {
   const { VIDEOS } = await import("./videos");
-  const SLUGS = ["automation-overview", "daily-plan", "meeting-briefs-auto", "failed-job", "outdated-proposals", "budgets-notifications", "ask-ai-workflow"];
+  const SLUGS = ["automation-overview-v2", "daily-plan-v2", "meeting-briefs-auto-v2", "failed-job-v2", "outdated-proposals-v2", "budgets-notifications-v2", "ask-ai-workflow-v2"];
   it("are in the manifest under Ask AI & automation with steps", () => {
     for (const s of SLUGS) {
       const x = VIDEOS.find((y) => y.slug === s);
@@ -64,7 +64,7 @@ describe("automation (Module 9) tutorials", async () => {
     }
   });
   it("are findable by search", () => {
-    expect(filterVideos(VIDEOS, { q: "outdated proposals" })[0].slug).toBe("outdated-proposals");
-    expect(filterVideos(VIDEOS, { q: "retry" }).map((x) => x.slug)).toContain("failed-job");
+    expect(filterVideos(VIDEOS, { q: "outdated proposals" })[0].slug).toBe("outdated-proposals-v2");
+    expect(filterVideos(VIDEOS, { q: "retry" }).map((x) => x.slug)).toContain("failed-job-v2");
   });
 });

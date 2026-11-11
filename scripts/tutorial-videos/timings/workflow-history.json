@@ -1,0 +1,58 @@
+{
+  "durationMs": 54894,
+  "steps": [
+    {
+      "caption": "Open More → Automation.",
+      "ms": 3604
+    },
+    {
+      "caption": "The counter 'Total workflows' links straight to the history.",
+      "ms": 9510
+    },
+    {
+      "caption": "Open the History tab.",
+      "ms": 12660
+    },
+    {
+      "caption": "Workflow history, newest first. Each run has a name and a status chip.",
+      "ms": 16529
+    },
+    {
+      "caption": "The second line: what started it (a person, an event, a schedule), start and finish time, and how many retries.",
+      "ms": 19677
+    },
+    {
+      "caption": "A completed run lists the steps it did — here, a requirement change re-ran comparisons, scores and notifications.",
+      "ms": 22821
+    },
+    {
+      "caption": "A failed run says which step failed, in red, with the reason.",
+      "ms": 25974
+    },
+    {
+      "caption": "Filters: All, Failed, Delayed, Completed and Paused. Choose Failed.",
+      "ms": 29125
+    },
+    {
+      "caption": "Only failed runs now. Open one to see every step and fix it.",
+      "ms": 32945
+    },
+    {
+      "caption": "Open the run.",
+      "ms": 36090
+    },
+    {
+      "caption": "The run page: what went wrong, which records were affected and Retry failed steps.",
+      "ms": 39993
+    },
+    {
+      "caption": "Back in History, choose Paused to see runs waiting for you to resume or cancel them.",
+      "ms": 43142
+    },
+    {
+      "caption": "Completed shows everything that finished well. Delayed shows runs that are late.",
+      "ms": 48532
+    }
+  ],
+  "bytes": 665104
+}

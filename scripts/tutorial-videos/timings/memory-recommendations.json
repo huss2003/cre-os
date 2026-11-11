@@ -1,0 +1,54 @@
+{
+  "durationMs": 57049,
+  "steps": [
+    {
+      "caption": "Open More → Intelligence. The overview counts open recommendations, changes and quality items.",
+      "ms": 3604
+    },
+    {
+      "caption": "Open the Recommendations tab.",
+      "ms": 9475
+    },
+    {
+      "caption": "Each card: what to do, how confident CRE OS is, and why.",
+      "ms": 13338
+    },
+    {
+      "caption": "Below 'Why': the evidence it found, and the sources — click one to check it.",
+      "ms": 16511
+    },
+    {
+      "caption": "'Next' is the suggested action. It is only a suggestion — nothing is sent or changed for you.",
+      "ms": 19674
+    },
+    {
+      "caption": "Filter by type, confidence or record. Choose High confidence.",
+      "ms": 22846
+    },
+    {
+      "caption": "Press Filter.",
+      "ms": 25996
+    },
+    {
+      "caption": "High confidence: the requirement changed, and an old quotation should not be used as current pricing.",
+      "ms": 31005
+    },
+    {
+      "caption": "Rule-based ones say 'Clears by itself' — they go away once the record is updated.",
+      "ms": 34207
+    },
+    {
+      "caption": "Stored ones have Done and Dismiss. Mark the budget change Done once you've checked it with the client.",
+      "ms": 37374
+    },
+    {
+      "caption": "It disappears from the open list; the decision is kept in the history.",
+      "ms": 45549
+    },
+    {
+      "caption": "Recommendations also appear on each record and in Today → Recommended next actions.",
+      "ms": 48715
+    }
+  ],
+  "bytes": 852820
+}

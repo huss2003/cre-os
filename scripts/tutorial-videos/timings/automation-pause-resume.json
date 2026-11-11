@@ -1,0 +1,54 @@
+{
+  "durationMs": 58068,
+  "steps": [
+    {
+      "caption": "Open More → Automation.",
+      "ms": 3604
+    },
+    {
+      "caption": "The status bar says 'Automation active': checks, research, scoring and updates run in the background.",
+      "ms": 9434
+    },
+    {
+      "caption": "It is shown on every Automation tab, so you always know the state.",
+      "ms": 12586
+    },
+    {
+      "caption": "Press Pause automation. You are asked to confirm — nothing is lost, it continues when you resume.",
+      "ms": 15731
+    },
+    {
+      "caption": "The badge now reads 'Automation paused', with the time it was paused.",
+      "ms": 22137
+    },
+    {
+      "caption": "While paused, background checks, research, scoring and scheduled runs wait. Your own actions, captures and meeting reminders still run.",
+      "ms": 25282
+    },
+    {
+      "caption": "System alerts also show that automation is paused, so nobody wonders why scores stopped updating.",
+      "ms": 28457
+    },
+    {
+      "caption": "Switch tabs — the paused bar stays at the top.",
+      "ms": 31614
+    },
+    {
+      "caption": "Jobs that would have run stay in the list as Waiting — they are not dropped.",
+      "ms": 36346
+    },
+    {
+      "caption": "Press Resume automation.",
+      "ms": 39493
+    },
+    {
+      "caption": "Back to 'Automation active'. Held jobs are released and continue where they stopped.",
+      "ms": 45829
+    },
+    {
+      "caption": "To stop just one workflow instead, open it from All workflows and use Pause workflow.",
+      "ms": 48990
+    }
+  ],
+  "bytes": 917653
+}

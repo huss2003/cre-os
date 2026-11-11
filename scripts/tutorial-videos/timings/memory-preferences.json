@@ -1,0 +1,70 @@
+{
+  "durationMs": 77563,
+  "steps": [
+    {
+      "caption": "Open Nimbus Ledger Systems from Companies.",
+      "ms": 3607
+    },
+    {
+      "caption": "Open the Intelligence panel, then Relationship history.",
+      "ms": 9524
+    },
+    {
+      "caption": "Open the full timeline to read the notes.",
+      "ms": 15142
+    },
+    {
+      "caption": "Show only conversations: choose Event type 'Conversation'.",
+      "ms": 19034
+    },
+    {
+      "caption": "Apply.",
+      "ms": 22195
+    },
+    {
+      "caption": "July: 'They prefer a Grade A building with immediate occupancy.'",
+      "ms": 26989
+    },
+    {
+      "caption": "September: the same again after the site visits.",
+      "ms": 30201
+    },
+    {
+      "caption": "October: and again on the requirement call. Three separate notes, three sources.",
+      "ms": 33355
+    },
+    {
+      "caption": "Now ask AI about the requirement. Open Ask AI.",
+      "ms": 36505
+    },
+    {
+      "caption": "Ask: has the Nimbus Ledger requirement changed?",
+      "ms": 40584
+    },
+    {
+      "caption": "Open 'Worked through' to read the full answer from the records.",
+      "ms": 48865
+    },
+    {
+      "caption": "At the end: 'Recurring preferences (not confirmed requirements): Grade A, immediate occupancy.'",
+      "ms": 53313
+    },
+    {
+      "caption": "A note captured twice counts once — only independent notes make it recurring.",
+      "ms": 56472
+    },
+    {
+      "caption": "Now the requirement itself. Open it from Requirements.",
+      "ms": 59647
+    },
+    {
+      "caption": "Current requirement holds only what the client confirmed: area, location, move-in, budget.",
+      "ms": 65499
+    },
+    {
+      "caption": "Building grade and fit-out are still Unknown — the preference was not copied in. Confirm it with the client first.",
+      "ms": 71191
+    }
+  ],
+  "bytes": 1329493
+}

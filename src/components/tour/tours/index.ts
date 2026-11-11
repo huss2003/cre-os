@@ -8,8 +8,9 @@ import { tour as meetings } from "./meetings";
 import { tour as toolkit } from "./toolkit";
 import { tour as automation } from "./automation";
 import { tour as input } from "./input-engine";
+import { tour as intelligence } from "./intelligence";
 
-export const TOURS: Tour[] = [database, signals, scoring, contacts, outreach, meetings, toolkit, automation, input];
+export const TOURS: Tour[] = [database, signals, scoring, contacts, outreach, meetings, toolkit, automation, input, intelligence];
 export function tourByKey(key: string | null | undefined): Tour | undefined {
   return TOURS.find((t) => t.key === key);
 }

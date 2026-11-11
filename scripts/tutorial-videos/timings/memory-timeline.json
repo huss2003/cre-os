@@ -1,0 +1,58 @@
+{
+  "durationMs": 60755,
+  "steps": [
+    {
+      "caption": "Open More → Intelligence, then the Timeline tab.",
+      "ms": 3604
+    },
+    {
+      "caption": "Without filters it shows everything, newest first.",
+      "ms": 11265
+    },
+    {
+      "caption": "Each line: date, event type, how sure we are, what happened and a link to its source.",
+      "ms": 14432
+    },
+    {
+      "caption": "Pick a company: type 'Nimbus' and choose it from the list.",
+      "ms": 17585
+    },
+    {
+      "caption": "You can also pick a contact, an event type and a date range.",
+      "ms": 23264
+    },
+    {
+      "caption": "Apply.",
+      "ms": 26487
+    },
+    {
+      "caption": "Now only Nimbus Ledger: tomorrow's meeting, the rejections, deal stage, job changes, requirement change and conversations.",
+      "ms": 31463
+    },
+    {
+      "caption": "The requirement change lists every difference and the version it came from.",
+      "ms": 34665
+    },
+    {
+      "caption": "Narrow it down: Event type 'Commitment'.",
+      "ms": 37815
+    },
+    {
+      "caption": "Promises we made, with due dates. Overdue ones say so.",
+      "ms": 44205
+    },
+    {
+      "caption": "Filters appear as chips. Click ✕ on a chip to remove that filter.",
+      "ms": 47413
+    },
+    {
+      "caption": "Building, requirement and deal filters are set from their own pages with 'Full timeline'.",
+      "ms": 50564
+    },
+    {
+      "caption": "'Clear all' removes every filter.",
+      "ms": 53715
+    }
+  ],
+  "bytes": 711486
+}

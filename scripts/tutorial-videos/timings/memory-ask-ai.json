@@ -1,0 +1,54 @@
+{
+  "durationMs": 66538,
+  "steps": [
+    {
+      "caption": "Open Ask AI from the sidebar and start a new conversation.",
+      "ms": 3604
+    },
+    {
+      "caption": "Ask: has the Nimbus Ledger requirement changed?",
+      "ms": 7600
+    },
+    {
+      "caption": "The answer: changed once on 20 Oct — area, budget, location and move-in, with the source.",
+      "ms": 15621
+    },
+    {
+      "caption": "Sources list each record used, its date and whether it is verified or reported.",
+      "ms": 18789
+    },
+    {
+      "caption": "Ask: who are the decision-makers at Nimbus Ledger?",
+      "ms": 21937
+    },
+    {
+      "caption": "Kavita is the decision-maker (approver); Sanjay's role is unknown. Contact details are unverified.",
+      "ms": 30088
+    },
+    {
+      "caption": "Missing: nobody on record for finance, procurement or legal — people you may still need to meet.",
+      "ms": 33243
+    },
+    {
+      "caption": "Ask: which properties did Nimbus Ledger reject and why?",
+      "ms": 36407
+    },
+    {
+      "caption": "Rejected options: the buildings, the reason and whether it was the client's decision or our matching.",
+      "ms": 44664
+    },
+    {
+      "caption": "Ask: what changed at Nimbus Ledger?",
+      "ms": 47832
+    },
+    {
+      "caption": "The detected changes with recommended next steps and their sources.",
+      "ms": 55249
+    },
+    {
+      "caption": "'Worked through' shows which records were read. The assistant never sends anything and never changes records without approval.",
+      "ms": 58854
+    }
+  ],
+  "bytes": 1183334
+}

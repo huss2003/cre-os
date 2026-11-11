@@ -1,0 +1,58 @@
+{
+  "durationMs": 58674,
+  "steps": [
+    {
+      "caption": "Open Buildings in the sidebar and choose Skyline Business Park – Tower 2.",
+      "ms": 3605
+    },
+    {
+      "caption": "The Intelligence panel shows one quote and one client option on record. Open it.",
+      "ms": 9397
+    },
+    {
+      "caption": "Unknown: developer, landlord and property manager are not recorded, so they are not guessed.",
+      "ms": 13826
+    },
+    {
+      "caption": "The summary says plainly: the latest terms are a historical quote, not current pricing.",
+      "ms": 17000
+    },
+    {
+      "caption": "Recommendations: the quote from February is out of date — ask the landlord for refreshed terms.",
+      "ms": 20157
+    },
+    {
+      "caption": "Another recommendation: two buildings were rejected because of parking, so filter future options on parking.",
+      "ms": 24587
+    },
+    {
+      "caption": "Latest known commercial terms: rent 78, CAM unknown, with the date it was quoted.",
+      "ms": 27750
+    },
+    {
+      "caption": "Historical quotations: every version with its date and validity. Old quotes are history, not today's price.",
+      "ms": 31335
+    },
+    {
+      "caption": "Availability observations and rent / CAM changes, as they were seen over time.",
+      "ms": 34903
+    },
+    {
+      "caption": "Client interest: which requirements this building was proposed for, and the result.",
+      "ms": 41137
+    },
+    {
+      "caption": "Rejections and reasons: 'client said no' is the client's own decision, from the site-visit feedback.",
+      "ms": 44704
+    },
+    {
+      "caption": "'did not fit' means our matching ruled it out — it is not a client decision.",
+      "ms": 49133
+    },
+    {
+      "caption": "The reason is kept: not enough parking for the team. Shortlists for this client will warn about it.",
+      "ms": 52306
+    }
+  ],
+  "bytes": 924454
+}

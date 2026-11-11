@@ -1,0 +1,54 @@
+{
+  "durationMs": 59720,
+  "steps": [
+    {
+      "caption": "Open More → Automation, then the Background jobs tab.",
+      "ms": 3604
+    },
+    {
+      "caption": "Every background job, with its state: Waiting, Running, Completed, Failed — will retry, or Failed.",
+      "ms": 11150
+    },
+    {
+      "caption": "'Delayed' means it is past its due time — usually the scheduler is busy or not running.",
+      "ms": 14317
+    },
+    {
+      "caption": "Module: which part of CRE OS the job belongs to — Scoring, Research, Daily brief, Deal Toolkit…",
+      "ms": 21632
+    },
+    {
+      "caption": "When it was due, when it finished (and how long it took), and retries used out of the attempts allowed.",
+      "ms": 24781
+    },
+    {
+      "caption": "Failed jobs show the reason in red.",
+      "ms": 27931
+    },
+    {
+      "caption": "Filters: All, Waiting, Delayed, Failed, Completed. Choose Completed.",
+      "ms": 35248
+    },
+    {
+      "caption": "Completed jobs with their finish time.",
+      "ms": 39093
+    },
+    {
+      "caption": "Choose Failed to see what needs a look.",
+      "ms": 42244
+    },
+    {
+      "caption": "Failed jobs: the module and the error. Jobs that can retry say 'will retry'.",
+      "ms": 46076
+    },
+    {
+      "caption": "Work handed to specialist modules: events passed on (a signal, a meeting outcome, an employer change) and whether that module finished.",
+      "ms": 49227
+    },
+    {
+      "caption": "Only admins see job details; other users see a short note instead.",
+      "ms": 53365
+    }
+  ],
+  "bytes": 817216
+}
