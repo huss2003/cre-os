@@ -28,9 +28,10 @@ describe("lease-service persistence (saveAnalysis, immutable versions)", () => {
     const db = await userClient("owner");
     const w = { db, ws: WS1, userId: USERS.owner.id };
     const n = await createNegotiation(w, { title: tag("nego"), terms: { ...A, rentFreeMonths: 1 } });
-    await addOffer(w, n.id, { ...A, rentPerSf: 95, rentFreeMonths: 3, escalationPct: 12 });
+    await addOffer(w, n.id, { ...A, name: "Tower B counter", rentPerSf: 95, rentFreeMonths: 3, escalationPct: 12 });
     const a = await loadNegotiation(w, n.id);
-    expect(a!.inputs.versions.map((v) => v.label)).toEqual(["Offer 1", "Offer 2"]);
+    expect(a!.inputs.versions.map((v) => v.label)).toEqual(["Offer 1 — A", "Offer 2 — Tower B counter"]);
+    expect(a!.inputs.versions[1].terms.name).toBe("Tower B counter");
     expect(a!.inputs.versions[0].terms.rentPerSf).toBe(100);
     expect(a!.outputs.diffs[1].financial!.rentChange).toBe("-14285000.00");
     expect(sameOutputs(JSON.parse(JSON.stringify(analyseNegotiation(a!.inputs.versions, a!.inputs.packages))), a!.outputs)).toBe(true);

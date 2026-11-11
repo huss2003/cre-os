@@ -8,6 +8,7 @@
  */
 import Decimal from "decimal.js";
 import { num } from "./fitout";
+import { assertValidInputs, InputRangeError } from "./validate";
 
 export const LOAN_FORMULA = "loan-1.0";
 type Num = string | number | null | undefined;
@@ -39,9 +40,14 @@ export function emiExact(P: Decimal.Value, monthlyRate: Decimal.Value, n: number
 }
 
 export function computeLoan(input: LoanInput): LoanResult {
+  assertValidInputs(input);
   const missing: string[] = [];
   const cost = num(input.projectCost), contrib = num(input.clientContribution);
   let financed = num(input.financedAmount);
+  if (cost && contrib && contrib.gt(cost)) throw new InputRangeError("clientContribution", "Client contribution cannot be more than the project cost");
+  if (financed && cost && financed.gt(cost.minus(contrib ?? 0))) {
+    throw new InputRangeError("financedAmount", `Financed amount cannot be more than project cost − client contribution (₹${cost.minus(contrib ?? 0).toFixed(2)})`);
+  }
   if (!financed && cost && contrib) financed = cost.minus(contrib);
   if (!financed && cost && !contrib) missing.push("Client contribution not given (financed amount = project cost − contribution)");
   if (!financed || financed.lte(0)) throw new Error("Financed amount is required (enter it, or project cost and client contribution)");

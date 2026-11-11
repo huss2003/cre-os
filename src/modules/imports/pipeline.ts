@@ -20,6 +20,7 @@ import { parseFile } from "./parse";
 import { type ApprovedMapping, type SheetDetection, detectWorkbook, getAdapter, getRole, mapWorkbook } from "./detect";
 import { type DiffRow, type Reconciliation, type StagedRowDraft, type WriteStats, buildStaged, diffKey, diffVersions, markDuplicates, reconcile } from "./reconcile";
 import { canonicalBuilding, canonicalOrg, exactKey } from "./normalize";
+import { liveGeographyIndex, pickGeography } from "@/lib/services/geography";
 import { buildingBlock, findCandidates, orgBlock, scoreBuilding, scoreOrganisation } from "./identity";
 import { LEASE_ENGINE_VERSION } from "./lease-events";
 import {
@@ -433,7 +434,50 @@ async function resolveKeys(ctx: Ctx, entityType: string, keys: string[]): Promis
   }
   await insertIgnore(ctx.db, "import_entity_key", toInsert);
   if (entityType === "asset" || entityType === "organisation") await followMerges(ctx, entityType, out, keyIds);
+  await skipArchived(ctx, entityType, out, keyIds);
   return out;
+}
+
+/**
+ * A key whose master is still archived (deleted by a user, not merged) must not be re-linked: re-imports create a fresh
+ * master instead of attaching rows to (or silently resurrecting) the archived one. The key is re-pointed so later
+ * runs link to the fresh master.
+ */
+async function skipArchived(ctx: Ctx, table: string, res: Map<string, KeyRes>, keyIds: Map<string, string>) {
+  const ids = [...new Set([...res.values()].map((r) => r.id))];
+  if (!ids.length) return;
+  const archived = new Set((await selectIn<{ id: string; archived_at: string | null }>(ctx.db, ctx.ws, table, "id", ids, "id, archived_at"))
+    .filter((r) => r.archived_at).map((r) => r.id));
+  if (!archived.size) return;
+  for (const [k, r] of res) {
+    if (!archived.has(r.id)) continue;
+    const fresh = detId(ctx.ws, table, `${k}|after-archive:${r.id}`);
+    r.id = fresh; r.created = true;
+    const { error } = await ctx.db.from("import_entity_key").update({ entity_id: fresh, first_source_object_id: ctx.src }).eq("workspace_id", ctx.ws).eq("id", keyIds.get(k)!);
+    if (error) throw error;
+  }
+}
+
+/** Places: before creating, reuse a live place with the same name/alias (case/whitespace-insensitive, any parent). */
+async function matchExistingGeographies(ctx: Ctx, res: Map<string, KeyRes>, needs: Map<string, { level: string; name: string }>) {
+  const fresh = [...res].filter(([, r]) => r.created);
+  if (!fresh.length) return;
+  const present = await existingIds(ctx, "geography", fresh.map(([, r]) => r.id));
+  const todo = fresh.filter(([, r]) => !present.has(r.id));
+  if (!todo.length) return;
+  const idx = await liveGeographyIndex(ctx.db, ctx.ws);
+  for (const [k, r] of todo) {
+    const need = needs.get(k)!;
+    const hit = pickGeography(idx, need.name, { level: need.level });
+    if (!hit) {
+      // also dedupe within this batch: a later key with the same name reuses the first new place
+      const dup = [...res].find(([k2, r2]) => k2 !== k && r2.created && needs.get(k2) && exactKey(needs.get(k2)!.name) === exactKey(need.name) && k2 < k);
+      if (!dup) continue;
+      r.id = dup[1].id; r.created = false;
+    } else { r.id = hit.id; r.created = false; }
+    const { error } = await ctx.db.from("import_entity_key").update({ entity_id: r.id }).eq("workspace_id", ctx.ws).eq("id", detId(ctx.ws, "key:geography", k));
+    if (error) throw error;
+  }
 }
 
 /** If a master was merged away (archived loser of an applied merge proposal), link to the winner instead. */
@@ -503,6 +547,7 @@ async function writeRecords(ctx: Ctx, staged: StagedRowDraft[]): Promise<{ targe
   for (const r of leases) geoNeeds.set(geoKey("locality", r.record.locality), { level: "locality", name: r.record.locality });
   for (const r of markets) for (const o of r.record.observations) geoNeeds.set(geoKey("micro_market", o.geography_raw), { level: "micro_market", name: o.geography_raw });
   const geoRes = await resolveKeys(ctx, "geography", [...geoNeeds.keys()]);
+  await matchExistingGeographies(ctx, geoRes, geoNeeds);
   await insertIgnore(ctx.db, "geography", [...geoNeeds].filter(([k]) => geoRes.get(k)!.created).map(([k, g]) => stamp(ctx, { id: geoRes.get(k)!.id, level: g.level, name: g.name })));
   for (const [k, g] of geoNeeds) alias("geography", geoRes.get(k)!.id, g.name, exactKey(g.name));
 
@@ -536,7 +581,9 @@ async function writeRecords(ctx: Ctx, staged: StagedRowDraft[]): Promise<{ targe
   {
     const kids = [...new Set(txAssetKeys)].filter((k) => !assetRes.has(k));
     const found = await selectIn<{ natural_key: string; entity_id: string }>(ctx.db, ctx.ws, "import_entity_key", "id", kids.map((k) => detId(ctx.ws, "key:asset", k)), "natural_key, entity_id");
-    for (const f of found) knownTxAssets.set(f.natural_key, f.entity_id);
+    const live = await selectIn<{ id: string; archived_at: string | null }>(ctx.db, ctx.ws, "asset", "id", found.map((f) => f.entity_id), "id, archived_at");
+    const liveIds = new Set(live.filter((x) => !x.archived_at).map((x) => x.id));
+    for (const f of found) if (liveIds.has(f.entity_id)) knownTxAssets.set(f.natural_key, f.entity_id);
     for (const [k, r] of assetRes) knownTxAssets.set(k, r.id);
   }
 

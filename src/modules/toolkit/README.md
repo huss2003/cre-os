@@ -102,3 +102,13 @@ drop function if exists mudar_app.deal_analysis_version_immutable();
 ```
 Then remove `/toolkit` from `src/lib/nav.ts` (NAV + FOCUS_MENU) and delete `src/modules/toolkit`, `src/app/(app)/toolkit`.
 Stored files under `<ws>/toolkit/` can be removed from the storage bucket.
+
+## Input validation (shared)
+`calc/validate.ts` — every calculator entry point (`leaseEconomics`, `compareLeaseOffers`, `occupancyEconomics`, `analyseNegotiation`,
+`compareConventionalManaged`, `compareRenewalRelocation`, `computeBts`, `computeInvestment`, `computeLoan`, `computeFitout`, `compareQuotes`,
+`compareLandlordOffers`) calls `assertValidInputs()`, so forms and assistant tools get the same rules. Bounds by field type (inferred from the key):
+percent 0–100, months 0–600, years 0–50, area 1–10,000,000 sf, rent ₹/sf 0–100,000, money ₹0–1e12 (`depositChange` may be negative), counts whole ≥0.
+NaN/Infinity/exponent notation rejected; blank = unknown is always allowed. Client side: `ui/calc-input.tsx` (used by `In`, `NumIn`, financing form)
+infers the type from the field's unit and shows the error inline under the field.
+
+Negotiation offer names: `appendOffer` keeps the typed name (`terms.name`) and labels versions "Offer 2 — Building A"; blank/generic names stay "Offer N".

@@ -7,6 +7,22 @@ import { exposureChecklist, locatorLabel, CLAUSE_LABEL, type ExtractedClause, ty
 import { LEGAL_DISCLAIMER } from "@/modules/intelligence/common";
 import { Flash, Disclaimer, Sev, label } from "@/modules/intelligence/ui";
 
+const VALUE_WORDS: Record<string, string> = { per_sf: "per sq ft", per_sqft: "per sq ft", per_seat: "per seat", per_month: "per month", lump_sum: "lump sum" };
+/** "36", "true" -> "yes", objects as k v; null/blank values are skipped (unknown, not "null"). */
+function parsedValue(v: unknown): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "boolean") return v ? "yes" : "no";
+  if (typeof v === "number") return String(v);
+  if (typeof v === "string") return VALUE_WORDS[v] ?? (/^[a-z]+(_[a-z]+)+$/.test(v) ? v.replace(/_/g, " ") : v);
+  if (Array.isArray(v)) { const xs = v.map(parsedValue).filter(Boolean); return xs.length ? xs.join(", ") : null; }
+  return JSON.stringify(v);
+}
+function parsedSummary(values: Record<string, unknown>): string {
+  return Object.entries(values).flatMap(([k, v]) => { const s = parsedValue(v); return s === null ? [] : [`${label(k)} ${s}`]; }).join(" · ");
+}
+/** PDF text can glue a page footer to the sentence ("notice.Page 3"); put the space back. */
+const spacePageMarkers = (s: string) => s.replace(/([^\s])(Page \d+)/g, "$1 $2");
+
 export default async function LegalDocPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ error?: string; notice?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
@@ -39,8 +55,8 @@ export default async function LegalDocPage({ params, searchParams }: { params: P
                     <div className="flex flex-wrap items-center gap-1"><Badge tone="brand">{CLAUSE_LABEL[c.clause_type as ClauseType] ?? String(c.clause_type)}</Badge>{c.heading ? <span className="font-medium">{String(c.heading)}</span> : null}
                       <span className="text-xs text-ink-soft">{locatorLabel(c.locator as Locator, version)} · {String(c.extraction_method)}</span>{c.needs_review ? <Badge tone="warn">needs review</Badge> : null}
                       {val.status === "values_corrected" ? <Badge tone="warn" title="Model values were re-checked against the clause wording">values corrected</Badge> : val.status === "verified" ? <Badge tone="ok">verified vs source</Badge> : null}</div>
-                    <p className="mt-1 whitespace-pre-wrap break-words">{String(c.clause_text)}</p>
-                    {Object.keys((c.extracted_values ?? {}) as object).length > 0 && <p className="mt-1 break-words text-xs text-ink-soft">Parsed from the wording: {Object.entries(c.extracted_values as Record<string, unknown>).map(([k, v]) => `${label(k)} ${JSON.stringify(v)}`).join(" · ")}</p>}
+                    <p className="mt-1 whitespace-pre-wrap break-words">{spacePageMarkers(String(c.clause_text))}</p>
+                    {parsedSummary((c.extracted_values ?? {}) as Record<string, unknown>) && <p className="mt-1 break-words text-xs text-ink-soft">Parsed from the wording: {parsedSummary(c.extracted_values as Record<string, unknown>)}</p>}
                     {(val.dropped?.length ?? 0) > 0 && <p className="text-xs text-bad">Dropped (not in the wording): {val.dropped!.map((d) => d.key).join(", ")}</p>}
                   </li>
                 );

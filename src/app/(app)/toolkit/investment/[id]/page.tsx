@@ -7,6 +7,7 @@ import { HowCalc, NoteList, Panel } from "@/modules/toolkit/ui/options/parts";
 import { DataTable, InvestmentForm, OldVersionBanner, Versions } from "@/modules/toolkit/ui/models";
 import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import { rs } from "../../fitout/results";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 const pc = (x: string | null | undefined) => (x == null ? "unknown" : `${Number(x).toFixed(2)}%`);
 export default async function InvestmentView({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
@@ -21,6 +22,7 @@ export default async function InvestmentView({ params, searchParams }: { params:
   const lev = r.levered;
   return (
     <div className="space-y-6">
+      <ReassessBanner ctx={ctx} entityType="deal_analysis" entityId={a.id} />
       <ToolHeader eyebrow={`Investment · version ${ver ? ver.version : a.current_version} · formula ${src.formula_version}`} title={a.title}
         purpose="Returns first, then the year-by-year cash flows and sensitivities. Edit below to save a new version." back={{ href: "/toolkit/investment", label: "All investment analyses" }}
         steps={["Enter price, tenancies and exit", "Calculate", "Read the returns"]} current={2} action={<DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={id} version={ver?.version ?? null} />} />

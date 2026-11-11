@@ -26,7 +26,8 @@ describe("Module 3 — scoring engine", () => {
     const company = rows!.find((r) => r.model_key === "company")!; const lead = rows!.find((r) => r.model_key === "lead")!;
     expect(company.score).toBeGreaterThan(0); expect(lead.score).toBeGreaterThan(0);
     expect(company.factors.find((f: { key: string }) => f.key === "growth").evidence[0].id).toBe(id.sig);
-    expect(lead.factors.find((f: { key: string }) => f.key === "budget").known).toBe(false);
+    // Budget evidence is part of "Commercial fit" in the plan weights (25/25/20/15/10/5); never inferred.
+    expect(lead.factors.find((f: { key: string; explanation: string }) => f.key === "fit").explanation).toMatch(/no budget evidence/);
     expect(lead.missing).toContain("Budget");
     expect(["high", "medium", "low", "insufficient"]).toContain(company.confidence);
     const { data: contact } = await db.from("score_result").select("extra").eq("entity_id", id.person).eq("model_key", "contact").eq("is_current", true).single();

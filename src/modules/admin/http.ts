@@ -45,6 +45,9 @@ export function friendlyDbError(raw: string): string {
     if (/share/.test(c)) return "Shares must be between 0 and 1, and together cannot exceed 1.";
     return "One of the values is not allowed. Check numbers are positive and dates are in order.";
   }
+  if (/out of range for type (integer|smallint|bigint)|numeric field overflow|value too long for type/.test(raw)) return "A value is too large. Check the numbers (and text length) and try again.";
+  if (/violates not-null constraint/.test(raw)) return "A required field is empty. Fill it in and try again.";
+  if (/invalid input value for enum/.test(raw)) return "One of the chosen options is not allowed. Pick it again from the list.";
   if (/invalid input syntax for type (numeric|integer)/.test(raw)) return "A number field contains text. Enter digits only, or leave it blank.";
   if (/invalid input syntax for type date|date\/time field value out of range/.test(raw)) return "A date is not valid. Use the date picker.";
   if (/row-level security|permission denied/.test(raw)) return "Your role cannot make this change. Ask an owner or admin.";

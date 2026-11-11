@@ -1,5 +1,5 @@
 import "server-only";
-import { proposalRefs } from "./display";
+import { proposalRefs, resolveRefs } from "./display";
 import type { Db } from "@/lib/supabase/server";
 import { ChangeError, proposeChange, toChangeError, type PatchOp, type RiskLevel } from "@/lib/services/changes";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -275,6 +275,12 @@ async function withTargets(db: Db, workspaceId: string, rows: ProposalRow[]): Pr
     return { ...r, target_label: label, current, current_version: curVersion, stale, refs: {} as Record<string, string> };
   });
   const refs = await proposalRefs(db, workspaceId, views as never);
+  // Merge proposals: resolve the duplicate (loser) record's name too, so the card never shows a raw id.
+  const losers = new Map<string, Set<string>>();
+  for (const v of views) if (v.operation === "merge") for (const op of v.patch) if (op.path === "/loser_id" && typeof op.value === "string") losers.set(v.target_type, (losers.get(v.target_type) ?? new Set()).add(op.value));
+  if (losers.size) {
+    Object.assign(refs, await resolveRefs(db, workspaceId, losers));
+  }
   return views.map((v) => ({ ...v, refs }));
 }
 

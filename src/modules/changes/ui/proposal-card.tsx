@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Badge, Input, StaleBanner } from "@/components/ui";
 import { fmt } from "@/lib/util/time";
 import { RiskBadge, StateBadge } from "@/modules/capture/ui/parts";
-import { fieldLabel, formatValue } from "../display";
+import { cleanText, fieldLabel, proposalHeadline, formatValue } from "../display";
 import { ActionForm, Submit } from "./client";
 import { decideAction, editAction, undoAction } from "../actions";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,13 +26,16 @@ export function ProposalCard({ p, role, selectable = false }: { p: CardProposal;
   const isAdmin = role === "owner" || role === "admin";
   const canDecide = isAdmin || (role === "editor" && p.risk === "routine_internal");
   const snap = (p.before?.kind === "proposal_snapshot" ? p.before.fields : p.before?.fields) ?? {};
+  const loserId = p.patch.find((op) => op.path === "/loser_id")?.value;
+  const loserName = (typeof loserId === "string" && p.refs?.[loserId]) || (typeof snap.full_name === "string" ? snap.full_name : null) || "the duplicate record";
+  const keepName = p.target_label ? cleanText(p.target_label) : "the kept record";
   const rows = p.operation === "merge"
-    ? [{ path: "/loser_id", before: "separate records", value: `merge into ${p.target_label ?? p.target_id}` }]
+    ? [{ path: "/loser_id", before: `${loserName} and ${keepName} are separate records`, value: `Merge ${loserName} into ${keepName}` }]
     : p.patch.map((op) => {
         const f = op.path.replace(/^\//, "");
         return { path: op.path, before: p.current && f in p.current ? p.current[f] : snap[f], value: op.op === "remove" ? null : op.value };
       });
-  const title = `${p.operation === "create" ? "New " : ""}${p.target_type.replace(/_/g, " ")}${p.target_label ? `: ${p.target_label}` : ""}`;
+  const title = `${proposalHeadline(p.operation, p.target_type)}${p.target_label ? `: ${cleanText(p.target_label)}` : ""}`;
   return (
     <article className="rounded-xl border border-line bg-surface p-4 shadow-sm">
       <header className="mb-2 flex flex-wrap items-center gap-2">
@@ -54,7 +57,7 @@ export function ProposalCard({ p, role, selectable = false }: { p: CardProposal;
           ))}</tbody>
         </table>
       </div>
-      <p className="mt-2 text-sm text-ink-soft">{p.reason ?? "No reason given"}
+      <p className="mt-2 text-sm text-ink-soft">{cleanText(p.reason) || "No reason given"}
         {p.capture_id ? <> · <Link className="text-brand" href={`/capture/${p.capture_id}`}>evidence: capture</Link></> : null}
         {(p.evidence_ids?.length ?? 0) > 0 && !p.capture_id ? <> · {p.evidence_ids!.length} evidence item{p.evidence_ids!.length > 1 ? "s" : ""}</> : null}
         {p.target_id && EVIDENCE_TYPES.has(p.target_type) ? <> · <Link className="text-brand" href={`/approvals/evidence?type=${p.target_type}&id=${p.target_id}`}>why do we believe this?</Link></> : null}

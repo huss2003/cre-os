@@ -13,6 +13,9 @@ import {
   RULE_VERSION, categoryOf, leaseSignal, counterEvidence, assessConfidence, priorityOf, nextAction, missingInfo, dedupeKey,
   daysBetween, citiesIn, normName, DEFAULT_WEIGHTS, type Category, type ContextFacts, type PriorityWeights, type Verification,
 } from "./engine";
+import { containsLike } from "@/lib/util/like";
+import { edate, localDate } from "@/lib/util/time";
+import { checkHttpUrl } from "@/lib/util/url";
 
 type Row = Record<string, any>;
 export class SignalError extends Error {}
@@ -50,7 +53,7 @@ export async function resolveOrg(db: Db, ws: string, name: string): Promise<Reso
   const ids = [...new Set(alias.map((a) => a.entity_id))];
   if (ids.length === 1) return { orgId: ids[0], candidates: [], method: "alias" };
   const fuzzy = await all<Row>(db.from("organisation").select("id, display_name").eq("workspace_id", ws).is("archived_at", null)
-    .ilike("display_name", `%${normName(n).split(" ")[0] ?? n}%`).limit(5));
+    .ilike("display_name", containsLike(normName(n).split(" ")[0] ?? n)).limit(5));
   return { orgId: null, candidates: fuzzy.map((r) => ({ id: r.id, name: r.display_name })), method: ids.length > 1 ? "ambiguous" : "none" };
 }
 const esc = (s: string) => `"${s.replace(/["\\]/g, "")}"`;
@@ -148,7 +151,7 @@ async function reassess(db: Db, ws: string, id: string, s: Settings, today: stri
       latestEvidenceOn: latest, today, hasOccupancyInFocus: inFocusGeo && f.hasLease, personFunction: person ? `${person.title ?? ""} ${person.function ?? ""}` : null }),
     ...ev.filter((e) => e.role === "counter").map((e) => e.excerpt ?? e.note ?? "Counter-evidence recorded."),
   ];
-  const leaseEv = sig.category === "lease"
+  const leaseEv = sig.category === "lease" && sig.lease_event_id
     ? [{ tier: sig.verification === "fact" ? "documentary_current" : "credible_reported", status: sig.verification === "fact" ? "currently_confirmed" : "reported", source: "lease record", published_on: null }]
     : [];
   const conf = assessConfidence([...leaseEv, ...support.map((e) => ({ tier: e.evidence_tier, status: e.fact_status, source: e.source_url ?? e.source_name, published_on: e.published_on }))], counters);
@@ -264,6 +267,7 @@ function relevance(cat: Category, kind: string): string {
     case "leadership": return "A new decision-maker can reopen real-estate decisions and creates a relationship path.";
     case "infrastructure": return "Can change the attractiveness of nearby micro-markets and properties.";
     case "commercial": return "A like-for-like comparison may show a better-value option.";
+    case "lease": return "A lease expiry is a renewal-or-relocation decision point — confirm the occupier's plans before the notice window closes.";
     case "macro": return "Indirect context for account reviews.";
     default: return "Review relevance.";
   }
@@ -288,6 +292,8 @@ export interface IngestInput { text: string; companyName?: string; orgId?: strin
 export async function ingestText(db: Db, ws: string, input: IngestInput) {
   const text = (input.text ?? "").slice(0, 20_000).trim();
   if (text.length < 20) throw new SignalError("Paste at least a sentence of evidence.");
+  const link = checkHttpUrl(input.sourceUrl, "Source link"); if (link.error) throw new SignalError(link.error);
+  input = { ...input, sourceUrl: link.value ?? undefined };
   const found = detectSignals(text);
   let orgId = input.orgId ?? null;
   let resolution: Resolution | null = null;
@@ -316,7 +322,19 @@ export async function ingestText(db: Db, ws: string, input: IngestInput) {
       }
     }
     const entity = orgId ?? `name:${normName(input.companyName ?? "unknown")}`;
+    // Lease expiry text: link to the company's current lease and date it only when the text states "within N months".
+    let leaseId: string | null = null, eventDate: string | null = null, daysAway: number | null = null;
+    if (cat === "lease") {
+      if (orgId) {
+        const c: OrgContext = cache.get(orgId) ?? await orgContext(db, ws, orgId).then((x) => (cache.set(orgId!, x), x));
+        const cityHit = c.leases.filter((l) => citiesIn([f.context]).some((ct) => JSON.stringify(l.asset ?? {}).toLowerCase().includes(ct.toLowerCase())));
+        const pick = (cityHit.length ? cityHit : c.leases).slice().sort((a, b) => String(a.contractual_expiry ?? "9999").localeCompare(String(b.contractual_expiry ?? "9999")))[0];
+        leaseId = c.leases.length === 1 || cityHit.length === 1 ? pick?.id ?? null : c.leases.length ? pick?.id ?? null : null;
+      }
+      if (f.withinMonths) { eventDate = edate(input.publishedOn ?? today, f.withinMonths); daysAway = daysBetween(today, eventDate); }
+    }
     const r = await upsertSignal(db, ws, {
+      leaseId, eventDate, eventDateBasis: eventDate ? "reported" : null, daysAway,
       category: cat, kind: f.kind, key: dedupeKey(cat, f.kind, entity, input.publishedOn ?? today),
       title: `${input.companyName ?? "Unresolved company"}: possible ${f.kind.replace(/_/g, " ")}`,
       summary: hypothesisSummary(f), creRelevance: relevance(cat, f.kind), orgId, nameRaw: orgId ? null : input.companyName ?? null,
@@ -350,6 +368,7 @@ export async function actOnSignal(db: Db, ws: string, userId: string, id: string
     if (action === "snooze") {
       const until = data.until ?? "";
       if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) throw new SignalError("Pick a date to snooze until.");
+      if (until <= localDate()) throw new SignalError("Snooze until a date after today.");
       patch.snoozed_until = until; log.until = until;
     } else patch.snoozed_until = null;
     patch.status = to; patch.status_reason = reason; patch.processing_status = PROC_FOR[to];
@@ -379,8 +398,9 @@ export async function actOnSignal(db: Db, ws: string, userId: string, id: string
   if (action === "add_evidence" || action === "add_counter") {
     const text = (data.text ?? "").trim();
     if (text.length < 5) throw new SignalError("Write the evidence.");
+    const link = checkHttpUrl(data.url, "Source link"); if (link.error) throw new SignalError(link.error);
     await db.from("signal_evidence").insert({ workspace_id: ws, signal_id: id, role: action === "add_counter" ? "counter" : "support",
-      dedupe_key: `user:${Date.now()}`, source_name: data.source || "User note", source_url: data.url || null, excerpt: text.slice(0, 1000),
+      dedupe_key: `user:${Date.now()}`, source_name: data.source || "User note", source_url: link.value, excerpt: text.slice(0, 1000),
       evidence_tier: action === "add_counter" ? null : "single_unverified", fact_status: "reported", published_on: data.published_on || null });
   }
   if (action === "correct_company") {
@@ -464,7 +484,7 @@ export async function listSignals(db: Db, ws: string, f: ListFilter) {
   const rows = await all<Row>(q.order("priority", { ascending: false }).order("detected_at", { ascending: false }).limit(200));
   // Company-name search also matches via the joined organisation.
   if (f.q && rows.length < 200) {
-    const orgs = await all<Row>(db.from("organisation").select("id").eq("workspace_id", ws).ilike("display_name", `%${f.q}%`).limit(50));
+    const orgs = await all<Row>(db.from("organisation").select("id").eq("workspace_id", ws).ilike("display_name", containsLike(f.q)).limit(50));
     if (orgs.length) {
       const extra = await all<Row>(db.from("signal").select("*, org:org_id(display_name, sector), person:person_id(full_name), evidence:signal_evidence(source_name, source_url, role, published_on)").eq("workspace_id", ws).in("org_id", orgs.map((o) => o.id)).is("archived_at", null).limit(100));
       for (const e of extra) if (!rows.some((r) => r.id === e.id)) rows.push(e);

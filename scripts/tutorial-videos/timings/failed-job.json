@@ -1,0 +1,74 @@
+{
+  "durationMs": 81429,
+  "steps": [
+    {
+      "caption": "Open More → Automation. The Failed counter shows 1.",
+      "ms": 3605
+    },
+    {
+      "caption": "In Needs attention, open the failed job.",
+      "ms": 11247
+    },
+    {
+      "caption": "The run page: Failed, when it started and finished.",
+      "ms": 15210
+    },
+    {
+      "caption": "Progress: 2 steps done, 1 failed.",
+      "ms": 18363
+    },
+    {
+      "caption": "What went wrong: the failed step and its error in plain words — a timeout, after 3 attempts.",
+      "ms": 21541
+    },
+    {
+      "caption": "Records affected: the meetings this job was working on.",
+      "ms": 24727
+    },
+    {
+      "caption": "Steps that worked keep their results — they will not run again.",
+      "ms": 27894
+    },
+    {
+      "caption": "Will it retry by itself? No — retries are used up. What to do: check the error, then use Retry.",
+      "ms": 31071
+    },
+    {
+      "caption": "Press Retry failed steps.",
+      "ms": 34240
+    },
+    {
+      "caption": "Only the failed step ran again. The job is now Done.",
+      "ms": 41604
+    },
+    {
+      "caption": "History shows every action: started, step finished, manual retry — with who did it.",
+      "ms": 46643
+    },
+    {
+      "caption": "Export log downloads this history.",
+      "ms": 51347
+    },
+    {
+      "caption": "Back to Automation: the second job here is Paused.",
+      "ms": 54531
+    },
+    {
+      "caption": "Open it.",
+      "ms": 60612
+    },
+    {
+      "caption": "A paused run waits. Resume continues where it stopped. Running jobs show Pause instead.",
+      "ms": 64527
+    },
+    {
+      "caption": "Cancel stops it for good (admins). Finished steps and their results are kept.",
+      "ms": 67690
+    },
+    {
+      "caption": "The job is now Cancelled — nothing else will run for it.",
+      "ms": 71663
+    }
+  ],
+  "bytes": 1451483
+}

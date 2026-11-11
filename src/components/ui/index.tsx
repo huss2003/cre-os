@@ -22,7 +22,7 @@ export function Help({ children }: { children: ReactNode }) {
   return (
     <span className="group relative inline-flex align-middle">
       <button type="button" aria-label="What is this?" className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-line text-[10px] font-semibold text-ink-soft transition hover:border-ink-soft hover:text-ink focus:text-ink">?</button>
-      <span role="tooltip" className="pointer-events-none invisible absolute left-1/2 top-7 z-30 w-72 -translate-x-1/2 rounded-lg bg-ink px-3 py-2.5 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-white opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+      <span role="tooltip" className="pointer-events-none absolute left-1/2 top-7 z-30 hidden w-[min(18rem,calc(100vw-2rem))] -translate-x-1/2 break-words rounded-lg bg-ink px-3 py-2.5 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-white shadow-xl group-hover:block group-focus-within:block">
         {children}
       </span>
     </span>
@@ -37,7 +37,7 @@ export function HelpFor({ k }: { k: string }) {
 
 export function Card({ title, actions, children, className, help }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; help?: ReactNode }) {
   return (
-    <section className={clsx("rounded-xl border border-line bg-surface p-5", className)}>
+    <section className={clsx("min-w-0 rounded-xl border border-line bg-surface p-5", className)}>
       {(title || actions) && (
         <div className="mb-3 flex items-center justify-between gap-2">
           {title ? <h2 className="flex items-center text-sm font-semibold">{title}{(help ?? helpFor(title)) ? <Help>{help ?? helpFor(title)}</Help> : null}</h2> : <span />}
@@ -124,7 +124,7 @@ export function Select(p: ComponentProps<"select">) {
 
 export function Table({ head, children }: { head: ReactNode[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-line bg-surface">
+    <div className="relative max-w-full overflow-x-auto rounded-xl border border-line bg-surface">
       <table className="w-full min-w-[560px] text-left text-sm">
         <thead className="border-b border-line text-xs text-ink-soft">
           <tr>{head.map((h, i) => <th key={i} className="px-3 py-2 font-medium">{h}</th>)}</tr>
@@ -170,9 +170,9 @@ export function sf(n: number | string | null | undefined) {
 /** Optional fields folded away: essentials stay visible, the rest opens on click. Use inside any form. */
 export function MoreFields({ children, label = "More details (optional)" }: { children: ReactNode; label?: string }) {
   return (
-    <details className="group">
+    <details className="group/more">
       <summary className="cursor-pointer list-none py-1 text-sm font-medium text-ink-soft hover:text-ink">
-        <span className="group-open:hidden">＋ </span><span className="hidden group-open:inline">－ </span>{label}
+        <span className="group-open/more:hidden">＋ </span><span className="hidden group-open/more:inline">－ </span>{label}
       </summary>
       <div className="mt-3 space-y-4">{children}</div>
     </details>

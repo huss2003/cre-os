@@ -48,7 +48,7 @@ export default async function OccupancyPage({ searchParams }: { searchParams: Pr
               <Readout label="Peak cash needed" value={<Money x={r.peakCashRequirement} compact />} sub={`highest month: ${inr(r.peakMonthlyOutflow, { compact: true })} (month ${r.peakMonthlyOutflowMonth})`} />
             </div>
             <MissingNote items={r.gaps} what="totals exclude these until you add them" />
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="rounded-xl bg-canvas p-4 text-sm">
                 <p className="font-semibold">Cash needed at signing</p>
                 <dl className="mt-2 grid grid-cols-[1fr_auto] gap-y-1.5">
@@ -97,7 +97,7 @@ export default async function OccupancyPage({ searchParams }: { searchParams: Pr
           <ActionForm action={occupancyAction} className="space-y-5">
             {cur ? <input type="hidden" name="id" value={cur.id} /> : null}
             <BlankHint />
-            <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2">
               <In label="Analysis title" name="title" defaultValue={cur?.title ?? ""} placeholder="Option A — all-in" />
               <In label="Discount rate" unit="% per year" name="discount" inputMode="decimal" required defaultValue={v(inp?.terms.discountRatePct)} />
             </div>

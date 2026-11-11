@@ -24,7 +24,7 @@ export const JobMoveInput = z.object({
   newTitle: z.string().max(160).optional().nullable(),
   effectiveOn: z.string().date().optional().nullable(),
   observedOn: z.string().date().optional().nullable(),
-  sourceUrl: z.string().url().optional().nullable(),
+  sourceUrl: z.string().url().refine((u) => /^https?:\/\//i.test(u), "Source URL must start with http:// or https://").optional().nullable(),
   sourceNote: z.string().max(2000).optional().nullable(),
   sourceKind: z.enum(["native_alert", "press_release", "company_page", "appointment_notice", "conversation", "user_export", "other"]).default("other"),
 });

@@ -1,0 +1,1565 @@
+CRE AI OPERATING SYSTEM
+
+USER JOURNEY AND END-TO-END TEST CASES
+
+Modules to test:
+
+1. Database
+2. Signal Engine
+3. Scoring Engine
+4. Contact Enrichment
+5. Outreach Engine
+6. Meeting Intelligence
+7. Deal Toolkit
+8. Supercharged AI Assistant
+
+TESTING OBJECTIVE
+
+Test the application from the perspective of an actual CRE advisor.
+
+The objective is to verify that:
+
+- Every module performs its intended function.
+- Information is stored correctly.
+- Information flows between modules.
+- The same company, contact, property and requirement records are reused.
+- AI-generated information is accurate and traceable.
+- The user does not need to enter the same information repeatedly.
+- Calculations are correct.
+- The AI assistant can access and operate the entire system.
+- Important actions require appropriate human approval.
+
+IMPORTANT: Use synthetic companies, contacts, properties and commercial figures for testing. Do not use real client information or send actual external communications during initial testing.
+
+TEST SCENARIO: FICTIONAL CLIENT JOURNEY
+
+We will simulate the following situation.
+
+A company called "ABC Technologies Pvt. Ltd." is expanding its operations in Pune and may require additional office space.
+
+The CRE advisor needs to identify the opportunity, find decision-makers, contact them, understand their requirements, shortlist properties and prepare a commercial recommendation.
+
+Synthetic company information
+
+Company: ABC Technologies Pvt. Ltd.
+
+Industry: Information Technology
+
+Location: Bengaluru
+
+Expansion location: Pune
+
+Current Pune office: Kharadi
+
+Estimated existing office area: 15,000 SF
+
+Estimated employee strength: 250
+
+Potential additional requirement: 25,000 SF
+
+Potential occupancy timeline: Within 9 months
+
+Potential lease duration: 5 years
+
+These are fictional test details, not verified market information.
+
+Synthetic contacts
+
+Contact 1:
+
+- Name: Rahul Sharma
+- Designation: Head of Administration
+- Role: Operational stakeholder
+
+Contact 2:
+
+- Name: Priya Mehta
+- Designation: Head of Finance
+- Role: Financial approver
+
+Contact 3:
+
+- Name: Amit Verma
+- Designation: Head of Human Resources
+- Role: Employee and workforce planning stakeholder
+
+Synthetic properties
+
+Property A:
+
+- Location: Kharadi
+- Area: 25,000 SF
+- Rent: ₹100/SF/month
+- CAM: ₹12/SF/month
+- Deposit: 6 months
+- Rent-free: 2 months
+- Escalation: 15% every 3 years
+
+Property B:
+
+- Location: Kharadi
+- Area: 28,000 SF
+- Rent: ₹95/SF/month
+- CAM: ₹10/SF/month
+- Deposit: 6 months
+- Rent-free: 3 months
+- Escalation: 12% every 3 years
+
+Property C:
+
+- Location: Viman Nagar
+- Area: 24,000 SF
+- Rent: ₹110/SF/month
+- CAM: ₹8/SF/month
+- Deposit: 4 months
+- Rent-free: 1 month
+- Escalation: 15% every 3 years
+
+All property figures are synthetic testing inputs.
+
+---
+
+STAGE 1: MODULE 1 – DATABASE
+
+How the user will use it
+
+The user opens the application and starts by creating or importing company, contact and property information.
+
+The objective is to establish the central business records before using the other modules.
+
+TEST CASE 1.1 – Create a Company
+
+User action:
+
+1. Open Database.
+2. Navigate to Companies.
+3. Click Add Company.
+4. Enter ABC Technologies Pvt. Ltd.
+5. Add industry, headquarters, website and other available information.
+6. Save.
+
+Expected result:
+
+- Company record is created.
+- A unique company ID is generated.
+- Company profile is accessible.
+- Company can be searched.
+- Company is available to other modules.
+- Duplicate company detection works.
+
+TEST CASE 1.2 – Add Company Locations and Occupancy
+
+User action:
+
+1. Open ABC Technologies.
+2. Navigate to Locations or Occupancy.
+3. Add its existing Pune office.
+4. Enter Kharadi as the location.
+5. Enter 15,000 SF as the estimated occupied area.
+6. Mark the information as an estimate.
+7. Save.
+
+Expected result:
+
+- Occupancy is linked to ABC Technologies.
+- The location is linked to the correct company.
+- Estimated information is distinguishable from verified information.
+- Source and observation date can be recorded.
+- The system does not treat estimated information as confirmed.
+
+TEST CASE 1.3 – Add Contacts
+
+User action:
+
+1. Open the company profile.
+2. Navigate to Contacts.
+3. Add Rahul Sharma.
+4. Add Priya Mehta.
+5. Add Amit Verma.
+6. Assign their respective designations and stakeholder roles.
+
+Expected result:
+
+- Three individual contact records are created.
+- All three are linked to ABC Technologies.
+- Each contact has a unique ID.
+- Contact roles are distinguishable.
+- Contact history can be maintained independently.
+
+TEST CASE 1.4 – Add Properties
+
+User action:
+
+1. Navigate to Properties.
+2. Create Property A.
+3. Enter its building and commercial information.
+4. Repeat for Properties B and C.
+5. Save all three records.
+
+Expected result:
+
+- All three properties are saved.
+- Their commercial terms are stored separately.
+- Area, rent and CAM are not mixed up.
+- Property records are searchable.
+- Each property has a unique ID.
+
+TEST CASE 1.5 – Create a Requirement
+
+User action:
+
+1. Open ABC Technologies.
+2. Navigate to Requirements.
+3. Create a new requirement.
+4. Enter 25,000 SF.
+5. Enter Kharadi as the preferred location.
+6. Enter the 9-month occupancy timeline.
+7. Enter the 5-year lease preference.
+8. Save.
+
+Expected result:
+
+- A new requirement is created.
+- It is linked to ABC Technologies.
+- It is independent of the company's existing occupancy record.
+- Its information is available to other modules.
+
+TEST CASE 1.6 – Duplicate Detection
+
+User action:
+
+1. Try creating ABC Technologies Pvt. Ltd. again.
+2. Try adding Rahul Sharma again using the same contact information.
+
+Expected result:
+
+- The application identifies potential duplicates.
+- It does not silently create duplicate records.
+- It offers a way to review and merge records where appropriate.
+- It does not merge two different legal entities simply because their names are similar.
+
+TEST CASE 1.7 – Historical Record Management
+
+User action:
+
+1. Change the estimated office area from 15,000 SF to 18,000 SF.
+2. Save the update.
+3. Open the company's history.
+
+Expected result:
+
+- The updated value is visible.
+- The previous value is preserved.
+- The source and date of the update are recorded.
+- The system can explain what changed.
+
+MODULE 1 PASS CONDITION
+
+The company, its contacts, occupancy, properties and requirement must all be stored correctly and linked through the same central database.
+
+---
+
+STAGE 2: MODULE 2 – SIGNAL ENGINE
+
+How the user will use it
+
+The user opens the Signal Engine to discover companies that may have a commercial real estate requirement.
+
+The engine should identify relevant events and associate them with existing company records.
+
+TEST CASE 2.1 – Detect an Expansion Signal
+
+Test input:
+
+"ABC Technologies announces expansion of its Pune operations."
+
+User action:
+
+1. Open Signal Engine.
+2. Run a research search for ABC Technologies.
+3. Add the synthetic announcement as a test source or use an approved test fixture.
+4. Run signal detection.
+
+Expected result:
+
+- Expansion signal is identified.
+- The correct company is matched.
+- Pune is identified as the relevant location.
+- The event date and source are recorded.
+- The system explains why this could indicate an office requirement.
+
+TEST CASE 2.2 – Detect a Hiring Signal
+
+Test input:
+
+"ABC Technologies is recruiting 100 additional employees for its Pune operations."
+
+Expected result:
+
+- Hiring expansion is identified.
+- The signal is linked to ABC Technologies.
+- The location is correctly identified.
+- The system considers whether the roles are actually Pune-based.
+- It does not automatically conclude that an additional office is required.
+
+TEST CASE 2.3 – Detect Lease Expiry
+
+Test input:
+
+"ABC Technologies' existing Pune lease is due to expire within 12 months."
+
+Expected result:
+
+- Lease expiry is identified as a CRE trigger.
+- The signal is linked to the relevant occupancy record.
+- The system highlights the potential renewal or relocation opportunity.
+- The event is prioritised according to its timing.
+
+TEST CASE 2.4 – Detect Leadership Changes
+
+Test input:
+
+"ABC Technologies appoints a new Head of Administration."
+
+Expected result:
+
+- Leadership change is detected.
+- The system attempts to identify the correct person.
+- The new contact is associated with the company only when sufficiently supported.
+- The system identifies the role's potential relevance to CRE decisions.
+
+TEST CASE 2.5 – Duplicate Signal Detection
+
+Test input:
+
+Add three different articles reporting the same expansion announcement.
+
+Expected result:
+
+- The system recognises that they may describe the same underlying event.
+- It groups related evidence into one signal.
+- It retains the individual sources.
+- It does not create three independent expansion opportunities.
+
+TEST CASE 2.6 – Counter-Evidence
+
+Test input:
+
+"ABC Technologies has announced hiring, but the majority of new employees will work remotely outside Pune."
+
+Expected result:
+
+- The system identifies the counter-evidence.
+- It lowers confidence in the assumption of an additional Pune office requirement.
+- It explains the uncertainty.
+- It does not present hiring as confirmed real estate demand.
+
+TEST CASE 2.7 – Signal Card
+
+Open the detected expansion signal.
+
+Expected fields:
+
+- What happened?
+- Which company?
+- Which location?
+- Why does it matter?
+- What is the supporting evidence?
+- When was it observed?
+- What is unknown?
+- What is the recommended next action?
+
+MODULE 2 PASS CONDITION
+
+The Signal Engine must identify relevant events, associate them with the correct company, preserve evidence and create useful opportunity hypotheses without treating every business announcement as confirmed demand.
+
+---
+
+STAGE 3: MODULE 3 – SCORING ENGINE
+
+How the user will use it
+
+The user opens the priority dashboard to determine which companies and opportunities deserve attention.
+
+The system must explain its scores rather than displaying unexplained numbers.
+
+TEST CASE 3.1 – Lead Priority Score
+
+User action:
+
+1. Open ABC Technologies.
+2. Navigate to Scoring.
+3. Generate its lead priority assessment.
+
+Expected result:
+
+- A lead priority score is generated.
+- Timing is considered.
+- Need and trigger strength are considered.
+- Relationship access is considered.
+- Commercial fit is considered.
+- Engagement is considered.
+- Evidence freshness is considered.
+
+Use the configurable default weights:
+
+- Timing: 25%.
+- Need/trigger strength: 25%.
+- Relationship access: 20%.
+- Commercial fit: 15%.
+- Engagement: 10%.
+- Evidence freshness: 5%.
+
+TEST CASE 3.2 – Requirement Readiness
+
+User action:
+
+Open the 25,000 SF requirement.
+
+Expected result:
+
+The system assesses whether the following information is available:
+
+- Location.
+- Area.
+- Budget.
+- Timeline.
+- Lease tenure.
+- Decision-makers.
+- Approval process.
+- Technical requirements.
+- Commercial feasibility.
+
+It must identify missing information separately.
+
+TEST CASE 3.3 – Missing Information
+
+User action:
+
+1. Remove the budget from the test requirement.
+2. Recalculate readiness.
+
+Expected result:
+
+- Missing budget is identified.
+- The score is not automatically reduced as though the budget were zero.
+- The system explains why the missing information matters.
+
+TEST CASE 3.4 – Deal Health
+
+Create a synthetic opportunity and record:
+
+- Initial client interaction.
+- Property shortlist.
+- Client objection.
+- Pending approval.
+- No recent progress.
+
+Expected result:
+
+- The deal health assessment identifies the blocker.
+- The system highlights the pending approval.
+- It identifies overdue actions.
+- It explains why the opportunity may be stalled.
+
+TEST CASE 3.5 – Score Changes
+
+User action:
+
+1. Add a confirmed meeting with the decision-maker.
+2. Update the budget.
+3. Add a confirmed occupancy timeline.
+4. Recalculate the scores.
+
+Expected result:
+
+- Relevant scores update.
+- The system explains what changed.
+- The previous assessment remains available.
+- The system does not change unrelated scores without justification.
+
+TEST CASE 3.6 – Manual Override
+
+User action:
+
+1. Manually mark ABC Technologies as a high-priority account.
+2. Enter a reason.
+3. Set a review date.
+
+Expected result:
+
+- Manual override is saved.
+- Original calculated score remains available.
+- The override reason is recorded.
+- The review date is visible.
+
+TEST CASE 3.7 – Ranked Accounts
+
+Create three synthetic companies with different signals, requirements and relationships.
+
+Expected result:
+
+- The accounts are ranked.
+- Scores are distinguishable.
+- The reason for ranking is visible.
+- Missing information is shown.
+- Each account has a recommended next action.
+
+MODULE 3 PASS CONDITION
+
+The Scoring Engine must provide useful, explainable prioritisation and keep lead priority, requirement readiness, deal health and relationship strength separate.
+
+---
+
+STAGE 4: MODULE 4 – CONTACT ENRICHMENT
+
+How the user will use it
+
+The user opens ABC Technologies and wants to identify the people responsible for office requirements and approvals.
+
+The system should identify the buying group and enrich contact information through authorised sources.
+
+TEST CASE 4.1 – Identify Decision-Makers
+
+User action:
+
+1. Open ABC Technologies.
+2. Navigate to Contact Enrichment.
+3. Search for relevant decision-makers.
+
+Expected result:
+
+The system identifies relevant professional functions:
+
+- Corporate Real Estate.
+- Administration.
+- Facilities.
+- Procurement.
+- Finance.
+- HR.
+- Business leadership.
+
+TEST CASE 4.2 – Build Stakeholder Map
+
+Use the three synthetic contacts already added.
+
+Expected result:
+
+- Rahul Sharma appears as an operational stakeholder.
+- Priya Mehta appears as a financial approver.
+- Amit Verma appears as an HR stakeholder.
+- Their responsibilities are distinguishable.
+- The system identifies any missing stakeholder categories.
+
+TEST CASE 4.3 – Enrich Contact Information
+
+User action:
+
+1. Select Rahul Sharma.
+2. Run enrichment using an authorised test provider or approved synthetic fixture.
+3. Retrieve professional information.
+
+Expected result:
+
+- Contact details are stored.
+- Source is recorded.
+- Verification status is visible.
+- Last verification date is recorded.
+- Unverified information is not presented as verified.
+
+TEST CASE 4.4 – Employment Change
+
+Test input:
+
+"Rahul Sharma has moved to another company."
+
+Expected result:
+
+- His previous employment is preserved.
+- His new employment is added as a separate historical relationship.
+- The system does not merge the two companies.
+- Existing interaction history remains accessible.
+
+TEST CASE 4.5 – Contact Deduplication
+
+Add a second record for Rahul Sharma with a slightly different designation.
+
+Expected result:
+
+- The system identifies a potential duplicate.
+- It displays matching information.
+- It asks for review rather than blindly merging.
+
+TEST CASE 4.6 – Warm Introduction
+
+Create a synthetic relationship showing that an existing contact knows Rahul Sharma.
+
+Expected result:
+
+- The system identifies a possible warm introduction.
+- It displays the relationship path.
+- It explains the evidence supporting that connection.
+- It does not invent a mutual relationship.
+
+MODULE 4 PASS CONDITION
+
+The system must identify relevant stakeholders, enrich contacts using authorised sources, preserve employment history and maintain accurate relationship information.
+
+---
+
+STAGE 5: MODULE 5 – OUTREACH ENGINE
+
+How the user will use it
+
+The user has identified ABC Technologies as a priority account and wants to start a conversation with its Head of Administration.
+
+The system should prepare personalised communication using actual account and contact context.
+
+TEST CASE 5.1 – Generate First Outreach Message
+
+User instruction:
+
+"Prepare a short introductory email to Rahul Sharma regarding ABC Technologies' possible Pune expansion."
+
+Expected result:
+
+- Correct contact is selected.
+- Correct company is selected.
+- Message is relevant to the expansion context.
+- Tone is professional.
+- Message does not invent a confirmed requirement.
+- Draft is editable.
+
+TEST CASE 5.2 – Generate Multiple Versions
+
+User instruction:
+
+"Give me three versions: professional, conversational and very short."
+
+Expected result:
+
+- Three genuinely different drafts are generated.
+- The message retains correct company and contact information.
+- No unsupported claims are introduced.
+
+TEST CASE 5.3 – Role-Specific Communication
+
+Generate:
+
+1. A message to the Head of Administration.
+2. A message to the Head of Finance.
+3. A message to the Head of HR.
+
+Expected result:
+
+- Administration message focuses on operational and space requirements.
+- Finance message focuses on commercial efficiency and financial commitments.
+- HR message focuses on workforce planning and employee needs.
+
+TEST CASE 5.4 – Use Previous Interaction History
+
+Add a synthetic previous interaction:
+
+"Rahul asked us to reconnect after discussing expansion plans."
+
+User instruction:
+
+"Draft a follow-up based on our previous conversation."
+
+Expected result:
+
+- The previous interaction is retrieved.
+- The follow-up references it appropriately.
+- The user does not need to repeat the history.
+
+TEST CASE 5.5 – Outreach Approval
+
+User action:
+
+1. Generate a message.
+2. Edit it.
+3. Approve the exact draft.
+
+Expected result:
+
+- Approval is recorded.
+- Recipient and channel are recorded.
+- The approved message version is identifiable.
+- Editing the message after approval invalidates the approval.
+
+TEST CASE 5.6 – Manual Sending Control
+
+User instruction:
+
+"Send this message to Rahul."
+
+Expected result:
+
+- The system displays the approved draft and recipient.
+- It does not automatically send the message.
+- The user must use the approved manual sending workflow.
+- Sending status is recorded only when supported by actual evidence.
+
+TEST CASE 5.7 – Response Tracking
+
+Create a synthetic incoming reply:
+
+"Please share some available office options in Kharadi."
+
+Expected result:
+
+- The response is linked to Rahul.
+- The company is correctly identified.
+- Interest is classified appropriately.
+- The system suggests updating the opportunity and requirement.
+- A follow-up task can be created.
+
+TEST CASE 5.8 – Duplicate Outreach Prevention
+
+User instruction:
+
+"Prepare another introduction email to Rahul."
+
+Expected result:
+
+- The system checks previous outreach.
+- It warns if a duplicate or unnecessary message is being prepared.
+- It suggests a relevant alternative or follow-up.
+
+MODULE 5 PASS CONDITION
+
+The Outreach Engine must generate relevant communication, use relationship context, preserve approval controls and connect responses to the CRM.
+
+---
+
+STAGE 6: MODULE 7 – MEETING INTELLIGENCE
+
+How the user will use it
+
+Rahul responds positively and agrees to a meeting.
+
+The user now needs preparation, meeting notes, requirement capture and follow-up support.
+
+TEST CASE 7.1 – Create a Meeting
+
+User action:
+
+1. Open ABC Technologies.
+2. Create a meeting with Rahul.
+3. Enter meeting date, time and location.
+4. Link the meeting to the existing opportunity.
+
+Expected result:
+
+- Meeting is created.
+- Rahul is linked correctly.
+- Company and opportunity are linked.
+- Meeting appears in the dashboard.
+
+TEST CASE 7.2 – Generate Meeting Brief
+
+User instruction:
+
+"Prepare me for my meeting with Rahul."
+
+Expected result:
+
+The meeting brief includes:
+
+- Company background.
+- Attendee details.
+- Previous interactions.
+- Existing requirement information.
+- Relevant research signals.
+- Previous commitments.
+- Suggested objective.
+- Discovery questions.
+- Potential objections.
+- Decisions to obtain.
+
+TEST CASE 7.3 – Meeting Discovery Questions
+
+User instruction:
+
+"Give me the most important questions to understand their office requirement."
+
+Expected result:
+
+Questions cover:
+
+- Required area.
+- Employee capacity.
+- Preferred location.
+- Budget.
+- Occupancy timeline.
+- Lease tenure.
+- Existing lease.
+- Decision-makers.
+- Approval process.
+- Technical requirements.
+- Operational preferences.
+
+TEST CASE 7.4 – Capture Meeting Notes
+
+Enter the following synthetic notes:
+
+"Client expects approximately 25,000 SF in Kharadi. They are targeting occupancy within nine months. Their preferred lease tenure is five years. Budget is not yet confirmed. Finance approval is required. They are also evaluating whether to renew their existing office."
+
+Expected result:
+
+- The meeting summary is generated.
+- Requirement information is extracted.
+- Budget is identified as missing.
+- Finance approval is identified as a stakeholder requirement.
+- Renewal versus relocation is identified as a relevant decision.
+- Original notes remain available.
+
+TEST CASE 7.5 – Distinguish Facts from Interpretation
+
+Add this note:
+
+"Rahul said Property A is expensive."
+
+Expected result:
+
+- The system records the objection.
+- It does not automatically mark Property A as rejected.
+- It identifies the need to clarify the client's acceptable commercial range.
+
+TEST CASE 7.6 – Extract Commitments
+
+Add:
+
+"Rahul will share the approved budget by Friday. We will share three suitable properties by Wednesday."
+
+Expected result:
+
+- Two commitments are extracted.
+- Responsible people are identified.
+- Deadlines are captured.
+- Tasks are proposed.
+- The user can confirm them.
+
+TEST CASE 7.7 – Update Requirement
+
+User action:
+
+Approve the extracted requirement updates.
+
+Expected result:
+
+- The existing requirement is updated.
+- Historical values are preserved.
+- The new information is linked to the meeting.
+- Missing information remains clearly marked.
+
+TEST CASE 7.8 – Generate Follow-Up
+
+User instruction:
+
+"Prepare a follow-up email summarising the meeting and confirming our next steps."
+
+Expected result:
+
+- Meeting summary is used.
+- Client commitments are accurately represented.
+- Next steps are included.
+- Draft is linked to Module 5.
+- External sending remains subject to approval.
+
+TEST CASE 7.9 – Property Visit Feedback
+
+After a site visit, enter:
+
+"Client liked the location but felt the parking provision was insufficient. Rent is also above the preferred range."
+
+Expected result:
+
+- Feedback is linked to the correct property.
+- Location is marked positively.
+- Parking concern is recorded.
+- Rent concern is recorded.
+- Property is not automatically rejected.
+- Module 8 can use the feedback during comparison.
+
+MODULE 7 PASS CONDITION
+
+The Meeting Intelligence module must prepare meetings, capture structured information, distinguish facts from interpretations, extract commitments and update the correct CRM records.
+
+---
+
+STAGE 7: MODULE 8 – DEAL TOOLKIT
+
+How the user will use it
+
+The client has confirmed a requirement and the advisor needs to prepare a professional property and commercial comparison.
+
+TEST CASE 8.1 – Generate Requirement Brief
+
+User instruction:
+
+"Generate a requirement brief for ABC Technologies using the information from our meeting."
+
+Expected result:
+
+- Company information is retrieved.
+- Area is populated as 25,000 SF.
+- Location is Kharadi.
+- Occupancy timeline is nine months.
+- Lease tenure is five years.
+- Budget is marked as unconfirmed.
+- Finance approval requirement is captured.
+- Missing details are highlighted.
+
+TEST CASE 8.2 – Compare Properties
+
+User action:
+
+1. Open the requirement.
+2. Select Properties A, B and C.
+3. Run the property comparison.
+
+Expected result:
+
+- All three properties appear.
+- Area, location and commercials are compared.
+- Suitable parameters are displayed.
+- Advantages and shortcomings are identified.
+- Missing information is highlighted.
+- Weighted ratings are generated using configured parameters.
+
+TEST CASE 8.3 – Lease Economics Calculation
+
+Use the synthetic commercial inputs.
+
+Property A:
+
+- Rent: ₹100/SF/month.
+- Area: 25,000 SF.
+- CAM: ₹12/SF/month.
+
+Expected monthly figures:
+
+- Base rent: ₹25,00,000.
+- CAM: ₹3,00,000.
+- Total before other charges: ₹28,00,000.
+
+Property B:
+
+- Rent: ₹95/SF/month.
+- Area: 28,000 SF.
+- CAM: ₹10/SF/month.
+
+Expected monthly figures:
+
+- Base rent: ₹26,60,000.
+- CAM: ₹2,80,000.
+- Total before other charges: ₹29,40,000.
+
+Property C:
+
+- Rent: ₹110/SF/month.
+- Area: 24,000 SF.
+- CAM: ₹8/SF/month.
+
+Expected monthly figures:
+
+- Base rent: ₹26,40,000.
+- CAM: ₹1,92,000.
+- Total before other charges: ₹28,32,000.
+
+Expected result:
+
+- All calculations are correct.
+- Area and rental basis are visible.
+- CAM is separately displayed.
+- Other charges are not silently assumed to be zero.
+- The system identifies refundable deposits separately.
+
+TEST CASE 8.4 – Deposit Calculation
+
+Calculate the deposits using base rent.
+
+Property A:
+6 months of base rent = ₹1.50 crore.
+
+Property B:
+6 months of base rent = ₹1.596 crore.
+
+Property C:
+4 months of base rent = ₹1.056 crore.
+
+Expected result:
+
+- Deposits are calculated correctly under the specified assumption.
+- The assumption is displayed.
+- Refundable deposits are separated from occupancy expenses.
+- Deposit treatment is not confused with nonrefundable costs.
+
+TEST CASE 8.5 – Escalation Calculation
+
+Use:
+
+- Property A: 15% every 3 years.
+- Property B: 12% every 3 years.
+- Property C: 15% every 3 years.
+
+Expected result:
+
+- Escalation frequency is applied correctly.
+- The year-wise rent schedule is visible.
+- Total lease cost reflects the escalation.
+- The system does not apply annual escalation by mistake.
+
+TEST CASE 8.6 – Rent-Free Period
+
+Compare:
+
+- Property A: 2 months.
+- Property B: 3 months.
+- Property C: 1 month.
+
+Expected result:
+
+- Rent-free benefits are reflected in the correct periods.
+- Effective rent is calculated using the configured methodology.
+- Rent-free periods are not treated as permanent reductions in contracted rent.
+- The calculation assumptions are visible.
+
+TEST CASE 8.7 – Missing Commercial Information
+
+Remove CAM from Property A.
+
+Expected result:
+
+- CAM is displayed as unknown.
+- The system does not automatically treat CAM as zero.
+- The comparison flags the missing information.
+- The user can add the quotation or confirm the value.
+
+TEST CASE 8.8 – Conventional vs Managed Office
+
+Create a synthetic managed-office quotation.
+
+Include:
+
+- Monthly price per seat.
+- Seating capacity.
+- Included services.
+- Utilities.
+- Furniture.
+- Maintenance.
+- Deposit.
+- Contract period.
+
+Expected result:
+
+- Managed-office pricing is compared against equivalent capacity.
+- Included services are identified.
+- Duplicate charges are prevented.
+- Per-seat pricing is not directly compared with bare rent per SF.
+- Total financial and operational trade-offs are explained.
+
+TEST CASE 8.9 – Renewal vs Relocation
+
+Enter the client's existing lease information.
+
+Compare:
+
+- Renewal rent.
+- New property rent.
+- Fit-out.
+- Moving expenses.
+- Overlap rent.
+- Restoration.
+- Deposits.
+- Lease terms.
+
+Expected result:
+
+- Renewal cost is calculated.
+- Relocation cost is calculated.
+- Assumptions are displayed.
+- Financial and operational differences are explained.
+
+TEST CASE 8.10 – Negotiation Comparison
+
+Create three offer versions for Property A.
+
+Version 1:
+
+- ₹100/SF.
+- 2 months rent-free.
+- 15% escalation.
+
+Version 2:
+
+- ₹95/SF.
+- 2 months rent-free.
+- 15% escalation.
+
+Version 3:
+
+- ₹95/SF.
+- 3 months rent-free.
+- 12% escalation.
+
+Expected result:
+
+- All three versions are preserved.
+- Commercial changes are highlighted.
+- Financial impact is calculated.
+- The user can identify the most favourable terms.
+- The original offer is not overwritten.
+
+TEST CASE 8.11 – Client Proposal
+
+User instruction:
+
+"Generate a client-ready comparison of all three properties."
+
+Expected result:
+
+The proposal contains:
+
+- Requirement summary.
+- Property details.
+- Commercial comparison.
+- Occupancy costs.
+- Advantages.
+- Shortcomings.
+- Assumptions.
+- Missing information.
+- Recommendation.
+- Supporting evidence.
+
+The proposal should be editable and use the approved corporate template if one is configured.
+
+MODULE 8 PASS CONDITION
+
+The Deal Toolkit must produce correct calculations, transparent comparisons, version-controlled offers and professional client-ready deliverables.
+
+---
+
+STAGE 8: MODULE 12 – SUPERCHARGED AI ASSISTANT
+
+How the user will use it
+
+At this point, the user should be able to operate the entire system through one conversational interface.
+
+Instead of manually opening different modules, the user can ask the assistant to retrieve information, perform analysis and coordinate workflows.
+
+TEST CASE 12.1 – Retrieve Complete Company Intelligence
+
+User instruction:
+
+"Give me everything important about ABC Technologies."
+
+Expected result:
+
+The assistant retrieves:
+
+- Company profile.
+- Locations.
+- Occupancy.
+- Contacts.
+- Stakeholder information.
+- Research signals.
+- Lead score.
+- Requirement.
+- Outreach history.
+- Meeting history.
+- Property options.
+- Commercial analysis.
+- Open commitments.
+- Recommended next actions.
+
+It must not invent missing information.
+
+TEST CASE 12.2 – Ask About Research Signals
+
+User instruction:
+
+"Why did we identify ABC Technologies as an opportunity?"
+
+Expected result:
+
+- The relevant signals are retrieved.
+- Supporting evidence is displayed.
+- Signal dates are visible.
+- Counter-evidence is included.
+- The assistant explains the opportunity hypothesis.
+
+TEST CASE 12.3 – Ask About Prioritisation
+
+User instruction:
+
+"Why is ABC Technologies a high-priority account?"
+
+Expected result:
+
+- Lead priority score is retrieved.
+- Relevant scoring factors are explained.
+- Relationship access is considered.
+- Timing and evidence freshness are shown.
+- Missing information is identified.
+
+TEST CASE 12.4 – Find Decision-Makers
+
+User instruction:
+
+"Who are the important people we need to speak to at ABC Technologies?"
+
+Expected result:
+
+- Contact profiles are retrieved.
+- Stakeholder roles are displayed.
+- Decision-making responsibilities are explained.
+- Missing stakeholder categories are identified.
+- Verified contact information is distinguished from unverified information.
+
+TEST CASE 12.5 – Generate Outreach
+
+User instruction:
+
+"Draft a short follow-up to Rahul based on our last meeting."
+
+Expected result:
+
+- Correct contact is identified.
+- Previous meeting is retrieved.
+- Relevant requirements and commitments are retrieved.
+- A contextual draft is generated.
+- No unnecessary details are added.
+- Approval controls remain active.
+
+TEST CASE 12.6 – Meeting Preparation
+
+User instruction:
+
+"Prepare me for my next meeting with ABC Technologies."
+
+Expected result:
+
+- Correct meeting is identified.
+- Company and attendee information is retrieved.
+- Previous interactions are retrieved.
+- Requirements and properties are retrieved.
+- Open commitments are identified.
+- Discovery questions are generated.
+
+TEST CASE 12.7 – Commercial Analysis
+
+User instruction:
+
+"Which of the three properties is financially better?"
+
+Expected result:
+
+- The correct property records are retrieved.
+- Module 8 calculation services are called.
+- Commercial terms are compared.
+- Total cost is calculated.
+- Assumptions and missing information are displayed.
+- The assistant explains the result.
+
+The assistant must not independently invent financial calculations.
+
+TEST CASE 12.8 – Multi-Module Deal Review
+
+User instruction:
+
+"Prepare ABC Technologies for a complete deal review."
+
+Expected result:
+
+The assistant coordinates:
+
+- Module 1: Company and requirement information.
+- Module 2: Research signals.
+- Module 3: Priority and deal health.
+- Module 4: Stakeholder map.
+- Module 5: Outreach history.
+- Module 7: Meeting history and commitments.
+- Module 8: Commercial comparisons.
+
+It generates:
+
+- Account summary.
+- Opportunity status.
+- Stakeholder summary.
+- Requirement summary.
+- Property comparison.
+- Commercial analysis.
+- Outstanding issues.
+- Recommended next actions.
+
+TEST CASE 12.9 – Historical Information
+
+User instruction:
+
+"What did Rahul say about Property A during our last meeting?"
+
+Expected result:
+
+- Relevant meeting notes are retrieved.
+- The exact original note or transcript reference is available.
+- The assistant does not invent a quotation.
+- Confirmed statements are distinguished from AI interpretations.
+
+TEST CASE 12.10 – Memory and Conversation Continuity
+
+User instruction:
+
+"Use the same requirement and compare two new properties."
+
+Expected result:
+
+- The assistant identifies the correct requirement.
+- It retrieves the previously confirmed client preferences.
+- It retains the existing requirement record.
+- It does not ask the user to repeat known information.
+- It asks only for genuinely missing inputs.
+
+TEST CASE 12.11 – Contextual Assistant
+
+Open ABC Technologies' company page and ask:
+
+"Summarise this company."
+
+Expected result:
+
+- The assistant automatically identifies the company page context.
+- The user does not need to type the company name.
+- Correct company information is retrieved.
+
+Repeat from a contact, property, requirement and opportunity page.
+
+Expected result:
+
+- The assistant understands the currently selected record.
+- It does not confuse entities.
+
+TEST CASE 12.12 – Multi-Step Action
+
+User instruction:
+
+"Prepare a follow-up for Rahul, create an internal reminder for Friday and update the deal review."
+
+Expected result:
+
+- Follow-up draft is generated.
+- Internal reminder is created if authorised.
+- Deal review is updated or prepared.
+- The assistant reports each completed action.
+- External communication is not sent automatically.
+- Partial failures are clearly reported.
+
+TEST CASE 12.13 – Permission Test
+
+Log in using a user who does not have permission to view a particular company's records.
+
+User instruction:
+
+"Show me that company's lease information."
+
+Expected result:
+
+- Backend permission check denies access.
+- No confidential information is returned.
+- Access attempt is appropriately logged.
+
+TEST CASE 12.14 – Incorrect Information Correction
+
+User instruction:
+
+"The client's requirement is now 30,000 SF, not 25,000 SF."
+
+Expected result:
+
+- The assistant identifies the correct requirement.
+- It proposes the change.
+- It asks for confirmation if required.
+- The old value is preserved historically.
+- The updated value is linked to the correction source.
+- Relevant downstream assessments can be recalculated.
+
+TEST CASE 12.15 – Failed Task
+
+User instruction:
+
+"Show me all Pune companies with lease expiries in the next 12 months."
+
+Remove or make some lease records unavailable in the test dataset.
+
+Expected result:
+
+- Available records are retrieved.
+- Missing or incomplete lease information is identified.
+- The assistant does not claim to have found every company.
+- It explains the coverage limitation.
+
+MODULE 12 PASS CONDITION
+
+The assistant must retrieve accurate information from all included modules, coordinate multi-step operations, respect permissions, use the correct business services and clearly report results.
+
+---
+
+14. FINAL CROSS-MODULE INTEGRATION TESTS
+
+These are the most important tests because they establish whether the application actually works as one system.
+
+INTEGRATION TEST 1 – Signal to Outreach
+
+1. Add a new company signal.
+2. Match it to an existing company.
+3. Generate its priority score.
+4. Identify a decision-maker.
+5. Draft outreach.
+
+PASS CONDITION: Company information, research evidence, scoring and contact details flow correctly between Modules 1–5.
+
+INTEGRATION TEST 2 – Outreach to Meeting
+
+1. Generate an outreach draft.
+2. Approve it.
+3. Record a synthetic reply.
+4. Create a meeting.
+5. Generate a meeting brief.
+
+PASS CONDITION: The contact, company, outreach and meeting are correctly linked.
+
+INTEGRATION TEST 3 – Meeting to Requirement
+
+1. Enter meeting notes.
+2. Extract client requirements.
+3. Approve updates.
+4. Recalculate requirement readiness.
+5. Generate a requirement brief.
+
+PASS CONDITION: Meeting information becomes structured requirement information without duplicate records.
+
+INTEGRATION TEST 4 – Requirement to Commercial Proposal
+
+1. Select the requirement.
+2. Shortlist properties.
+3. Calculate lease economics.
+4. Compare options.
+5. Generate a proposal.
+
+PASS CONDITION: Module 8 uses the correct requirement and property records and produces reproducible calculations.
+
+INTEGRATION TEST 5 – Complete AI Assistant Workflow
+
+Enter this single instruction:
+
+"Review ABC Technologies, identify why it is a relevant opportunity, show me the important decision-makers, summarise our last interaction, compare the three properties against its requirement and prepare the next actions."
+
+PASS CONDITION:
+
+The assistant retrieves the correct information from Modules 1, 2, 3, 4, 5, 7 and 8 and returns a coherent, evidence-supported result.
+
+It must not require the user to manually open every module or repeat information.
+
+---
+
+15. HOW TO RECORD TEST RESULTS
+
+For every test case, record:
+
+- Test case ID.
+- Module.
+- Test date.
+- User action.
+- Input data.
+- Expected result.
+- Actual result.
+- Pass or fail.
+- Screenshot or supporting evidence.
+- Error message, if any.
+- Severity.
+- Developer notes.
+- Retest status.
+
+Use these severity levels:
+
+CRITICAL:
+
+- Data leakage.
+- Wrong company or contact association.
+- Incorrect financial calculations.
+- Unauthorised external communication.
+- Data loss.
+- Cross-workspace access.
+
+HIGH:
+
+- Important module integration failure.
+- Duplicate company or requirement creation.
+- Incorrect historical records.
+- Wrong commercial terms.
+- Incorrect AI tool execution.
+
+MEDIUM:
+
+- Incorrect scoring.
+- Missing source references.
+- Poor extraction.
+- Incorrect recommendation.
+- Incomplete workflow.
+
+LOW:
+
+- UI issues.
+- Formatting.
+- Minor usability problems.
+
+---
+
+16. FINAL RELEASE CHECKLIST
+
+Before considering the included modules ready:
+
+[ ] Module 1 maintains accurate central records.
+
+[ ] Module 2 detects and links relevant business signals.
+
+[ ] Module 3 generates explainable and configurable scores.
+
+[ ] Module 4 identifies and enriches relevant stakeholders.
+
+[ ] Module 5 generates contextual and approved outreach.
+
+[ ] Module 7 prepares meetings and captures structured outcomes.
+
+[ ] Module 8 calculates and compares commercial options accurately.
+
+[ ] Module 12 can access and coordinate all included modules.
+
+[ ] All modules reuse the same central company and contact records.
+
+[ ] Requirements remain independent and historically traceable.
+
+[ ] No important information is silently overwritten.
+
+[ ] Permissions are enforced across every module.
+
+[ ] External communication requires human approval.
+
+[ ] Financial calculations are deterministic and tested.
+
+[ ] AI outputs distinguish confirmed facts from assumptions.
+
+[ ] Failed tasks are reported accurately.
+
+[ ] The end-to-end business workflow works without duplicate data entry.
+
+FINAL SUCCESS CRITERION
+
+A CRE advisor should be able to start with a company signal and complete the following journey inside one application:
+
+DISCOVER COMPANY → UNDERSTAND OPPORTUNITY → PRIORITISE ACCOUNT → IDENTIFY DECISION-MAKERS → INITIATE OUTREACH → CONDUCT MEETING → CAPTURE REQUIREMENT → COMPARE PROPERTIES → ANALYSE COMMERCIALS → PREPARE CLIENT PROPOSAL → PLAN NEXT ACTIONS.
+
+The AI assistant must be able to retrieve and coordinate this entire journey.
+
+The application should feel like one connected CRE operating system, not eight separate modules.

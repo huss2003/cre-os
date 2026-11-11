@@ -16,6 +16,7 @@ import { CRITERIA, DEFAULT_WEIGHTS, effectiveWeights } from "@/modules/deals/mat
 import { STAKEHOLDER_ROLES, fieldValue, type RequirementConstraints, type RequirementRow } from "@/modules/deals/requirements/contract";
 import { getRequirementDetail } from "@/modules/deals/requirements/service";
 import { EligibilityBadge, FieldStatusBadge, Flash, RequirementStatusBadge, nonce } from "@/modules/deals/ui";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 const show = (v: unknown) => Array.isArray(v) ? (v.every((x) => x === null || x === undefined) ? "—" : v.map((x) => x ?? "—").join(" / ")) : v === null || v === undefined || v === "" ? "—" : String(v);
@@ -59,6 +60,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
       <PageHeader title={r.title} subtitle={<>{org?.display_name ?? "—"} · <RequirementStatusBadge status={r.status} /></>}
         actions={FOCUS_MODE ? (canEdit ? <ButtonLink href={`/requirements/${id}/edit`}>Edit requirement</ButtonLink> : null) : <>{canEdit ? <ButtonLink href={`/requirements/${id}/edit`}>Edit requirement</ButtonLink> : null}<ButtonLink variant="secondary" href={`/documents?requirement=${id}`}>Documents</ButtonLink><ButtonLink variant="secondary" href={`/finance?requirement=${id}`}>Financials</ButtonLink></>} />
       <Flash sp={sp} />
+      <ReassessBanner ctx={app} entityType="requirement" entityId={id} />
       {d.pendingProposals.length > 0 && <StaleBanner>{d.pendingProposals.length} change proposal(s) to confirmed fields await approval — <Link className="underline" href="/approvals">open approvals</Link>.</StaleBanner>}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -302,7 +304,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
               <Field label="CAM ₹/SF/month"><Input name="cam_per_sf" inputMode="decimal" /></Field>
               <Field label="Escalation %"><Input name="escalation_pct" inputMode="decimal" /></Field>
               <Field label="Escalation every (months)"><Input name="escalation_every_months" inputMode="numeric" /></Field>
-              <Field label="Rent-free months"><Input name="rent_free_months" inputMode="numeric" /></Field>
+              <Field label="Rent-free months"><Input name="rent_free_months" aria-label="Rent-free months" inputMode="numeric" /></Field>
               <Field label="Deposit (months)"><Input name="deposit_months" inputMode="decimal" /></Field>
               <Field label="Tenure / lock-in (months)"><div className="flex gap-1"><Input name="tenure_months" inputMode="numeric" placeholder="tenure" /><Input name="lockin_months" inputMode="numeric" placeholder="lock-in" /></div></Field>
               <Field label="GST"><Select name="gst" defaultValue=""><option value="">Not stated</option><option value="excluded">Excluded</option><option value="included">Included</option></Select></Field>
@@ -319,10 +321,10 @@ export default async function RequirementDetail({ params, searchParams }: { para
               <form action={reviseQuoteAction} className="mt-3 space-y-4">
                 <input type="hidden" name="id" value={id} />
                 <Select name="quote_id" required aria-label="Quote">{currentQuotes.map((q) => <option key={q.id as string} value={q.id as string}>v{String(q.version)} · {String((q.terms_json as Record<string, unknown>).rent ?? "")}</option>)}</Select>
-                <Input name="rent" inputMode="decimal" placeholder="New rent" />
-                <Input name="rent_free_months" inputMode="numeric" placeholder="Rent-free months" />
-                <Input type="date" name="valid_until" />
-                <Input name="evidence" placeholder="Source of revision" />
+                <Input name="rent" aria-label="New rent" inputMode="decimal" placeholder="New rent" />
+                <Input name="rent_free_months" aria-label="Rent-free months" inputMode="numeric" placeholder="Rent-free months" />
+                <Input type="date" name="valid_until" aria-label="Quote valid until" />
+                <Input name="evidence" aria-label="Source of revision" placeholder="Source of revision" />
                 <Button type="submit" variant="secondary">Save new version</Button>
               </form>
             </details>

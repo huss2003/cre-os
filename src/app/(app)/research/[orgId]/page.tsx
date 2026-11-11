@@ -5,9 +5,15 @@ import { PageHeader, Card, Button, Badge, EmptyState, Field, Select, Input, More
 import { dossierPage } from "@/modules/intelligence/research/queries";
 import { pasteSourceOptions } from "@/modules/intelligence/research/registry";
 import { EVIDENCE_TIER_LABEL, type EvidenceTier } from "@/modules/intelligence/common";
-import { type DossierSection, claimDateLabel } from "@/modules/intelligence/research/dossier";
+import { type DossierSection, claimDateLabel, SOURCE_KIND_LABEL } from "@/modules/intelligence/research/dossier";
 import { Flash, TIER_TONE, fmtDay, label } from "@/modules/intelligence/ui";
 import { generateAction, evidenceAction, webResearchAction, watchAction, detectAction } from "../actions";
+
+/** Older dossiers stored source lines as "<table> <id8> (<uuid>)" — show a readable label instead. */
+function sourceText(t: string): string {
+  const m = /^([a-z_]+)(?: [0-9a-f]{8})?(?: \([0-9a-f-]{36}\))?$/i.exec(t);
+  return m && SOURCE_KIND_LABEL[m[1]] ? SOURCE_KIND_LABEL[m[1]] : t;
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -46,7 +52,7 @@ export default async function DossierPage({ params, searchParams }: { params: Pr
                 <ul className="space-y-2">
                   {s.claims.map((c, i) => (
                     <li key={i} className={`text-sm ${c.expired ? "opacity-60" : ""}`}>
-                      <div className="break-words">{c.source.url && s.key === "sources" ? <a className="text-brand underline" href={c.source.url} target="_blank" rel="noopener noreferrer nofollow">{c.text}</a> : c.text}</div>
+                      <div className="break-words">{c.source.url && s.key === "sources" ? <a className="text-brand underline" href={c.source.url} target="_blank" rel="noopener noreferrer nofollow">{c.text}</a> : s.key === "sources" ? sourceText(c.text) : c.text}</div>
                       <div className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-ink-soft">
                         <FactBadge status={c.status} /><Badge>{EVIDENCE_TIER_LABEL[c.evidence_tier as EvidenceTier] ?? c.evidence_tier}</Badge>
                         {c.status === "ai_inference" && <Badge tone="accent">hypothesis</Badge>}

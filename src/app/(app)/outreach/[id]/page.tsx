@@ -79,7 +79,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
       ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_400px] *:min-w-0">
         {/* LEFT: compose */}
         <div className="space-y-5">
           {st === "planned" ? (
@@ -100,7 +100,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <div className="flex items-center gap-3"><Icon c="✉" /><h2 className="flex items-center text-lg font-semibold">Compose message<HelpFor k="Message" /></h2></div>
               {editable ? (
                 <ActionForm key={draft.content_hash} action={saveAction.bind(null, id)} className="space-y-3">
-                  <div className="grid items-center gap-x-4 gap-y-3 sm:grid-cols-[72px_1fr]">
+                  <div className="grid grid-cols-1 items-center gap-x-4 gap-y-3 sm:grid-cols-[72px_minmax(0,1fr)] *:min-w-0">
                     <label htmlFor="to" className="text-sm text-ink-soft">To</label>
                     <input id="to" name="to" defaultValue={draft.recipient_address ?? ""} placeholder={draft.channel === "whatsapp" ? "+91…" : draft.channel === "linkedin" ? "linkedin.com/in/…" : "name@company.com"} className={field} />
                     {draft.subject !== null || draft.channel === "email" || draft.channel === "introduction" ? <>
@@ -186,7 +186,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {editor && ["sent", "replied"].includes(st) ? (
             <section className={card}>
               <h2 className="flex items-center font-semibold">Did they reply?<HelpFor k="Did they reply?" /></h2>
-              <ActionForm action={responseAction.bind(null, id)} className="mt-3 space-y-3"><textarea data-tour="outreach-reply-text" name="text" rows={4} placeholder="Paste their reply, or note what they said on the phone" className={field} /><Submit dataTour="outreach-reply-save">Save reply</Submit></ActionForm>
+              <ActionForm action={responseAction.bind(null, id)} className="mt-3 space-y-3"><textarea data-tour="outreach-reply-text" name="text" aria-label="Their reply" rows={4} placeholder="Paste their reply, or note what they said on the phone" className={field} /><Submit dataTour="outreach-reply-save">Save reply</Submit></ActionForm>
               {st === "sent" ? <ActionForm action={closeAction.bind(null, id)} className="mt-3"><input type="hidden" name="outcome" value="no_response" /><Submit variant="ghost">Close — no response</Submit></ActionForm> : null}
             </section>
           ) : null}
@@ -201,7 +201,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             </section>
           ) : null}
           {editor && ["draft", "pending_approval", "approved", "planned"].includes(st) ? (
-            <details className="text-sm"><summary className="cursor-pointer text-ink-soft">Pause this message</summary><ActionForm action={pauseAction.bind(null, id)} className="mt-2 flex gap-2"><input name="reason" placeholder="Reason to pause" className={field} /><Submit variant="secondary">Pause</Submit></ActionForm></details>
+            <details className="text-sm"><summary className="cursor-pointer text-ink-soft">Pause this message</summary><ActionForm action={pauseAction.bind(null, id)} className="mt-2 flex gap-2"><input name="reason" aria-label="Reason to pause" placeholder="Reason to pause" className={field} /><Submit variant="secondary">Pause</Submit></ActionForm></details>
           ) : null}
         </div>
 

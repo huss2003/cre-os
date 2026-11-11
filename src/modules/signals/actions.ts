@@ -4,6 +4,7 @@ import { requireContext } from "@/lib/auth/context";
 import { actOnSignal, ingestText, scanWorkspace, SignalError, type SignalAction } from "./service";
 import { errorMessage } from "@/modules/admin/http";
 import type { ActionState } from "@/modules/admin/ui/client";
+import { escapeLike } from "@/lib/util/like";
 
 const str = (f: FormData, k: string) => { const v = f.get(k); return typeof v === "string" && v.trim() ? v.trim() : undefined; };
 
@@ -97,7 +98,7 @@ export async function addProspectAction(runId: string, _prev: ActionState): Prom
       orgId = org.id as string;
     }
     await ctx.db.from("research_run").update({ org_id: orgId, assessment: { ...a, orgId } }).eq("workspace_id", ctx.workspaceId).eq("id", runId);
-    const { data: sigs } = await ctx.db.from("signal").select("id").eq("workspace_id", ctx.workspaceId).is("org_id", null).ilike("entity_name_raw", a.company);
+    const { data: sigs } = await ctx.db.from("signal").select("id").eq("workspace_id", ctx.workspaceId).is("org_id", null).ilike("entity_name_raw", escapeLike(a.company));
     for (const sg of sigs ?? []) await actOnSignal(ctx.db, ctx.workspaceId, ctx.userId, sg.id, "correct_company", { org_id: orgId });
     revalidatePath(`/research/assessment/${runId}`); revalidatePath("/signals"); revalidatePath("/research");
     return { ok: true, message: `${a.company} saved to your companies.` };

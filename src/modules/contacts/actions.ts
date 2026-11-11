@@ -15,8 +15,12 @@ export async function discoverAction(_p: ActionState, f: FormData): Promise<Acti
     const org = s(f, "org_id"); if (!org) return { error: "Choose a company." };
     const r = await S.discoverCompany(ctx.db, ctx.workspaceId, org, { userId: ctx.userId, force: f.get("force") === "1" });
     if ("reused" in r && r.reused) return done("Already researched today — open it in History, or tick 'Run again'.");
-    const x = r as { found: number; mocked: boolean; error?: string | null };
-    if (x.mocked) return { error: `Web research didn't run: ${x.error ?? "see History"}` };
+    const x = r as { found: number; mocked: boolean; error?: string | null; linked?: { name: string; function: string }[]; missing?: { label: string }[] };
+    if (x.mocked) {
+      const have = (x.linked ?? []).map((p) => `${p.name} (${p.function})`).join(", ") || "nobody yet";
+      const miss = (x.missing ?? []).map((m) => m.label).join(", ") || "none";
+      return { error: `Web research didn't run: ${x.error ?? "Web research is off (no AI key)."} From your records — already linked: ${have}. Still to find: ${miss}. See the company's contacts page.` };
+    }
     return done(`Found ${x.found} people. Review them in To review.`);
   } catch (e) { return fail(e); }
 }

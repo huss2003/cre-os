@@ -120,6 +120,9 @@ export async function deliverBrief(admin: Db, workspaceId: string, brief: Stored
     const { error } = await admin.from("brief").update({ delivered_at: now.toISOString() }).eq("workspace_id", workspaceId).eq("id", brief.id).is("delivered_at", null);
     if (error) throw error;
   }
+  // The orchestrator's daily plan (which extends this brief) already notified the user for this day → no second 08:00 ping.
+  const { data: planNote } = await admin.from("outbox").select("id").eq("workspace_id", workspaceId).eq("dedupe_key", `orch:daily_plan:${brief.user_id}:${brief.brief_date}`).limit(1);
+  if (planNote?.length) return;
   await notify(admin, workspaceId, brief.user_id, "brief_ready", `brief_ready:${brief.user_id}:${brief.brief_date}`, {
     brief_id: brief.id, date: brief.brief_date, version: brief.version, synthesis_status: brief.synthesis_status,
     stale_sections: brief.content?.staleSections ?? [], href: "/today",

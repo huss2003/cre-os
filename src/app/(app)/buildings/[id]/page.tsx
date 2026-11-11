@@ -86,6 +86,7 @@ async function Body({ params, searchParams }: Props) {
                     </div>
                     {s.latest ? <div className="text-xs text-ink-soft">As of {fmtDate(s.latest.as_of)}{s.latest.valid_until ? ` · valid until ${fmtDate(s.latest.valid_until)}` : ""}{s.latest.available_from ? ` · available from ${fmtDate(s.latest.available_from)}` : ""}
                       {s.latest.asking_rent_min ? ` · asking ₹${s.latest.asking_rent_min}${s.latest.asking_rent_max && s.latest.asking_rent_max !== s.latest.asking_rent_min ? `–${s.latest.asking_rent_max}` : ""}/sf (${s.latest.rent_basis ?? "basis unknown"})` : ""}</div> : null}
+                    {s.latest ? <div className="text-xs text-ink-soft">Terms: CAM {s.latest.cam_psf_month != null ? `₹${s.latest.cam_psf_month}/sf/month` : "unknown"} · deposit {s.latest.deposit_months != null ? `${s.latest.deposit_months} months` : "unknown"} · rent-free {s.latest.rent_free_months != null ? `${s.latest.rent_free_months} months` : "unknown"} · escalation {s.latest.escalation_pct != null ? `${s.latest.escalation_pct}%${s.latest.escalation_every_months ? ` every ${s.latest.escalation_every_months} months` : ""}` : "unknown"}</div> : null}
                     {s.history.length > 1 ? (
                       <details className="mt-1 text-xs"><summary className="cursor-pointer text-brand">History ({s.history.length} snapshots)</summary>
                         <ul className="mt-1 space-y-0.5">{s.history.map((h) => <li key={h.id}>{fmtDate(h.as_of)}: {h.status} <FactBadge status={h.fact_status} /></li>)}</ul>
@@ -102,7 +103,8 @@ async function Body({ params, searchParams }: Props) {
               <ul className="space-y-1 text-sm">{b.leases.map((l) => (
                 <li key={l.id} className="flex flex-wrap items-center gap-1.5">
                   {l.tenant_org_id ? <Link className="text-brand" href={`/companies/${l.tenant_org_id}`}>{l.tenant_name ?? "hidden tenant"}</Link> : <span>{l.tenant_name ?? "tenant unknown"}</span>}
-                  <span className="text-ink-soft">{l.landlord_name ? `landlord ${l.landlord_name} · ` : ""}{l.start_date ? `from ${fmtDate(l.start_date)} · ` : ""}{l.area_sf ? sf(l.area_sf) : "area unknown"} · expiry {l.contractual_expiry ? fmtDate(l.contractual_expiry) : "unknown"}</span><FactBadge status={l.fact_status} />
+                  <span className="text-ink-soft">{l.landlord_name ? `landlord ${l.landlord_name} · ` : ""}{l.start_date ? `from ${fmtDate(l.start_date)} · ` : ""}{l.area_sf ? sf(l.area_sf) : "area unknown"} · expiry {l.contractual_expiry ? fmtDate(l.contractual_expiry) : "unknown"}</span>{l.is_estimate ? <Badge tone="warn">Estimate</Badge> : <FactBadge status={l.fact_status} />}
+                  {l.source_note || l.observed_on ? <span className="text-xs text-ink-soft">source: {l.source_note ?? "not recorded"}{l.observed_on ? ` · observed ${fmtDate(l.observed_on)}` : ""}</span> : null}
                   <div className="w-full pl-3">
                     <LinkedRows table="lease_space" hostColumn="lease_id" hostId={l.id} backPath={`/buildings/${id}`} cols={[{ key: "space_id", label: "space" }, { key: "area_sf", fmt: "num" }]} joins={{ space_id: { table: "space", label: "floor_text" } }} />
                     <LinkedRows table="lease_event" hostColumn="lease_id" hostId={l.id} backPath={`/buildings/${id}`} order="event_date" cols={[{ key: "event_type" }, { key: "event_date", fmt: "date" }, { key: "date_basis" }, { key: "notice_days", label: "notice days" }]} />

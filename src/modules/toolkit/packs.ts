@@ -360,12 +360,12 @@ export async function generatePacks(ctx: DealsCtx, g: PackRequest) {
   const files = [{ kind: "docx", label: "Site visit pack", buf: docx, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
     { kind: "pdf", label: "Site visit pack (print)", buf: pdf, mime: "application/pdf" },
     { kind: "pptx", label: "Presentation deck", buf: pptx, mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }];
-  const stored: { label: string; kind: string; path: string; sha256: string; bytes: number }[] = [];
+  const stored: { name: string; label: string; kind: string; path: string; sha256: string; bytes: number }[] = [];
   for (const f of files) {
     const path = `${ctx.workspaceId}/packs/${g.requirementId}/${stamp}-${f.kind === "pptx" ? "deck" : "site-visit"}.${f.kind}`;
     const up = await ctx.db.storage.from(PACK_BUCKET).upload(path, f.buf, { contentType: f.mime, upsert: false });
     if (up.error) throw new DealsError(500, `storage upload failed: ${up.error.message}`);
-    stored.push({ label: f.label, kind: f.kind, path, sha256: createHash("sha256").update(f.buf).digest("hex"), bytes: f.buf.length });
+    stored.push({ name: path.split("/").pop() as string, label: f.label, kind: f.kind, path, sha256: createHash("sha256").update(f.buf).digest("hex"), bytes: f.buf.length });
   }
   const saved = await saveAnalysis(ctx.db, ctx.workspaceId, ctx.userId, {
     kind: "deliverable", title: `Packs: ${model.title}`, requirementId: g.requirementId, orgId, assetIds: g.assetIds, quoteRefs,

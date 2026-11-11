@@ -2,6 +2,7 @@
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { saveFinancingAction } from "@/modules/toolkit/actions-fitout";
 import { Field, inputCls } from "@/modules/toolkit/ui/kit";
+import { CalcInput } from "@/modules/toolkit/ui/calc-input";
 import { StickyBar } from "@/modules/toolkit/ui/options/parts";
 
 type Init = Record<string, string | number | null | undefined>;
@@ -10,7 +11,7 @@ export function FinancingForm({ id, title, initial, partners }: { id?: string; t
   const p = id ? `e-` : "n-";
   const num = (name: string, label: string, unit: string, opts: { hint?: string; required?: boolean; mode?: "decimal" | "numeric" } = {}) => (
     <Field label={label} unit={unit} hint={opts.hint} required={opts.required} htmlFor={`${p}${name}`}>
-      <input id={`${p}${name}`} name={name} inputMode={opts.mode ?? "decimal"} defaultValue={v(name)} required={opts.required} placeholder={opts.required ? "" : "blank = unknown"} className={`${inputCls} tabular-nums ${unit.length > 3 ? "pr-20" : "pr-10"}`} />
+      <CalcInput unit={unit} label={label} id={`${p}${name}`} name={name} inputMode={opts.mode ?? "decimal"} defaultValue={v(name)} required={opts.required} placeholder={opts.required ? "" : "blank = unknown"} className={`${inputCls} tabular-nums ${unit.length > 3 ? "pr-20" : "pr-10"}`} />
     </Field>
   );
   const sel = (name: string, label: string, dv: string, options: [string, string][], hint?: string) => (
@@ -21,7 +22,7 @@ export function FinancingForm({ id, title, initial, partners }: { id?: string; t
   return (
     <ActionForm action={saveFinancingAction} className="space-y-5">
       {id ? <input type="hidden" name="id" value={id} /> : null}
-      <fieldset className="space-y-4">
+      <fieldset className="min-w-0 space-y-4">
         <legend className="mb-2 text-lg font-semibold"><span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand text-xs font-bold text-white">1</span>Loan details</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Name this analysis" required htmlFor={`${p}title`}><input id={`${p}title`} className={inputCls} name="title" defaultValue={title ?? ""} placeholder="e.g. Baner fit-out — 36m loan" required /></Field>

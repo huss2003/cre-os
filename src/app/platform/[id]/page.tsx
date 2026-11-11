@@ -47,7 +47,7 @@ async function Body({ params }: { params: Promise<{ id: string }> }) {
           <ul className="mb-3 space-y-1 text-sm">{u.members.map((m) => <li key={m.user_id}>{m.display_name ?? m.user_id.slice(0, 8)} <Badge>{m.role}</Badge> <span className="text-xs text-ink-soft">{fmtDate(m.created_at)}</span></li>)}</ul>
           <ActionForm action={platformAddMemberAction.bind(null, id)} className="space-y-2">
             <div className="grid gap-2 sm:grid-cols-2">
-              <Input name="email" type="email" required placeholder="email" />
+              <Input name="email" aria-label="Email" type="email" required placeholder="email" />
               <Input name="display_name" placeholder="name" />
               <Select name="role" defaultValue="owner">{ROLES.map((r) => <option key={r} value={r}>{r}</option>)}</Select>
               <Select name="method" defaultValue="invite_link"><option value="invite_link">Invite link</option><option value="temp_password">Temporary password</option></Select>

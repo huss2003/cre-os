@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { Badge, Card } from "@/components/ui";
-import { fmt } from "@/lib/util/time";
 import { ActionForm, Submit } from "@/modules/changes/ui/client";
 import type { AttentionQueues } from "./review";
-import { requestInfoAction, retryJobAction } from "./actions";
+import { requestInfoAction } from "./actions";
 import { TYPE_LABEL, type DocType } from "./detect";
+import { cleanText, proposalHeadline } from "@/modules/changes/display";
 
 /** Review §12.4 attention queues — only non-empty queues are shown; counts in the summary row. */
 export function AttentionPanel({ q, editor }: { q: AttentionQueues; editor: boolean }) {
@@ -15,7 +15,7 @@ export function AttentionPanel({ q, editor }: { q: AttentionQueues; editor: bool
     ["Outreach drafts", q.drafts, "/approvals?tab=drafts"],
     ["Company matches", q.companyMatches.length, "#q-matches"],
     ["Duplicate contacts", q.duplicateContacts.length, "#q-dupes"],
-    ...(q.failedJobs ? [["Failed processing", q.failedJobs.length, "#q-jobs"] as [string, number, string]] : []),
+    ...(q.failedJobs ? [["Failed jobs", q.failedJobs.length, "/approvals/jobs"] as [string, number, string]] : []),
   ];
   const open = counts.filter(([, n]) => n > 0);
   if (!open.length) return null;
@@ -40,7 +40,7 @@ export function AttentionPanel({ q, editor }: { q: AttentionQueues; editor: bool
 
       {q.needsInfo.length ? (
         <Card title={`Needs more info (${q.needsInfo.length})`} help="Proposals someone asked questions about. Edit the proposal once you have the answer; a task tracks the follow-up."><ul id="q-info" className="divide-y divide-line">{q.needsInfo.map((p) => (
-          <li key={p.id} className="py-2 text-sm"><Badge tone="warn">clarify</Badge> {p.operation} {p.target_type}<p className="line-clamp-2 text-xs text-ink-soft">{p.reason}</p></li>
+          <li key={p.id} className="py-2 text-sm"><Badge tone="warn">needs info</Badge> {proposalHeadline(p.operation, p.target_type)}<p className="line-clamp-2 text-xs text-ink-soft">{cleanText(p.reason)}</p></li>
         ))}</ul></Card>
       ) : null}
 
@@ -62,15 +62,6 @@ export function AttentionPanel({ q, editor }: { q: AttentionQueues; editor: bool
         </Card>
       ) : null}
 
-      {q.failedJobs?.length ? (
-        <Card title={`Failed processing (${q.failedJobs.length})`} help="Background work that stopped. Retry once the cause (e.g. a missing key or file) is fixed."><ul id="q-jobs" className="divide-y divide-line">{q.failedJobs.map((j) => (
-          <li key={j.id} className="space-y-1 py-2 text-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2"><span><Badge tone="bad">{j.state}</Badge> {j.job_type} · {j.attempts}/{j.max_attempts} tries · {fmt(j.updated_at)}</span>
-              {editor ? <ActionForm action={retryJobAction}><input type="hidden" name="job_id" value={j.id} /><Submit variant="secondary">Retry</Submit></ActionForm> : null}</div>
-            {j.last_error ? <p className="line-clamp-2 text-xs text-ink-soft">{j.last_error}</p> : null}
-          </li>
-        ))}</ul></Card>
-      ) : null}
     </div>
   );
 }
@@ -82,7 +73,7 @@ export function RequestInfo({ proposalId }: { proposalId: string }) {
       <summary className="cursor-pointer text-ink-soft">Request more info</summary>
       <ActionForm action={requestInfoAction} className="mt-2 flex flex-col gap-2 sm:flex-row">
         <input type="hidden" name="proposal_id" value={proposalId} />
-        <input name="note" required placeholder="What's missing? e.g. need the signed LOI page" className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2" />
+        <input name="note" aria-label="What is missing" required placeholder="What's missing? e.g. need the signed LOI page" className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2" />
         <Submit variant="secondary">Ask</Submit>
       </ActionForm>
     </details>

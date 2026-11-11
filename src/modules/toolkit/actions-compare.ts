@@ -6,10 +6,12 @@ import type { ActionState } from "@/modules/admin/ui/client";
 import { runComparison, saveRatingModel } from "./comparison";
 import { getAnalysis } from "./store";
 import type { AreaBasis, RatingFactor, RatingProperty, RatingRule } from "./calc/rating";
+import { parseFormNumber, type FieldKind } from "./calc/validate";
 
 const s = (f: FormData, k: string) => { const v = f.get(k); return v === null ? "" : String(v).trim(); };
 /** Blank stays unknown (null) — never coerced to 0. */
-const n = (f: FormData, k: string) => { const v = s(f, k).replace(/,/g, ""); if (v === "") return null; const x = Number(v); return Number.isFinite(x) ? x : null; };
+/** Blank = unknown (null); anything else must be a sane number for its field type (shared toolkit validator). */
+const n = (f: FormData, k: string, kind: FieldKind = "quantity", label = k) => parseFormNumber(s(f, k), kind, label, k);
 const err = (e: unknown) => ({ error: e instanceof Error ? e.message.slice(0, 500) : "Something went wrong" });
 
 function manualRows(f: FormData): RatingProperty[] {
@@ -18,12 +20,13 @@ function manualRows(f: FormData): RatingProperty[] {
     const name = s(f, `m${i}_name`);
     if (!name) continue;
     const b = s(f, `m${i}_basis`);
-    const esc = n(f, `m${i}_esc`), escYears = n(f, `m${i}_escyears`);
+    const row = `Property ${i + 1} (${name})`;
+    const esc = n(f, `m${i}_esc`, "percent", `${row}: Escalation`), escYears = n(f, `m${i}_escyears`, "years", `${row}: Escalation interval`);
     out.push({
       key: `manual-${i + 1}`, name, source: "manual", microMarket: s(f, `m${i}_mm`) || null, grade: s(f, `m${i}_grade`) || null,
-      areaSf: n(f, `m${i}_area`), areaBasis: (b === "carpet" || b === "chargeable" ? b : null) as AreaBasis | null, rentBasis: (b === "carpet" || b === "chargeable" ? b : null) as AreaBasis | null,
-      rent: n(f, `m${i}_rent`), cam: n(f, `m${i}_cam`), depositMonths: n(f, `m${i}_dep`), rentFreeMonths: n(f, `m${i}_rf`),
-      escalationPct: esc, escalationEveryMonths: escYears === null ? null : escYears * 12, metroKm: n(f, `m${i}_metro`),
+      areaSf: n(f, `m${i}_area`, "area", `${row}: Area`), areaBasis: (b === "carpet" || b === "chargeable" ? b : null) as AreaBasis | null, rentBasis: (b === "carpet" || b === "chargeable" ? b : null) as AreaBasis | null,
+      rent: n(f, `m${i}_rent`, "rentPerSf", `${row}: Rent`), cam: n(f, `m${i}_cam`, "rentPerSf", `${row}: CAM`), depositMonths: n(f, `m${i}_dep`, "months", `${row}: Deposit`), rentFreeMonths: n(f, `m${i}_rf`, "months", `${row}: Rent-free`),
+      escalationPct: esc, escalationEveryMonths: escYears === null ? null : escYears * 12, metroKm: n(f, `m${i}_metro`, "quantity", `${row}: Metro distance`),
       evidence: (s(f, `m${i}_evidence`) || "manual") as RatingProperty["evidence"],
     });
   }
@@ -36,7 +39,7 @@ export async function createComparisonAction(_: ActionState, f: FormData): Promi
     const ctx = await requireContext("editor");
     const r = await runComparison(ctx.db, ctx.workspaceId, ctx.userId, {
       title: s(f, "title") || "Property comparison", requirementId: s(f, "requirement_id") || null,
-      assetIds: f.getAll("asset_ids").map(String).filter(Boolean), manual: manualRows(f), modelId: s(f, "model_id") || null, termMonths: n(f, "term_months"),
+      assetIds: f.getAll("asset_ids").map(String).filter(Boolean), manual: manualRows(f), modelId: s(f, "model_id") || null, termMonths: n(f, "term_months", "months", "Term"),
     });
     id = r.id;
   } catch (e) { return err(e); }

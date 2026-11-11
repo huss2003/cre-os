@@ -45,8 +45,85 @@ function score(text: string): Map<DocType, { s: number; hits: string[] }> {
   return out;
 }
 
+export interface DetectInput {
+  name: string; mime: string; head?: Uint8Array; text?: string | null; caption?: string | null; userType?: DocType | null;
+  /** Whole file (or at least its first ~64 KB) — used to read image pixel dimensions. */
+  bytes?: Uint8Array;
+  /** File size in bytes (defaults to bytes.length). */
+  size?: number;
+}
+
+/** Pixel size from PNG (IHDR) or JPEG (SOFn) bytes; null when unreadable. Pure, no decoding. */
+export function imageSize(b: Uint8Array | undefined): { width: number; height: number } | null {
+  if (!b || b.length < 24) return null;
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) {
+    const u32 = (o: number) => ((b[o] << 24) | (b[o + 1] << 16) | (b[o + 2] << 8) | b[o + 3]) >>> 0;
+    const w = u32(16), h = u32(20);
+    return w && h ? { width: w, height: h } : null;
+  }
+  if (b[0] === 0xff && b[1] === 0xd8) {
+    let o = 2;
+    while (o + 9 < b.length) {
+      if (b[o] !== 0xff) { o++; continue; }
+      const marker = b[o + 1];
+      if (marker === 0xff) { o++; continue; }
+      if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) { o += 2; continue; }
+      const len = (b[o + 2] << 8) | b[o + 3];
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        const h = (b[o + 5] << 8) | b[o + 6], w = (b[o + 7] << 8) | b[o + 8];
+        return w && h ? { width: w, height: h } : null;
+      }
+      if (len < 2) return null;
+      o += 2 + len;
+    }
+  }
+  return null;
+}
+
+const CARD_NAME = /\b(card|cards|visiting|business|vcard|contact)\b/i;
+const PHOTO_NAME = /\b(photo|pic|building|facade|fa\u00e7ade|exterior|interior|site|tower|lobby|campus|dsc|dscn|img|pxl|whatsapp image)\b/i;
+const TITLE = /\b(Director|Manager|Head|VP|Vice President|CEO|CFO|CTO|COO|Founder|Partner|Associate|Consultant|Executive|Officer|Lead|President)\b/;
+
+function detectImage(input: DetectInput, s: Map<DocType, { s: number; hits: string[] }>, base: { family: FileFamily; method: "rules"; ambiguous: boolean }): Detection {
+  const t = input.text ?? "";
+  const words = t.split(/\s+/).filter(Boolean).length;
+  const hasEmail = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/.test(t);
+  const hasPhone = /(\+?\d[\d\s().-]{8,}\d)/.test(t);
+  const hasTitle = TITLE.test(t);
+  // 1) readable text decides first
+  if ((hasEmail || hasPhone) && words <= 80) {
+    const sig = [hasEmail ? "email on image" : "", hasPhone ? "phone on image" : "", hasTitle ? "job title on image" : ""].filter(Boolean);
+    return { ...base, type: "business_card", confidence: hasEmail && hasPhone ? 0.9 : 0.75, signals: sig, candidates: ["business_card"] };
+  }
+  if ((s.get("layout")?.s ?? 0) >= 1) return { ...base, type: "layout", confidence: 0.75, signals: s.get("layout")!.hits, candidates: ["layout"] };
+  if ((s.get("quotation")?.s ?? 0) >= 2) return { ...base, type: "quotation", confidence: 0.6, signals: s.get("quotation")!.hits, candidates: ["quotation"] };
+
+  // 2) file cues: filename words, pixel aspect ratio, file size
+  const fname = `${input.name.replace(/[_.-]+/g, " ")} ${input.caption ?? ""}`;
+  const dims = imageSize(input.bytes ?? input.head);
+  const size = input.size ?? input.bytes?.length;
+  const ratio = dims ? Math.max(dims.width, dims.height) / Math.min(dims.width, dims.height) : null;
+  const card: string[] = []; const photo: string[] = [];
+  if (CARD_NAME.test(fname)) card.push("file name says card");
+  if (ratio !== null && ratio >= 1.5 && ratio <= 1.9) card.push(`card-shaped (${dims!.width}×${dims!.height})`);
+  if (size !== undefined && size > 0 && size < 400_000) card.push("small file");
+  if (hasTitle && words <= 40) card.push("job title on image");
+  if (PHOTO_NAME.test(fname)) photo.push("file name says photo");
+  if (size !== undefined && size > 1_500_000) photo.push("large camera-size file");
+  if (dims && dims.width > dims.height && ratio! >= 1.25 && ratio! < 1.45) photo.push("camera landscape shape");
+  if (dims && Math.max(dims.width, dims.height) >= 2400) photo.push("high-resolution");
+
+  const cardName = card.includes("file name says card"), photoName = photo.includes("file name says photo");
+  if (cardName && !photoName) return { ...base, type: "business_card", confidence: card.length >= 2 ? 0.8 : 0.65, signals: card, candidates: ["business_card"] };
+  if (photoName && !cardName && photo.length >= 1 && card.length <= 1) return { ...base, type: "property_photo", confidence: photo.length >= 2 ? 0.75 : 0.6, signals: photo, candidates: ["property_photo", "layout"] };
+  if (!cardName && !photoName && photo.length >= 2 && card.length === 0) return { ...base, type: "property_photo", confidence: 0.6, signals: photo, candidates: ["property_photo", "layout"] };
+  if (!cardName && !photoName && card.length >= 2 && photo.length === 0) return { ...base, type: "business_card", confidence: 0.55, signals: card, candidates: ["business_card", "property_photo"] };
+  // not sure: ask the user rather than guess
+  return { ...base, type: "unknown", confidence: 0, ambiguous: true, signals: [...card, ...photo].length ? [...card, ...photo] : [t.trim() ? "little readable text" : "no readable text"], candidates: ["business_card", "property_photo", "layout"] };
+}
+
 /** Deterministic detection. `text` = extracted text (PDF/DOCX/TXT) or OCR text (images); `caption` = user hint. */
-export function detectDocType(input: { name: string; mime: string; head?: Uint8Array; text?: string | null; caption?: string | null; userType?: DocType | null }): Detection {
+export function detectDocType(input: DetectInput): Detection {
   const family = fileFamily(input.name, input.mime, input.head);
   const base = { family, method: "rules" as const, ambiguous: false };
   if (input.userType && input.userType !== "unknown") return { ...base, type: input.userType, confidence: 1, method: "user", signals: ["chosen by user"], candidates: [input.userType] };
@@ -56,17 +133,7 @@ export function detectDocType(input: { name: string; mime: string; head?: Uint8A
 
   const text = `${input.name.replace(/[_-]+/g, " ")}\n${input.caption ?? ""}\n${input.text ?? ""}`;
   const s = score(text);
-  if (family === "image") {
-    // photos: card only with real contact signals (an email or phone pattern), layout on plan keywords, else a property photo
-    const t = input.text ?? "";
-    const hasEmail = /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/.test(t);
-    const hasPhone = /(\+?\d[\d\s().-]{8,}\d)/.test(t);
-    const words = t.split(/\s+/).filter(Boolean).length;
-    if ((hasEmail || hasPhone) && words <= 80) return { ...base, type: "business_card", confidence: hasEmail && hasPhone ? 0.9 : 0.7, signals: [hasEmail ? "email on image" : "", hasPhone ? "phone on image" : ""].filter(Boolean), candidates: ["business_card"] };
-    if ((s.get("layout")?.s ?? 0) >= 1) return { ...base, type: "layout", confidence: 0.75, signals: s.get("layout")!.hits, candidates: ["layout"] };
-    if ((s.get("quotation")?.s ?? 0) >= 2) return { ...base, type: "quotation", confidence: 0.6, signals: s.get("quotation")!.hits, candidates: ["quotation"] };
-    return { ...base, type: "property_photo", confidence: t.trim() ? 0.6 : 0.8, signals: [t.trim() ? "little readable text" : "no readable text"], candidates: ["property_photo", "layout"] };
-  }
+  if (family === "image") return detectImage(input, s, base);
   // documents (pdf/docx/text)
   const ranked = [...s.entries()].filter(([k]) => k !== "business_card").sort((a, b) => b[1].s - a[1].s);
   if (!ranked.length) return { ...base, type: "unknown", confidence: 0, ambiguous: true, signals: ["no keywords"], candidates: ["quotation", "lease", "loi", "meeting_notes"] };

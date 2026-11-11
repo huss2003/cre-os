@@ -89,7 +89,7 @@ async function Body({ params, searchParams }: Props) {
             <Facts items={[
               ["Legal name", o.legal_name], ["Industry", o.sector],
               ["Website", o.domain ? <a className="break-all text-brand underline" href={`https://${String(o.domain).replace(/^https?:\/\//, "")}`} target="_blank" rel="noreferrer noopener">{o.domain}</a> : null],
-              ["CIN", o.cin], ["GSTIN", o.gstin], ["HQ country", o.hq_country],
+              ["CIN", o.cin], ["GSTIN", o.gstin], ["HQ city", o.hq_city], ["HQ country", o.hq_country],
               ["Headcount", o.headcount_min || o.headcount_max ? `${o.headcount_min ?? "?"}–${o.headcount_max ?? "?"}` : null],
               ["CRM reference", o.crm_external_id], ["Source confidence", o.source_confidence],
               ["Owner", ownerName], ["Account owner note", o.account_owner_note],

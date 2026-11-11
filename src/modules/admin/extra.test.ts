@@ -202,3 +202,19 @@ describe("platform-only tenant settings (security-review M1 compatible)", () => 
     await expect(saveGeneral(owner, WS1, { name: before!.name, timezone: "Mars/Olympus" })).rejects.toThrow();
   });
 });
+
+describe("normaliseInput bounds (bug hunt M4/M5)", () => {
+  it("rejects out-of-range and inverted numbers with plain messages", () => {
+    expect(() => normaliseInput("organisation", { display_name: "X", headcount_max: "99999999999999" })).toThrow(/at most/);
+    expect(() => normaliseInput("organisation", { display_name: "X", headcount_min: "-5" })).toThrow(/at least 0/);
+    expect(() => normaliseInput("organisation", { display_name: "X", headcount_min: "2.5" })).toThrow(/whole number/);
+    expect(() => normaliseInput("organisation", { display_name: "X", headcount_min: "50", headcount_max: "10" })).toThrow(/cannot be more than/);
+    expect(() => normaliseInput("asset", { name: "B", total_area_sf: "0" })).toThrow(/more than 0/);
+    expect(() => normaliseInput("asset", { name: "B", floors: "500" })).toThrow(/at most 200/);
+    expect(normaliseInput("asset", { name: "B", total_area_sf: "1,20,000", floors: "12" })).toEqual({ name: "B", total_area_sf: 120000, floors: 12 });
+  });
+  it("maps raw Postgres range errors to plain words", async () => {
+    const { friendlyDbError } = await import("./http");
+    expect(friendlyDbError('value "99999999999999" is out of range for type integer')).toMatch(/too large/);
+  });
+});

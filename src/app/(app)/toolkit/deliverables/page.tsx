@@ -4,7 +4,9 @@ import { EmptyState, Field, MissingNote, Status, ToolHeader, btn, inputCls } fro
 import { requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { generateDeliverablesAction } from "@/modules/toolkit/actions-core";
-import { KIND_LABEL, type DeliverableFile } from "@/modules/toolkit/deliverables";
+import { KIND_LABEL, deliverableFileName, type DeliverableFile } from "@/modules/toolkit/deliverables";
+import { fmt } from "@/lib/util/time";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 type Row = Record<string, any>;
 function H({ children }: { children: string }) {
@@ -46,7 +48,7 @@ export default async function DeliverablesPage({ searchParams }: { searchParams:
                 <input type="hidden" name="requirement_id" value={requirementId} />
                 <p className="font-semibold">2. Tick the analyses to include</p>
                 {an.length === 0 ? <MissingNote items={["No saved analyses for this requirement"]} what="the files will contain the requirement brief only. Save analyses from the toolkit to include them." /> : (
-                  <fieldset className="space-y-2">
+                  <fieldset className="min-w-0 space-y-2">
                     <legend className="sr-only">Analyses to include</legend>
                     {an.map((a) => (
                       <label key={a.id} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-lg border border-line px-3 py-3 text-sm hover:border-brand/50 has-[:checked]:border-brand has-[:checked]:bg-brand-soft/40">
@@ -80,9 +82,10 @@ export default async function DeliverablesPage({ searchParams }: { searchParams:
             return (
               <li key={d.id} className="rounded-xl border border-line bg-surface p-4 text-sm">
                 <p className="flex flex-wrap items-center gap-2 font-semibold">{d.title}{(d.missing ?? []).length > 0 ? <Status s="needs_info" label="Labelled incomplete" /> : null}</p>
-                <p className="text-xs text-ink-soft">{d.requirement?.title ?? "—"} · {String(d.updated_at).slice(0, 16).replace("T", " ")} · built from {used.length ? used.map((u) => `${u.title} v${u.version}`).join(", ") : "the brief only"}</p>
+                <p className="text-xs text-ink-soft">{d.requirement?.title ?? "—"} · {fmt(d.updated_at)} IST · built from {used.length ? used.map((u) => `${u.title} v${u.version}`).join(", ") : "the brief only"}</p>
                 {(d.missing ?? []).length > 0 && <p className="mt-1 text-xs text-rose-700">Gaps: {(d.missing as string[]).join("; ")}</p>}
-                <p className="mt-3 flex flex-wrap gap-2">{files.map((f) => <a key={f.name} className={btn.secondary} href={`/toolkit/deliverables/${d.id}/${encodeURIComponent(f.name)}`}>↓ {f.label} ({f.kind.toUpperCase()})</a>)}</p>
+                <div className="mt-2"><ReassessBanner ctx={app} entityType="deal_analysis" entityId={d.id} /></div>
+                <p className="mt-3 flex flex-wrap gap-2">{files.map((f, i) => { const n = deliverableFileName(f, i); return <a key={`${n}-${i}`} className={btn.secondary} href={`/toolkit/deliverables/${d.id}/${encodeURIComponent(n)}`}>↓ {f.label.replace(/\s*\(print\)$/, "")} ({f.kind.toUpperCase()})</a>; })}</p>
               </li>);
           })}</ul>
         )}

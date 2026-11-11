@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cleanText, fieldLabel, proposalHeadline } from "@/modules/changes/display";
 
 type Client = SupabaseClient<any, any, any>;
 
@@ -26,7 +27,7 @@ export async function reviewQueue(db: Client, workspaceId: string, limit = 25): 
       .eq("workspace_id", workspaceId).eq("status", "open").is("archived_at", null).order("created_at", { ascending: false }).limit(limit),
     db.from("field_conflict").select("id, entity_type, entity_id, field, created_at")
       .eq("workspace_id", workspaceId).eq("status", "open").is("archived_at", null).order("created_at", { ascending: false }).limit(limit),
-    db.from("change_proposal").select("id, target_type, operation, reason, created_at")
+    db.from("change_proposal").select("id, target_type, operation, state, reason, created_at")
       .eq("workspace_id", workspaceId).in("state", ["proposed", "clarify", "conflict"]).is("archived_at", null).order("created_at", { ascending: false }).limit(limit),
   ]);
   const failed: string[] = [];
@@ -34,17 +35,17 @@ export async function reviewQueue(db: Client, workspaceId: string, limit = 25): 
   if (idm.error) failed.push("duplicate suggestions");
   for (const r of idm.data ?? []) {
     const name = (r.right_raw as Record<string, unknown>)?.name ?? (r.right_raw as Record<string, unknown>)?.display_name ?? "new record";
-    items.push({ kind: "identity", label: `Possible duplicate ${r.entity_type}`, detail: `${String(name)} · match ${(Number(r.score) * 100).toFixed(0)}%`,
+    items.push({ kind: "identity", label: `Possible duplicate ${String(r.entity_type).replace(/_/g, " ")}`, detail: `${String(name)} · match ${(Number(r.score) * 100).toFixed(0)}%`,
       href: r.batch_id ? `/imports/${r.batch_id}#identity` : "/imports", at: r.created_at });
   }
   if (exc.error) failed.push("import exceptions");
   for (const r of exc.data ?? []) items.push({ kind: "exception", label: humanKind(r.kind), detail: `${r.message ?? ""}${r.locator ? ` · ${r.locator}` : ""}`,
     href: r.batch_id ? `/imports/${r.batch_id}` : "/imports", at: r.created_at });
   if (conf.error) failed.push("contradictory values");
-  for (const r of conf.data ?? []) items.push({ kind: "conflict", label: `Contradictory ${r.field}`, detail: `${r.entity_type} has two different sourced values`,
+  for (const r of conf.data ?? []) items.push({ kind: "conflict", label: `Contradictory ${fieldLabel(String(r.field))}`, detail: `${String(r.entity_type).replace(/_/g, " ")} has two different sourced values`,
     href: "/approvals", at: r.created_at });
   if (chg.error) failed.push("proposed changes");
-  for (const r of chg.data ?? []) items.push({ kind: "change", label: `Proposed ${r.operation ?? "change"}`, detail: `${r.target_type}${r.reason ? ` · ${r.reason}` : ""}`,
+  for (const r of chg.data ?? []) items.push({ kind: "change", label: proposalHeadline(String(r.operation ?? "update"), String(r.target_type), String(r.state)), detail: cleanText(r.reason) || "No reason given",
     href: `/approvals`, at: r.created_at });
   items.sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
   return { items, failed };

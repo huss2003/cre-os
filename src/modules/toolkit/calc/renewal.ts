@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { assertValidInputs } from "./validate";
 
 /**
  * Renewal vs relocation (formula "rvr-1.0"). PURE, deterministic, decimal.js only (S5).
@@ -77,6 +78,7 @@ function run(s: Spec, P: number, rm: D) {
 }
 
 export function compareRenewalRelocation(inp: RvrInput): RvrResult {
+  assertValidInputs(inp);
   const missing: string[] = []; const assumptions: string[] = []; const risks: string[] = []; const negotiation: string[] = [];
   const r = inp.renewal; const l = inp.relocation;
   const req = (x: N, label: string) => { if (!known(x)) missing.push(label); return known(x); };

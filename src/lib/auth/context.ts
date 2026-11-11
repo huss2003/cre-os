@@ -45,7 +45,7 @@ export const getContext = cache(async function getContext(): Promise<AppContext 
     db.from("my_workspaces").select("*").order("name"),
     db.from("platform_admin").select("user_id").eq("user_id", u.user.id).maybeSingle(),
   ]);
-  const list = (rows ?? []) as { id: string; name: string; role: Role; timezone: string; allowed_classifications: Classification[] }[];
+  const list = (rows ?? []) as { id: string; name: string; role: Role; timezone: string; status?: string; allowed_classifications: Classification[] }[];
   if (list.length === 0) {
     return {
       db, userId: u.user.id, email: u.user.email ?? null, workspaceId: "", workspaceName: "", timezone: "Asia/Kolkata",
@@ -53,7 +53,7 @@ export const getContext = cache(async function getContext(): Promise<AppContext 
     };
   }
   const chosen = (await cookies()).get(WS_COOKIE)?.value;
-  const ws = list.find((w) => w.id === chosen) ?? list[0];
+  const ws = list.find((w) => w.id === chosen) ?? list.find((w) => w.status !== "archived") ?? list[0];
   return {
     db,
     userId: u.user.id,
@@ -64,7 +64,8 @@ export const getContext = cache(async function getContext(): Promise<AppContext 
     role: ws.role,
     allowedClassifications: ws.allowed_classifications,
     isPlatformAdmin: !!pa,
-    workspaces: list.map((w) => ({ id: w.id, name: w.name, role: w.role })),
+    // Archived workspaces stay reachable (cookie) but are not offered in the switcher.
+    workspaces: list.filter((w) => w.status !== "archived" || w.id === ws.id).map((w) => ({ id: w.id, name: w.name, role: w.role })),
   };
 });
 

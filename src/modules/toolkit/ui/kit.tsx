@@ -28,7 +28,7 @@ export function Field({ label, hint, unit, required, children, htmlFor }: { labe
       <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-sm font-medium text-ink">
         <span aria-hidden className="text-slate-400">✎</span>{label}{required ? <span className="text-rose-600" aria-label="required">*</span> : <span className="text-xs font-normal text-ink-soft">optional</span>}
       </label>
-      <div className="relative">{children}{unit ? <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-ink-soft">{unit}</span> : null}</div>
+      <div className="relative">{children}{unit ? <span className="pointer-events-none absolute right-3 top-0 flex h-11 items-center text-sm text-ink-soft">{unit}</span> : null}</div>
       {hint ? <p className="text-xs text-ink-soft">{hint}</p> : null}
     </div>
   );
@@ -161,10 +161,10 @@ export function MissingNote({ items, what = "Add these to complete the analysis"
 /** Clickable row/card for lists: whole row is a link with an explicit "Open →" affordance. */
 export function OpenRow({ href, title, meta, right }: { href: string; title: ReactNode; meta?: ReactNode; right?: ReactNode }) {
   return (
-    <Link href={href} className="group flex items-center gap-4 rounded-xl border border-line bg-surface px-4 py-3 transition hover:border-brand/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 motion-reduce:transition-none">
+    <Link href={href} className="group flex min-w-0 items-center gap-3 sm:gap-4 rounded-xl border border-line bg-surface px-4 py-3 transition hover:border-brand/50 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 motion-reduce:transition-none">
       <span className="min-w-0 flex-1"><span className="block truncate font-semibold text-ink group-hover:text-brand">{title}</span>{meta ? <span className="block truncate text-sm text-ink-soft">{meta}</span> : null}</span>
       {right}
-      <span className="shrink-0 text-sm font-medium text-brand">Open →</span>
+      <span className="hidden shrink-0 text-sm font-medium text-brand sm:inline">Open →</span>
     </Link>
   );
 }

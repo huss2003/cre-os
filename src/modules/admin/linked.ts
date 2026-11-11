@@ -1,6 +1,9 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { geoNameKey, liveGeographyIndex } from "@/lib/services/geography";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { escapeLike } from "@/lib/util/like";
+import { findDuplicates, flagDuplicates, type DuplicateMatch } from "./entities";
 
 type Client = SupabaseClient<any, any, any>;
 
@@ -68,6 +71,7 @@ export const LINKED: Record<string, LinkedSpec> = {
     { name: "title", label: "Designation", kind: "text" },
     { name: "start_date", label: "Start date", kind: "date" },
     { name: "is_current", label: "Works here now?", kind: "select", options: [["true", "Yes"], ["false", "No, previously"]], required: true },
+    { name: "confirm_duplicate", label: "Create anyway even if someone with the same name exists", kind: "checkbox", hint: "Only tick after checking it is a different person." },
   ]},
   // ---- building page
   space: { kind: "space", table: "space", title: "Add floor / unit", host: "asset", hostColumn: "asset_id", submit: "Add space", fields: [
@@ -87,6 +91,11 @@ export const LINKED: Record<string, LinkedSpec> = {
     { name: "asking_rent_min", label: "Asking rent min (₹/sq ft/month)", kind: "number", min: 0 },
     { name: "asking_rent_max", label: "Asking rent max", kind: "number", min: 0 },
     { name: "rent_basis", label: "Rent basis", kind: "select", options: [["", "Unknown"], ["carpet", "Carpet"], ["chargeable", "Chargeable"], ["seat", "Per seat"]] },
+    { name: "cam_psf_month", label: "CAM (₹/sq ft/month)", kind: "number", min: 0, hint: "Leave blank if unknown — never 0." },
+    { name: "deposit_months", label: "Security deposit (months of rent)", kind: "number", min: 0 },
+    { name: "rent_free_months", label: "Rent-free period (months)", kind: "number", min: 0 },
+    { name: "escalation_pct", label: "Escalation (%)", kind: "number", min: 0 },
+    { name: "escalation_every_months", label: "Escalation every (months)", kind: "number", min: 1, hint: "e.g. 36 for 15% every 3 years." },
   ]},
   asset_spec: { kind: "asset_spec", table: "asset_spec", title: "Add specification", host: "asset", hostColumn: "asset_id", submit: "Add spec", fields: [
     { name: "spec_key", label: "Specification", kind: "select", required: true, options: [["parking_slots", "Parking slots"], ["parking_ratio", "Parking ratio"], ["power_backup", "Power backup"], ["power_load_kva", "Power load (kVA)"], ["hvac", "HVAC"], ["lifts_passenger", "Passenger lifts"], ["lifts_service", "Service lifts"], ["floor_plate_sf", "Floor plate (sq ft)"], ["efficiency_pct", "Efficiency %"], ["ceiling_height_m", "Ceiling height (m)"], ["fire_safety", "Fire safety"], ["other", "Other"]] },
@@ -99,7 +108,7 @@ export const LINKED: Record<string, LinkedSpec> = {
   asset_alias: { kind: "asset_alias", table: "entity_alias", title: "Add alternative name", host: "asset", hostColumn: "entity_id", submit: "Add name", fixed: { entity_type: "asset" }, fields: [
     { name: "raw_alias", label: "Alternative name", kind: "text", required: true },
   ]},
-  lease: { kind: "lease", table: "lease", title: "Add lease", host: "asset", hostColumn: "asset_id", submit: "Add lease", fixed: { fact_status: "reported" }, fields: [
+  lease: { kind: "lease", table: "lease", title: "Add lease", host: "asset", hostColumn: "asset_id", submit: "Add lease", fields: [
     { name: "tenant_org_id", label: "Tenant", kind: "ref", ref: ORG, required: true },
     { name: "landlord_org_id", label: "Landlord", kind: "ref", ref: ORG },
     { name: "start_date", label: "Commencement", kind: "date" },
@@ -110,6 +119,9 @@ export const LINKED: Record<string, LinkedSpec> = {
     { name: "rent_per_sf", label: "Rent (₹/sq ft/month)", kind: "number", min: 0 },
     { name: "status", label: "Status", kind: "select", options: [["unknown", "Unknown"], ["active", "Active"], ["expired", "Expired"], ["terminated", "Terminated"]] },
     { name: "registration_ref", label: "Registration no.", kind: "text" },
+    { name: "fact_status", label: "How sure is this?", kind: "select", options: [["estimate", "Estimate (our guess)"], ["reported", "Reported by a source"], ["currently_confirmed", "Confirmed (documents / client)"]], hint: "Blank = estimate. An estimate is never shown as confirmed." },
+    { name: "source_note", label: "Source", kind: "text", hint: "e.g. broker call, site visit note, registration document" },
+    { name: "observed_on", label: "Observed on", kind: "date" },
   ]},
   observation: { kind: "observation", table: "observation", title: "Add sourced value (observation)", host: "asset", hostColumn: "entity_id", submit: "Add observation", fixed: { entity_type: "asset" }, fields: [
     { name: "field", label: "Field", kind: "select", required: true, options: [["asking_rent", "Asking rent"], ["total_area_sf", "Total area"], ["grade", "Grade"], ["vacancy_sf", "Vacant area"], ["other", "Other"]] },
@@ -206,6 +218,13 @@ export function parseLinked(spec: LinkedSpec, form: FormData): Record<string, un
   if (spec.table === "employment" && row.end_date && row.is_current === true) throw new LinkedError("A role with an end date cannot be current. Choose 'Previous'.");
   if (spec.table === "entity_alias") row.canonical_alias = String(row.raw_alias).toLowerCase().replace(/[^a-z0-9ऀ-ॿ]+/g, " ").trim();
   if (spec.table === "geography") row.aliases = row.aliases ? String(row.aliases).split(",").map((s) => norm(s)).filter(Boolean) : [];
+  if (spec.table === "lease") {
+    // Estimate is kept distinguishable from verified: fact_status stays an existing enum value ('reported') + is_estimate flag.
+    const fs = row.fact_status ?? "estimate";
+    row.is_estimate = fs === "estimate";
+    row.fact_status = fs === "estimate" ? "reported" : fs;
+  }
+  if (spec.table === "availability" && row.escalation_pct != null && Number(row.escalation_pct) > 100) throw new LinkedError("Escalation must be a percentage between 0 and 100.");
   if (spec.table === "asset_spec" && row.value_text == null && row.value_num == null) throw new LinkedError("Enter the value as stated or a number.");
   if (spec.table === "requirement_feature" && row.value_text == null && row.value_num == null) throw new LinkedError("Enter a value (text or number).");
   return row;
@@ -230,8 +249,8 @@ export async function addLinked(db: Client, ws: string, userId: string, kind: st
   }
   if (spec.table === "space") {
     // Same floor + unit in the same building = the same known space (DB-144). Floor without unit is allowed once.
-    let q = db.from("space").select("id").eq("workspace_id", ws).eq("asset_id", hostId!).is("archived_at", null).ilike("floor_text", String(row.floor_text));
-    q = row.unit ? q.ilike("unit", String(row.unit)) : q.is("unit", null);
+    let q = db.from("space").select("id").eq("workspace_id", ws).eq("asset_id", hostId!).is("archived_at", null).ilike("floor_text", escapeLike(String(row.floor_text)));
+    q = row.unit ? q.ilike("unit", escapeLike(String(row.unit))) : q.is("unit", null);
     const { data: dup } = await q.limit(1);
     if (dup?.length) throw new LinkedError(`Floor ${row.floor_text}${row.unit ? `, unit ${row.unit}` : ""} already exists in this building. Edit that space instead of adding it twice.`);
   }
@@ -239,15 +258,31 @@ export async function addLinked(db: Client, ws: string, userId: string, kind: st
     const name = row.new_person_name as string | null; delete row.new_person_name;
     if (!row.person_id && !name) throw new LinkedError("Type the new person's name, or pick someone already saved.");
     if (row.person_id && name) throw new LinkedError("Either type a new name or pick an existing person — not both.");
+    const confirmed = row.confirm_duplicate === true; delete row.confirm_duplicate;
     if (name) {
+      // Possible duplicate (same name; stronger if already at this company): don't create silently.
+      const matches = await findDuplicates(db, ws, "person", { full_name: name }, { orgId: hostId });
+      if (matches.length && !confirmed) {
+        await flagDuplicates(db, ws, userId, "person", matches, { full_name: name }, null);
+        return { id: undefined, duplicates: matches, warnings: [`Possible duplicate: ${matches.slice(0, 3).map((m) => `"${m.label}" (${m.reason})`).join("; ")} already exists. Nothing was created — pick the existing person, or tick "Create anyway" if this is someone else. Flagged in Database › Review.`] };
+      }
       const { data: p, error } = await db.from("person").insert({ workspace_id: ws, owner_user_id: userId, full_name: name }).select("id").single();
       if (error) throw error;
       row.person_id = p.id;
-      warnings.push(`New person "${name}" created.`);
+      if (matches.length) await flagDuplicates(db, ws, userId, "person", matches, { full_name: name }, p.id);
+      warnings.push(matches.length ? `New person "${name}" created although a person with the same name exists (possible duplicate flagged for review).` : `New person "${name}" created.`);
     }
   }
   if (spec.table === "organisation_relation" && row.to_org_id === hostId) throw new LinkedError("A company cannot be linked to itself.");
   if (spec.table === "relationship_edge" && row.to_person_id === hostId) throw new LinkedError("A person cannot be connected to themselves.");
+  if (spec.table === "geography") {
+    // Same name (or alias) under the same parent = the same place. Archived places don't count.
+    const idx = await liveGeographyIndex(db, ws);
+    for (const n of [String(row.name), ...((row.aliases as string[]) ?? [])]) {
+      const hit = (idx.get(geoNameKey(n)) ?? []).find((g) => (g.parent_id ?? null) === ((row.parent_id as string | null) ?? null));
+      if (hit) throw new LinkedError(`"${hit.name}" already exists here. Add "${n}" as an alias of it instead of creating a second place.`);
+    }
+  }
   if (spec.table === "geography" && row.parent_id) {
     // walk up to stop cycles (new row has no id yet, so only depth guard + parent level order)
     const order = ["city", "corridor", "micro_market", "locality"];
@@ -282,7 +317,13 @@ export async function addLinked(db: Client, ws: string, userId: string, kind: st
   const { data, error } = await q;
   if (error) throw error;
   if (spec.table === "observation" && !data?.length) warnings.push("Identical observation already recorded — nothing duplicated.");
-  return { id: data?.[0]?.id as string | undefined, warnings };
+  if ((spec.table === "employment" || spec.table === "contact_method") && (row.person_id ?? hostId)) {
+    // Likely duplicate person (same name + same company/email/phone): warn with a review link; never merge.
+    const { likelyDuplicates } = await import("@/modules/contacts/service");
+    const d = await likelyDuplicates(db as never, ws, (row.person_id ?? hostId) as string).catch(() => []);
+    if (d.length) warnings.push(`Possible duplicate person: ${d.map((x) => `${x.full_name} (${x.why.join(", ")})`).join("; ")}. Nothing was merged — review it under Contacts → Duplicates (/contacts?tab=duplicates).`);
+  }
+  return { id: data?.[0]?.id as string | undefined, warnings, duplicates: [] as DuplicateMatch[] };
 }
 
 /** Options for ref fields (bounded; archived rows excluded). */

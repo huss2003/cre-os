@@ -1,3 +1,5 @@
+import { addDays } from "date-fns";
+import { localDate } from "@/lib/util/time";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, PageHeader, Badge, Field, Input, MoreFields, Textarea, Select } from "@/components/ui";
@@ -15,6 +17,7 @@ type Row = Record<string, any>;
 function Section({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (<div className="border-t border-line py-3 first:border-t-0"><h3 className="text-sm font-semibold">{n}. {title}</h3><div className="mt-1 text-sm">{children}</div></div>);
 }
+function tomorrowIso() { return localDate(addDays(new Date(), 1)); }
 const none = <span className="text-ink-soft">Nothing on record.</span>;
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
@@ -84,7 +87,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                   {["dismissed", "rejected", "known", "snoozed"].includes(s.status) ? <Btn a="reopen">Reopen</Btn> : null}
                 </div>
               </ActionForm>
-              <ActionForm action={act} className="mt-3 flex items-end gap-2"><Field label="Snooze until"><Input name="until" type="date" required /></Field><Btn a="snooze">Snooze</Btn></ActionForm>
+              <ActionForm action={act} className="mt-3 flex items-end gap-2"><Field label="Snooze until"><Input name="until" type="date" min={tomorrowIso()} required /></Field><Btn a="snooze">Snooze</Btn></ActionForm>
             </Card>
             <Card title="Task">
               <ActionForm action={act} className="space-y-2"><Field label="Task title"><Input name="title" defaultValue={s.recommended_action?.split(". On record")[0] ?? ""} /></Field><Btn a="create_task">Create task</Btn></ActionForm>

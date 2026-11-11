@@ -15,6 +15,7 @@ import { outputsTools } from "./outputs";
 import { dataTools } from "./data";
 import { search2Tools } from "./search2";
 import { toolkit2Tools } from "./toolkit2";
+import { orchestratorTools } from "./orchestrator";
 
 /**
  * Cross-module tool registry for the AI assistant (Module 12). Tools wrap the EXISTING module services and tables;
@@ -23,7 +24,7 @@ import { toolkit2Tools } from "./toolkit2";
  */
 export const TOOLS: ToolDef[] = [
   ...databaseTools, ...activityTools, ...documentTools, ...researchTools, ...toolkitTools, ...actionTools, ...changeTools,
-  ...memoryTools, ...commandTools, ...briefsTools, ...documents2Tools, ...outputsTools, ...dataTools, ...search2Tools, ...toolkit2Tools,
+  ...memoryTools, ...commandTools, ...briefsTools, ...documents2Tools, ...outputsTools, ...dataTools, ...search2Tools, ...toolkit2Tools, ...orchestratorTools,
 ];
 
 const BY_ID = new Map<string, ToolDef>();

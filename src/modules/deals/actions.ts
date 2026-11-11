@@ -33,7 +33,14 @@ function errText(e: unknown): string {
 }
 const withParam = (path: string, k: string, v: string) => `${path}${path.includes("?") ? "&" : "?"}${k}=${encodeURIComponent(v)}`;
 
-async function run(back: string, minRole: "editor" | "admin", fn: (ctx: DealsCtx) => Promise<string | { to?: string; msg?: string } | void>, okMsg = "Saved") {
+/** Typed values (text only) to send back on a validation error so the form is not wiped. */
+function keepValues(f: FormData): string {
+  const o: Record<string, string> = {};
+  for (const [k, v] of f.entries()) if (typeof v === "string" && v !== "" && !k.startsWith("$")) o[k] = v.slice(0, 300);
+  return JSON.stringify(o).slice(0, 3000);
+}
+
+async function run(back: string, minRole: "editor" | "admin", fn: (ctx: DealsCtx) => Promise<string | { to?: string; msg?: string } | void>, okMsg = "Saved", keep?: FormData) {
   let dest = back, msg = okMsg, err: string | null = null;
   try {
     const ctx = toDealsCtx(await requireContext(minRole));
@@ -44,7 +51,7 @@ async function run(back: string, minRole: "editor" | "admin", fn: (ctx: DealsCtx
     err = errText(e);
   }
   revalidatePath(back.split("?")[0]);
-  redirect(err ? withParam(back, "err", err) : withParam(dest, "msg", msg));
+  redirect(err ? withParam(keep ? withParam(back, "v", keepValues(keep)) : back, "err", err) : withParam(dest, "msg", msg));
 }
 
 // ---------------------------------------------------------------- requirements
@@ -59,7 +66,7 @@ export async function createRequirementAction(f: FormData) {
     if (s(f, "seats_target")) changes.push({ key: "seats", value: ["", s(f, "seats_target"), ""] });
     const r = await createRequirement(ctx, { title: s(f, "title"), orgId: opt(f, "org_id"), orgName: opt(f, "org_name"), changes });
     return `/requirements/${r.id}`;
-  }, "Requirement created — answer the open questions next");
+  }, "Requirement created — answer the open questions next", f);
 }
 
 /** Edit a saved requirement: only fields that changed are written; client-confirmed fields become change proposals. */

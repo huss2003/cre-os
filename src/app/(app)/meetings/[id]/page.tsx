@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { localDate } from "@/lib/util/time";
 import { notFound } from "next/navigation";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
@@ -41,6 +42,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const cancelled = p.status === "cancelled";
   const canReschedule = editor && !cancelled && p.status !== "completed";
   const startTime = new Date(m.start_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  const todayIso = localDate();
   const attendeeNames: string[] = b ? (b.attendees as Row[]).map((a) => a.name) : x.attendees.map((a) => a.name);
 
   const sections: [string, string][] = b ? ([
@@ -266,7 +268,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           {editor && b && !cancelled ? (
             <div className="print:hidden"><Section id="after" title="After the meeting">
               {!out ? (
-                <ActionForm action={A.structureAction.bind(null, id)} className="space-y-3" dataTour="meeting-after"><textarea data-tour="meeting-after-text" name="text" rows={5} placeholder="What happened? Area, budget, dates, who decides, objections, what you promised… (notes from Meeting mode are included)" className={inp} /><Submit dataTour="meeting-structure">Structure my notes</Submit></ActionForm>
+                <ActionForm action={A.structureAction.bind(null, id)} className="space-y-3" dataTour="meeting-after"><textarea data-tour="meeting-after-text" name="text" aria-label="What happened in the meeting" rows={5} placeholder="What happened? Area, budget, dates, who decides, objections, what you promised… (notes from Meeting mode are included)" className={inp} /><Submit dataTour="meeting-structure">Structure my notes</Submit></ActionForm>
               ) : p.outcome?.applied ? (
                 <div className="space-y-5">
                   <p data-tour="meeting-applied">Applied {new Date(p.outcome.applied.at).toLocaleString("en-IN")}: {p.outcome.applied.proposals} update(s) to Review, {p.outcome.applied.tasks} task(s). <Link href="/approvals" className="text-brand underline underline-offset-4">Open Review</Link></p>
@@ -285,7 +287,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               ) : out.outcome === "no_show" ? (
                 <div className="space-y-5 rounded-xl bg-surface p-5">
                   <div><p className="text-lg font-semibold tracking-tight">This meeting didn&apos;t take place</p>{out.summary ? <p className="mt-1 text-ink-soft">{out.summary}</p> : null}</div>
-                  {canReschedule ? <ActionForm action={A.rescheduleAction.bind(null, id)} className="flex flex-wrap items-end gap-2"><label className="text-sm"><span className="block text-xs text-ink-soft">New date</span><input type="date" name="date" required className="min-h-10 rounded-lg border border-line bg-surface px-2" /></label><label className="text-sm"><span className="block text-xs text-ink-soft">Time</span><input type="time" name="time" defaultValue={startTime} className="min-h-10 rounded-lg border border-line bg-surface px-2" /></label><Submit variant="secondary">Reschedule</Submit></ActionForm> : null}
+                  {canReschedule ? <ActionForm action={A.rescheduleAction.bind(null, id)} className="flex flex-wrap items-end gap-2"><label className="text-sm"><span className="block text-xs text-ink-soft">New date</span><input type="date" name="date" required min={todayIso} className="min-h-10 rounded-lg border border-line bg-surface px-2" /></label><label className="text-sm"><span className="block text-xs text-ink-soft">Time</span><input type="time" name="time" defaultValue={startTime} className="min-h-10 rounded-lg border border-line bg-surface px-2" /></label><Submit variant="secondary">Reschedule</Submit></ActionForm> : null}
                   <ActionForm action={A.noShowAction.bind(null, id)} className="flex flex-wrap items-center gap-4 border-t border-line pt-4">
                     <label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="log" value="1" defaultChecked className="h-4 w-4 accent-brand" /> Note it in the contact history</label>
                     <Submit>Record as not held</Submit>
@@ -336,25 +338,25 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
               <div className="border-t border-line">
                 <Disclosure title="Set up" meta="purpose, type, deal, properties">
                   <ActionForm action={A.setupAction.bind(null, id)} className="space-y-3">
-                    <textarea name="purpose" defaultValue={p.purpose ?? ""} rows={2} placeholder="Why are we meeting?" className={inp} />
-                    <select name="type" defaultValue={p.meeting_type} className={inp}>{Object.entries(MEETING_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
-                    <select name="opportunity_id" defaultValue={p.opportunity_id ?? ""} className={inp}><option value="">No deal</option>{x.opportunities.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>
-                    <select name="requirement_id" defaultValue={p.requirement_id ?? ""} className={inp}><option value="">No requirement</option>{x.requirements.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}</select>
-                    <select name="asset_id" multiple defaultValue={p.asset_ids ?? []} className={`${inp} h-28`}>{((assets ?? []) as Row[]).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
+                    <textarea name="purpose" aria-label="Purpose" defaultValue={p.purpose ?? ""} rows={2} placeholder="Why are we meeting?" className={inp} />
+                    <select name="type" aria-label="Meeting type" defaultValue={p.meeting_type} className={inp}>{Object.entries(MEETING_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+                    <select name="opportunity_id" aria-label="Deal" defaultValue={p.opportunity_id ?? ""} className={inp}><option value="">No deal</option>{x.opportunities.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}</select>
+                    <select name="requirement_id" aria-label="Requirement" defaultValue={p.requirement_id ?? ""} className={inp}><option value="">No requirement</option>{x.requirements.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}</select>
+                    <select name="asset_id" aria-label="Buildings" multiple defaultValue={p.asset_ids ?? []} className={`${inp} h-28`}>{((assets ?? []) as Row[]).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
                     <Submit variant="secondary">Save</Submit>
                   </ActionForm>
                 </Disclosure>
                 <Disclosure title="Attendees" meta={String(x.attendees.length)}>
                   <ul className="divide-y divide-line text-sm">{x.attendees.map((a) => (
                     <li key={a.id} className="flex flex-wrap items-center gap-2 py-2"><Avatar name={a.name} size="sm" /><span className="min-w-0 flex-1">{a.name}{a.email ? <span className="text-xs text-ink-soft"> {a.email}</span> : null} <span className="text-xs text-ink-soft">({a.match})</span></span>
-                      {a.match !== "matched" && a.match !== "manual" ? <ActionForm action={A.resolveAction.bind(null, id, a.id)} className="flex gap-1"><select name="person_id" defaultValue={a.personId ?? ""} className="min-h-10 max-w-44 rounded-lg border border-line bg-surface text-xs"><option value="">Not a saved contact</option>{((people ?? []) as Row[]).map((pp) => <option key={pp.id} value={pp.id}>{pp.full_name}</option>)}</select><Submit variant="ghost" className="min-h-10 px-3 text-xs">Set</Submit></ActionForm> : null}
+                      {a.match !== "matched" && a.match !== "manual" ? <ActionForm action={A.resolveAction.bind(null, id, a.id)} className="flex gap-1"><select name="person_id" aria-label="Match to contact" defaultValue={a.personId ?? ""} className="min-h-10 max-w-44 rounded-lg border border-line bg-surface text-xs"><option value="">Not a saved contact</option>{((people ?? []) as Row[]).map((pp) => <option key={pp.id} value={pp.id}>{pp.full_name}</option>)}</select><Submit variant="ghost" className="min-h-10 px-3 text-xs">Set</Submit></ActionForm> : null}
                     </li>))}</ul>
-                  <ActionForm action={A.attendeeAction.bind(null, id)} className="mt-3 flex flex-wrap gap-2"><select name="person_id" className="min-h-10 flex-1 rounded-lg border border-line bg-surface px-2 text-sm"><option value="">Saved contact…</option>{((people ?? []) as Row[]).map((pp) => <option key={pp.id} value={pp.id}>{pp.full_name}</option>)}</select><input name="name" placeholder="or name" className="min-h-10 w-28 rounded-lg border border-line bg-surface px-2 text-sm" /><input name="email" placeholder="email" className="min-h-10 w-36 rounded-lg border border-line bg-surface px-2 text-sm" /><Submit variant="secondary">Add</Submit></ActionForm>
+                  <ActionForm action={A.attendeeAction.bind(null, id)} className="mt-3 flex flex-wrap gap-2"><select name="person_id" aria-label="Add attendee from saved contacts" className="min-h-10 flex-1 rounded-lg border border-line bg-surface px-2 text-sm"><option value="">Saved contact…</option>{((people ?? []) as Row[]).map((pp) => <option key={pp.id} value={pp.id}>{pp.full_name}</option>)}</select><input name="name" aria-label="Attendee name" placeholder="or name" className="min-h-10 w-28 rounded-lg border border-line bg-surface px-2 text-sm" /><input name="email" aria-label="Attendee email" placeholder="email" className="min-h-10 w-36 rounded-lg border border-line bg-surface px-2 text-sm" /><Submit variant="secondary">Add</Submit></ActionForm>
                 </Disclosure>
                 <Disclosure title="Materials" meta={String(x.materials.length)}>
                   <ul className="space-y-1.5 text-sm">{x.materials.map((mt) => <li key={mt.id}>{mt.storage_object ? (links[mt.id] ? <a href={links[mt.id]} target="_blank" rel="noreferrer noopener" className="text-brand underline underline-offset-4">{mt.title}</a> : <span>{mt.title} <span className="text-xs text-bad">(file unavailable)</span></span>) : mt.url ? <a href={mt.url} target="_blank" rel="noreferrer noopener" className="text-brand underline underline-offset-4">{mt.title}</a> : mt.title} <span className="text-xs text-ink-soft">{mt.storage_object ? `${String(mt.mime ?? "").includes("pdf") ? "PDF" : "photo"} · ` : ""}{mt.internal_only ? "internal only" : "OK to share"}</span></li>)}</ul>
-                  <ActionForm action={A.uploadMaterialAction.bind(null, id)} className="mt-4 space-y-2 border-t border-line pt-4"><p className="text-xs text-ink-soft">Or upload a photo, PDF or floor plan (max 25 MB).</p><MaterialUploader workspaceId={ctx.workspaceId} prepId={id} /><input name="title" placeholder="Name (optional)" className={inp} /><label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="shareable" value="1" className="h-4 w-4 accent-brand" /> OK to share with attendees</label><Submit variant="secondary">Attach</Submit></ActionForm>
-                  <ActionForm action={A.materialAction.bind(null, id)} className="mt-3 space-y-2"><input name="title" placeholder="e.g. Kharadi rent comparison" className={inp} /><input name="url" placeholder="Link (Drive, SharePoint…)" className={inp} /><label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="shareable" value="1" className="h-4 w-4 accent-brand" /> OK to share with attendees</label><Submit variant="secondary">Add</Submit></ActionForm>
+                  <ActionForm action={A.uploadMaterialAction.bind(null, id)} className="mt-4 space-y-2 border-t border-line pt-4"><p className="text-xs text-ink-soft">Or upload a photo, PDF or floor plan (max 25 MB).</p><MaterialUploader workspaceId={ctx.workspaceId} prepId={id} /><input name="title" aria-label="File name" placeholder="Name (optional)" className={inp} /><label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="shareable" value="1" className="h-4 w-4 accent-brand" /> OK to share with attendees</label><Submit variant="secondary">Attach</Submit></ActionForm>
+                  <ActionForm action={A.materialAction.bind(null, id)} className="mt-3 space-y-2"><input name="title" aria-label="Link title" placeholder="e.g. Kharadi rent comparison" className={inp} /><input name="url" type="url" aria-label="Link URL" placeholder="Link (Drive, SharePoint…)" className={inp} /><label className="flex min-h-10 items-center gap-2 text-sm"><input type="checkbox" name="shareable" value="1" className="h-4 w-4 accent-brand" /> OK to share with attendees</label><Submit variant="secondary">Add</Submit></ActionForm>
                 </Disclosure>
                 {b ? <Disclosure title="Edit the brief">
                   <ActionForm action={A.editAction.bind(null, id)} className="space-y-3 text-sm">
@@ -369,7 +371,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 </Disclosure> : null}
                 {canReschedule ? <Disclosure title="Reschedule or cancel">
                   <div className="flex flex-wrap items-end gap-3">
-                    <ActionForm action={A.rescheduleAction.bind(null, id)} className="flex flex-wrap items-end gap-2"><input type="date" name="date" required aria-label="New date" className="min-h-10 rounded-lg border border-line bg-surface px-2 text-sm" /><input type="time" name="time" aria-label="Time" defaultValue={startTime} className="min-h-10 rounded-lg border border-line bg-surface px-2 text-sm" /><Submit variant="secondary">Reschedule</Submit></ActionForm>
+                    <ActionForm action={A.rescheduleAction.bind(null, id)} className="flex flex-wrap items-end gap-2"><input type="date" name="date" required min={todayIso} aria-label="New date" className="min-h-10 rounded-lg border border-line bg-surface px-2 text-sm" /><input type="time" name="time" aria-label="Time" defaultValue={startTime} className="min-h-10 rounded-lg border border-line bg-surface px-2 text-sm" /><Submit variant="secondary">Reschedule</Submit></ActionForm>
                     <ActionForm action={A.cancelAction.bind(null, id)}><Submit variant="ghost" confirm="Cancel this meeting in CRE OS? Your own calendar won't change.">Cancel meeting</Submit></ActionForm>
                   </div>
                 </Disclosure> : null}

@@ -102,24 +102,40 @@ export function reasonFor(c: Context, scenario: R.Scenario, signalId?: string | 
   return `I work with companies in Pune on office space and ${co} came up in my research`;
 }
 
-export interface Warning { kind: string; text: string; by?: string | null; date?: string | null; itemId?: string | null }
+export interface Warning { kind: string; text: string; by?: string | null; date?: string | null; itemId?: string | null; suggestion?: "follow_up_existing" }
+/** "a"/"an" for a channel label or noun ("an email", "a WhatsApp"). */
+export const withArticle = (w: string) => `${/^[aeiou]/i.test(w) ? "an" : "a"} ${w}`;
 /** Spec §14: warn (don't block) when someone else is already talking to this person. */
 export async function duplicateCheck(db: Db, ws: string, personId: string, userId: string, excludePlan?: string): Promise<Warning[]> {
   const w: Warning[] = [];
-  const { data: items } = await db.from("outreach_item").select("id, plan_key, status, channel, assigned_user_id, planned_on, sent_at, updated_at").eq("workspace_id", ws).eq("person_id", personId).is("archived_at", null).in("status", [...OPEN, "sent"]).order("updated_at", { ascending: false }).limit(20);
+  const { data: items } = await db.from("outreach_item").select("id, plan_key, status, channel, assigned_user_id, planned_on, sent_at, responded_at, updated_at").eq("workspace_id", ws).eq("person_id", personId).is("archived_at", null).in("status", [...OPEN, "sent", "replied", "meeting"]).order("updated_at", { ascending: false }).limit(20);
+  let thread: Row | null = null;   // most recent conversation that was actually sent (or answered)
   for (const i of (items ?? []) as Row[]) {
     if (excludePlan && i.plan_key === excludePlan) continue;
-    if (i.status === "sent" && (ago(i.sent_at) ?? 99) > 21) continue;
-    w.push({ kind: i.status === "sent" ? "recent_send" : "open_outreach", text: i.status === "sent" ? `A ${R.CHANNEL_LABEL[i.channel as R.Channel]} was sent ${ago(i.sent_at)} day(s) ago${i.assigned_user_id === userId ? " by you" : " by a colleague"}.` : `There is already a ${i.status.replace("_", " ")} ${R.CHANNEL_LABEL[i.channel as R.Channel]}${i.assigned_user_id === userId ? " (yours)" : " by a colleague"}.`, by: i.assigned_user_id, date: i.sent_at ?? i.updated_at, itemId: i.id });
+    const label = R.CHANNEL_LABEL[i.channel as R.Channel] ?? i.channel;
+    if (["sent", "replied", "meeting"].includes(i.status)) {
+      const when = i.responded_at ?? i.sent_at;
+      if ((ago(when) ?? 99) > 21) continue;
+      thread ??= i;
+      w.push({ kind: i.status === "sent" ? "recent_send" : "recent_reply", text: i.status === "sent"
+        ? `${withArticle(label).replace(/^a/, "A")} was sent ${ago(i.sent_at)} day(s) ago${i.assigned_user_id === userId ? " by you" : " by a colleague"}.`
+        : `They replied ${ago(i.responded_at)} day(s) ago to ${withArticle(label)}${i.assigned_user_id === userId ? " you sent" : " a colleague sent"}.`, by: i.assigned_user_id, date: when, itemId: i.id });
+      continue;
+    }
+    w.push({ kind: "open_outreach", text: `There is already ${withArticle(`${i.status.replace("_", " ")} ${label}`)}${i.assigned_user_id === userId ? " (yours)" : " by a colleague"}.`, by: i.assigned_user_id, date: i.updated_at, itemId: i.id });
   }
   const { data: links } = await db.from("interaction_link").select("interaction:interaction_id(occurred_at, channel, owner_user_id)").eq("workspace_id", ws).eq("entity_type", "person").eq("entity_id", personId).limit(50);
+  let recentInteraction = false;
   for (const l of (links ?? []) as Row[]) {
     const i = l.interaction; if (!i || (ago(i.occurred_at) ?? 99) > 14) continue;
-    w.push({ kind: "recent_interaction", text: `${i.owner_user_id === userId ? "You" : "A colleague"} had a ${i.channel} with this person on ${i.occurred_at.slice(0, 10)}.`, by: i.owner_user_id, date: i.occurred_at });
+    recentInteraction = true;
+    w.push({ kind: "recent_interaction", text: `${i.owner_user_id === userId ? "You" : "A colleague"} had ${withArticle(String(i.channel))} with this person on ${i.occurred_at.slice(0, 10)}.`, by: i.owner_user_id, date: i.occurred_at });
   }
   const { data: drafts } = await db.from("draft").select("id, state, channel, owner_user_id").eq("workspace_id", ws).eq("recipient_person_id", personId).in("state", ["drafted", "approved", "opened_for_send"]).is("archived_at", null).limit(10);
   const known = new Set(((items ?? []) as Row[]).map((i) => i.id));
   if ((drafts ?? []).length && !known.size) w.push({ kind: "other_draft", text: `${drafts!.length} other draft message(s) to this person exist in Drafts.` });
+  if (thread || recentInteraction) w.push({ kind: "suggest_followup", suggestion: "follow_up_existing", itemId: thread?.id ?? null,
+    text: thread ? "Instead of a new introduction, reply or follow up in the existing conversation (open it to draft a follow-up)." : "You spoke recently — consider a follow-up that references that conversation instead of a new introduction." });
   return w;
 }
 
@@ -147,7 +163,7 @@ async function styleNotes(db: Db, ws: string, userId: string, channel: string): 
 }
 
 async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string }; mock?: () => GenOut; styleHint?: string }, ai: Ai): Promise<{ out: GenOut; mocked: boolean; model: string }> {
-  const tpl = R.templateDraft({ channel: a.channel, scenario: a.scenario, first: c.first, company: c.org?.display_name ?? "your company", level: c.level, reason: a.reason, roleKey: c.roleKey, sender: a.sender, via: a.via?.full_name?.split(/\s+/)[0] ?? null, lang: a.lang });
+  const tpl = R.templateDraft({ channel: a.channel, scenario: a.scenario, first: c.first, company: c.org?.display_name ?? "your company", level: c.level, reason: a.reason, roleKey: c.roleKey, sender: a.sender, via: a.via?.full_name?.split(/\s+/)[0] ?? null, lang: a.lang, facts: c.facts });
   const focus = R.ROLE_FOCUS[c.roleKey] ?? R.ROLE_FOCUS.other;
   const input = [
     `Channel: ${R.CHANNEL_LABEL[a.channel]}. ${R.LENGTH_HINT[a.channel]}`,
@@ -192,20 +208,22 @@ export async function senderName(db: Db, ws: string): Promise<string> {
   return (data?.value as Row)?.sender_name ?? "[Your name]";
 }
 
-export interface CreateInput { personId: string; channels: R.Channel[]; scenario?: R.Scenario; signalId?: string | null; opportunityId?: string | null; language?: R.Lang; viaPersonId?: string | null; plannedOn?: string; mentionAvailabilityIds?: string[]; ai?: Ai; /** Optional writing-style hint (assistant style profile). Wording only — never facts. */ styleHint?: string }
+export interface CreateInput { personId: string; channels: R.Channel[]; scenario?: R.Scenario; signalId?: string | null; opportunityId?: string | null; language?: R.Lang; viaPersonId?: string | null; plannedOn?: string; mentionAvailabilityIds?: string[]; ai?: Ai; /** Extra facts from the caller (e.g. a meeting's summary/commitments/next step: source_type meeting_summary | meeting_commitment | meeting_next_step). Used verbatim; never invented. */ extraFacts?: Fact[]; /** Optional writing-style hint (assistant style profile). Wording only — never facts. */ styleHint?: string }
 /** Create a conversation plan: one item per chosen channel (e.g. email + WhatsApp alternative), all step 1. */
 export async function createOutreach(db: Db, ws: string, userId: string, inp: CreateInput) {
   const ai = inp.ai ?? callStructured;
   const t0 = Date.now();
   const c = await buildContext(db, ws, inp.personId, { signalId: inp.signalId, opportunityId: inp.opportunityId });
   const mentions = inp.mentionAvailabilityIds?.length ? await propertyFacts(db, ws, inp.mentionAvailabilityIds) : [];
-  c.facts.push(...mentions);
+  c.facts.push(...mentions, ...(inp.extraFacts ?? []).filter((f) => f.text?.trim()));
   if (c.blocked.all) throw new OutreachError(`Can't prepare outreach: ${c.blocked.all}.`);
   if (c.level === "not_interested") throw new OutreachError("This person said they're not interested. Respect that — record a new reason in Capture before reaching out again.");
   const sig = c.signals.find((s) => s.id === inp.signalId) ?? null;
-  const scenario = inp.scenario ?? (sig ? R.scenarioFor(sig) : c.leaseEvents.length ? "lease_renewal" : "reconnect");
-  const reason = reasonFor(c, scenario, inp.signalId);
   const warnings = await duplicateCheck(db, ws, inp.personId, userId);
+  // Already in conversation and no scenario chosen → default to a follow-up (reconnect) rather than a cold introduction.
+  const inThread = warnings.some((x) => x.suggestion === "follow_up_existing");
+  const scenario = inp.scenario ?? (inThread ? "reconnect" : sig ? R.scenarioFor(sig) : c.leaseEvents.length ? "lease_renewal" : "reconnect");
+  const reason = reasonFor(c, scenario, inp.signalId);
   const via = inp.viaPersonId ? (await db.from("person").select("id, full_name, contact_method(method_type, value, suppressed)").eq("workspace_id", ws).eq("id", inp.viaPersonId).maybeSingle()).data : null;
   const sender = await senderName(db, ws);
   const planKey = `p:${inp.personId}:${Date.now().toString(36)}`;
@@ -257,6 +275,7 @@ export async function editItem(db: Db, ws: string, userId: string, id: string, e
   if (!it.draft_id) throw new OutreachError("Call scripts are edited in the script panel.");
   if (["sent", "replied", "meeting", "declined", "closed"].includes(it.status)) throw new OutreachError("Already sent — create a follow-up instead.");
   const before = await getDraft(db, ws, it.draft_id);
+  if (e.recipientAddress !== undefined) { const bad = R.recipientError(before.channel, e.recipientAddress); if (bad) throw new OutreachError(bad); }
   const patch: Row = { body: e.body };
   if (e.subject !== undefined) patch.subject = e.subject;
   if (e.recipientAddress !== undefined) patch.recipientAddress = e.recipientAddress;
@@ -452,6 +471,7 @@ const Resp = z.object({
   resume_on: z.string().nullable().optional().default(null),
   contact_updates: z.object({ title: z.string().nullable(), email: z.string().nullable(), phone: z.string().nullable() }).nullable().optional().default(null),
   company_note: z.string().nullable().optional().default(null),
+  requirement_updates: z.array(z.object({ field: z.enum(["preferred_micro_market"]), value: z.string(), reason: z.string() })).optional().default([]),
 });
 type RespOut = z.infer<typeof Resp>;
 export const OUTCOME_LABEL: Record<RespOut["outcome"], string> = { interested: "Interested", meeting_scheduled: "Meeting", info_requested: "Wants information", not_now: "Not now", objection: "Objection", declined: "Declined", do_not_contact: "Do not contact", referred: "Referred someone else", unavailable: "Away / out of office", other: "Other" };
@@ -464,12 +484,16 @@ export function mockResponse(text: string, day = today()): RespOut {
     : ex.unavailable ? "unavailable" : ex.referred ? "referred"
     : /meet|call on|tuesday|monday|wednesday|thursday|friday|tomorrow/.test(t) ? "meeting_scheduled" : /send|share|details|brochure/.test(t) ? "info_requested" : /later|next quarter|not now/.test(t) ? "not_now" : "interested";
   const resume = outcome === "unavailable" ? R.resumeDateFrom(text, day) : null;
+  // "options in Kharadi" / "space near Baner" → the place they asked about (capitalised word(s) after in/near/around).
+  const place = /\b(?:in|near|around|at)\s+([A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+)?)/.exec(text)?.[1] ?? null;
   return { outcome, summary: text.slice(0, 200), objection: outcome === "declined" ? text.slice(0, 120) : null,
     commitments: outcome === "info_requested" ? [{ who: "us", what: "Send the requested details", due: null }] : outcome === "meeting_scheduled" ? [{ who: "us", what: "Prepare for the meeting", due: null }]
       : outcome === "referred" && ex.referred ? [{ who: "us", what: `Contact ${ex.referred.name} (referred)`, due: null }] : [],
     next_action: outcome === "declined" || outcome === "do_not_contact" ? "Close this conversation" : outcome === "not_now" ? "Check back later" : outcome === "unavailable" ? `Follow up after they're back (${resume})` : outcome === "referred" ? `Reach out to ${ex.referred?.name}, mentioning the referral` : "Reply and confirm next step",
     next_action_days: outcome === "not_now" ? 60 : outcome === "unavailable" ? R.daysBetween(day, resume!) + 1 : 2,
-    crm_updates: outcome === "meeting_scheduled" || outcome === "interested" ? [{ field: "stage", value: "engaged", reason: "Prospect replied positively to outreach" }] : [],
+    crm_updates: outcome === "meeting_scheduled" || outcome === "interested" ? [{ field: "stage", value: "engaged", reason: "Prospect replied positively to outreach" }]
+      : outcome === "info_requested" ? [{ field: "stage", value: "engaged", reason: "Prospect asked for information" }, { field: "next_action", value: `Send the requested details${place ? ` (${place})` : ""}`, reason: "Prospect asked for information" }] : [],
+    requirement_updates: outcome === "info_requested" && place ? [{ field: "preferred_micro_market", value: place, reason: `Reply asks for options in ${place}` }] : [],
     referred: outcome === "referred" ? ex.referred : null, resume_on: resume,
     contact_updates: ex.updates.title || ex.updates.email || ex.updates.phone ? ex.updates : null, company_note: ex.companyNote };
 }
@@ -479,7 +503,7 @@ export async function recordResponse(db: Db, ws: string, userId: string, id: str
   const it = await loadItem(db, ws, id);
   if (!text.trim()) throw new OutreachError("Paste or type the reply.");
   const r = await ai({ workspaceId: ws, workflow: "outreach.response", tier: "luna", schema: Resp, schemaName: "outreach_response", maxOutputTokens: 1100,
-    system: "Classify a reply to a commercial real-estate outreach message. Extract only what the reply says. Dates as YYYY-MM-DD only if stated. 'stage' updates may only be one of: engaged, qualified_discussion. outcome 'referred' = they point us to another person (fill referred with the name and an email only if written). 'unavailable' = out of office / on leave (fill resume_on if a return date is stated). contact_updates only for a new title/email/phone the sender states for themselves. company_note only for a factual company update they state.",
+    system: "Classify a reply to a commercial real-estate outreach message. Extract only what the reply says. Dates as YYYY-MM-DD only if stated. 'stage' updates may only be one of: engaged, qualified_discussion. outcome 'referred' = they point us to another person (fill referred with the name and an email only if written). 'unavailable' = out of office / on leave (fill resume_on if a return date is stated). contact_updates only for a new title/email/phone the sender states for themselves. company_note only for a factual company update they state. requirement_updates.preferred_micro_market only when they name a location/micro-market they want options in.",
     input: `Our message reason: ${it.reason}. Opportunity: ${it.opportunity_id ? "linked" : "none"}. Today: ${today()}.`, evidence: text, mock: () => mockResponse(text) });
   const x = r.data;
   const now = new Date().toISOString();
@@ -519,6 +543,20 @@ export async function recordResponse(db: Db, ws: string, userId: string, id: str
     }
   }
   const proposalKinds: string[] = [];
+  // Requirement updates stated in the reply (e.g. preferred micro-market) → proposals on the linked requirement (S4).
+  const reqId = it.requirement_id ?? (it.opportunity_id ? (await db.from("opportunity").select("requirement_id").eq("workspace_id", ws).eq("id", it.opportunity_id).maybeSingle()).data?.requirement_id : null);
+  if (reqId) {
+    for (const u of x.requirement_updates ?? []) {
+      if (u.field !== "preferred_micro_market" || !u.value.trim()) continue;
+      const { data: rq } = await db.from("requirement").select("preferred_geography_ids, constraints").eq("workspace_id", ws).eq("id", reqId).maybeSingle();
+      if (!rq) continue;
+      const { data: geo } = await db.from("geography").select("id").eq("workspace_id", ws).ilike("name", u.value.trim()).is("archived_at", null).limit(2);
+      const patch = geo?.length === 1
+        ? [{ op: "replace" as const, path: "/preferred_geography_ids", value: [...new Set([...(rq.preferred_geography_ids ?? []), geo[0].id])] }]
+        : [{ op: "replace" as const, path: "/constraints", value: { ...(rq.constraints ?? {}), preferred_micro_markets: [...new Set([...(((rq.constraints ?? {}) as Row).preferred_micro_markets ?? []), u.value.trim()])] } }];
+      if (await propose({ targetType: "requirement", targetId: reqId, patch, reason: `Outreach reply: ${u.reason} ("${text.slice(0, 120)}")`, idempotencyKey: `outreach:${id}:req:${u.field}` })) proposalKinds.push("requirement");
+    }
+  }
   // Contact updates the sender states about themselves → Review (never written directly).
   const cu = x.contact_updates;
   if (cu?.title) {
@@ -625,15 +663,20 @@ export async function suggestions(db: Db, ws: string, limit = 5): Promise<Sugges
 
 /** Spec §15: introduction paths from relationship_edge — who can introduce the user to the target. Never assumes consent. */
 export async function warmPaths(db: Db, ws: string, userId: string, targetPersonId: string) {
-  const { data: toT } = await db.from("relationship_edge").select("from_person_id, edge_type, warmth, intro_permission, last_meaningful_contact, from_person:from_person_id(full_name)").eq("workspace_id", ws).eq("to_person_id", targetPersonId).not("from_person_id", "is", null).is("archived_at", null);
+  const { data: toT } = await db.from("relationship_edge").select("from_person_id, edge_type, warmth, intro_permission, strength_basis, last_meaningful_contact, from_person:from_person_id(full_name)").eq("workspace_id", ws).eq("to_person_id", targetPersonId).not("from_person_id", "is", null).is("archived_at", null);
   const mids = ((toT ?? []) as Row[]).map((e) => e.from_person_id);
   if (!mids.length) return [];
-  const { data: mine } = await db.from("relationship_edge").select("to_person_id, warmth, edge_type").eq("workspace_id", ws).eq("from_user_id", userId).in("to_person_id", mids).is("archived_at", null);
+  const { data: mine } = await db.from("relationship_edge").select("to_person_id, warmth, edge_type, strength_basis, last_meaningful_contact").eq("workspace_id", ws).eq("from_user_id", userId).in("to_person_id", mids).is("archived_at", null);
   const W: Record<string, number> = { trusted: 4, hot: 3, warm: 2, cold: 1 };
   return ((toT ?? []) as Row[]).map((e) => {
     const m = ((mine ?? []) as Row[]).find((x) => x.to_person_id === e.from_person_id);
     const score = (W[e.warmth ?? "cold"] ?? 1) * 2 + (m ? W[m.warmth ?? "cold"] ?? 1 : 0) * 3 + (e.intro_permission ? 2 : 0);
-    return { personId: e.from_person_id, name: e.from_person?.full_name ?? "", theirLink: `${e.edge_type}${e.warmth ? `, ${e.warmth}` : ""}`, yourLink: m ? `${m.edge_type}${m.warmth ? `, ${m.warmth}` : ""}` : "No recorded link to you", introPermission: !!e.intro_permission, score };
+    return { personId: e.from_person_id, name: e.from_person?.full_name ?? "", theirLink: `${e.edge_type}${e.warmth ? `, ${e.warmth}` : ""}`, yourLink: m ? `${m.edge_type}${m.warmth ? `, ${m.warmth}` : ""}` : "No recorded link to you", introPermission: !!e.intro_permission, score,
+      // Why we believe each link exists — recorded basis and last meaningful contact; null when nothing was recorded.
+      evidence: {
+        theirs: e.strength_basis || e.last_meaningful_contact ? { basis: (e.strength_basis ?? null) as string | null, lastContact: (e.last_meaningful_contact ?? null) as string | null } : null,
+        yours: m && (m.strength_basis || m.last_meaningful_contact) ? { basis: (m.strength_basis ?? null) as string | null, lastContact: (m.last_meaningful_contact ?? null) as string | null } : null,
+      } };
   }).sort((a, b) => b.score - a.score);
 }
 
@@ -686,7 +729,8 @@ export async function analytics(db: Db, ws: string, days = 90) {
 }
 
 /** "Show 3 versions": 2–3 complete alternatives for the same channel, persisted in script.variants (survive reload). */
-export async function generateVariants(db: Db, ws: string, userId: string, id: string, ai: Ai = callStructured) {
+export async function generateVariants(db: Db, ws: string, userId: string, id: string, ai: Ai = callStructured, opts: { angles?: R.Angle[] } = {}) {
+  const ANG = opts.angles?.length ? R.ALL_ANGLES.filter((a) => opts.angles!.includes(a.key)) : R.VARIANT_ANGLES;
   const it = await loadItem(db, ws, id);
   if (!it.draft_id) throw new OutreachError("Call scripts don't have alternative versions.");
   if (!["draft", "pending_approval", "approved"].includes(it.status)) throw new OutreachError("Already sent — create a follow-up instead.");
@@ -695,10 +739,10 @@ export async function generateVariants(db: Db, ws: string, userId: string, id: s
   c.facts.push(...(((it.script ?? {}) as Row).mentions ?? []));
   const sender = await senderName(db, ws);
   const q = (it.questions as string[] | null)?.[0] ?? R.SCENARIOS[it.scenario as R.Scenario].questions[0];
-  const gens = await Promise.all(R.VARIANT_ANGLES.map((v) => generate(db, ws, userId, c, { channel: it.channel, scenario: it.scenario, reason: it.reason, lang: it.language, sender, instruction: v.instruction, current: { subject: d.subject, body: d.body },
+  const gens = await Promise.all(ANG.map((v) => generate(db, ws, userId, c, { channel: it.channel, scenario: it.scenario, reason: it.reason, lang: it.language, sender, instruction: v.instruction, current: { subject: d.subject, body: d.body },
     mock: () => ({ ...R.variantMock({ subject: d.subject, body: d.body }, v.key, c.first, q), value_prop: "", assumptions: [], questions: [], opening_alternatives: [], cta_alternatives: [], call_script: null, forwardable: null }) }, ai)));
   const seen = new Set<string>([d.body.trim()]);
-  const variants = gens.map((g, i) => ({ n: i + 1, angle: R.VARIANT_ANGLES[i].key, label: R.VARIANT_ANGLES[i].label, subject: g.out.subject ?? d.subject, body: g.out.body.trim() }))
+  const variants = gens.map((g, i) => ({ n: i + 1, angle: ANG[i].key, label: ANG[i].label, subject: g.out.subject ?? d.subject, body: g.out.body.trim() }))
     .filter((v) => v.body && !seen.has(v.body) && seen.add(v.body)).slice(0, 3);
   if (variants.length < 2) throw new OutreachError("Couldn't produce distinct versions this time — nothing was changed.");
   const fresh = await loadItem(db, ws, id);
@@ -730,7 +774,7 @@ export async function propertySuggestions(db: Db, ws: string, orgId: string | nu
   const { data: sl } = await db.from("shortlist_option").select(`fit_score, eligible, option_status, availability:availability_id(${AV})`).eq("workspace_id", ws).eq("requirement_id", req.id).neq("option_status", "rejected").is("archived_at", null).order("fit_score", { ascending: false, nullsFirst: false }).limit(limit);
   const out: PropertyOption[] = ((sl ?? []) as Row[]).filter((o) => o.availability && o.eligible !== false).map((o) => toOpt(o.availability, o.fit_score, "shortlist"));
   if (out.length >= limit) return { requirement: req, options: out.slice(0, limit) };
-  const { data: av } = await db.from("availability").select(AV).eq("workspace_id", ws).in("status", ["available", "unverified"]).is("archived_at", null).gte("as_of", addDays(day, -180)).order("as_of", { ascending: false }).limit(300);
+  const { data: av } = await db.from("availability").select(AV).eq("workspace_id", ws).in("status", ["available", "unverified"]).is("archived_at", null).gte("as_of", addDays(day, -180)).order("as_of", { ascending: false }).order("created_at", { ascending: false }).limit(300); // newest snapshot first on same-day ties
   const lo = Number(req.area_min_sf ?? (req.area_target_sf ? req.area_target_sf * 0.8 : 0)); const hi = Number(req.area_max_sf ?? (req.area_target_sf ? req.area_target_sf * 1.25 : 1e12));
   const geos = (req.preferred_geography_ids ?? []) as string[];
   const { data: assetsInGeo } = geos.length ? await db.from("asset").select("id").eq("workspace_id", ws).or(`micro_market_id.in.(${geos.join(",")}),locality_id.in.(${geos.join(",")})`).limit(1000) : { data: null };
@@ -774,7 +818,7 @@ export interface RelRow { personId: string; name: string; title: string | null; 
 export async function relationships(db: Db, ws: string, limit = 200): Promise<RelRow[]> {
   const day = today();
   const [{ data: links }, { data: items }, { data: tasks }] = await Promise.all([
-    db.from("interaction_link").select("entity_id, interaction:interaction_id(occurred_at, direction, promises)").eq("workspace_id", ws).eq("entity_type", "person").limit(10000),
+    db.from("interaction_link").select("entity_id, interaction:interaction_id(occurred_at, direction, promises)").eq("workspace_id", ws).eq("entity_type", "person").order("created_at", { ascending: false }).limit(10000),
     db.from("outreach_item").select("person_id, status").eq("workspace_id", ws).is("archived_at", null).limit(5000),
     db.from("task").select("title, linked_entity_id, status").eq("workspace_id", ws).eq("linked_entity_type", "person").in("status", ["open", "snoozed"]).is("archived_at", null).limit(5000),
   ]);
@@ -783,10 +827,16 @@ export async function relationships(db: Db, ws: string, limit = 200): Promise<Re
   for (const i of (items ?? []) as Row[]) if (i.person_id && !byP.has(i.person_id)) byP.set(i.person_id, []);
   const ids = [...byP.keys()].slice(0, 1000);
   if (!ids.length) return [];
-  const [{ data: people }, { data: edges }] = await Promise.all([
-    db.from("person").select("id, full_name, do_not_contact, archived_at, employment(title, is_current, org:org_id(id, display_name))").eq("workspace_id", ws).in("id", ids),
-    db.from("relationship_edge").select("to_person_id").eq("workspace_id", ws).in("to_person_id", ids).not("from_person_id", "is", null).is("archived_at", null),
-  ]);
+  // ~100 uuids per request keeps the PostgREST URL under proxy limits (1000 ids in one in.() fails as "URI too long").
+  const chunks = Array.from({ length: Math.ceil(ids.length / 100) }, (_, i) => ids.slice(i * 100, i * 100 + 100));
+  const parts = await Promise.all(chunks.map((c) => Promise.all([
+    db.from("person").select("id, full_name, do_not_contact, archived_at, employment(title, is_current, org:org_id(id, display_name))").eq("workspace_id", ws).in("id", c),
+    db.from("relationship_edge").select("to_person_id").eq("workspace_id", ws).in("to_person_id", c).not("from_person_id", "is", null).is("archived_at", null),
+  ])));
+  const failed = parts.flat().find((r) => r.error);
+  if (failed?.error) throw new Error(`relationships: ${failed.error.message}`);
+  const people = parts.flatMap(([p]) => (p.data ?? []) as Row[]);
+  const edges = parts.flatMap(([, e]) => (e.data ?? []) as Row[]);
   const rows: RelRow[] = [];
   for (const p of (people ?? []) as Row[]) {
     if (p.archived_at) continue;

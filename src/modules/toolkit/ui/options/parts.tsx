@@ -4,6 +4,7 @@
  */
 import type { ReactNode } from "react";
 import { Field, OpenRow, Status, EmptyState, inputCls } from "../kit";
+import { CalcInput } from "../calc-input";
 
 /** Editable number box. Blank = unknown (never zero). Unit shown inside the field. */
 export function NumIn({ name, label, hint, dv, unit, required, idPrefix = "" }: { name: string; label: string; hint?: string; dv?: unknown; unit?: string; required?: boolean; idPrefix?: string }) {
@@ -11,7 +12,7 @@ export function NumIn({ name, label, hint, dv, unit, required, idPrefix = "" }: 
   const id = `${idPrefix}f-${name}`;
   return (
     <Field label={label} hint={hint} unit={unit} required={required} htmlFor={id}>
-      <input id={id} name={name} inputMode="decimal" defaultValue={v} placeholder="blank = unknown" className={`${inputCls} tabular-nums ${unit ? (unit.length > 8 ? "pr-32" : "pr-20") : ""}`} />
+      <CalcInput unit={unit} label={label} id={id} name={name} inputMode="decimal" defaultValue={v} placeholder="blank = unknown" className={`${inputCls} tabular-nums ${unit ? (unit.length > 8 ? "pr-32" : "pr-20") : ""}`} />
     </Field>
   );
 }

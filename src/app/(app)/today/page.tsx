@@ -19,6 +19,7 @@ import { computeRelationshipSuggestions } from "@/modules/brief/caretaker-data";
 import { loadRadar } from "@/modules/brief/radar-data";
 import { loadToday } from "@/modules/brief/today";
 import { TodaySections } from "./today-sections";
+import { AutomationAttentionCard } from "@/modules/orchestrator/ui/components";
 
 
 const ALERT_LABEL: Record<string, string> = { urgent_alert: "Urgent", brief_alert: "Brief alert", promise_overdue: "Overdue promise", lease_event_alert: "Lease event", deadline_48h: "Due ≤ 48 h" };
@@ -78,6 +79,8 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
       {typeof sp.error === "string" ? <div className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{sp.error}</div> : null}
 
       {content.sources.filter((s) => s.state === "failed" || s.state === "stale").map((s) => <StaleBanner key={s.key}>{s.note}</StaleBanner>)}
+
+      <Suspense fallback={null}><AutomationAttentionCard ctx={ctx} /></Suspense>
       {stored?.synthesis_status === "fallback_no_ai" ? <StaleBanner>{synthesis?.notice ?? "AI synthesis missing — deterministic brief shown in full."}</StaleBanner> : null}
       {content.modeNote ? <div className="rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink-soft">{content.modeNote}</div> : null}
 
@@ -161,12 +164,12 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
                   <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                     <form action={completeTaskFromToday} className="flex flex-1 gap-2">
                       <input type="hidden" name="id" value={t.id} /><input type="hidden" name="version" value={t.rowVersion} />
-                      <Input name="evidence" placeholder="What was done (evidence)" required minLength={3} />
+                      <Input name="evidence" aria-label="Evidence of completion" placeholder="What was done (evidence)" required minLength={3} />
                       <Button type="submit">Done</Button>
                     </form>
                     <form action={snoozeTaskFromToday} className="flex gap-2">
                       <input type="hidden" name="id" value={t.id} /><input type="hidden" name="version" value={t.rowVersion} />
-                      <Select name="days" defaultValue="1" className="w-24"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option></Select>
+                      <Select name="days" aria-label="Snooze for" defaultValue="1" className="w-24"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option></Select>
                       <Button type="submit" variant="secondary">Snooze</Button>
                     </form>
                   </div>

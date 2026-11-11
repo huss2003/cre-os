@@ -59,10 +59,14 @@ export async function loadRequirement(db: Db, ws: string, id: string): Promise<R
   const geoIds = (r.preferred_geography_ids ?? []) as string[];
   const { data: geos } = geoIds.length ? await db.from("geography").select("name").in("id", geoIds) : { data: [] as Row[] };
   const c = (r.constraints ?? {}) as Row;
+  // Budget only used as a rent ceiling when stated per sf per month (never coerced from other bases), and only as a
+  // HARD rule when the client has confirmed it. Estimated/reported budgets become a soft flag (S6).
+  const budget = !r.budget_basis || String(r.budget_basis).includes("sf") ? num(r.budget_max) : null;
+  const budgetConfirmed = (c.field_status as Row | undefined)?.budget === "client_confirmed";
   return {
     title: r.title, areaMinSf: num(r.area_min_sf), areaTargetSf: num(r.area_target_sf), areaMaxSf: num(r.area_max_sf), areaBasis: basis(r.area_basis),
-    // Budget only used as a rent ceiling when stated per sf per month (never coerced from other bases).
-    budgetMax: !r.budget_basis || String(r.budget_basis).includes("sf") ? num(r.budget_max) : null,
+    budgetMax: budgetConfirmed ? budget : null,
+    budgetEstimate: budgetConfirmed ? null : budget,
     microMarkets: (geos ?? []).map((g: Row) => g.name as string),
     requiredAmenities: Array.isArray(c.amenities) ? c.amenities.map(String) : undefined,
     termMonths: num(c.term_months) ?? num(c.tenure_months),
@@ -104,6 +108,34 @@ export async function loadAssetProperties(db: Db, ws: string, assetIds: string[]
   return { props, quoteRefs };
 }
 
+/** Site-visit feedback (meetings module, meeting_property_feedback) for one compared building. Shown, never used to exclude. */
+export interface SiteVisitFeedback {
+  key: string; name: string; date: string | null; meeting: string; interest: string | null; overall: number | null;
+  clientRejected: boolean; comments: string[]; concerns: string[];
+}
+const FB_LABEL: Record<string, string> = { location: "Location & connectivity", commute: "Commute / accessibility", layout: "Layout & space suitability", quality: "Building quality & amenities", stakeholders: "Stakeholder reactions", notes: "Other notes", parking: "Parking & operational constraints", pricing: "Pricing concerns" };
+const FB_CONCERN = new Set(["parking", "pricing"]);
+
+/** Feedback from site visits / property presentations linked to the requirement (directly or via its opportunities). RLS client. */
+export async function loadSiteVisitFeedback(db: Db, ws: string, requirementId: string, props: { key: string; name: string }[]): Promise<SiteVisitFeedback[]> {
+  if (!props.length) return [];
+  const { data: opps } = await db.from("opportunity").select("id").eq("workspace_id", ws).eq("requirement_id", requirementId);
+  const oppIds = ((opps ?? []) as Row[]).map((o) => o.id as string);
+  let q = db.from("meeting_prep").select("id, meeting:meeting_visit_id(title, start_at)").eq("workspace_id", ws).is("archived_at", null);
+  q = oppIds.length ? q.or(`requirement_id.eq.${requirementId},opportunity_id.in.(${oppIds.join(",")})`) : q.eq("requirement_id", requirementId);
+  const { data: preps } = await q;
+  const prepById = new Map(((preps ?? []) as Row[]).map((p) => [p.id as string, p]));
+  if (!prepById.size) return [];
+  const { data: fb } = await db.from("meeting_property_feedback").select("prep_id, asset_id, fields").eq("workspace_id", ws).in("prep_id", [...prepById.keys()]).in("asset_id", props.map((p) => p.key)).is("archived_at", null);
+  return ((fb ?? []) as Row[]).map((f) => {
+    const prop = props.find((p) => p.key === f.asset_id)!; const prep = prepById.get(f.prep_id) as Row; const x = (f.fields ?? {}) as Row;
+    const comments: string[] = [], concerns: string[] = [];
+    for (const [k, label] of Object.entries(FB_LABEL)) if (typeof x[k] === "string" && x[k]) (FB_CONCERN.has(k) ? concerns : comments).push(`${label}: ${x[k]}`);
+    return { key: prop.key, name: prop.name, date: prep.meeting?.start_at ? String(prep.meeting.start_at).slice(0, 10) : null, meeting: prep.meeting?.title ?? "Site visit",
+      interest: typeof x.interest === "string" ? x.interest : null, overall: typeof x.overall === "number" ? x.overall : null, clientRejected: x.explicit_rejection === true, comments, concerns };
+  }).sort((a, b) => a.name.localeCompare(b.name) || String(a.date).localeCompare(String(b.date)));
+}
+
 export async function runComparison(db: Db, ws: string, userId: string, input: ComparisonInput) {
   const req: RatingRequirement = input.requirementId ? await loadRequirement(db, ws, input.requirementId) : {};
   if (input.termMonths) req.termMonths = input.termMonths;
@@ -112,7 +144,10 @@ export async function runComparison(db: Db, ws: string, userId: string, input: C
   if (!properties.length) throw new Error("Pick at least one building or add a manual property.");
   const model = await loadModel(db, ws, input.modelId);
   const asOf = new Date().toISOString().slice(0, 10);
-  const outputs = rateProperties(model, req, properties, { asOf });
+  const rated = rateProperties(model, req, properties, { asOf });
+  // Site-visit feedback is shown alongside the rating; it never changes eligibility (no auto-reject).
+  const siteVisitFeedback = input.requirementId ? await loadSiteVisitFeedback(db, ws, input.requirementId, props.map((p) => ({ key: p.key, name: p.name }))) : [];
+  const outputs = { ...rated, siteVisitFeedback };
   const missing = outputs.recommendation.key ? [] : ["No eligible property to recommend"];
   return saveAnalysis(db, ws, userId, {
     id: input.id, kind: "property_comparison", title: input.title, requirementId: input.requirementId ?? null, assetIds: input.assetIds, quoteRefs,

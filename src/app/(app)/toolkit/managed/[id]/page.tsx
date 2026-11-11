@@ -10,6 +10,7 @@ import { compareConventionalManaged, type CvmInput, type CvmResult } from "@/mod
 import { ManagedForm } from "../_parts/form";
 import { ManagedResults } from "../_parts/results";
 import { VersionList, type StoredAnalysis } from "../_parts/shared";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 export default async function ManagedView({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const { id } = await params; const { v } = await searchParams;
@@ -23,6 +24,7 @@ export default async function ManagedView({ params, searchParams }: { params: Pr
   const reproducible = formula === "cvm-1.0" ? stableStringify(compareConventionalManaged(inputs)) === stableStringify(outputs) : null;
   return (
     <div className="space-y-6">
+      <ReassessBanner ctx={ctx} entityType="deal_analysis" entityId={a.id} />
       <ToolHeader eyebrow={`Conventional vs managed · version ${viewing} of ${a.current_version}`} title={a.title}
         purpose="Read the answer first, then the numbers behind it. Change any input below and compare again — that saves a new version."
         back={{ href: "/toolkit/managed", label: "All comparisons" }} steps={["Describe the lease option", "Describe the managed option", "Compare", "Read the recommendation"]} current={3}

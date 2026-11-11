@@ -80,7 +80,7 @@ export default async function ContentPage({ searchParams }: { searchParams: Prom
                         </form>
                         <details><summary className="cursor-pointer text-xs text-brand">Add a public-source fact</summary>
                           <form action={publicFactAction} className="mt-2 max-w-md space-y-2"><input type="hidden" name="id" value={id} />
-                            <Textarea name="text" required minLength={5} maxLength={600} placeholder="Exact fact as published" className="min-h-16" />
+                            <Textarea name="text" aria-label="Exact fact as published" required minLength={5} maxLength={600} placeholder="Exact fact as published" className="min-h-16" />
                             <Input name="source_name" required placeholder="Source (e.g. JLL Q3 report)" /><Input name="source_url" type="url" required placeholder="https://…" /><Input name="source_date" type="date" required aria-label="Source date" />
                             <Button variant="secondary" type="submit">Add fact</Button>
                           </form>

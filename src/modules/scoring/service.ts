@@ -47,7 +47,22 @@ export async function activeVersion(db: Db, ws: string, key: ModelKey): Promise<
 async function loadActiveVersion(db: Db, ws: string, key: ModelKey): Promise<{ id: string; version: number; v: ModelVersion; active: boolean }> {
   const models = await ensureModels(db, ws);
   const m = models[key];
-  const { data } = await db.from("scoring_model_version").select("id, version, factors, bands, config").eq("id", m.active_version_id).single();
+  const { data } = await db.from("scoring_model_version").select("id, version, factors, bands, config, note").eq("id", m.active_version_id).single();
+  const def = MODELS[key].version;
+  // Untouched default version + shipped defaults changed => add a new default version (old results keep their version).
+  if (data && String(data.note ?? "").startsWith("Default model") && JSON.stringify(data.factors) !== JSON.stringify(def.factors)) {
+    const { data: last } = await db.from("scoring_model_version").select("version").eq("model_id", m.id).order("version", { ascending: false }).limit(1).single();
+    const ins = await db.from("scoring_model_version").insert({ workspace_id: ws, model_id: m.id, version: (last?.version ?? data.version) + 1, factors: def.factors, bands: data.bands, config: { ...def.config, ...(data.config ?? {}) }, note: "Default model (updated defaults)" }).select("id, version, factors, bands, config").single();
+    if (!ins.error && ins.data) {
+      await db.from("scoring_model").update({ active_version_id: ins.data.id }).eq("id", m.id).eq("active_version_id", data.id);
+      const { data: now } = await db.from("scoring_model").select("active_version_id").eq("id", m.id).single();
+      if (now?.active_version_id === ins.data.id) return { id: ins.data.id, version: ins.data.version, v: { factors: ins.data.factors, bands: ins.data.bands, config: ins.data.config }, active: m.active };
+    }
+    // A parallel run upgraded it first: read whatever is active now.
+    const { data: m2 } = await db.from("scoring_model").select("active_version_id, active").eq("id", m.id).single();
+    const { data: d2 } = await db.from("scoring_model_version").select("id, version, factors, bands, config").eq("id", m2!.active_version_id).single();
+    return { id: d2!.id, version: d2!.version, v: { factors: d2!.factors, bands: d2!.bands, config: d2!.config }, active: m2!.active };
+  }
   return { id: data!.id, version: data!.version, v: { factors: data!.factors, bands: data!.bands, config: data!.config }, active: m.active };
 }
 
@@ -63,6 +78,14 @@ function changeReason(prev: Row | null, out: ScoreOutput): string | null {
 export async function scoreEntity(db: Db, ws: string, key: ModelKey, entityId: string, trigger = "manual"): Promise<Row> {
   const av = await activeVersion(db, ws, key);
   if (!av.active) throw new ScoringError(`${MODELS[key].name} is switched off.`);
+  // Lead / opportunity reuse the company score: compute it on demand instead of reporting "not scored yet".
+  if (key === "lead" || key === "opportunity") {
+    const orgId = key === "lead" ? entityId : (await db.from("opportunity").select("org_id").eq("workspace_id", ws).eq("id", entityId).maybeSingle()).data?.org_id;
+    if (orgId) {
+      const { data: cs } = await db.from("score_result").select("id").eq("workspace_id", ws).eq("model_key", "company").eq("entity_id", orgId).eq("is_current", true).maybeSingle();
+      if (!cs) { try { await scoreEntity(db, ws, "company", orgId, trigger); } catch (e) { if (!(e instanceof ScoringError)) throw e; } }
+    }
+  }
   const features = await extract(db, ws, key, entityId, av.v.config as Row);
   const out = compute(av.v, features);
   const hash = inputsHash(av.id, features);
@@ -138,11 +161,12 @@ export async function recalcStale(db: Db, ws: string, opts: { limit?: number; st
 
 // ------------------------------------------------------------------ overrides & feedback
 
-export async function overridePriority(db: Db, ws: string, userId: string, key: ModelKey, entityId: string, value: string, reason: string, kind: "priority" | "relationship_assessment" = "priority") {
+export async function overridePriority(db: Db, ws: string, userId: string, key: ModelKey, entityId: string, value: string, reason: string, kind: "priority" | "relationship_assessment" = "priority", reviewOn?: string | null) {
   if (!reason || reason.trim().length < 3) throw new ScoringError("Give a reason.");
+  if (reviewOn && !/^\d{4}-\d{2}-\d{2}$/.test(reviewOn)) throw new ScoringError("Review date must be a valid date.");
   const { data: cur } = await db.from("score_result").select("score").eq("workspace_id", ws).eq("model_key", key).eq("entity_id", entityId).eq("is_current", true).maybeSingle();
   await db.from("score_override").update({ active: false }).eq("workspace_id", ws).eq("model_key", key).eq("entity_id", entityId).eq("kind", kind).eq("active", true);
-  const { error } = await db.from("score_override").insert({ workspace_id: ws, model_key: key, entity_id: entityId, kind, original_score: cur?.score ?? null, value, reason: reason.trim(), owner_user_id: userId });
+  const { error } = await db.from("score_override").insert({ workspace_id: ws, model_key: key, entity_id: entityId, kind, original_score: cur?.score ?? null, value, reason: reason.trim(), review_on: reviewOn || null, owner_user_id: userId });
   if (error) throw new ScoringError(error.message);
   if (kind === "relationship_assessment") await scoreEntity(db, ws, "relationship", entityId, "relationship_assessment");
 }

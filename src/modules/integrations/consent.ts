@@ -2,6 +2,7 @@ import "server-only";
 import type { Db } from "@/lib/supabase/server";
 import { contactValueHash, discardDraft, setDraftPaused } from "@/lib/services/drafts";
 import { cancelEnrollment, pauseForPerson, type PauseReason } from "./sequences";
+import { escapeLike } from "@/lib/util/like";
 
 /**
  * Consent & rights operations (spec §8 "Consent and rights ops"): suppression, correction, revocation and deletion
@@ -40,7 +41,7 @@ export async function pauseDraftsFor(db: Db, ws: string, q: { personId?: string 
     for (const d of data ?? []) ids.add(d.id);
   }
   if (q.address) {
-    const { data } = await db.from("draft").select("id, recipient_address").eq("workspace_id", ws).ilike("recipient_address", q.address.trim()).in("state", UNSENT);
+    const { data } = await db.from("draft").select("id, recipient_address").eq("workspace_id", ws).ilike("recipient_address", escapeLike(q.address.trim())).in("state", UNSENT);
     for (const d of data ?? []) ids.add(d.id);
   }
   for (const id of ids) await setDraftPaused(db, ws, id, true, reason, actorUserId ?? null);

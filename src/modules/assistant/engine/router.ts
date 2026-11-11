@@ -2,15 +2,24 @@ import { MODEL_DEEP, MODEL_FAST } from "./provider";
 
 export type Intent =
   | "company_summary" | "meeting_prep" | "compare_properties" | "leases_expiring" | "rejected_options" | "deal_review"
-  | "priority_accounts" | "commitments" | "send_proposal" | "memory_correction" | "research" | "general";
+  | "priority_accounts" | "commitments" | "send_proposal" | "memory_correction" | "research" | "general"
+  | "research_why" | "decision_makers" | "history" | "outreach_draft" | "requirement_correction" | "automation";
 
 /** Cheap keyword classifier (no LLM call). Order matters: the more specific intents first. */
 const RULES: [Intent, RegExp][] = [
+  // "prepare tomorrow's meetings and list pending client commitments" / "what is running?" — background workflows
+  ["automation", /\b(prepare|prep)\b.*\bmeetings\b.*\b(commitments?|promises?)\b|\b(background (jobs?|tasks?)|running (jobs?|tasks?)|workflows?|automation|pending approvals?)\b|\bwhat('s| is) running\b|\b(cancel|pause) (the|that|this) (job|task|run|workflow)\b/i],
+  // "now 30,000 SF, not 25,000" / "280 seats instead of 250" — a correction to a requirement value (before memory_correction)
+  ["requirement_correction", /\bnow\s+(?:₹\s*)?[\d][\d,.]*\s*(?:k\b)?.*\bnot\b|\binstead of\s+(?:₹\s*)?[\d][\d,.]*/i],
   ["memory_correction", /\b(outdated|no longer|now prefers?|correct(ion)?|that('s| is) wrong|update (the|that) (memory|preference)|forget that)\b/i],
   ["send_proposal", /\b(send|email|share|forward)\b.*\b(proposal|quote|deck|offer|brochure|document)\b/i],
   ["deal_review", /\b(deal|opportunit(y|ies)|mandate)\b.*\breview\b|\breview\b.*\b(deal|opportunity)\b|prepare (this|the) deal/i],
+  ["history", /\bwhat did\b.*\b(say|said|mention\w*|tell|told)\b|\b(said|say|mentioned)\s+about\b/i],
   ["meeting_prep", /\b(prepare|prep|brief)\b.*\bmeeting\b|\bmeeting\b.*\b(prep|brief)\b/i],
-  ["compare_properties", /\bcompar(e|ison)\b|\b(vs\.?|versus)\b/i],
+  ["outreach_draft", /\b(draft|write|prepare)\b.*\b(follow[- ]?up|e-?mail|message|note to|outreach|reply|intro)\b/i],
+  ["research_why", /\bwhy\b.*\b(identif\w*|opportunit\w*|flag\w*|relevant|signal\w*)\b/i],
+  ["decision_makers", /\b(important people|decision.?makers?|stakeholders?|key (people|contacts)|who (are|should|do)\b.*\b(speak|talk|meet|contact|approach))\b/i],
+  ["compare_properties", /\bcompar(e|ison)\b|\b(vs\.?|versus)\b|\bfinancially (better|best|cheaper)\b|\b(cheapest|cheaper|better) (option|property|building|deal)\b/i],
   ["leases_expiring", /\blease[s]?\b.*\b(expir|end|renew)|\bexpir\w*\b.*\blease/i],
   ["rejected_options", /\breject(ed|ions?)?\b|\bturned down\b|\bdeclined\b/i],
   ["commitments", /\b(commitments?|promise[sd]?|follow[- ]?ups?|owe)\b/i],
@@ -24,7 +33,7 @@ export function classifyIntent(request: string): Intent {
   return "general";
 }
 
-const DEEP_INTENTS: Intent[] = ["deal_review", "compare_properties", "research", "priority_accounts", "meeting_prep"];
+const DEEP_INTENTS: Intent[] = ["deal_review", "compare_properties", "research", "priority_accounts", "meeting_prep", "research_why"];
 
 export interface Route { intent: Intent; route: "fast" | "deep"; model: string; webSearch: boolean }
 

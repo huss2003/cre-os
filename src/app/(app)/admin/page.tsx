@@ -78,20 +78,20 @@ async function Body() {
           <ActionForm action={setPausedAction} className="space-y-2">
             <p className="text-sm text-ink-soft">{h.workspace.aiPaused ? "AI calls and external ingestion are stopped. Internal records, tasks, approvals and the deterministic brief keep working." : "Pausing stops AI calls and external ingestion immediately. Internal work continues."}</p>
             <input type="hidden" name="paused" value={h.workspace.aiPaused ? "0" : "1"} />
-            <Input name="reason" placeholder="Reason (recorded in the audit log)" />
+            <Input name="reason" aria-label="Reason" placeholder="Reason (recorded in the audit log)" />
             <Submit variant={h.workspace.aiPaused ? "primary" : "danger"} confirm={h.workspace.aiPaused ? undefined : "Pause AI and external ingestion for this workspace?"}>{h.workspace.aiPaused ? "Resume" : "Pause AI & ingestion"}</Submit>
           </ActionForm>
           <ActionForm action={setJobsPausedAction} className="mt-4 space-y-2 border-t border-line pt-3">
             <p className="text-sm text-ink-soft">{pause.workspacePaused ? "Background jobs (syncs, imports, briefs, research, purges) are paused for this workspace. Nightly backups still run." : "Pause background jobs: the scheduler stops picking up this workspace's queued work (backups continue). Use during an incident or a bad import."}</p>
             <input type="hidden" name="paused" value={pause.workspacePaused ? "0" : "1"} />
-            <Input name="reason" placeholder="Reason (recorded in the audit log)" />
+            <Input name="reason" aria-label="Reason" placeholder="Reason (recorded in the audit log)" />
             <Submit variant={pause.workspacePaused ? "primary" : "danger"} confirm={pause.workspacePaused ? undefined : "Pause all background jobs for this workspace?"}>{pause.workspacePaused ? "Resume background jobs" : "Pause background jobs"}</Submit>
           </ActionForm>
           {ctx.isPlatformAdmin ? (
             <ActionForm action={setPlatformJobsPausedAction} className="mt-4 space-y-2 border-t border-line pt-3">
               <p className="text-sm text-ink-soft"><Badge tone="accent">Platform admin</Badge> {pause.globalPaused ? "All tenants' background jobs are paused (backups continue)." : "Pause background jobs for every tenant (backups continue)."}</p>
               <input type="hidden" name="paused" value={pause.globalPaused ? "0" : "1"} />
-              <Input name="reason" placeholder="Reason (written to every tenant's audit log)" />
+              <Input name="reason" aria-label="Reason" placeholder="Reason (written to every tenant's audit log)" />
               <Submit variant={pause.globalPaused ? "primary" : "danger"} confirm={pause.globalPaused ? undefined : "Pause background jobs for ALL tenants?"}>{pause.globalPaused ? "Lift platform-wide pause" : "Pause all tenants"}</Submit>
             </ActionForm>
           ) : null}

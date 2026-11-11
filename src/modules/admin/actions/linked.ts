@@ -14,6 +14,7 @@ export async function addLinkedAction(kind: string, hostId: string | null, backP
     const res = await addLinked(ctx.db, ctx.workspaceId, ctx.userId, kind, hostId, form);
     revalidatePath(backPath || PATHS[LINKED[kind]?.host ?? "workspace"]);
     revalidatePath("/database");
+    if (res.duplicates?.length && !res.id) return { error: res.warnings.join(" ") };
     return { ok: true, message: ["Saved.", ...res.warnings].join(" ") };
   } catch (e) {
     return { error: e instanceof LinkedError ? e.message : errorMessage(e) };

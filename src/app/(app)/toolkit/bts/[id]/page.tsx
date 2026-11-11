@@ -7,6 +7,7 @@ import { HowCalc, NoteList, Panel } from "@/modules/toolkit/ui/options/parts";
 import { BtsForm, DataTable, OldVersionBanner, Versions } from "@/modules/toolkit/ui/models";
 import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import { rs } from "../../fitout/results";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 export default async function BtsView({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -20,6 +21,7 @@ export default async function BtsView({ params, searchParams }: { params: Promis
   const pc = r.projectCost; const why = (k: string) => r.nulls[k];
   return (
     <div className="space-y-6">
+      <ReassessBanner ctx={ctx} entityType="deal_analysis" entityId={a.id} />
       <ToolHeader eyebrow={`BTS · version ${ver ? ver.version : a.current_version} · formula ${src.formula_version} · ${r.areaBasis ?? "basis not stated"}`} title={a.title}
         purpose="Key numbers first, then the rent schedule. Edit below to save a new version." back={{ href: "/toolkit/bts", label: "All BTS models" }}
         steps={["Enter land, building and lease", "Calculate", "Read the result"]} current={2} action={<DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={id} version={ver?.version ?? null} />} />

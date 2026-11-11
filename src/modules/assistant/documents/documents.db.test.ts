@@ -1,6 +1,6 @@
 // Documents (round 2): lease-term extraction tool on a real attachment row, save_lease_terms plan() diff + proposeChange,
 // doc_chunk indexing (content_hash dedupe) and hybrid retrieval with a fake embedding provider. Local Supabase, RLS as owner (WS1).
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createHash, randomUUID } from "node:crypto";
 import { userClient, adminClient, WS1, WS2, USERS, tag } from "../../../../tests/helpers";
 import type { ToolContext, ToolResult } from "../types";
@@ -44,6 +44,15 @@ beforeAll(async () => {
   const { data: l, error: e2 } = await adminClient().from("lease").insert({ workspace_id: WS1, owner_user_id: USERS.owner.id, tenant_name_raw: `Globex ${T}`, area_sf: 12000, lockin_months_raw: 36 }).select("id").single();
   if (e2) throw e2;
   leaseId = l!.id;
+  // Earlier runs of this file indexed identical page 2/3 text; those chunks tie in the top-k. Retire them (this file's own fixtures).
+  const admin = adminClient();
+  const prev = ((await admin.from("assistant_attachment").select("id").eq("workspace_id", WS1).like("file_name", "docs-%.pdf").neq("id", attId)).data ?? []).map((r) => r.id as string);
+  for (let i = 0; i < prev.length; i += 100) {
+    await admin.from("doc_chunk").update({ archived_at: new Date().toISOString() }).eq("workspace_id", WS1).in("source_id", prev.slice(i, i + 100)).is("archived_at", null);
+  }
+});
+afterAll(async () => {
+  if (attId) await adminClient().from("doc_chunk").update({ archived_at: new Date().toISOString() }).eq("workspace_id", WS1).eq("source_id", attId);
 });
 
 describe("extract_lease_terms (mock mode)", () => {

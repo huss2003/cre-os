@@ -37,7 +37,7 @@ export async function overrideAction(model: string, id: string, _p: ActionState,
     const ctx = await requireContext("editor");
     const kind = f.get("kind") === "relationship_assessment" ? "relationship_assessment" : "priority";
     if (f.get("clear") === "1") await clearOverride(ctx.db, ctx.workspaceId, key(model), id);
-    else await overridePriority(ctx.db, ctx.workspaceId, ctx.userId, key(model), id, String(f.get("value") ?? ""), String(f.get("reason") ?? ""), kind);
+    else await overridePriority(ctx.db, ctx.workspaceId, ctx.userId, key(model), id, String(f.get("value") ?? ""), String(f.get("reason") ?? ""), kind, String(f.get("review_on") ?? "").trim() || null);
     revalidatePath(`/scoring/${model}/${id}`); revalidatePath("/scoring");
     return { ok: true, message: "Saved. The calculated score is unchanged and kept." };
   } catch (e) { return err(e); }

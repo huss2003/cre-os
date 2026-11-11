@@ -28,7 +28,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
   if (!cur) notFound();
   const [{ data: hist }, { data: ov }, { data: assess }] = await Promise.all([
     ctx.db.from("score_result").select("id, score, band, previous_score, change_reason, trigger, calculated_at, version:model_version_id(version)").eq("workspace_id", ctx.workspaceId).eq("model_key", key).eq("entity_id", id).order("calculated_at", { ascending: false }).limit(20),
-    ctx.db.from("score_override").select("value, reason, original_score, created_at").eq("workspace_id", ctx.workspaceId).eq("model_key", key).eq("entity_id", id).eq("kind", "priority").eq("active", true).maybeSingle(),
+    ctx.db.from("score_override").select("value, reason, original_score, review_on, created_at").eq("workspace_id", ctx.workspaceId).eq("model_key", key).eq("entity_id", id).eq("kind", "priority").eq("active", true).maybeSingle(),
     ctx.db.from("score_override").select("value, reason, created_at").eq("workspace_id", ctx.workspaceId).eq("model_key", "relationship").eq("entity_id", id).eq("kind", "relationship_assessment").eq("active", true).maybeSingle(),
   ]);
   const ex = (cur.extra ?? {}) as Row;
@@ -54,7 +54,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
           <div><dt className="text-ink-soft">Calculated</dt><dd className="font-semibold">{new Date(cur.calculated_at).toLocaleDateString("en-IN", { dateStyle: "medium" })} · v{cur.version?.version}</dd></div>
         </dl>
         {cur.completeness < 50 ? <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Less than half of the inputs are known, so treat this score as a first view, not a conclusion.</p> : null}
-        {ov ? <p className="mt-3 text-sm">Priority set to <b>{ov.value}</b> by your team: “{ov.reason}”. The calculated score ({ov.original_score ?? cur.score}) is kept.</p> : null}
+        {ov ? <p className="mt-3 text-sm">Priority set to <b>{ov.value}</b> by your team: “{ov.reason}”. The calculated score ({ov.original_score ?? cur.score}) is kept.{ov.review_on ? <> Review by <b>{ov.review_on}</b>{ov.review_on < new Date().toISOString().slice(0, 10) ? <span className="text-warn"> — review overdue</span> : null}.</> : " No review date set."}</p> : null}
         {key === "lead" ? <p className="mt-3 text-xs text-ink-soft">A high lead score means worth pursuing now. It does not mean the company is ready to sign.</p> : null}
         <div className="mt-4 flex flex-wrap gap-2">
           {LINK[cur.entity_type] ? <Link href={`${LINK[cur.entity_type]}/${id}`} className="inline-flex min-h-10 items-center rounded-xl border border-line px-4 text-sm font-semibold">Open record</Link> : null}
@@ -107,6 +107,13 @@ export default async function Page({ params }: { params: Promise<{ model: string
         </ul>
       </section>
 
+      {ex.health ? (
+        <section className="rounded-2xl border border-line bg-surface p-5">
+          <h2 className="font-semibold">Deal health: {String(ex.health.status).replace(/_/g, " ")}</h2>
+          <p className="text-xs text-ink-soft">Separate from attractiveness — what is blocking this deal right now.</p>
+          {(ex.health.reasons as string[]).length ? <ul className="mt-2 list-disc pl-5 text-sm">{(ex.health.reasons as string[]).map((x) => <li key={x}>{x}</li>)}</ul> : <p className="mt-2 text-sm">No blockers, pending approvals or overdue actions.</p>}
+        </section>
+      ) : null}
       {(cur.missing ?? []).length || (ex.risks ?? []).length ? (
         <section className="grid gap-4 sm:grid-cols-2">
           {(cur.missing ?? []).length ? <div className="rounded-2xl border border-line bg-surface p-5"><h2 className="font-semibold">Missing information<HelpFor k="Missing information" /></h2><ul className="mt-2 list-disc pl-5 text-sm">{(cur.missing as string[]).map((x) => <li key={x}>{x}</li>)}</ul><p className="mt-2 text-xs text-ink-soft">Unknown is not treated as a negative.</p></div> : null}
@@ -121,6 +128,7 @@ export default async function Page({ params }: { params: Promise<{ model: string
             <ActionForm action={overrideAction.bind(null, key, id)} className="mt-3 space-y-3">
               <select name="value" defaultValue={ov?.value ?? cur.band} aria-label="Priority" className={sel}>{m.version.bands.map((b) => <option key={b.label}>{b.label}</option>)}</select>
               <input name="reason" placeholder="Why? (required to save)" aria-label="Reason" className={sel} />
+              <label className="block text-xs text-ink-soft">Review this override on<input name="review_on" type="date" aria-label="Review date" className={sel} /></label>
               <div className="flex gap-2"><Submit>Save priority</Submit>{ov ? <Submit variant="secondary" name="clear" value="1">Remove</Submit> : null}</div>
             </ActionForm>
           </div>

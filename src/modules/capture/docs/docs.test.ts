@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectDocType, fileFamily } from "./detect";
+import { detectDocType, fileFamily, imageSize } from "./detect";
 import { cardContactMethods, parseBusinessCard } from "./card";
 
 describe("document type detection (deterministic first)", () => {
@@ -24,7 +24,7 @@ describe("document type detection (deterministic first)", () => {
   it("images: card only with contact signals, layout on plan words, else property photo", () => {
     expect(detectDocType({ name: "c.jpg", mime: "image/jpeg", text: "Raj Mehta\nDirector\nraj@acme.in\nM: +91 98220 12345" }).type).toBe("business_card");
     expect(detectDocType({ name: "p.jpg", mime: "image/jpeg", text: "FLOOR PLAN Level 5 workstations 120 cabins 6" }).type).toBe("layout");
-    expect(detectDocType({ name: "p.jpg", mime: "image/jpeg", text: "" }).type).toBe("property_photo");
+    expect(detectDocType({ name: "p.jpg", mime: "image/jpeg", text: "" }).type).toBe("unknown"); // no cues: the user picks
     expect(detectDocType({ name: "p.jpg", mime: "image/jpeg", text: "", userType: "layout" }).method).toBe("user");
   });
 });
@@ -60,5 +60,51 @@ describe("business card parser", () => {
     const cm = cardContactMethods(c);
     expect(cm[0]).toMatchObject({ method_type: "phone", value: "9876543210", verify_status: "business_mobile" });
     expect(cm.some((x) => x.verify_status === "verified")).toBe(false);
+  });
+});
+
+// Minimal fixture headers: PNG signature + IHDR (w,h), and JPEG SOI + APP0 + SOF0 (h,w).
+function png(w: number, h: number, size = 0): Uint8Array {
+  const b = new Uint8Array(Math.max(33, size));
+  b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52]);
+  new DataView(b.buffer).setUint32(16, w); new DataView(b.buffer).setUint32(20, h);
+  return b;
+}
+function jpeg(w: number, h: number, size = 0): Uint8Array {
+  const head = [0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0,
+    0xff, 0xc0, 0, 17, 8, h >> 8, h & 255, w >> 8, w & 255, 3];
+  const b = new Uint8Array(Math.max(head.length + 16, size)); b.set(head); return b;
+}
+
+describe("image detection from file cues (business card vs property photo)", () => {
+  it("reads PNG and JPEG pixel sizes from header bytes", () => {
+    expect(imageSize(png(1050, 600))).toEqual({ width: 1050, height: 600 });
+    expect(imageSize(jpeg(4032, 3024))).toEqual({ width: 4032, height: 3024 });
+    expect(imageSize(new Uint8Array([1, 2, 3]))).toBeNull();
+  });
+  it("a small card-shaped PNG with no readable text is a business card, not a property photo", () => {
+    const b = png(1050, 600, 90_000);
+    const d = detectDocType({ name: "Screenshot 2026-11-10.png", mime: "image/png", bytes: b, text: "" });
+    expect(d.type).toBe("business_card");
+    expect(d.signals.join(" ")).toMatch(/card-shaped/);
+  });
+  it("filename words win: visiting card / vcard → card", () => {
+    expect(detectDocType({ name: "raj_visiting_card.png", mime: "image/png", bytes: png(800, 800, 50_000), text: "" }).type).toBe("business_card");
+    expect(detectDocType({ name: "vcard.jpg", mime: "image/jpeg", bytes: jpeg(3000, 2000, 2_000_000), text: "" }).type).toBe("business_card");
+  });
+  it("OCR text with name + title + email → card even with a photo-ish file", () => {
+    expect(detectDocType({ name: "IMG_2031.jpg", mime: "image/jpeg", bytes: jpeg(4032, 3024, 3_000_000), text: "Priya Shah\nSenior Manager\npriya@acme.in" }).type).toBe("business_card");
+  });
+  it("property photo needs photo cues (filename / big camera file / camera shape)", () => {
+    expect(detectDocType({ name: "IMG_2031.jpg", mime: "image/jpeg", bytes: jpeg(4032, 3024, 3_000_000), text: "" }).type).toBe("property_photo");
+    expect(detectDocType({ name: "tower-facade.png", mime: "image/png", bytes: png(1600, 1200, 900_000), text: "" }).type).toBe("property_photo");
+    expect(detectDocType({ name: "upload.jpg", mime: "image/jpeg", bytes: jpeg(4000, 3000, 2_500_000), text: "" }).type).toBe("property_photo");
+  });
+  it("unsure → unknown so the user picks (no guessing)", () => {
+    const d = detectDocType({ name: "upload.png", mime: "image/png", bytes: png(1000, 1000, 700_000), text: "" });
+    expect(d).toMatchObject({ type: "unknown", ambiguous: true });
+    expect(d.candidates).toEqual(["business_card", "property_photo", "layout"]);
+    // conflicting cues: card-shaped small file named "photo"
+    expect(detectDocType({ name: "photo.png", mime: "image/png", bytes: png(1050, 600, 80_000), text: "" }).type).toBe("unknown");
   });
 });

@@ -32,7 +32,7 @@ async function Body({ q }: { q: string }) {
   return (
     <div className="space-y-4">
       <form className="flex gap-2" method="get"><label htmlFor="geo-q" className="sr-only">Search places</label>
-        <input id="geo-q" name="q" defaultValue={q} placeholder="Search place or other name…" className="min-h-10 flex-1 rounded-lg border border-line bg-surface px-3 text-sm" />
+        <input id="geo-q" name="q" aria-label="Search places" defaultValue={q} placeholder="Search place or other name…" className="min-h-10 flex-1 rounded-lg border border-line bg-surface px-3 text-sm" />
         <button className="min-h-10 rounded-lg bg-brand px-3 text-sm text-white">Search</button></form>
       <Card title="Places">
         {error ? <p className="text-sm text-bad">Could not load places: {error.message}</p> : rows.length === 0 ? (

@@ -25,6 +25,7 @@ export const ENTITY_FIELDS: Record<EntityTable, FieldDef[]> = {
     { name: "cin", label: "CIN", material: true },
     { name: "gstin", label: "GSTIN", material: true },
     { name: "sector", label: "Sector" },
+    { name: "hq_city", label: "HQ city" },
     { name: "hq_country", label: "HQ country" },
     { name: "headcount_min", label: "Headcount (min)", type: "number", hint: "Leave blank if unknown — never 0." },
     { name: "headcount_max", label: "Headcount (max)", type: "number" },

@@ -51,6 +51,26 @@ export async function exportTables(admin: Admin): Promise<string[]> {
   return ((data ?? []) as unknown[]).map((r) => (typeof r === "string" ? r : Object.values(r as object)[0] as string)).filter((t) => !EXCLUDE.has(t));
 }
 
+/** Rows per export_table page (keyset by id): one jsonb_agg over a large table overran the statement timeout. */
+export const EXPORT_PAGE_ROWS = 5000;
+
+/** Every row of one workspace table, ordered by id, fetched in keyset pages. */
+export async function fetchTableRows(admin: Admin, workspaceId: string, table: string): Promise<Row[]> {
+  const out: Row[] = [];
+  let after: string | null = null;
+  for (;;) {
+    const { data, error } = await admin.schema("mudar_app")
+      .rpc("export_table", { p_workspace: workspaceId, p_table: table, p_after: after, p_limit: EXPORT_PAGE_ROWS });
+    if (error) throw new Error(`export ${table}: ${error.message}`);
+    const page = (data ?? []) as Row[];
+    out.push(...page);
+    const last = page[page.length - 1];
+    // tables without an id column come back whole (no paging)
+    if (page.length < EXPORT_PAGE_ROWS || !last || last.id == null) return out;
+    after = String(last.id);
+  }
+}
+
 /** Nightly logical export: every workspace table -> one JSON file + manifest with counts and hashes. */
 export async function exportWorkspace(admin: Admin, workspaceId: string, opts: { tables?: string[]; jobId?: string; now?: Date } = {}) {
   const now = opts.now ?? new Date();
@@ -69,9 +89,7 @@ export async function exportWorkspace(admin: Admin, workspaceId: string, opts: {
     const queue = [...tables];
     const worker = async () => {
       for (let table = queue.shift(); table !== undefined; table = queue.shift()) {
-        const { data, error } = await admin.schema("mudar_app").rpc("export_table", { p_workspace: workspaceId, p_table: table });
-        if (error) throw new Error(`export ${table}: ${error.message}`);
-        const rows = (data ?? []) as Row[];
+        const rows = await fetchTableRows(admin, workspaceId, table);
         const plain = JSON.stringify({ table, workspace_id: workspaceId, stamp, rows });
         const body = encrypted ? encryptSecret(plain) : plain;
         const file = `${table}.json${encrypted ? ".enc" : ""}`;

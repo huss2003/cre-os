@@ -1,4 +1,5 @@
 import Decimal from "decimal.js";
+import { assertValidInputs } from "./validate";
 
 /**
  * Conventional lease vs managed office (formula "cvm-1.0"). PURE, deterministic, decimal.js only — no AI maths (S5).
@@ -178,6 +179,7 @@ function project(b: Built, P: number, esc: Escalation | null | undefined, seats:
 function lowerBetter(a: D, b: D): [D, D] { const min = Decimal.min(a, b).plus(1); return [min.div(a.plus(1)), min.div(b.plus(1))]; }
 
 export function compareConventionalManaged(inp: CvmInput): CvmResult {
+  assertValidInputs(inp);
   const missing: string[] = []; const warnings: string[] = []; const assumptions: string[] = []; const differences: string[] = [];
   const c = inp.conventional; const m = inp.managed;
   const cb = buildConventional(c, missing); const mb = buildManaged(m, missing, warnings);

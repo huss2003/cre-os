@@ -84,7 +84,7 @@ export default async function ToolkitPage() {
 
       <section data-tour="toolkit-sections" aria-labelledby="start-here" className="space-y-4">
         <h2 id="start-here" className="text-lg font-semibold text-ink">Start here</h2>
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 *:min-w-0">
           {TASKS.map((s) => {
             const n = s.kinds.reduce((a, k) => a + (count[k] ?? 0), 0);
             return (
@@ -112,7 +112,7 @@ export default async function ToolkitPage() {
         )}
       </section>
 
-      <div className="grid gap-10 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-10 md:grid-cols-2 *:min-w-0">
         <section className="space-y-3">
           <Heading count={awaiting.length}>Requirements awaiting analysis</Heading>
           {awaiting.length === 0 ? (

@@ -69,3 +69,18 @@ export async function createAction(form: FormData) {
     return "Task created";
   });
 }
+
+/** One form for the whole task list: the pressed button carries "op:id"; row fields are suffixed with the task id. */
+export async function taskAction(form: FormData) {
+  const [op, id] = String(form.get("op") ?? "").split(":");
+  const row = new FormData();
+  row.set("return_to", String(form.get("return_to") ?? "/tasks"));
+  row.set("id", id ?? "");
+  row.set("version", String(form.get(`version:${id}`) ?? ""));
+  row.set("evidence", String(form.get(`evidence:${id}`) ?? ""));
+  row.set("days", String(form.get(`days:${id}`) ?? "1"));
+  if (op === "complete") return completeAction(row);
+  if (op === "snooze") return snoozeAction(row);
+  if (op === "reopen") return reopenAction(row);
+  back(String(form.get("return_to") ?? "/tasks"), { error: "Unknown task action" });
+}

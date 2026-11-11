@@ -1,0 +1,86 @@
+{
+  "durationMs": 79876,
+  "steps": [
+    {
+      "caption": "Open More in the sidebar, then Automation.",
+      "ms": 3604
+    },
+    {
+      "caption": "Five tabs: Overview, Daily plan, Weekly review, Budgets & usage and Notifications.",
+      "ms": 11254
+    },
+    {
+      "caption": "The counters: workflows switched on, jobs running now, failed jobs, jobs waiting for an approval and changes waiting in Review.",
+      "ms": 14504
+    },
+    {
+      "caption": "Capacity warnings: today's clashes — overlapping meetings, too many meetings, overdue promises.",
+      "ms": 17885
+    },
+    {
+      "caption": "Needs attention: failed, paused and waiting jobs, plus records that became out of date. Start here every day.",
+      "ms": 21271
+    },
+    {
+      "caption": "Each row shows the job, its status chip (Failed, Paused…), how far it got and the error in plain words.",
+      "ms": 24507
+    },
+    {
+      "caption": "Running now lists jobs in progress. Empty means nothing is working in the background right now.",
+      "ms": 27883
+    },
+    {
+      "caption": "Start a job: run a workflow yourself — here, prepare tomorrow's meetings and list open commitments.",
+      "ms": 31365
+    },
+    {
+      "caption": "Scheduled shows recurring jobs and when they will run next.",
+      "ms": 34655
+    },
+    {
+      "caption": "All workflows: each one, whether it is On or Paused, what starts it and how many steps it has.",
+      "ms": 38189
+    },
+    {
+      "caption": "For example: 'Reassess after requirement change' runs by itself whenever a client's requirement changes.",
+      "ms": 41377
+    },
+    {
+      "caption": "Recently finished: the last jobs and how they ended (Done, Partly done, Failed, Cancelled).",
+      "ms": 44663
+    },
+    {
+      "caption": "Connections: when mail or calendar last worked. A broken connection is shown here — never hidden.",
+      "ms": 47854
+    },
+    {
+      "caption": "Usage and limits: AI and research spending against any limits an admin has set.",
+      "ms": 51041
+    },
+    {
+      "caption": "Open a workflow to see exactly what it does.",
+      "ms": 54209
+    },
+    {
+      "caption": "What it does, what starts it, when it last ran and when it runs next.",
+      "ms": 58127
+    },
+    {
+      "caption": "Steps in order. 'After: …' means a step waits for an earlier one; steps without it run in parallel.",
+      "ms": 61292
+    },
+    {
+      "caption": "Controls: Pause workflow stops new runs until you switch it on again. Priority decides which job goes first (admins only).",
+      "ms": 64552
+    },
+    {
+      "caption": "Recent runs, the records the last run touched and the change history are further down. Export log downloads a run's history.",
+      "ms": 67906
+    },
+    {
+      "caption": "The second tab in this area, Chains, holds the older record chains (signal → action, lease → renewal…).",
+      "ms": 72262
+    }
+  ],
+  "bytes": 1193218
+}

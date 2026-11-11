@@ -44,7 +44,7 @@ async function Body({ params }: Props) {
           <details className="mt-2"><summary className="cursor-pointer text-sm text-brand">Correct the note / transcript</summary>
             <ActionForm action={reviewAction} className="mt-2 space-y-2">
               <input type="hidden" name="capture_id" value={c.id} />
-              <Textarea name="text" rows={4} defaultValue={text} />
+              <Textarea name="text" aria-label="Capture text" rows={4} defaultValue={text} />
               <Submit variant="secondary">Save and re-extract</Submit>
             </ActionForm>
           </details>

@@ -88,7 +88,9 @@ const getMeetingHistory = defineTool({
     });
     const missing = past.length ? [] : ["No past meetings recorded for this record"];
     return {
-      ok: true, summary: `${past.length} past meeting(s)`, data: { total: past.length, items }, missing,
+      ok: true, summary: `${past.length} past meeting(s)`, missing,
+      // notes/commitments also as a flat list with their meeting reference (survives result compaction; quoted as stored)
+      data: { total: past.length, items, notes: items.flatMap((x) => [...x.notes.map((n) => ({ kind: "note", text: n })), ...x.commitments.map((c) => ({ kind: "commitment", text: c }))].map((n) => ({ ...n, meeting: x.title, date: x.date, prepId: x.prepId }))) },
       entities: items.map((x) => ref("meeting", x.prepId, x.title, x.href)),
       sources: items.map((x): SourceRef => ({ label: `Meeting ${x.date}`, href: x.href, observedAt: x.date, status: "verified" })),
       blocks: [...(items.length ? [{ kind: "table" as const, title: "Meeting history", columns: ["Date", "Meeting", "Type", "Outcome", "Commitments"], rows: items.map((x) => [x.date, x.title, x.type, x.outcome ? String(x.outcome).slice(0, 160) : null, x.commitments.join("; ") || null]) }] : []), ...missingBlock(missing)],
@@ -199,13 +201,23 @@ const getResearchSignals = defineTool({
     const rows = (data ?? []) as Row[];
     const orgs = await namesById(t, "organisation", rows.map((r) => r.org_id));
     const { data: dossier } = i.companyId ? await db(t).from("research_dossier").select("id, generated_at, synthesis_status, evidence_count, expired_claim_count, degraded_reason").eq("workspace_id", ws(t)).eq("org_id", i.companyId).eq("is_current", true).maybeSingle() : { data: null };
-    const items = rows.map((r) => ({ id: r.id, company: orgs.get(r.org_id) ?? null, title: r.title, kind: r.kind, verification: r.verification, confidence: r.confidence, eventDate: r.event_date, evidenceOn: r.latest_evidence_on, priority: r.priority_band, action: r.recommended_action, missing: r.missing_info, href: HREF.signal(r.id) }));
+    // Evidence rows: supporting AND counter-evidence, each with its source, excerpt and date (S6: shown, not merged).
+    const { data: ev } = rows.length ? await db(t).from("signal_evidence").select("signal_id, role, source_name, source_url, excerpt, published_on, fact_status, created_at").eq("workspace_id", ws(t)).in("signal_id", rows.map((r) => r.id)).is("archived_at", null).order("published_on", { ascending: false }).limit(200) : { data: [] };
+    const evOf = (id: string, counter: boolean) => ((ev ?? []) as Row[]).filter((e) => e.signal_id === id && (e.role === "counter") === counter).slice(0, 5)
+      .map((e) => ({ source: e.source_name ?? null, url: e.source_url ?? null, excerpt: e.excerpt ? String(e.excerpt).slice(0, 300) : null, date: e.published_on ?? null, factStatus: e.fact_status ?? null, role: e.role }));
+    const items = rows.map((r) => ({ id: r.id, company: orgs.get(r.org_id) ?? null, title: r.title, kind: r.kind, verification: r.verification, confidence: r.confidence, eventDate: r.event_date, evidenceOn: r.latest_evidence_on, priority: r.priority_band, action: r.recommended_action, missing: r.missing_info, support: evOf(r.id, false), counter: evOf(r.id, true), href: HREF.signal(r.id) }));
     const sources: SourceRef[] = items.map((x) => ({ label: x.title, href: x.href, observedAt: x.evidenceOn ?? x.eventDate, status: x.verification === "fact" ? "verified" : x.verification === "inference" ? "reported" : x.verification === "hypothesis" ? "inferred" : "unknown" }));
+    for (const x of items) for (const e of [...x.support, ...x.counter]) if (e.url) sources.push({ label: `${e.role === "counter" ? "Counter-evidence" : "Evidence"}: ${e.source ?? "source"}`, href: e.url, observedAt: e.date, status: "reported" });
+    const evRows = items.flatMap((x) => [...x.support, ...x.counter].map((e) => [x.title, e.role === "counter" ? "Counter" : "Supports", e.source, e.date, e.excerpt] as (string | null)[]));
     const missing = dossier ? [] : i.companyId ? ["No research dossier for this company"] : [];
     return {
-      ok: true, summary: `${count ?? items.length} signal(s)`, data: { total: count ?? items.length, items, dossier }, sources, missing,
+      ok: true, summary: `${count ?? items.length} signal(s)${evRows.length ? `, ${items.reduce((n, x) => n + x.counter.length, 0)} counter-evidence item(s)` : ""}`,
+      // flat evidence list (kept shallow so it survives result compaction for the model)
+      data: { total: count ?? items.length, items, dossier, evidence: items.flatMap((x) => [...x.support, ...x.counter].map((e) => ({ signalId: x.id, signal: x.title, role: e.role === "counter" ? "counter" : "support", source: e.source, date: e.date, excerpt: e.excerpt }))) }, sources, missing,
       entities: items.map((x) => ref("signal", x.id, x.title, x.href)),
-      blocks: [...(items.length ? [{ kind: "table" as const, title: "Signals", columns: ["Company", "Signal", "Verification", "Evidence date", "Priority", "Next"], rows: items.map((x) => [x.company, x.title, x.verification, x.evidenceOn ?? x.eventDate ?? null, x.priority, x.action]) }] : [{ kind: "text" as const, markdown: "No signals in this period." }]), ...missingBlock(missing)],
+      blocks: [...(items.length ? [{ kind: "table" as const, title: "Signals", columns: ["Company", "Signal", "Verification", "Evidence date", "Priority", "Next"], rows: items.map((x) => [x.company, x.title, x.verification, x.evidenceOn ?? x.eventDate ?? null, x.priority, x.action]) }] : [{ kind: "text" as const, markdown: "No signals in this period." }]),
+        ...(evRows.length ? [{ kind: "table" as const, title: "Evidence and counter-evidence", columns: ["Signal", "Role", "Source", "Date", "Excerpt"], rows: evRows, note: "Excerpts are quoted from the stored source; counter-evidence is shown, not discounted." }] : []),
+        ...missingBlock([...missing, ...items.filter((x) => !x.support.length).map((x) => `No stored evidence excerpt for "${x.title}"`)])],
     };
   },
 });
@@ -295,19 +307,23 @@ const findDecisionMakers = defineTool({
     const ids = [...new Set([...((emp ?? []) as Row[]).map((e) => e.person_id), ...((st ?? []) as Row[]).map((s) => s.person_id)])];
     const names = await namesById(t, "person", ids);
     const { data: methods } = ids.length ? await db(t).from("contact_method").select("person_id, method_type, verify_status, suppressed").eq("workspace_id", ws(t)).in("person_id", ids).is("archived_at", null) : { data: [] };
-    const RANK: Record<string, number> = { decision_maker: 0, influencer: 1, evaluator: 2, gatekeeper: 3, operational: 4, unknown: 5 };
+    const RANK: Record<string, number> = { decision_maker: 0, economic_buyer: 1, influencer: 2, technical_evaluator: 3, evaluator: 3, gatekeeper: 4, operational: 5, unknown: 6 };
     const items = ids.map((pid) => {
       const e = ((emp ?? []) as Row[]).find((x) => x.person_id === pid); const r = ((roles ?? []) as Row[]).find((x) => x.person_id === pid);
       const s = ((st ?? []) as Row[]).filter((x) => x.person_id === pid).map((x) => x.role);
       const ch = ((methods ?? []) as Row[]).filter((m) => m.person_id === pid && !m.suppressed).map((m) => `${m.method_type}:${m.verify_status ?? "unverified"}`);
       const roleClass = r?.role_class ?? (s.some((x) => ["approver", "sponsor"].includes(x)) ? "decision_maker" : "unknown");
-      return { personId: pid, name: names.get(pid) ?? null, title: e?.title ?? null, seniority: e?.seniority ?? null, roleClass, roleBasis: r ? `${r.source}: ${r.reason}` : s.length ? `stakeholder role ${s.join(", ")}` : "not assessed", stakeholderRoles: s, channels: ch, href: HREF.person(pid) };
+      const contactStatus = !ch.length ? "no channel on record" : ch.some((c) => c.endsWith(":verified")) ? "verified" : "unverified";
+      return { personId: pid, name: names.get(pid) ?? null, title: e?.title ?? null, seniority: e?.seniority ?? null, roleClass, roleBasis: r ? `${r.source}: ${r.reason}` : s.length ? `stakeholder role ${s.join(", ")}` : "not assessed", stakeholderRoles: s, channels: ch, contactStatus, href: HREF.person(pid) };
     }).sort((a, b) => (RANK[a.roleClass] ?? 9) - (RANK[b.roleClass] ?? 9));
     const missing: string[] = [];
     if (!items.some((x) => x.roleClass === "decision_maker")) missing.push("No confirmed decision-maker on record");
+    // Buying-group categories with nobody on record (from role class, stakeholder role or title).
+    const CATS: [string, RegExp][] = [["Finance / economic buyer", /economic|financ|cfo/i], ["Procurement", /procure|purchas/i], ["Legal", /legal|counsel/i], ["IT / technical", /technical|it\b|infrastructure|cto/i], ["HR / workplace", /hr\b|human|people|workplace|facilit|admin/i]];
+    for (const [cat, re] of CATS) if (!items.some((x) => re.test(`${x.roleClass} ${x.stakeholderRoles.join(" ")} ${x.title ?? ""}`))) missing.push(`Missing category: ${cat} — nobody on record`);
     if (!items.length) missing.push("No current contacts at this company");
     if (items.length && !items.some((x) => x.channels.length)) missing.push("No usable contact channel for these people");
-    const blocks: Block[] = [{ kind: "table", title: "Decision-makers and influencers", columns: ["Name", "Title", "Role", "Basis", "Channels"], rows: items.map((x) => [x.name, x.title, x.roleClass, x.roleBasis, x.channels.join(", ") || null]) }, ...missingBlock(missing)];
+    const blocks: Block[] = [{ kind: "table", title: "Decision-makers and influencers", columns: ["Name", "Title", "Role", "Basis", "Contact info", "Channels"], rows: items.map((x) => [x.name, x.title, x.roleClass, x.roleBasis, x.contactStatus, x.channels.join(", ") || null]) }, ...missingBlock(missing)];
     return { ok: true, summary: `${items.filter((x) => x.roleClass === "decision_maker").length} decision-maker(s), ${items.length} people`, data: { items }, missing, entities: items.map((x) => ref("person", x.personId, x.name, x.href)), blocks, coverage: { checked: items.length, withData: items.filter((x) => x.roleClass !== "unknown").length, note: "withData = people with an assessed role" } };
   },
 });

@@ -160,9 +160,23 @@ export interface DraftEdit {
  * Edit content. Any change to recipient/subject/body/attachments recomputes content_hash and invalidates approval
  * (state back to 'drafted'). Optimistic concurrency via expectedVersion.
  */
+const EMAIL_RE = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[a-z]{2,}$/i;
+/** Recipient check for a draft: blank = unknown (allowed); email-type channels need a valid address. Returns an error or null. */
+export function recipientError(channel: string, addr: string | null | undefined): string | null {
+  const a = (addr ?? "").trim();
+  if (!a) return null;
+  if (channel === "whatsapp") return /^\+?[\d\s()-]{7,20}$/.test(a) ? null : "Enter a phone number like +91 98xxx xxxxx, or leave it blank.";
+  if (channel === "linkedin") return /^(https?:\/\/)?([a-z]{2,3}\.)?linkedin\.com\/\S+$/i.test(a) ? null : "Enter a LinkedIn profile link (linkedin.com/in/…), or leave it blank.";
+  return EMAIL_RE.test(a) ? null : "Enter a valid email address (name@company.com), or leave it blank if you don't know it yet.";
+}
+
 export async function updateDraft(db: Db, workspaceId: string, id: string, edit: DraftEdit, opts: { expectedVersion?: number; actorUserId?: string | null } = {}) {
   const cur = await getDraft(db, workspaceId, id);
   if (["marked_sent", "reconciled_sent", "discarded"].includes(cur.state)) throw new DraftStateError(`cannot edit a ${cur.state} draft`);
+  if (edit.recipientAddress !== undefined && edit.recipientAddress !== cur.recipient_address) {
+    const bad = recipientError(cur.channel, edit.recipientAddress);
+    if (bad) throw new DraftStateError(bad);
+  }
   const next = {
     recipient_person_id: edit.recipientPersonId !== undefined ? edit.recipientPersonId : cur.recipient_person_id,
     recipient_address: edit.recipientAddress !== undefined ? edit.recipientAddress : cur.recipient_address,

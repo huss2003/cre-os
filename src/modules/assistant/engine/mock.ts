@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- tool results are rendered generically */
 import type { ZodType } from "zod";
 import type { ContextPackage, EntityRef, EntityType } from "../types";
 import { TOOLS } from "../tools";
@@ -15,20 +16,46 @@ import type { ChatRequest, ChatResponse, ContentBlock, ModelProvider } from "./p
 type Slots = {
   outreach?: EntityRef; infra?: { name: string; lat: number; lon: number };
   company?: EntityRef; person?: EntityRef; assets: EntityRef[]; requirement?: EntityRef; opportunity?: EntityRef; meeting?: EntityRef;
-  request: string; primary?: EntityRef;
+  request: string; primary?: EntityRef; records?: Record<string, unknown>[];
 };
 
 /** Per intent: ordered tool "needs" (preferred ids, then a regex over ids). Each need contributes at most one call. */
-type Need = { ids: string[]; re?: RegExp; needs?: (keyof Slots)[]; unless?: (keyof Slots)[] };
+type Need = { ids: string[]; re?: RegExp; needs?: (keyof Slots)[]; unless?: (keyof Slots)[]; input?: (s: Slots) => Record<string, unknown> | null; when?: RegExp };
+const companyScore = (s: Slots) => (s.company ? { entityType: "company", entityId: s.company.id } : null);
+/** Everything a full account picture needs once the company is known (M2 signals, M3 score, M4 people, M5 outreach, M7 meetings). */
+const ACCOUNT_PICTURE: Need[] = [
+  { ids: ["get_research_signals"], needs: ["company"] },
+  { ids: ["get_scores"], needs: ["company"], input: companyScore },
+  { ids: ["find_decision_makers"], needs: ["company"] },
+  { ids: ["get_outreach_history"], needs: ["company"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
+];
+/** Profile of whichever record the request is about, company first. */
+const PROFILE: Need[] = [
+  { ids: ["get_company_profile"], needs: ["company"] },
+  { ids: ["get_contact_profile"], needs: ["person"], unless: ["company"] },
+  { ids: ["get_requirement_details"], needs: ["requirement"], unless: ["company", "person"] },
+  { ids: ["get_opportunity_details"], needs: ["opportunity"], unless: ["company", "person", "requirement"] },
+  { ids: ["get_property_details"], needs: ["assets"], unless: ["company", "person", "requirement", "opportunity"] },
+  { ids: ["search_companies"], unless: ["company", "person", "requirement", "opportunity", "assets"] },
+];
 const PLANS: Record<Intent, Need[]> = {
-  company_summary: [{ ids: ["get_company_profile"], needs: ["company"] }, { ids: ["search_companies"], unless: ["company"] }],
+  company_summary: [
+    ...PROFILE.slice(0, 1), ...ACCOUNT_PICTURE,
+    // meeting history carries the commitments from each meeting; kept within 6 steps (evals: company-everything)
+    { ids: ["get_meeting_history"], needs: ["company"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
+    ...PROFILE.slice(1),
+  ],
   meeting_prep: [
     { ids: ["generate_meeting_brief"], needs: ["meeting"] },
     { ids: ["get_upcoming_meetings"], unless: ["meeting"] },
     { ids: ["get_company_profile"], needs: ["company"] },
     { ids: ["get_commitments"], needs: ["company"] },
   ],
-  compare_properties: [{ ids: ["compare_properties"], needs: ["assets"] }, { ids: ["search_properties"], unless: ["assets"] }],
+  compare_properties: [
+    { ids: ["compare_properties"], needs: ["assets"] },
+    { ids: ["get_requirement_details"], needs: ["requirement"], unless: ["assets"] },
+    { ids: ["search_properties"], unless: ["assets", "requirement"] },
+  ],
   leases_expiring: [{ ids: ["find_leases_expiring"] }],
   rejected_options: [
     { ids: ["get_requirement_details"], needs: ["requirement"] },
@@ -39,14 +66,96 @@ const PLANS: Record<Intent, Need[]> = {
   deal_review: [
     { ids: ["generate_deal_review"], needs: ["opportunity"] },
     { ids: ["search_opportunities"], needs: ["company"], unless: ["opportunity"] },
+    ...ACCOUNT_PICTURE,
+    { ids: ["get_meeting_history"], needs: ["company"], when: /\b(last|previous|recent) (interaction|meeting|conversation|call)\b|\bmeetings?\b/i, input: (s) => (s.company ? { companyId: s.company.id } : null) },
   ],
-  priority_accounts: [{ ids: ["rank_priority_accounts"] }],
+  priority_accounts: [
+    { ids: ["get_scores"], needs: ["company"], input: companyScore },
+    { ids: ["get_research_signals"], needs: ["company"] },
+    { ids: ["rank_priority_accounts"], unless: ["company"] },
+  ],
   commitments: [{ ids: ["get_commitments"] }],
   send_proposal: [{ ids: ["prepare_send"], needs: ["outreach"] }],
   memory_correction: [{ ids: ["correct_memory"], needs: ["primary"] }],
   research: [{ ids: ["web_research"] }, { ids: ["search_properties"] }],
-  general: [{ ids: ["get_company_profile"], needs: ["company"] }, { ids: ["search_companies"], unless: ["company"] }],
+  general: PROFILE,
+  research_why: [
+    { ids: ["get_research_signals"], needs: ["company"] },
+    { ids: ["get_scores"], needs: ["company"], input: companyScore },
+  ],
+  decision_makers: [{ ids: ["find_decision_makers"], needs: ["company"] }],
+  history: [
+    { ids: ["get_meeting_history"], needs: ["person"], input: (s) => (s.person ? { personId: s.person.id } : null) },
+    { ids: ["get_meeting_history"], needs: ["company"], unless: ["person"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
+  ],
+  outreach_draft: [
+    { ids: ["get_meeting_history"], needs: ["person"], input: (s) => (s.person ? { personId: s.person.id } : null) },
+    { ids: ["generate_outreach_draft"], needs: ["person"], input: draftInput },
+  ],
+  automation: [
+    { ids: ["start_workflow"], when: /\b(prepare|prep)\b.*\bmeetings?\b|\bcommitments?\b/i, input: (s) => ({ request: s.request }) },
+    { ids: ["list_pending_approvals"], when: /\bapprov/i, input: () => ({}) },
+    { ids: ["list_workflow_runs"], when: /\b(running|background|jobs?|tasks?|workflows?|automation|failed)\b/i, unless: [], input: (s) => (/\b(prepare|prep)\b.*\bmeetings?\b/i.test(s.request) ? null : { status: /failed/i.test(s.request) ? "failed" : "active" }) },
+  ],
+  requirement_correction: [{ ids: ["update_requirement_record"], needs: ["requirement"], input: (s) => correctionInput(s) }],
 };
+
+function draftInput(s: Slots) {
+  if (!s.person) return null;
+  const followup = /\b(follow[- ]?up|last meeting|after (the|our) meeting)\b/i.test(s.request);
+  return { personId: s.person.id, channels: [/\bwhats\s?app\b/i.test(s.request) ? "whatsapp" : /\blinkedin\b/i.test(s.request) ? "linkedin" : "email"], ...(followup ? { scenario: "meeting_followup" } : {}), ...(s.opportunity ? { opportunityId: s.opportunity.id } : {}) };
+}
+
+const num = (x: string) => Number(x.replace(/,/g, ""));
+/** "now 30,000 SF, not 25,000 SF" → requirement field change with the Deals contract key (area/seats = [min, target, max]). */
+export function parseCorrection(request: string): { key: "area" | "seats"; target: number; was: number | null } | null {
+  const m = request.match(/\bnow\s+(?:₹\s*)?(\d[\d,.]*)\s*(k\b)?\s*([a-z. ]{0,12})/i) ?? request.match(/(\d[\d,.]*)\s*(k\b)?\s*([a-z. ]{0,12})\s+instead of/i);
+  if (!m) return null;
+  const target = num(m[1]) * (m[2] ? 1000 : 1);
+  if (!Number.isFinite(target) || target <= 0) return null;
+  const unit = `${m[3] ?? ""} ${request}`.toLowerCase();
+  const key = /\b(seats?|desks?|workstations?|people|headcount)\b/.test(m[3] ?? "") || (!/\b(sf|sft|sq|square|area)\b/.test(unit) && /\b(seats?|desks?)\b/.test(unit)) ? "seats" : "area";
+  const w = request.match(/\b(?:not|instead of)\s+(?:₹\s*)?(\d[\d,.]*)\s*(k\b)?/i);
+  return { key, target, was: w ? num(w[1]) * (w[2] ? 1000 : 1) : null };
+}
+function correctionInput(s: Slots) {
+  const c = parseCorrection(s.request);
+  if (!c || !s.requirement) return null;
+  const rec = (s.records ?? []).find((r) => r.type === "requirement" && r.id === s.requirement!.id) ?? {};
+  const [lo0, hi0] = c.key === "area" ? [rec.area_min_sf, rec.area_max_sf] : [rec.seats_min, rec.seats_max];
+  // Keep the recorded bounds; only widen a bound the new target falls outside of (no arithmetic on the values).
+  const lo = lo0 == null ? null : Math.min(Number(lo0), c.target);
+  const hi = hi0 == null ? null : Math.max(Number(hi0), c.target);
+  return {
+    requirementId: s.requirement.id,
+    changes: [{ key: c.key, value: [lo, c.target, hi], status: "client_confirmed" }],
+    reason: `Client correction in assistant chat: "${s.request.slice(0, 200)}"`,
+  };
+}
+
+/** Clauses of a multi-part request that map to an extra action (12.12). */
+const CLAUSES: { label: string; re: RegExp; tool: string; build: (s: Slots) => Record<string, unknown> | null; why: string }[] = [
+  { label: "Follow-up draft", re: /\b(prepare|draft|write)\b[^,.;]*\bfollow[- ]?up\b|\bdraft (an? )?(email|message|note)\b/i, tool: "generate_outreach_draft", build: draftInput, why: "no contact was identified — name the person" },
+  { label: "Internal reminder", re: /\b(create|set|add|make)\b[^,.;]*\b(remind(er)?|task)\b|\bremind me\b/i, tool: "create_internal_task", build: reminderInput, why: "the reminder text could not be worked out" },
+];
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+/** Next date for a weekday name / tomorrow (calendar lookup, no money/area arithmetic). */
+export function dueFrom(text: string, now = new Date()): string | undefined {
+  const t = text.toLowerCase();
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  if (/\btomorrow\b/.test(t)) { d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); }
+  const wd = WEEKDAYS.findIndex((w) => new RegExp(`\\b${w}\\b`).test(t));
+  if (wd < 0) return undefined;
+  d.setUTCDate(d.getUTCDate() + (((wd - d.getUTCDay() + 7) % 7) || 7));
+  return d.toISOString().slice(0, 10);
+}
+function reminderInput(s: Slots) {
+  const clause = s.request.split(/,|\band\b/i).find((c) => /\bremind/i.test(c)) ?? s.request;
+  const who = s.person?.label ? ` ${s.person.label}` : "";
+  const title = /follow[- ]?up/i.test(s.request) ? `Follow up${who}` : clause.replace(/\b(create|an?|internal|reminder|for)\b/gi, " ").replace(/\s+/g, " ").trim() || "Reminder";
+  const target = s.primary && ["company", "person", "opportunity", "requirement", "asset"].includes(s.primary.type) ? s.primary : (s.opportunity ?? s.person ?? s.company);
+  return { title: title.length >= 3 ? title.slice(0, 120) : "Reminder", ...(dueFrom(clause) ? { due: dueFrom(clause) } : {}), ...(target ? { entityType: target.type, entityId: target.id } : {}) };
+}
 
 function findTool(ids: string[], re?: RegExp) {
   for (const id of ids) { const t = TOOLS.find((x) => x.id === id); if (t) return t; }
@@ -131,6 +240,7 @@ export function fillInput(schema: ZodType, s: Slots): Record<string, unknown> {
     } else if (k === "entityid") v = s.primary?.id;
     else if (/^(windowmonths|months|withinmonths|horizonmonths)$/.test(k)) v = monthsIn(s.request) ?? undefined;
     else if (k === "limit") v = requestedCount(s.request) ?? undefined;
+    else if (k === "place" || k === "city") v = placeIn(s.request);
     else if (/^(newcontent|correction|content)$/.test(k)) v = correctionText(s.request);
     else if (k === "hint") v = s.request;
     else if (k === "question") v = s.request.length >= 5 ? s.request : undefined;
@@ -143,6 +253,14 @@ export function fillInput(schema: ZodType, s: Slots): Record<string, unknown> {
   return out;
 }
 
+const NOT_PLACE = new Set(["show", "list", "find", "all", "which", "what", "give", "the", "our", "my", "me", "any", "who", "how", "tell"]);
+/** A place named in the request: "in Pune", "around Hinjewadi", "all Pune companies". */
+export function placeIn(text: string): string | undefined {
+  const m = text.match(/\b(?:in|at|around|near|within)\s+([A-Z][\w-]+(?:\s+[A-Z][\w-]+)?)/) ?? text.match(/\b([A-Z][a-z][\w-]+)\s+(?:companies|offices|leases|tenants|accounts|clients|occupiers)\b/);
+  const p = m?.[1]?.trim();
+  return p && !NOT_PLACE.has(p.toLowerCase()) ? p : undefined;
+}
+
 function correctionText(req: string) {
   const m = req.match(/\b(?:now|actually)\s+(.+)$/i);
   return (m ? m[1] : req).replace(/^\s*(he|she|they)\s+/i, (x) => x).trim().replace(/\.$/, "") || req;
@@ -153,12 +271,22 @@ function infraOf(p: ContextPackage) {
   return r ? { name: String(r.name ?? "Infrastructure"), lat: Number(r.lat), lon: Number(r.lon) } : undefined;
 }
 
+const UPCOMING = /\b(next|upcoming|tomorrow|today|coming|later)\b/i;
 function slotsFrom(p: ContextPackage): Slots {
   const first = (t: EntityType) => (p.focus?.type === t ? p.focus : p.resolved.find((r) => r.type === t));
+  // "next meeting": only a resolved meeting that has not started yet; otherwise fall back to get_upcoming_meetings.
+  let meeting = first("meeting");
+  if (meeting && meeting !== p.focus && UPCOMING.test(p.request)) {
+    const now = Date.now();
+    const future = p.resolved.filter((r) => r.type === "meeting").map((r) => ({ r, at: Date.parse(String(p.records.find((x) => x.type === "meeting" && x.id === r.id)?.start_at ?? "")) }))
+      .filter((x) => Number.isFinite(x.at) && x.at >= now).sort((a, b) => a.at - b.at);
+    meeting = future[0]?.r;
+  }
+  const assets = p.resolved.filter((r) => r.type === "asset").slice(0, 5);
   return {
-    company: first("company"), person: first("person"), assets: p.resolved.filter((r) => r.type === "asset").slice(0, 5),
-    requirement: first("requirement"), opportunity: first("opportunity"), meeting: first("meeting"), request: p.request,
-    outreach: first("outreach"), infra: infraOf(p),
+    company: first("company"), person: first("person"), assets: p.focus?.type === "asset" ? [p.focus, ...assets.filter((a) => a.id !== p.focus!.id)].slice(0, 5) : assets,
+    requirement: first("requirement"), opportunity: first("opportunity"), meeting, request: p.request,
+    outreach: first("outreach"), infra: infraOf(p), records: p.records,
     primary: p.focus ?? p.resolved[0],
   };
 }
@@ -171,6 +299,8 @@ const HEADINGS: Record<Intent, string> = {
   leases_expiring: "Leases expiring", rejected_options: "Previously rejected options", deal_review: "Deal review pack",
   priority_accounts: "Priority accounts", commitments: "Open commitments", send_proposal: "Send proposal",
   memory_correction: "Memory updated", research: "Research", general: "Answer",
+  research_why: "Why this account is an opportunity", decision_makers: "People to speak to", history: "What was said",
+  outreach_draft: "Follow-up draft", requirement_correction: "Requirement correction", automation: "Background work",
 };
 
 export const MOCK_CHUNK = 24;
@@ -211,16 +341,36 @@ export class MockProvider implements ModelProvider {
     if (att && /\b(extract|terms?|lease|loi|term sheet|offer letter|clauses?)\b/i.test(this.pkg.request) && findTool(["extract_lease_terms"])) {
       return [this.call("extract_lease_terms", { attachmentId: att.id })];
     }
+    // A name matched several records equally well: ask (compose) instead of acting on the first one.
+    if (this.ambiguity().length) return [];
     const empty = (n: keyof Slots) => { const v = s[n]; return Array.isArray(v) ? !v.length : !v; };
-    for (const need of PLANS[this.intent]) {
-      if (need.needs?.some(empty) || need.unless?.some((n) => !empty(n))) continue;
-      const tool = findTool(need.ids, need.re);
-      if (!tool || calls.some((c) => c.name === tool.id)) continue;
-      const input = fillInput(tool.input, s);
-      if (!tool.input.safeParse(input).success) continue;
-      calls.push(this.call(tool.id, input));
+    let needs = PLANS[this.intent];
+    // Page focus on a contact/property/requirement/deal: a generic "summarise this" is about that record.
+    const f = this.pkg.focus;
+    if (f && (this.intent === "company_summary" || this.intent === "general") && f.type !== "company") {
+      const byType: Partial<Record<EntityType, string>> = { person: "get_contact_profile", asset: "get_property_details", requirement: "get_requirement_details", opportunity: "get_opportunity_details", meeting: "get_meeting_history" };
+      const id = byType[f.type];
+      if (id && f.type !== "meeting") needs = [{ ids: [id], needs: [] }];
     }
+    const add = (tool: ReturnType<typeof findTool>, input: Record<string, unknown> | null) => {
+      if (!tool || !input || !tool.input.safeParse(input).success) return false;
+      if (calls.some((c) => c.name === tool.id && JSON.stringify(c.input) === JSON.stringify(input))) return false;
+      calls.push(this.call(tool.id, input));
+      return true;
+    };
+    for (const need of needs) {
+      if (need.needs?.some(empty) || need.unless?.some((n) => !empty(n)) || (need.when && !need.when.test(this.pkg.request))) continue;
+      const tool = findTool(need.ids, need.re);
+      if (!tool || (calls.some((c) => c.name === tool.id) && !need.input)) continue;
+      add(tool, need.input ? need.input(s) : fillInput(tool.input, s));
+    }
+    // Other clauses of a multi-part request ("…, create a reminder for Friday and update the deal review").
+    for (const c of CLAUSES) if (c.re.test(this.pkg.request) && !calls.some((x) => x.name === c.tool)) add(findTool([c.tool]), c.build(s));
     return calls;
+  }
+
+  private ambiguity() {
+    return (this.pkg.ambiguous ?? []).filter((a) => !(this.pkg.focus && this.pkg.focus.type === a.type));
   }
 
   /** Second turn: tools that need ids from the first turn's results. */
@@ -269,10 +419,77 @@ export class MockProvider implements ModelProvider {
     return out;
   }
 
+  /** Intent-specific detail lines, quoted from tool results only (no arithmetic, no invented quotes). */
+  private detail(ok: { name: string; r: Result }[]): string[] {
+    const out: string[] = [];
+    // Results reach the planner compacted (deep lists may be summarised as text), so read them defensively.
+    const L = (v: unknown): any[] => (Array.isArray(v) ? v : []);
+    const S = (v: unknown): string[] => L(v).map((x) => (typeof x === "string" ? x : JSON.stringify(x)));
+    const data = (name: string) => ok.find((x) => x.name === name)?.r.data as Record<string, any> | undefined;
+    const sig = data("get_research_signals");
+    if (L(sig?.items).length && (this.intent === "research_why" || this.intent === "priority_accounts")) {
+      const ev = L(sig!.evidence);
+      for (const x of L(sig!.items).slice(0, 3)) {
+        out.push(`- Signal: ${x.title} — ${x.verification} (${x.confidence ?? "confidence unknown"}), evidence dated ${x.evidenceOn ?? x.eventDate ?? "unknown"}.`);
+        const mine = ev.filter((e) => e.signalId === x.id);
+        for (const e of mine.filter((y) => y.role !== "counter")) out.push(`  - Supports (${e.source ?? "source"}, ${e.date ?? "undated"}): “${e.excerpt ?? "no excerpt stored"}”`);
+        for (const e of mine.filter((y) => y.role === "counter")) out.push(`  - Counter-evidence (${e.source ?? "source"}, ${e.date ?? "undated"}): “${e.excerpt ?? "no excerpt stored"}”`);
+        if (!mine.length) out.push("  - No stored evidence excerpt for this signal.");
+      }
+      if (L(sig!.items).some((x: any) => x.verification !== "fact")) out.push("These signals are not confirmed facts: treat the opportunity as a hypothesis until the client confirms it.");
+    }
+    const sc = data("get_scores");
+    for (const x of L(sc?.items).filter((y: any) => ["lead", "company", "opportunity"].includes(y.model)).slice(0, 3)) {
+      out.push(`- ${x.model} score ${x.score ?? "unknown"} (${x.band ?? "no band"}, completeness ${x.completeness ?? "unknown"}).${S(x.strengths).length ? ` Strengths: ${S(x.strengths).join("; ")}.` : ""}${S(x.weaknesses).length ? ` Weaker: ${S(x.weaknesses).join("; ")}.` : ""}${S(x.missing).length ? ` Missing: ${S(x.missing).slice(0, 5).join(", ")}.` : ""}`);
+    }
+    const dm = data("find_decision_makers");
+    if (this.intent === "decision_makers") for (const x of L(dm?.items).slice(0, 8)) out.push(`- ${x.name ?? "Unnamed"} — ${x.title ?? "title unknown"}; role ${x.roleClass} (${x.roleBasis}); contact info ${x.contactStatus ?? "unknown"}.`);
+    const mh = data("get_meeting_history");
+    if (mh && (this.intent === "history" || this.intent === "outreach_draft")) {
+      const items = L(mh.items);
+      const assets = this.pkg.resolved.filter((r) => r.type === "asset").map((a) => a.label.split(/\s+/).slice(0, 2).join(" ").toLowerCase());
+      const flat = L(mh.notes);
+      const notes = flat.filter((x) => x.kind === "note").map((x) => ({ m: { title: x.meeting, date: x.date }, n: String(x.text) }));
+      const relevant = assets.length ? notes.filter((x) => assets.some((a) => x.n.toLowerCase().includes(a))) : notes;
+      if (this.intent === "history") {
+        if (relevant.length) for (const x of relevant.slice(0, 5)) out.push(`- Original note, meeting “${x.m.title}” on ${x.m.date}: “${x.n}” (recorded note — wording as stored; not a verbatim quote of the client).`);
+        else out.push(assets.length ? "- No recorded meeting note mentions that property; I won't guess what was said." : "- No meeting notes are recorded for this.");
+      } else if (items[0]) {
+        const commits = flat.filter((x) => x.kind === "commitment" && x.prepId === items[0].prepId).map((x) => String(x.text));
+        out.push(`- Last meeting: “${items[0].title}” on ${items[0].date}.${commits.length ? ` Our commitments from it: ${commits.join("; ")}.` : " No commitments recorded."} The draft follows up on this meeting.`);
+      }
+    }
+    if (ok.some((x) => x.name === "generate_outreach_draft")) out.push("This is a draft only — nothing has been sent. Review it in Outreach, approve it, and send it from your own mail.");
+    const cmp = data("compare_properties");
+    if (L(cmp?.properties).length && /\b(financ\w*|cheap\w*|cost\w*|econom\w*|expensive|rent)\b/i.test(this.pkg.request)) {
+      const byCost = L(cmp!.byOccupancyCost);
+      if (byCost.length) out.push(`- Financially (lowest occupancy cost over ${cmp!.termMonths ?? "the"} months, from the comparison calculator): ${byCost.map((x: any, i: number) => `${i + 1}. ${x.name} (${x.occupancyCost})`).join(", ")}.`);
+      else out.push("- Occupancy cost is unknown for these properties, so I can't say which is financially better.");
+      const top = L(cmp!.properties).find((x) => x.rank === 1);
+      if (top) out.push(`- Separately, the weighted rating (${cmp!.formula ?? "rating model"}: fit, location, specs and cost together) ranks ${top.name} first — that is not a cost ranking.`);
+    }
+    return out;
+  }
+
   private compose(results: { name: string; r: Result }[]): string {
     const p = this.pkg;
+    const amb = this.ambiguity();
+    if (amb.length && !results.length) {
+      return [`Question: ${amb.map((a) => `several ${a.type === "company" ? "companies" : `${a.type}s`} match "${a.phrase}" — which one do you mean?`).join(" Also, ")}`,
+        ...amb.flatMap((a) => a.candidates.map((c, i) => `${i + 1}. ${c.label}`)), "Open its page or use the full name, and I'll continue."].join("\n");
+    }
     if (this.intent === "memory_correction" && !results.length) {
       return "Question: who is this about? Open the person's or company's page (or name them) so I can update the right memory.";
+    }
+    if (this.intent === "requirement_correction" && !results.length) {
+      const s = slotsFrom(p);
+      return s.requirement ? `Question: what is the new value? I could not read a number and unit from "${p.request.slice(0, 120)}" (e.g. "now 30,000 SF, not 25,000 SF").`
+        : "Question: which requirement should I correct? Open the requirement's page or name it, and I'll prepare the change for your approval.";
+    }
+    if (this.intent === "compare_properties" && !slotsFrom(p).assets.length && (slotsFrom(p).requirement || !results.some((x) => x.r.ok))) {
+      const req = slotsFrom(p).requirement;
+      return [`Question: which properties should I compare${req ? ` against “${req.label}”` : ""}? Name them (or open a shortlist) — I won't pick buildings for you.`,
+        ...results.filter((x) => x.r.ok).map((x) => `- ${x.r.summary ?? x.name}`)].join("\n");
     }
     if (!results.length) {
       const what = p.resolved.length ? p.resolved.map((r) => `${r.type} “${r.label}”`).join(", ") : null;
@@ -285,7 +502,7 @@ export class MockProvider implements ModelProvider {
     for (const x of ok) if (x.r.coverage) {
       lines.push(`Coverage: checked ${x.r.coverage.checked}, ${x.r.coverage.withData} with data.${x.r.coverage.note ? ` ${x.r.coverage.note}` : ""} This is based only on records in CRE OS — it is not a complete market list.`);
     }
-    const asked = requestedCount(p.request);
+    const asked = ["priority_accounts", "leases_expiring", "commitments", "general", "research", "rejected_options", "company_summary"].includes(this.intent) ? requestedCount(p.request) : null;
     if (asked) for (const x of ok) {
       const n = ((x.r.data as { items?: unknown[] } | undefined)?.items ?? null)?.length;
       if (n == null) continue;
@@ -293,6 +510,9 @@ export class MockProvider implements ModelProvider {
       break;
     }
     if (failed.length) lines.push(...failed.map((x) => `- Not completed: ${x.r.error === "not_found_or_no_access" ? "a record was not found or you do not have access to it" : (x.r.summary ?? x.r.error ?? x.name)}`));
+    lines.push(...this.detail(ok));
+    // Requested sub-tasks that were not carried out are reported, not silently dropped (12.12).
+    for (const c of CLAUSES) if (c.re.test(p.request) && !results.some((x) => x.name === c.tool)) lines.push(`- Not completed: ${c.label} — ${c.why}.`);
     const pendingApproval = ok.some((x) => /approval/i.test(x.r.summary ?? "") || (x.r.data as { status?: string } | undefined)?.status === "pending_approval");
     if (pendingApproval) lines.push("Nothing has been sent or changed: this needs your approval first.");
     if (this.intent === "rejected_options" || this.intent === "deal_review") lines.push("Statements marked verified come from records; anything marked inferred is interpretation.");

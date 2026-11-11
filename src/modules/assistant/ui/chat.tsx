@@ -306,7 +306,7 @@ export function Composer({ onSend, busy, onStop, initial = "", conversationId, c
         autoFocus={autoFocus} placeholder={listening ? "Listening…" : "Ask about your accounts, buildings, deals or meetings"}
         className="block w-full resize-none bg-transparent px-4 pt-3 text-[15px] text-ink outline-none placeholder:text-ink-soft" />
       <div className="flex items-center gap-1 px-2 pb-2">
-        <input ref={fileRef} type="file" accept={ACCEPT} multiple className="hidden" onChange={(e) => pick(e.target.files)} />
+        <input ref={fileRef} type="file" aria-label="Attach files" accept={ACCEPT} multiple className="hidden" onChange={(e) => pick(e.target.files)} />
         <button type="button" onClick={() => fileRef.current?.click()} className={iconBtn} aria-label="Attach a file (PDF, DOCX, TXT, CSV, MD up to 15 MB)" title="Attach a file">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" aria-hidden><path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7-7L13 4.5a3.3 3.3 0 0 1 4.7 4.7l-7.8 7.8a1.7 1.7 0 0 1-2.4-2.4l7.1-7.1" /></svg>
         </button>

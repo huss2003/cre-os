@@ -10,6 +10,7 @@ import type { LoanResult } from "@/modules/toolkit/calc/financing";
 import { loadPartners } from "../../fitout/data";
 import { rs } from "../../fitout/results";
 import { FinancingForm } from "../form";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 export default async function FinancingView({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -26,6 +27,7 @@ export default async function FinancingView({ params, searchParams }: { params: 
   const cert = inp.status === "actual" ? "confirmed" : inp.status === "approved" || inp.status === "quoted" ? "quoted" : "estimated";
   return (
     <div className="space-y-6">
+      <ReassessBanner ctx={ctx} entityType="deal_analysis" entityId={a.id} />
       <ToolHeader eyebrow={`Financing · version ${ver ? ver.version : a.current_version} · formula ${src.formula_version}${inp.partner ? ` · ${inp.partner}` : ""}`} title={a.title}
         purpose="The key numbers first, then the month-by-month schedule. Edit the loan details below to save a new version."
         back={{ href: "/toolkit/financing", label: "All analyses" }} steps={["Loan details", "Calculate", "Read the schedule"]} current={2}

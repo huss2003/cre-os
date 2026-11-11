@@ -140,8 +140,8 @@ export default async function DealDetail({ params, searchParams }: { params: Pro
           {canEdit && (
             <form action={objectionAction} className="mt-3 grid gap-2">
               <input type="hidden" name="id" value={id} />
-              <Select name="category" defaultValue="price">{["price", "location", "timing", "specification", "terms", "landlord", "competitor", "internal_approval", "other"].map((c) => <option key={c}>{c}</option>)}</Select>
-              <Input name="objection" placeholder="Objection" required /><Input name="response" placeholder="Response (optional)" />
+              <Select name="category" aria-label="Objection category" defaultValue="price">{["price", "location", "timing", "specification", "terms", "landlord", "competitor", "internal_approval", "other"].map((c) => <option key={c}>{c}</option>)}</Select>
+              <Input name="objection" aria-label="Objection" placeholder="Objection" required /><Input name="response" aria-label="Response" placeholder="Response (optional)" />
               <Button variant="secondary" type="submit">Log objection</Button>
             </form>
           )}

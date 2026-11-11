@@ -168,7 +168,8 @@ describe("shortlist → quote → finance → documents (staleness + permissions
     expect(o2.flags.vacancyUnverified).toBe(true);  // no snapshot → unverified, never "available"
     expect(o2.eligibility).not.toBe("eligible");
     const stored = await owner.db.from("shortlist_option").select("id").eq("requirement_id", full.id).eq("version", run.version);
-    expect(stored.data!.length).toBe(run.results.length);
+    // runShortlist stores at most the top 200 options (MAX_STORED); the shared WS1 can hold hundreds of other tests' spaces.
+    expect(stored.data!.length).toBe(Math.min(run.results.length, 200));
 
     const q = await createQuote(owner, { requirementId: full.id, spaceId: s1.data!.id, validUntil: "2099-12-31", evidence: "landlord email",
       terms: { rent: 85, rent_basis: "chargeable", cam_per_sf: 12, escalation_pct: 15, escalation_every_months: 36, rent_free_months: 3, deposit_months: 6, tenure_months: 60, gst: "included", inclusions: "DG backup" } }) as { id: string; version: number; valid_until: string; terms_json: Record<string, unknown> };

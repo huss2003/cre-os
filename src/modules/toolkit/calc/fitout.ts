@@ -4,6 +4,7 @@
  * every partner (including any tenant-preferred partner) goes through the same normalisation and ranking.
  */
 import Decimal from "decimal.js";
+import { assertValidInputs } from "./validate";
 
 export const FITOUT_FORMULA = "fitout-1.0";
 export const FITOUT_CATEGORIES = [
@@ -54,6 +55,7 @@ export interface FitoutResult {
 }
 
 export function computeFitout(input: FitoutInput): FitoutResult {
+  assertValidInputs(input);
   const missing: string[] = [];
   const totals = { estimated: acc(), approved: acc(), actual: acc() } as Record<Stage, Acc>;
   const cats = new Map<FitoutCategory, Record<Stage, Acc>>();
@@ -125,6 +127,7 @@ export interface QuoteCompareResult { formula: string; criteria: QuoteCriteria; 
  * Ties are broken by partner name so order never depends on input order or on who the partner is.
  */
 export function compareQuotes(input: QuoteCompareInput): QuoteCompareResult {
+  assertValidInputs(input.quotes);
   const c = input.criteria ?? DEFAULT_CRITERIA;
   const missing: string[] = [];
   const asOf = input.asOf.slice(0, 10);

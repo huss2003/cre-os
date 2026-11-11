@@ -236,6 +236,8 @@ async function main() {
     const { runWorkflows } = await import("./real-data-workflows");
     save("workflows.json", await runWorkflows({ db, admin: admin(), ws: WS_ID, owner: OWNER, out: OUT, data: DATA, log }));
   }
+  // Test workspace: archive it again so it is not offered in the owner's workspace switcher (pass --keep-active to keep it).
+  if (!args.includes("--keep-active")) await admin().from("workspace").update({ status: "archived" }).eq("id", WS_ID);
   log("done");
 }
 

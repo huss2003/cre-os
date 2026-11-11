@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { PageHeader, Badge, Card, EmptyState, Field, Input } from "@/components/ui";
+import { PageHeader, Badge, Card, EmptyState } from "@/components/ui";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { getNote, listNotes, type NoteProposal, type NoteRow } from "@/modules/assistant/notes/service";
 import { analyseNotesAction, approveNotesAction, discardNoteAction } from "@/modules/assistant/briefs/actions";
 import { NotesInput } from "@/modules/assistant/ui/notes-input";
+import { NotesLinks } from "@/modules/assistant/ui/notes-links";
+import { lookupById } from "@/modules/assistant/notes/lookup";
 import { fmt } from "@/lib/util/time";
 
 export const metadata = { title: "Notes to updates · Assistant" };
@@ -90,6 +92,12 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
   const editor = hasRole(ctx, "editor");
   const note = sp.id ? await getNote(c, sp.id) : null;
   const recent = note ? [] : await listNotes(c, 8);
+  const [pMeeting, pCompany, pReq] = note || !editor ? [null, null, null] : await Promise.all([
+    sp.meeting ? lookupById(c, "meeting", sp.meeting) : null,
+    sp.company ? lookupById(c, "company", sp.company) : null,
+    sp.requirement ? lookupById(c, "requirement", sp.requirement) : null,
+  ]);
+  const prefCompany = pCompany ?? (pReq?.orgId ? await lookupById(c, "company", pReq.orgId) : null);
   return (
     <div className="space-y-6">
       <PageHeader title="Paste or speak notes" subtitle="Turn meeting or call notes into record updates. You review every change before anything is saved." />
@@ -99,13 +107,9 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
       ) : editor ? (
         <ActionForm action={analyseNotesAction} className="space-y-4 rounded-2xl border border-line bg-surface p-4">
           <NotesInput />
-          <details className="text-sm">
-            <summary className="cursor-pointer text-ink-soft">Link to a meeting, company or requirement (optional)</summary>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <Field label="Meeting ID"><Input name="meetingId" defaultValue={sp.meeting ?? ""} /></Field>
-              <Field label="Company ID"><Input name="orgId" defaultValue={sp.company ?? ""} /></Field>
-              <Field label="Requirement ID"><Input name="requirementId" defaultValue={sp.requirement ?? ""} /></Field>
-            </div>
+          <details className="text-sm" open={!!(pMeeting || prefCompany || pReq)}>
+            <summary className="min-h-11 cursor-pointer py-2 text-ink-soft">Link to a meeting, company or requirement (optional)</summary>
+            <div className="mt-3"><NotesLinks meeting={pMeeting} company={prefCompany} requirement={pReq} /></div>
           </details>
           <Submit>Find updates</Submit>
         </ActionForm>

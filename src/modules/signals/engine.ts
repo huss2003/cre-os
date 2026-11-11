@@ -24,6 +24,7 @@ const CLAIM_CATEGORY: Record<string, Category> = {
   infrastructure: "infrastructure", metro: "infrastructure", office_supply: "infrastructure",
   macro: "macro", industry_trend: "macro", interest_rate: "macro",
   rent_benchmark: "commercial", better_value_option: "commercial",
+  lease_expiry: "lease", lease_renewal: "lease",
 };
 export function categoryOf(claimType: string): Category | null {
   return CLAIM_CATEGORY[claimType] ?? null;
@@ -79,7 +80,7 @@ export interface CounterInput {
   category: Category; kind: string; texts: string[]; focusCities: string[]; sourceCount: number;
   latestEvidenceOn: string | null; today: string; hasOccupancyInFocus: boolean; personFunction?: string | null;
 }
-const REMOTE = /\b(remote[- ]first|fully remote|work from home|wfh|remote roles?|remote positions?)\b/i;
+const REMOTE = /\b(remote(?:ly)?|remote[- ]first|work(?:ing)? from home|wfh|hybrid[- ]remote|distributed team)\b/i;
 const EXISTING = /\b(existing (?:office|campus|facility|premises|centre|center)|current (?:office|campus|premises))\b/i;
 const CITY = /\b(Bengaluru|Bangalore|Hyderabad|Chennai|Mumbai|Navi Mumbai|Delhi|Gurugram|Gurgaon|Noida|Kolkata|Ahmedabad|Kochi|Coimbatore|Jaipur|Pune|Indore|Chandigarh|Thiruvananthapuram|Nagpur)\b/gi;
 const CRE_ROLE = /\b(real estate|facilit|admin|workplace|procure|finance|cfo|hr|people|site (?:head|lead)|country head|managing director|ceo|coo|gcc)\b/i;
@@ -102,6 +103,8 @@ export function counterEvidence(i: CounterInput): string[] {
   if (cities.length && focus.length && !cities.some((c) => focus.includes(c.toLowerCase())))
     out.push(`Evidence mentions ${cities.join(", ")} — not ${i.focusCities.join("/")}.`);
   if (REMOTE.test(all)) out.push("Evidence mentions remote work; hiring may not need office space.");
+  const outside = i.focusCities.filter((c) => new RegExp(`\\boutside (?:of )?(?:the )?${c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(all));
+  if (outside.length) out.push(`Evidence says people will be based outside ${outside.join("/")} — not demand in the focus market.`);
   if (EXISTING.test(all)) out.push("Announcement may refer to an existing office, which could already accommodate the growth.");
   if (i.category === "expansion" && i.kind === "hiring") out.push("Hiring is a demand signal, not an office-size commitment.");
   if (i.category === "restructuring" && /layoff|workforce|reduction/.test(i.kind + all.toLowerCase()))
@@ -130,8 +133,14 @@ export function assessConfidence(ev: EvidenceIn[], counters: string[]): { confid
   else if (credible) { c = "medium"; reasons.push("One credible reported source."); }
   else if (inferenceOnly) { c = "low"; reasons.push("Rule or model inference only — not yet verified."); }
   else { c = "low"; reasons.push("Single unverified source."); }
-  const serious = counters.filter((x) => /not |remote|existing office|over 6 months/.test(x)).length;
-  if (serious >= 2 && c !== "low") { c = c === "high" ? "medium" : "low"; reasons.push("Lowered: counter-evidence present."); }
+  const serious = counters.filter((x) => /not |remote|existing office|over 6 months|outside /.test(x)).length;
+  // Remote / outside-focus-market evidence directly contradicts local office demand: always lowers one step.
+  const direct = counters.some((x) => /remote work|outside /.test(x));
+  if ((serious >= 2 && c !== "low") || direct) {
+    const from = c;
+    c = c === "high" ? "medium" : c === "medium" ? "low" : "insufficient";
+    reasons.push(`Lowered from ${from} to ${c}: counter-evidence present${direct ? " (remote work / roles outside the focus market)" : ""}.`);
+  }
   return { confidence: c, reasons };
 }
 
@@ -177,6 +186,7 @@ export function nextAction(category: Category, kind: string, c: ContextFacts): {
   if (category === "expansion") return c.hasContact
     ? { text: "Contact the known decision-maker to confirm whether the expansion needs additional space.", actionKind: "relationship_follow_up" }
     : { text: "Research the expansion and identify a real-estate or facilities decision-maker.", actionKind: "research" };
+  if (category === "lease") return { text: "Confirm renewal or relocation plans with the occupier before the notice window.", actionKind: "lease_event_verification" };
   if (category === "restructuring") return { text: "Verify whether a space reduction, relocation or consolidation is planned.", actionKind: "contact_verification" };
   if (category === "leadership") return { text: "Research the person's responsibilities and the relationship path; review both employers' records.", actionKind: "relationship_follow_up" };
   if (category === "commercial") return { text: "Validate availability and compare total occupancy cost on a like-for-like basis.", actionKind: "property_research" };

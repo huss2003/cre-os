@@ -31,7 +31,7 @@ export function FitoutResults({ budget, quotes, inputs }: { budget: FitoutResult
           ))}
           <tr className="font-semibold"><Td>Total</Td>{STAGES.map((s) => <Td key={s} className={STAGE_TINT[s]}>{sum[s].lines ? rs(sum[s].gross) : rs(null)}</Td>)}<Td>{rs(sum.estimated.tax)}</Td></tr>
         </Table>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Readout label="Approved − estimated" value={rs(budget.variance.approvedVsEstimated)} sub="incl. tax" />
           <Readout label="Actual − approved" value={rs(budget.variance.actualVsApproved)} sub="incl. tax" />
           <Readout label="Actual − estimated" value={rs(budget.variance.actualVsEstimated)} sub="incl. tax" />
@@ -64,7 +64,7 @@ function QuoteCards({ quotes, inputs }: { quotes: QuoteCompareResult; inputs: Fi
     <Panel title="Partner quotations — compared on the same scope" desc={`Ranked by weighted score: price ${quotes.criteria.price} · scope ${quotes.criteria.scope} · timeline ${quotes.criteria.timeline} · warranty ${quotes.criteria.warranty}. Higher score = better.`}>
       {expired.length ? <div role="status" className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800"><strong>✕ Expired quotation{expired.length > 1 ? "s" : ""}:</strong> {expired.map((r) => r.partnerName).join(", ")} — ask for a revalidated quote before relying on the price.</div> : null}
       {top ? <p className="mb-3 text-sm"><strong>Why this order:</strong> {top.partnerName || "Rank 1"} ranks first with the highest weighted score ({top.scores.total}). Each card shows how its score splits across price, scope, timeline and warranty.</p> : null}
-      <ol className="grid gap-3 md:grid-cols-2">
+      <ol className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {sorted.map((r) => {
           const q = inputs.quotes[r.index] ?? ({} as never);
           const isPref = quotes.preferred?.index === r.index;

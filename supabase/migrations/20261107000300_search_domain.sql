@@ -206,6 +206,7 @@ begin
   end if;
   begin
     update mudar.job set state = 'queued', attempts = 0, due_at = now(), lease_until = null, locked_by = null,
+           started_at = null, finished_at = null, duration_ms = null,
            last_error = left('[manual retry by ' || coalesce(auth.uid()::text, 'system') || '] ' || coalesce(last_error, ''), 4000),
            updated_at = now()
      where id = p_job;

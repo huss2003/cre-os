@@ -76,7 +76,8 @@ export function compute(v: ModelVersion, f: Features): ScoreOutput {
       else value = d.unknown === "neutral" ? 0.5 : 0;
     }
     if (counted) { num += d.weight * (value as number); den += d.weight; }
-    const max = Math.round((d.weight / totalW) * 100);
+    // An excluded unknown carries no points AND no max: it is neither counted for nor against the score.
+    const max = counted ? Math.round((d.weight / totalW) * 100) : 0;
     return { key: d.key, label: d.label, weight: d.weight, value: known ? value : null, known, points: counted ? Math.round((d.weight / totalW) * 100 * (value as number)) : 0, max,
       explanation: fv?.explanation ?? "No data.", evidence: fv?.evidence ?? [] };
   });
@@ -97,7 +98,7 @@ export function compute(v: ModelVersion, f: Features): ScoreOutput {
 
 /** Stable hash of the inputs, so an unchanged record is not re-scored or re-stored. */
 export function inputsHash(versionId: string, f: Features): string {
-  const s = JSON.stringify([versionId, Object.entries(f.values).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, x.value, x.explanation]), f.mandatoryFailed ?? []]);
+  const s = JSON.stringify([versionId, Object.entries(f.values).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, x.value, x.explanation]), f.mandatoryFailed ?? [], f.extra?.health ?? null]);
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(16);

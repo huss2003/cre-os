@@ -18,6 +18,7 @@
  * Unknown inputs → dependent outputs are null with a reason in `nulls`; never treated as zero (S6).
  */
 import Decimal from "decimal.js";
+import { assertValidInputs } from "./validate";
 
 export const BTS_FORMULA = "bts-1.0";
 const Dec = Decimal.clone({ precision: 50, rounding: Decimal.ROUND_HALF_UP });
@@ -89,6 +90,7 @@ function intOr(x: N, missing: string[], label: string, min = 0): number | null {
 }
 
 export function computeBts(i: BtsInput): BtsResult {
+  assertValidInputs(i);
   const missing: string[] = []; const nulls: Record<string, string> = {}; const assumptions: string[] = [];
   const miss = (label: string, key?: string, why?: string) => { if (!missing.includes(label)) missing.push(label); if (key) nulls[key] = why ?? `Unknown because ${label.toLowerCase()} is missing.`; };
 

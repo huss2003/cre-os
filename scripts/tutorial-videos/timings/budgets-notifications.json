@@ -1,0 +1,70 @@
+{
+  "durationMs": 76692,
+  "steps": [
+    {
+      "caption": "Open More → Automation, then Budgets & usage.",
+      "ms": 3605
+    },
+    {
+      "caption": "A budget is a daily or monthly limit. When it is reached, non-critical background work pauses — nothing is lost — and admins are alerted.",
+      "ms": 11717
+    },
+    {
+      "caption": "Choose the resource — here 'research' (company research look-ups).",
+      "ms": 14886
+    },
+    {
+      "caption": "Period: Monthly or Daily.",
+      "ms": 18866
+    },
+    {
+      "caption": "Unit: calls (other resources use USD, credits, seconds, pages or runs).",
+      "ms": 22029
+    },
+    {
+      "caption": "Limit: 10 calls a month. Alert at 80% warns admins before the limit.",
+      "ms": 25232
+    },
+    {
+      "caption": "Save budget.",
+      "ms": 29734
+    },
+    {
+      "caption": "The budget line shows used / limit, the alert level and when it resets.",
+      "ms": 35234
+    },
+    {
+      "caption": "A budget never switches to another provider to keep going — it just pauses.",
+      "ms": 38402
+    },
+    {
+      "caption": "Usage this month: by resource, AI cost by module and by workflow.",
+      "ms": 45733
+    },
+    {
+      "caption": "Now the Notifications tab.",
+      "ms": 49881
+    },
+    {
+      "caption": "Each notification says what happened and links to the record. Here: a requirement change reassessed the Zentrix comparisons.",
+      "ms": 54730
+    },
+    {
+      "caption": "Done: you dealt with it. Snooze 3h: bring it back later. Dismiss: remove it (it stays in the history).",
+      "ms": 57910
+    },
+    {
+      "caption": "Snooze this one for three hours.",
+      "ms": 61066
+    },
+    {
+      "caption": "Similar notices are grouped, urgent ones come straight away, others wait for working hours and quiet hours.",
+      "ms": 66414
+    },
+    {
+      "caption": "The bell at the top of every page shows the same list.",
+      "ms": 69583
+    }
+  ],
+  "bytes": 908614
+}

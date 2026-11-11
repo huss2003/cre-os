@@ -39,7 +39,7 @@ async function Body() {
                 {editor ? (
                   <ActionForm action={markVerifiedAction} className="mt-2 flex flex-wrap items-center gap-2">
                     <input type="hidden" name="id" value={r.entity_id} /><input type="hidden" name="type" value={r.entity_type} />
-                    <input name="note" placeholder="How was it verified? (optional)" className="min-h-10 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm" maxLength={500} />
+                    <input name="note" aria-label="How was it verified" placeholder="How was it verified? (optional)" className="min-h-10 min-w-0 flex-1 rounded-lg border border-line px-3 text-sm" maxLength={500} />
                     <Submit variant="secondary">Mark verified</Submit>
                   </ActionForm>
                 ) : null}

@@ -17,18 +17,6 @@ function monthStart(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
 }
 
-/** Page through a PostgREST select (max_rows = 1000). */
-async function fetchAll(build: (from: number, to: number) => PromiseLike<{ data: Row[] | null; error: unknown }>, cap = 20000) {
-  const out: Row[] = [];
-  for (let from = 0; from < cap; from += 1000) {
-    const { data, error } = await build(from, from + 999);
-    if (error || !data) break;
-    out.push(...data);
-    if (data.length < 1000) break;
-  }
-  return out;
-}
-
 export interface SpendSummary {
   monthStart: string;
   spentUsd: number;
@@ -46,26 +34,20 @@ export interface SpendSummary {
 
 export async function spendSummary(db: Client, workspaceId: string, budgetInr: number, now = new Date()): Promise<SpendSummary> {
   const start = monthStart(now);
-  const rows = await fetchAll((f, t) => db.from("model_usage").select("workflow, model, estimated_usd, pricing_version, ok")
-    .eq("workspace_id", workspaceId).gte("occurred_at", start).order("id").range(f, t) as never);
-  const by = new Map<string, { usd: number; calls: number }>();
-  let usd = 0;
-  for (const r of rows) {
-    const v = Number(r.estimated_usd) || 0;
-    usd += v;
-    const cur = by.get(r.workflow) ?? { usd: 0, calls: 0 };
-    cur.usd += v; cur.calls += 1;
-    by.set(r.workflow, cur);
-  }
+  // One grouped SQL aggregate (was: page through every model_usage row of the month).
+  const { data, error } = await db.schema("mudar_app").rpc("model_spend_since", { p_workspace: workspaceId, p_since: start });
+  if (error) throw error;
+  const groups = ((data ?? []) as { workflow: string; usd: number | string; calls: number | string; failed: number | string; mocked: number | string; pricing_versions: string[] | null }[]);
+  const usd = groups.reduce((a, g) => a + (Number(g.usd) || 0), 0);
   const inr = usd * PRICING.fxInrPerUsd;
   return {
     monthStart: start, spentUsd: usd, spentInr: inr, budgetInr,
     pctOfBudget: budgetInr > 0 ? (inr / budgetInr) * 100 : null,
-    calls: rows.length,
-    failedCalls: rows.filter((r) => r.ok === false).length,
-    mockedCalls: rows.filter((r) => String(r.model).startsWith("mock:")).length,
-    byWorkflow: [...by.entries()].map(([workflow, v]) => ({ workflow, ...v })).sort((a, b) => b.usd - a.usd),
-    pricingVersions: [...new Set(rows.map((r) => r.pricing_version as string))],
+    calls: groups.reduce((a, g) => a + Number(g.calls), 0),
+    failedCalls: groups.reduce((a, g) => a + Number(g.failed), 0),
+    mockedCalls: groups.reduce((a, g) => a + Number(g.mocked), 0),
+    byWorkflow: groups.map((g) => ({ workflow: g.workflow, usd: Number(g.usd) || 0, calls: Number(g.calls) })).sort((a, b) => b.usd - a.usd),
+    pricingVersions: [...new Set(groups.flatMap((g) => g.pricing_versions ?? []))],
     currentPricingVersion: PRICING_VERSION,
     fxInrPerUsd: PRICING.fxInrPerUsd,
   };
@@ -94,15 +76,19 @@ export function backupStatus(runs: Row[], now = new Date()) {
 
 /** GET /v1/admin/health — jobs, connectors, spend, imports, backups. Caller must be admin (RLS on job/model_usage/backup_run). */
 export async function getHealth(db: Client, workspaceId: string, now = new Date()) {
-  const { data: ws } = await db.from("workspace").select("id, name, status, ai_paused, monthly_ai_budget_inr, timezone").eq("id", workspaceId).single();
-  if (!ws) throw badRequest("workspace not visible");
+  // Workspace row runs alongside the other queries; only the spend summary waits for its budget.
+  const wsP = Promise.resolve(db.from("workspace").select("id, name, status, ai_paused, monthly_ai_budget_inr, timezone").eq("id", workspaceId).single())
+    .then((r: { data: Row | null }) => r.data);
 
-  const countState = async (state: string) => {
-    const { count } = await db.from("job").select("id", { count: "exact", head: true }).eq("workspace_id", workspaceId).eq("state", state);
-    return [state, count ?? 0] as const;
+  // One grouped count (was one count query per job state).
+  const countStates = async () => {
+    const { data, error } = await db.schema("mudar_app").rpc("job_state_counts", { p_workspace: workspaceId });
+    if (error) throw error;
+    const by = new Map(((data ?? []) as { state: string; n: number | string }[]).map((r) => [r.state, Number(r.n)]));
+    return JOB_STATES.map((st) => [st, by.get(st) ?? 0] as const);
   };
   const [stateCounts, failures, retrying, accounts, cursors, runs, spend, imports, latency, slowest, heartbeat, alerts, pause] = await Promise.all([
-    Promise.all(JOB_STATES.map(countState)),
+    countStates(),
     db.from("job").select("id, job_type, state, attempts, max_attempts, last_error, updated_at, due_at").eq("workspace_id", workspaceId)
       .in("state", ["failed", "dead"]).order("updated_at", { ascending: false }).limit(25),
     db.from("job").select("id, job_type, state, attempts, max_attempts, last_error, updated_at, due_at").eq("workspace_id", workspaceId)
@@ -110,7 +96,7 @@ export async function getHealth(db: Client, workspaceId: string, now = new Date(
     db.from("connector_account").select("id, user_id, provider, account_email, status, last_error, token_expires_at, updated_at").eq("workspace_id", workspaceId),
     db.from("connector_cursor").select("connector_account_id, resource, last_success_at, last_attempt_at, last_error").eq("workspace_id", workspaceId),
     db.from("backup_run").select("*").eq("workspace_id", workspaceId).order("started_at", { ascending: false }).limit(50),
-    spendSummary(db, workspaceId, Number(ws.monthly_ai_budget_inr ?? 0), now),
+    wsP.then((w) => spendSummary(db, workspaceId, Number(w?.monthly_ai_budget_inr ?? 0), now)),
     importsSummary(db, workspaceId),
     latencySummary(db, workspaceId, now),
     db.from("job").select("id, job_type, state, attempts, duration_ms, started_at, finished_at").eq("workspace_id", workspaceId)
@@ -122,6 +108,8 @@ export async function getHealth(db: Client, workspaceId: string, now = new Date(
       .order("opened_at", { ascending: false }).limit(100),
     jobsPauseState(db, workspaceId).then((p) => ({ ...p, checked: true }), () => ({ workspacePaused: false, globalPaused: false, pausedAt: null, reason: null, globalPausedAt: null, checked: false })),
   ]);
+  const ws = await wsP;
+  if (!ws) throw badRequest("workspace not visible");
 
   const staleAfterH = 26;
   const connectors = ((accounts.data ?? []) as Row[]).map((a): Row & { resources: Row[]; healthy: boolean } => {

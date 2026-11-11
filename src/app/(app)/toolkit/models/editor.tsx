@@ -38,9 +38,9 @@ export function ModelEditor({ initialFactors, initialRules }: { initialFactors: 
         <ul className="mt-3 space-y-3">
           {factors.map((f, i) => (
             <li key={i} className="grid grid-cols-[1fr_6.5rem] gap-2 rounded-xl border border-line p-3 sm:grid-cols-[1fr_10rem_7rem_auto] sm:items-end">
-              <label className="space-y-1 text-sm"><span className="font-medium">✎ Factor name</span><input className={inputCls} value={f.label} onChange={(e) => setF(i, { label: e.target.value })} /></label>
-              <label className="order-3 col-span-2 space-y-1 text-sm sm:order-none sm:col-span-1"><span className="font-medium">✎ Key <span className="text-xs font-normal text-ink-soft">(technical)</span></span><input className={inputCls} value={f.key} onChange={(e) => setF(i, { key: e.target.value })} /></label>
-              <label className="space-y-1 text-sm"><span className="font-medium">✎ Points</span><input className={inputCls} inputMode="decimal" value={Number.isFinite(f.weight) ? String(f.weight) : ""} onChange={(e) => setF(i, { weight: e.target.value === "" ? NaN : Number(e.target.value) })} /></label>
+              <label className="space-y-1 text-sm"><span className="font-medium">✎ Factor name</span><input aria-label={`Factor ${i + 1} name`} name={`factor_${i}_label`} className={inputCls} value={f.label} onChange={(e) => setF(i, { label: e.target.value })} /></label>
+              <label className="order-3 col-span-2 space-y-1 text-sm sm:order-none sm:col-span-1"><span className="font-medium">✎ Key <span className="text-xs font-normal text-ink-soft">(technical)</span></span><input aria-label={`Factor ${i + 1} key`} name={`factor_${i}_key`} className={inputCls} value={f.key} onChange={(e) => setF(i, { key: e.target.value })} /></label>
+              <label className="space-y-1 text-sm"><span className="font-medium">✎ Points</span><input aria-label={`Factor ${i + 1} points`} name={`factor_${i}_weight`} className={inputCls} inputMode="decimal" value={Number.isFinite(f.weight) ? String(f.weight) : ""} onChange={(e) => setF(i, { weight: e.target.value === "" ? NaN : Number(e.target.value) })} /></label>
               <button type="button" aria-label={`Remove factor ${f.label}`} className={`${btn.secondary} order-4 col-span-2 text-rose-700 hover:border-rose-400 hover:text-rose-700 sm:order-none sm:col-span-1`} onClick={() => setFactors(factors.filter((_, j) => j !== i))}>✕ Remove</button>
             </li>
           ))}
@@ -65,7 +65,7 @@ export function ModelEditor({ initialFactors, initialRules }: { initialFactors: 
                   onChange={(e) => { const t = e.target.value; setR(i, { value: t.startsWith("$") ? t : r.op === "in" || r.op === "not_in" ? t.split(",").map((x) => x.trim()).filter(Boolean) : t !== "" && Number.isFinite(Number(t)) ? Number(t) : t }); }} />
               </div>
               <div className="mt-2 flex flex-wrap items-end gap-2">
-                <label className="flex-1 space-y-1 text-sm"><span className="font-medium">✎ Label shown on results</span><input className={inputCls} value={r.label} onChange={(e) => setR(i, { label: e.target.value })} /></label>
+                <label className="flex-1 space-y-1 text-sm"><span className="font-medium">✎ Label shown on results</span><input aria-label={`Rule ${i + 1} label`} name={`rule_${i}_label`} className={inputCls} value={r.label} onChange={(e) => setR(i, { label: e.target.value })} /></label>
                 <button type="button" aria-label={`Remove rule ${r.label}`} className={`${btn.secondary} text-rose-700 hover:border-rose-400 hover:text-rose-700`} onClick={() => setRules(rules.filter((_, j) => j !== i))}>✕ Remove</button>
               </div>
             </li>

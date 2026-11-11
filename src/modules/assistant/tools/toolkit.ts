@@ -32,8 +32,22 @@ export const leaseTermsSchema = z.object({
   parkingSlots: z.number().int().nullable().optional(), parkingRatePerSlot: num,
   depositMonths: n("Security deposit in months of rent; null = unknown"),
   otherRecurringState: z.enum(["known", "none", "unknown"]).optional(),
-  discountRatePct: z.union([z.number(), z.string()]).describe("Annual discount rate % for NPV, e.g. 10"),
+  discountRatePct: z.union([z.number(), z.string()]).optional().describe("Annual discount rate % for NPV, e.g. 10. Omit to use the workspace default (or 10%, shown as an assumption)"),
 });
+
+export const DEFAULT_DISCOUNT_PCT = 10;
+/** Discount rate when the caller gave none: workspace setting (toolkit.discount_rate_pct / discount_rate_pct) else 10%, always labelled as assumed. */
+async function withDiscount<T extends { discountRatePct?: number | string | null; name: string }>(t: ToolContext, offers: T[]): Promise<{ offers: (T & { discountRatePct: number | string })[]; assumption: string | null }> {
+  if (offers.every((o) => o.discountRatePct !== undefined && o.discountRatePct !== null && o.discountRatePct !== "")) return { offers: offers as (T & { discountRatePct: number | string })[], assumption: null };
+  const { data } = await db(t).from("workspace_setting").select("key, value").eq("workspace_id", ws(t)).in("key", ["toolkit.discount_rate_pct", "discount_rate_pct"]);
+  const v = ((data ?? []) as Row[]).map((r) => Number(typeof r.value === "object" && r.value !== null ? (r.value as Row).value ?? (r.value as Row).pct : r.value)).find((x) => Number.isFinite(x) && x >= 0 && x < 100);
+  const rate = v ?? DEFAULT_DISCOUNT_PCT;
+  const missing = offers.filter((o) => o.discountRatePct === undefined || o.discountRatePct === null || o.discountRatePct === "").map((o) => o.name);
+  return {
+    offers: offers.map((o) => ({ ...o, discountRatePct: o.discountRatePct === undefined || o.discountRatePct === null || o.discountRatePct === "" ? rate : o.discountRatePct })),
+    assumption: `Discount rate ${rate}% assumed (${v !== undefined ? "workspace default" : "standard default — not set for this workspace"}) for ${missing.join(", ")}; NPV changes if you use a different rate.`,
+  };
+}
 const extrasSchema = z.object({ advanceRentMonths: num, fitoutCost: num, movingCost: num, initialCharges: num }).partial();
 
 async function loadSaved(t: ToolContext, id: string) {
@@ -53,7 +67,7 @@ const assumptionsBlock = (items: string[]): Block[] => (items.length ? [{ kind: 
 // ---------------------------------------------------------------------------------------------------- compare properties
 const compareProperties = defineTool({
   id: "compare_properties", module: "toolkit", category: "B",
-  description: "Rate and rank buildings for a requirement with the toolkit's property comparison model (rating-1.0): mandatory/disqualify rules first, then weighted factors, occupancy cost over the term. Saves the analysis. Pass building ids (from search_properties) and optionally the requirement.",
+  description: "Rate and rank buildings for a requirement with the toolkit's property comparison model (rating-1.0): mandatory/disqualify rules first, then weighted factors, occupancy cost over the term. Saves the analysis. Pass building ids (from search_properties) and optionally the requirement. For 'which is financially better / cheaper' use data.byOccupancyCost (lowest occupancy cost first) or calculate_lease_economics — the weighted rating is not a cost ranking; state it separately.",
   input: z.object({
     title: z.string().max(200).optional(), requirementId: z.string().optional(),
     assetIds: z.array(z.string()).min(1).max(10).describe("Building (asset) ids to compare"),
@@ -67,12 +81,17 @@ const compareProperties = defineTool({
       const a = (await loadSaved(t, saved.id))!; const out = a.outputs as Row;
       const props = (out.properties as Row[]).slice().sort((x, y) => (x.rank ?? 99) - (y.rank ?? 99));
       const rec = out.recommendation as Row;
+      // "Financially better" = lowest occupancy cost (Module 8 output), kept separate from the weighted rating.
+      const byOccupancyCost = props.filter((p) => p.occupancyCost != null && Number.isFinite(Number(p.occupancyCost)))
+        .slice().sort((x, y) => Number(x.occupancyCost) - Number(y.occupancyCost)).map((p) => ({ name: p.name, occupancyCost: p.occupancyCost, rating: p.rank }));
+      const costUnknown = props.filter((p) => p.occupancyCost == null).map((p) => p.name);
       return {
         ok: true, summary: `Compared ${props.length} properties${rec.key ? `; recommended ${props.find((p) => p.key === rec.key)?.name}` : ""}`,
         entities: [savedRef("property_comparison", saved.id, a.title)], missing: a.missing ?? [],
-        data: { analysisId: saved.id, version: saved.version, formula: a.formula_version, termMonths: out.termMonths, termAssumed: out.termAssumed, recommendation: rec, properties: props.map((p) => ({ name: p.name, rank: p.rank, score: p.score, eligibility: p.eligibility, occupancyCost: p.occupancyCost, missing: p.missing, disadvantages: p.disadvantages })), href: HREF.analysis("property_comparison", saved.id) },
+        data: { analysisId: saved.id, version: saved.version, formula: a.formula_version, termMonths: out.termMonths, termAssumed: out.termAssumed, recommendation: rec, properties: props.map((p) => ({ name: p.name, rank: p.rank, score: p.score, eligibility: p.eligibility, occupancyCost: p.occupancyCost, missing: p.missing, disadvantages: p.disadvantages })), byOccupancyCost, costUnknown, href: HREF.analysis("property_comparison", saved.id) },
         blocks: [
           { kind: "table", title: "Property comparison (rating-1.0)", columns: ["Rank", "Property", "Score", "Eligibility", "Occupancy cost (term)", "Evidence"], rows: props.map((p) => [p.rank, p.name, p.score, p.eligibility, p.occupancyCost, p.evidence ?? "unknown"]), note: rec.explanation },
+          ...(byOccupancyCost.length ? [{ kind: "table" as const, title: "Financial ranking — lowest occupancy cost first", columns: ["#", "Property", "Occupancy cost (term)", "Weighted rating rank"], rows: byOccupancyCost.map((p, k) => [k + 1, p.name, p.occupancyCost, p.rating]), note: `Use this for "which is financially better". The weighted rating above also scores fit, location and specs.${costUnknown.length ? ` Cost unknown: ${costUnknown.join(", ")}.` : ""}` }] : []),
           ...assumptionsBlock([`Term ${out.termMonths} months${out.termAssumed ? " (assumed default)" : ""}`, `Model ${out.model?.name} v${out.model?.version ?? "?"}`, "Rent/area from latest quotes or availability; unknown values are not scored as zero"]),
           ...missingBlock(a.missing ?? []),
           { kind: "download", label: "Open analysis", href: HREF.analysis("property_comparison", saved.id) },
@@ -94,6 +113,7 @@ const calculateLeaseEconomics = defineTool({
   async run(i, t) {
     const bad = await checkRequirement(t, "calculate_lease_economics", i.requirementId); if (bad) return bad;
     try {
+      const disc = await withDiscount(t, i.offers); i = { ...i, offers: disc.offers };
       const saved = await runLeaseEconomics({ db: db(t), ws: ws(t), userId: t.ctx.userId }, { title: i.title ?? "Lease economics (assistant)", requirementId: i.requirementId ?? null, offers: i.offers as unknown as LeaseTerms[], note: `assistant run ${t.runId}` });
       const a = (await loadSaved(t, saved.id))!; const out = a.outputs as Row;
       const results = (out.mode === "compare" ? out.comparison.offers : [out.result]) as Row[];
@@ -104,7 +124,7 @@ const calculateLeaseEconomics = defineTool({
         blocks: [
           { kind: "table", title: "Lease economics (₹)", columns: ["Option", "Label", "Month-1 rent", "Total rent", "Contractual spend", "NPV", "Deposit", "Totals"], rows: results.map(leaseRows), note: results.map((r) => r.totalsLabel).filter(Boolean).join(" · ") },
           ...(ranks.length ? [{ kind: "table" as const, title: "Ranking (equal horizon, NPV)", columns: ["Rank", "Option", "NPV", "Nominal TCO", "Δ NPV vs first"], rows: ranks.map((r) => [r.rank, r.name, r.npv, r.nominalTco, r.incrementalNpvVsBaseline]) }] : []),
-          ...assumptionsBlock(i.offers.map((o) => `${o.name}: ${o.label}, ${o.areaSf} SF ${o.areaBasis} @ ₹${o.rentPerSf}/SF/mo, ${o.tenureMonths} months from ${o.leaseCommencement}, discount ${o.discountRatePct}%`)),
+          ...assumptionsBlock([...i.offers.map((o) => `${o.name}: ${o.label}, ${o.areaSf} SF ${o.areaBasis} @ ₹${o.rentPerSf}/SF/mo, ${o.tenureMonths} months from ${o.leaseCommencement}, discount ${o.discountRatePct}%`), ...(disc.assumption ? [disc.assumption] : [])]),
           ...missingBlock(a.missing ?? []),
         ],
         sources: [{ label: `Analysis v${saved.version} (${a.formula_version})`, href: HREF.analysis("lease_economics", saved.id), status: "verified" }],
@@ -120,6 +140,7 @@ const calculateOccupancyCost = defineTool({
   async run(i, t) {
     const bad = await checkRequirement(t, "calculate_occupancy_cost", i.requirementId); if (bad) return bad;
     try {
+      const disc = await withDiscount(t, [i.terms]); i = { ...i, terms: disc.offers[0] };
       const saved = await runOccupancy({ db: db(t), ws: ws(t), userId: t.ctx.userId }, { title: i.title ?? "Occupancy cost (assistant)", requirementId: i.requirementId ?? null, terms: i.terms as unknown as LeaseTerms, extras: (i.extras ?? {}) as Extras });
       const a = (await loadSaved(t, saved.id))!; const r = (a.outputs as Row).result as Row;
       return {
@@ -128,7 +149,7 @@ const calculateOccupancyCost = defineTool({
         blocks: [
           { kind: "table", title: `Occupancy cost — ${r.name} (₹)`, columns: ["Measure", "Value"], rows: [["Nominal rent ₹/SF/mo", r.nominalRentPerSf], ["Effective rent ₹/SF/mo", r.effectiveRentPerSf], ["PV-equivalent rent ₹/SF/mo", r.pvEffectiveRentPerSf], ["Up-front cash", `${r.cashFundingTotal}${r.cashFundingComplete ? "" : " (incomplete)"}`], ["Present value", r.presentValue], ["Nominal total", r.nominalTotal], ["Equivalent monthly", r.equivalentMonthly], ["Peak cash requirement", r.peakCashRequirement]], note: r.totalsLabel },
           { kind: "table", title: "Up-front cash", columns: ["Item", "Amount"], rows: (r.cashFunding as Row[]).map((c) => [c.label, c.amount]) },
-          ...assumptionsBlock([`${i.terms.label} terms`, `Discount ${i.terms.discountRatePct}%`, ...(r.warnings ?? [])]), ...missingBlock(a.missing ?? []),
+          ...assumptionsBlock([`${i.terms.label} terms`, `Discount ${i.terms.discountRatePct}%`, ...(disc.assumption ? [disc.assumption] : []), ...(r.warnings ?? [])]), ...missingBlock(a.missing ?? []),
         ],
         sources: [{ label: `Analysis v${saved.version} (${a.formula_version})`, href: HREF.analysis("occupancy", saved.id), status: "verified" }],
       };

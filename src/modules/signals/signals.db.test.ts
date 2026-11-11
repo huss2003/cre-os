@@ -67,6 +67,7 @@ describe("Module 2 — signal engine", () => {
   it("dismiss needs a reason; snooze needs a date; override is recorded with reason", async () => {
     await expect(actOnSignal(db, WS1, owner, ids.sig, "dismiss")).rejects.toThrow(/reason/);
     await expect(actOnSignal(db, WS1, owner, ids.sig, "snooze", {})).rejects.toThrow(/date/);
+    await expect(actOnSignal(db, WS1, owner, ids.sig, "snooze", { until: "2001-01-01" })).rejects.toThrow(/after today/);
     await actOnSignal(db, WS1, owner, ids.sig, "override_priority", { band: "high", reason: "CEO told us directly" });
     const d = (await signalDetail(db, WS1, ids.sig))!;
     expect(d.signal.priority_band).toBe("high"); expect(d.signal.priority_override.reason).toBe("CEO told us directly");

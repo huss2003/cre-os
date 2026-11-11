@@ -51,3 +51,20 @@ describe("tutorial catalogue helpers", () => {
     expect(tutorialsHref()).toBe("/tutorials#watch");
   });
 });
+
+describe("automation (Module 9) tutorials", async () => {
+  const { VIDEOS } = await import("./videos");
+  const SLUGS = ["automation-overview", "daily-plan", "meeting-briefs-auto", "failed-job", "outdated-proposals", "budgets-notifications", "ask-ai-workflow"];
+  it("are in the manifest under Ask AI & automation with steps", () => {
+    for (const s of SLUGS) {
+      const x = VIDEOS.find((y) => y.slug === s);
+      expect(x, s).toBeTruthy();
+      expect(x!.category).toBe("Ask AI & automation");
+      expect(x!.steps.length).toBeGreaterThan(5);
+    }
+  });
+  it("are findable by search", () => {
+    expect(filterVideos(VIDEOS, { q: "outdated proposals" })[0].slug).toBe("outdated-proposals");
+    expect(filterVideos(VIDEOS, { q: "retry" }).map((x) => x.slug)).toContain("failed-job");
+  });
+});

@@ -14,6 +14,7 @@ import { Flash } from "@/modules/intelligence/ui";
 import { loadContactExtras } from "@/modules/accounts/service";
 import * as A from "@/modules/accounts/ui";
 import { Chip, ROLE, REL } from "@/modules/contacts/ui/parts";
+import { likelyDuplicates } from "@/modules/contacts/service";
 
 export const metadata = { title: "Person" };
 
@@ -30,7 +31,7 @@ async function Body({ params, searchParams }: Props) {
   const person = p.person;
   const base = `/people/${id}`;
   const current = p.employment.filter((e) => e.current_at_as_of);
-  const x = await loadContactExtras(ctx.db, ctx.workspaceId, id);
+  const [x, dups] = await Promise.all([loadContactExtras(ctx.db, ctx.workspaceId, id), person.archived_at ? Promise.resolve([]) : likelyDuplicates(ctx.db, ctx.workspaceId, id).catch(() => [])]);
   const canEdit = hasRole(ctx, "editor") && !person.archived_at;
   const ra = x.ra.ok ? x.ra.data[0] ?? null : null;
   const relatedOrgs = [...new Map(p.employment.map((e) => [e.org_id, { id: e.org_id, name: e.org_name, current: e.current_at_as_of }])).values()];
@@ -48,6 +49,7 @@ async function Body({ params, searchParams }: Props) {
       {typeof sp.draft === "string" && !FOCUS_MODE ? <p className="text-sm"><ButtonLink variant="secondary" href="/drafts">Open Drafts</ButtonLink></p> : null}
       {asOf ? <StaleBanner>Showing the role valid on {fmtDate(asOf)} and evidence recorded on or before that date. Past roles stay on the person.</StaleBanner> : null}
       {anySuppressed ? <div className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad"><strong>Suppressed:</strong> do not contact through suppressed channels. Suppression survives imports and restores.</div> : null}
+      {dups.length ? <div className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn"><strong>Possible duplicate:</strong> {dups.map((d, i) => <span key={d.id}>{i ? "; " : ""}<Link className="underline" href={`/people/${d.id}`}>{d.full_name}</Link> ({d.why.join(", ")})</span>)}. Nothing was merged — <Link className="underline" href="/contacts?tab=duplicates">review duplicates</Link>.</div> : null}
       {person.contact_restrictions ? <div className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn"><strong>Contact restriction:</strong> {person.contact_restrictions}</div> : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -82,16 +84,16 @@ async function Body({ params, searchParams }: Props) {
             ) : null}
           </Section>
 
-          <Section title="Interactions" empty="No interactions logged yet.">
+          <Section title="Interactions" empty="No interactions logged yet." footer={canEdit ? <Link className="text-sm font-medium text-brand" href="/capture">+ Log a call or meeting note</Link> : undefined}>
             {p.interactions.length ? (
               <ul className="space-y-2 text-sm">{p.interactions.slice(0, 25).map((i) => (
                 <li key={i.id}><span className="text-xs text-ink-soft">{fmtDate(i.occurred_at, true)}</span> <Badge>{i.channel}</Badge> {i.subject ?? "(no subject)"}{i.summary ? <p className="text-ink-soft">{i.summary}</p> : null}</li>))}</ul>
             ) : null}
           </Section>
 
-          <A.Meetings r={x.meetings} />
+          <A.Meetings r={x.meetings} addHref={canEdit ? `/meetings/new?person=${id}` : undefined} />
 
-          {x.outreach.ok ? <Section title="Outreach" empty="No outreach planned or sent to this person.">
+          {x.outreach.ok ? <Section title="Outreach" empty="No outreach planned or sent to this person." footer={canEdit ? <Link className="text-sm font-medium text-brand" href={`/outreach/new?person=${id}`}>+ Plan outreach</Link> : undefined}>
             {x.outreach.data.length ? <ul className="space-y-1 text-sm">{x.outreach.data.map((o) => <li key={o.id}><Link className="text-brand" href={`/outreach/${o.id}`}>{o.channel}{o.step > 1 ? ` follow-up ${o.step - 1}` : ""}</Link> <Badge>{o.status}</Badge> <span className="text-xs text-ink-soft">{o.sent_at ? `sent ${fmtDate(o.sent_at)}` : o.planned_on ? `planned ${fmtDate(o.planned_on)}` : ""}{o.responded_at ? ` · replied ${fmtDate(o.responded_at)}` : ""}{o.org?.display_name ? ` · ${o.org.display_name}` : ""}</span></li>)}</ul> : null}
           </Section> : <A.CouldNotLoad what="outreach" error={x.outreach.error} />}
 
@@ -119,7 +121,7 @@ async function Body({ params, searchParams }: Props) {
         <div className="space-y-4">
           <A.RelationshipLevelCard personId={id} current={x.current} ok={x.levelOk} suggestion={x.suggestion} history={x.hist} canEdit={canEdit} />
 
-          <Section title="Decision role" empty={<>Not assessed yet. <Link className="text-brand" href={`/contacts/${id}`}>Assess the CRE role</Link>.</>}>
+          <Section title="Decision role" empty="Not assessed yet." footer={<Link className="text-sm font-medium text-brand" href={`/contacts/${id}`}>+ Assess the CRE role</Link>}>
             {ra ? <div className="text-sm"><p className="font-medium">{ROLE[ra.role_class] ?? ra.role_class}</p><p>{REL[ra.cre_relevance] ?? ra.cre_relevance}{ra.department ? ` · ${ra.department}` : ""}</p><p className="mt-1 text-xs text-ink-soft">{ra.source === "user" ? "Set by your team" : "Assessed from title"}{ra.reason ? `: ${ra.reason}` : ""}</p></div> : null}
           </Section>
 

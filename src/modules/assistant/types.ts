@@ -113,4 +113,6 @@ export interface ContextPackage {
   attachments: { id: string; name: string; excerpt: string }[];
   missing: string[];
   tools: { id: string; category: ToolCategory }[];
+  /** Names that matched several records equally well: the assistant asks which one instead of picking. */
+  ambiguous?: { type: EntityType; phrase: string; candidates: EntityRef[] }[];
 }

@@ -18,12 +18,28 @@ let owner: DealsCtx;
 const created: { requirements: string[]; assets: string[] } = { requirements: [], assets: [] };
 beforeAll(async () => {
   owner = { db: await userClient("owner"), workspaceId: WS1, userId: USERS.owner.id, role: "owner" };
+  // Earlier runs of this file (before afterAll archived its inventory) left "Tower match-*" spaces at the same
+  // 12,345 SF; they tie with this run's space and push it out of the top-10 verification set. Retire them.
+  const a = adminClient();
+  const old = (await a.from("asset").select("id").eq("workspace_id", WS1).like("name", "Tower match-%").is("archived_at", null)).data ?? [];
+  if (old.length) {
+    const now = new Date().toISOString();
+    const ids = old.map((r) => r.id as string);
+    await a.from("space").update({ archived_at: now }).eq("workspace_id", WS1).in("asset_id", ids);
+    await a.from("asset").update({ archived_at: now }).eq("workspace_id", WS1).in("id", ids);
+  }
 });
 afterAll(async () => {
   const a = adminClient();
   for (const id of created.requirements) {
     await a.from("job").delete().eq("workspace_id", WS1).in("job_type", ["deals.rematch", "deals.req_tasks"]).eq("payload->>requirement_id", id);
     await a.from("task").delete().eq("workspace_id", WS1).eq("linked_entity_type", "requirement").eq("linked_entity_id", id);
+  }
+  // retire this file's inventory so later runs' shortlists in the shared WS1 are not crowded by it
+  if (created.assets.length) {
+    const now = new Date().toISOString();
+    await a.from("space").update({ archived_at: now }).eq("workspace_id", WS1).in("asset_id", created.assets);
+    await a.from("asset").update({ archived_at: now }).eq("workspace_id", WS1).in("id", created.assets);
   }
 });
 
@@ -108,7 +124,9 @@ describe("09 · matching configuration, verification tasks and re-match on avail
     const run1 = await runShortlist(owner, req.id);
     const opt = run1.results.find((x) => x.spaceId === sp.data!.id)!;
     // shared WS1 holds other builders' spaces: the unique area range makes ours the only in-range candidate
-    expect(run1.results.filter((x) => x.eligibility !== "ineligible").indexOf(opt)).toBeLessThan(10);
+    // (spaces left by earlier runs of this same fixture have the identical 12,345 SF and tie with ours: ignore them)
+    const rivals = run1.results.filter((x) => x.eligibility !== "ineligible" && (x === opt || x.area?.value !== 12345));
+    expect(rivals.indexOf(opt)).toBeLessThan(10);
     expect(opt.eligibility).toBe("needs_verification");
     expect(opt.qualifies).toContain("Meets power ≥ 500 kVA (building: 800)");
     const vt = async () => ((await owner.db.from("task").select("idempotency_key, status").eq("linked_entity_id", req.id).eq("source", VERIFY_TASK_SOURCE)).data ?? []).filter((x) => (x.idempotency_key as string).includes(sp.data!.id));

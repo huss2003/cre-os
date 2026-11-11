@@ -25,12 +25,13 @@ export const TOOL_GROUPS = {
   data: ["search_company_locations", "add_company_location", "save_landlord_offer", "revise_landlord_offer", "compare_landlord_offers"],
   briefs: ["morning_brief", "capture_meeting_notes"],
   outputs: ["export_deliverable", "show_on_map", "generate_deck"],
+  automation: ["start_workflow", "list_workflow_runs", "get_workflow_run", "pause_workflow_run", "cancel_workflow_run", "list_pending_approvals", "get_commitments", "get_upcoming_meetings"],
 } as const;
 export type ToolGroup = keyof typeof TOOL_GROUPS;
 export const GROUP_ORDER = Object.keys(TOOL_GROUPS) as ToolGroup[];
 
 const BY_INTENT: Partial<Record<Intent, ToolGroup[]>> = {
-  company_summary: ["properties", "meetings", "scoring", "leases", "documents"],
+  company_summary: ["properties", "meetings", "outreach", "scoring", "leases", "deals", "documents"],
   meeting_prep: ["meetings", "properties", "documents"],
   compare_properties: ["properties", "finance", "data"],
   leases_expiring: ["leases", "properties", "data"],
@@ -41,23 +42,30 @@ const BY_INTENT: Partial<Record<Intent, ToolGroup[]>> = {
   send_proposal: ["outreach", "documents"],
   memory_correction: ["memory"],
   research: ["research", "properties"],
+  research_why: ["scoring", "research"],
+  decision_makers: ["outreach", "meetings"],
+  history: ["meetings", "documents"],
+  outreach_draft: ["meetings", "outreach"],
+  requirement_correction: ["properties", "changes"],
+  automation: ["automation", "meetings"],
 };
 
 const BY_WORDS: [ToolGroup, RegExp][] = [
   ["properties", /\b(building|tower|propert|space|floor|option|requirement|vacan|availab|micro.?market|location)/i],
   ["meetings", /\b(meeting|call|visit|task|remind|promis|commit|follow.?up|agenda)/i],
-  ["outreach", /\b(email|draft|message|whatsapp|linkedin|outreach|write to|reply|send|decision.?maker)/i],
-  ["scoring", /\b(score|rank|priorit|hot|focus|signal|expan|hiring|funding)/i],
+  ["outreach", /\b(email|draft|message|whatsapp|linkedin|outreach|write to|reply|send|decision.?maker|follow.?up|important people|stakeholder)/i],
+  ["scoring", /\b(score|rank|priorit|hot|focus|signal|expan|hiring|funding|identif|evidence|relevant)|\bwhy\b.*\bopportunit/i],
   ["leases", /\b(lease|expir|renew|lock.?in|escalat)/i],
   ["finance", /\b(rent|cost|tco|npv|fit.?out|quote|economics|cheaper|budget|calculat|compar)/i],
   ["deals", /\b(deal|opportunit|stuck|stage|pipeline|mandate)/i],
   ["documents", /\b(document|pdf|note|attachment|file|said|mentioned|minutes|proposal)/i],
   ["research", /\b(metro|news|web|online|infrastructure|research|market|construction|road)/i],
   ["memory", /\b(remember|memory|forget|prefer|outdated)/i],
-  ["changes", /\b(update|change|set|move .* to|archive|delete|create (an? )?(deal|opportunity)|mark)/i],
+  ["changes", /\b(update|change|set|move .* to|archive|delete|create (an? )?(deal|opportunity)|mark)|\bnow\b.*\bnot\b|\binstead of\b/i],
   ["data", /\b(factory|factories|plant|warehouse|midc|hq|headquarter|offices? in|locations?|landlord|offer|loi|term sheet)/i],
   ["briefs", /\b(morning brief|my day|today|notes?|minutes|debrief|just met|after (the|my) meeting)/i],
   ["outputs", /\b(deck|slides?|powerpoint|pptx|word doc|docx|pdf|export|download|map|plot)/i],
+  ["automation", /\b(background (jobs?|tasks?)|running (jobs?|tasks?)|workflows?|automation|pending approvals?|waiting (for )?approval|cancel (the|that|this) (job|task|run)|pause (the|that|this) (job|task|run))\b/i],
   ["commands", /\b(save (this|as)|saved command|every (morning|day|week)|schedule|routine)/i],
 ];
 

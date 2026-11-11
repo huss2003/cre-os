@@ -166,7 +166,7 @@ function SearchBox() {
     <form action="/search" role="search" className="relative min-w-0 flex-1">
       <label htmlFor="global-search" className="sr-only">Search everything</label>
       <SectionIcon k="search" className="pointer-events-none absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-soft" />
-      <input ref={ref} id="global-search" name="q" type="search" placeholder="Search"
+      <input ref={ref} id="global-search" name="q" type="search" aria-label="Search" placeholder="Search"
         className="peer block min-h-11 w-full rounded-md border border-line bg-surface pl-7 pr-10 text-sm text-ink placeholder:text-ink-soft focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15 lg:min-h-8" />
       <kbd className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-line px-1 text-[10px] text-ink-soft peer-focus:hidden lg:block">⌘K</kbd>
     </form>

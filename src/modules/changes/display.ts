@@ -39,6 +39,40 @@ export function fieldLabel(path: string): string {
   return FIELD_LABELS[f] ?? humanise(f);
 }
 
+/**
+ * Strip internal identifiers from free text written by jobs/assistant (reasons, evidence notes): storage paths,
+ * "(extraction <uuid>)", "capture document 8621196c" and bare UUIDs. Human words are kept.
+ */
+export function cleanText(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    .replace(/\s*\[evt:[^\]]*\]/gi, "")
+    .replace(/\s*\(capture document [0-9a-f]{6,}[^)]*\)/gi, "")
+    .replace(/,?\s*stored at \S+/gi, "")
+    .replace(/\s*\((?:extraction|capture|document|attachment|draft|source)\s+[0-9a-f][0-9a-f-]{5,}…?\)/gi, "")
+    .replace(/\bcapture document [0-9a-f]{6,}\b/gi, "uploaded document")
+    .replace(/\s*\(\s*\)/g, "")
+    .replace(/(^|[\s(:])[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "$1")
+    .replace(/(^|[\s(:])[0-9a-f]{8}-[0-9a-f-]{1,30}…/gi, "$1")
+    .replace(/\s{2,}/g, " ").replace(/\s+([,;.)])/g, "$1").trim();
+}
+
+/** "draft_edit" -> "Draft edit". */
+export function humanToken(s: string | null | undefined): string {
+  if (!s) return "";
+  const t = s.replace(/[_-]+/g, " ").trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+/** Proposal headline: operation + record type as a sentence ("Update lease", "New company"). */
+const TYPE_WORDS: Record<string, string> = { organisation: "company", asset: "building", person: "person", opportunity: "deal", geography: "location" };
+export function proposalHeadline(operation: string, targetType: string, state?: string): string {
+  const what = TYPE_WORDS[targetType] ?? targetType.replace(/_/g, " ");
+  const verb: Record<string, string> = { create: "New", update: "Update", merge: "Merge", archive: "Archive", delete: "Remove", restore: "Restore" };
+  const head = `${verb[operation] ?? humanToken(operation)} ${what}`;
+  return state === "clarify" ? `Needs clarification: ${head.charAt(0).toLowerCase()}${head.slice(1)}` : head;
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TS = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 function fmtScalar(v: unknown): string {
@@ -48,7 +82,7 @@ function fmtScalar(v: unknown): string {
   if (typeof v === "string") {
     if (ISO_DATE.test(v)) { const d = parseISO(v); if (isValid(d)) return format(d, "d MMM yyyy"); }
     if (ISO_TS.test(v)) { const d = parseISO(v); if (isValid(d)) return format(d, "d MMM yyyy, HH:mm"); }
-    return v;
+    return cleanText(v) || UNKNOWN;
   }
   return String(v);
 }

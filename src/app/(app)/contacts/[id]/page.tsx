@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
+import { EntityPicker } from "@/components/ui/entity-picker";
 import { enrichOneAction, roleAction, confirmChannelAction, dncAction, duplicateAction, taskAction, interactionAction, archiveAction } from "@/modules/contacts/actions";
 import { Chip, ROLE, REL, host } from "@/modules/contacts/ui/parts";
 import { completeness } from "@/modules/contacts/rules";
@@ -136,7 +137,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 <ActionForm action={taskAction.bind(null, id)} className="mt-3 space-y-2"><input name="title" placeholder="e.g. Ask about Pune expansion" aria-label="Task" className={sel} /><Submit variant="secondary">Create task</Submit></ActionForm></section>
               <details className="rounded-2xl border border-line bg-surface p-5"><summary className="cursor-pointer font-semibold">More actions</summary>
                 <div className="mt-3 space-y-4">
-                  <ActionForm action={duplicateAction.bind(null, id)} className="space-y-2"><p className="text-sm font-medium">Flag duplicate</p><input name="dup_id" placeholder="Duplicate contact ID (from its URL)" aria-label="Duplicate ID" className={sel} /><input name="reason" placeholder="Why? (same email, same company…)" aria-label="Reason" className={sel} /><Submit variant="secondary">Propose merge</Submit></ActionForm>
+                  <ActionForm action={duplicateAction.bind(null, id)} className="space-y-2"><p className="text-sm font-medium">Flag duplicate</p><EntityPicker name="dup_id" kind="person" label="Duplicate contact" placeholder="Type the other contact’s name…" /><input name="reason" placeholder="Why? (same email, same company…)" aria-label="Reason" className={sel} /><Submit variant="secondary">Propose merge</Submit></ActionForm>
                   <ActionForm action={dncAction.bind(null, id, !p.do_not_contact)} className="space-y-2"><p className="text-sm font-medium">{p.do_not_contact ? "Remove do-not-contact" : "Mark do-not-contact"}</p>{!p.do_not_contact ? <input name="reason" placeholder="Reason" aria-label="Reason" className={sel} /> : null}<Submit variant={p.do_not_contact ? "secondary" : "danger"}>{p.do_not_contact ? "Remove" : "Do not contact"}</Submit></ActionForm>
                   <ActionForm action={archiveAction.bind(null, id)} className="space-y-2"><p className="text-sm font-medium">Archive contact</p><input name="reason" placeholder="Reason" aria-label="Reason" className={sel} /><Submit variant="secondary">Propose archive</Submit></ActionForm>
                 </div>

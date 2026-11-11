@@ -111,14 +111,14 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
             ))}
           </Table>
           {isAdmin && register.some((a) => a.row && a.row.approval_state !== "approved" && !a.changed) && (
-            <div className="flex flex-col gap-2 sm:flex-row"><Input name="note" placeholder="Approval note / basis (optional)" /><Button type="submit" variant="secondary">Approve selected assumptions</Button></div>
+            <div className="flex flex-col gap-2 sm:flex-row"><Input name="note" aria-label="Approval note" placeholder="Approval note / basis (optional)" /><Button type="submit" variant="secondary">Approve selected assumptions</Button></div>
           )}
         </form>
         {isAdmin && stored.some((a) => a.approval_state === "approved") && (
           <form action={revokeAssumptionAction} className="mt-3 flex flex-col gap-2 sm:flex-row">
             <input type="hidden" name="id" value={id} />
             <Select name="key" aria-label="assumption to revoke">{stored.filter((a) => a.approval_state === "approved").map((a) => <option key={a.key} value={a.key}>{a.label}</option>)}</Select>
-            <Input name="note" placeholder="Why" />
+            <Input name="note" aria-label="Why" placeholder="Why" />
             <Button type="submit" variant="ghost">Revoke approval</Button>
           </form>
         )}
@@ -132,7 +132,7 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
               <form action={approveScenarioAction} className="space-y-2">
                 <input type="hidden" name="id" value={id} />
                 {!r.complete && <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="acknowledge_gaps" className="mt-1" /> <span>I acknowledge these costs are unknown and excluded from the totals: <strong>{r.gaps.map((g) => g.label).join(", ")}</strong>. The acknowledgement is recorded with the approval.</span></label>}
-                <Input name="note" placeholder="Approval note (optional)" />
+                <Input name="note" aria-label="Approval note" placeholder="Approval note (optional)" />
                 <Button type="submit" disabled={blockers.length > 0}>Approve scenario</Button>
               </form>
             ) : <p className="text-sm text-ink-soft">An admin approves scenarios once every assumption is approved and unknown costs are resolved or acknowledged.</p>}
@@ -159,8 +159,8 @@ export default async function ScenarioPage({ params, searchParams }: { params: P
                     <legend className="px-1 text-sm font-medium">{COST_ITEM_LABEL[item]} — unknown</legend>
                     <Select name={`${item}_state`} defaultValue="" aria-label={`${COST_ITEM_LABEL[item]} state`}><option value="">leave unknown</option><option value="none">none / included</option><option value="amount">amount:</option></Select>
                     <div className="flex gap-1">
-                      {item === "cam" && <Input name="cam_rate" inputMode="decimal" placeholder="₹/SF/month" />}
-                      {item === "parking" && <><Input name="parking_slots" inputMode="numeric" placeholder="slots" /><Input name="parking_rate" inputMode="decimal" placeholder="₹/slot" /></>}
+                      {item === "cam" && <Input name="cam_rate" aria-label="CAM rate" inputMode="decimal" placeholder="₹/SF/month" />}
+                      {item === "parking" && <><Input name="parking_slots" aria-label="Parking slots" inputMode="numeric" placeholder="slots" /><Input name="parking_rate" aria-label="Parking rate" inputMode="decimal" placeholder="₹/slot" /></>}
                       {item === "deposit" && <Input name="deposit_months" inputMode="decimal" placeholder="months of rent" />}
                       {item === "fitout" && <Input name="fitout" inputMode="decimal" placeholder="₹ total" />}
                       {item === "opex" && <Input name="opex_monthly" inputMode="decimal" placeholder="₹/month" />}

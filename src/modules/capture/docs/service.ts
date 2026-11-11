@@ -162,7 +162,7 @@ export async function processDocument(ctx: DocCtx, id: string, input: { bytes?: 
       const r = await ocr({ workspaceId: ws, bytes, mime: doc.mime || "image/jpeg", hint: meta.caption ?? "photo from a CRE adviser: business card, building photo or floor plan", mock: typed ?? "" });
       text = typed?.trim() ? typed : r.text; ocrMocked = r.mocked; pages = [text];
     }
-    let det: Detection = detectDocType({ name: doc.file_name, mime: doc.mime ?? "", head: bytes.slice(0, 8), text, caption: meta.caption, userType });
+    let det: Detection = detectDocType({ name: doc.file_name, mime: doc.mime ?? "", head: bytes.slice(0, 8), bytes: family === "image" ? bytes.subarray(0, 262_144) : undefined, size: bytes.length, text, caption: meta.caption, userType });
     if (det.ambiguous && text.trim()) {
       const cls = deps.classify ?? defaultClassify;
       const t = await cls({ workspaceId: ws, text, candidates: det.candidates });
@@ -232,7 +232,7 @@ export function locate(pages: string[], value: unknown): { page: number; snippet
   return null;
 }
 
-const evidenceNote = (doc: Row, extra = "") => `From uploaded file "${doc.file_name}" (capture document ${String(doc.id).slice(0, 8)}, stored at ${doc.storage_path})${extra}`;
+const evidenceNote = (doc: Row, extra = "") => `From uploaded file "${doc.file_name}"${extra}`;
 
 // ---- quotation → extractQuoteTerms (toolkit) → quote create proposal
 async function routeQuote(ctx: DocCtx, doc: Row, text: string, pages: string[], links: DocLinks): Promise<Routed> {

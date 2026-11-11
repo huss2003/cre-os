@@ -10,6 +10,7 @@ import { SOURCE_TYPES } from "@/modules/contacts/service";
 import { Chip, ROLE, REL, STAGE, host } from "@/modules/contacts/ui/parts";
 import { DEPARTMENTS } from "@/modules/contacts/rules";
 import { HelpFor } from "@/components/ui";
+import { containsLike } from "@/lib/util/like";
 
 export const metadata = { title: "Contacts" };
 type Row = Record<string, any>;
@@ -121,7 +122,7 @@ async function Research({ db, ws, editor }: { db: Row; ws: string; editor: boole
 
 async function People({ db, ws, sp, mode }: { db: Row; ws: string; sp: SP; mode: "decision" | "missing" | "enrich" | "all" }) {
   let q = db.from("person").select("id, full_name, last_enriched_at, next_review_on, do_not_contact, employment(title, is_current, org:org_id(id, display_name)), contact_method(method_type, verify_status, suppressed), contact_role_assessment(role_class, cre_relevance, active)").eq("workspace_id", ws).is("archived_at", null);
-  if (sp.q) q = q.ilike("full_name", `%${sp.q}%`);
+  if (sp.q) q = q.ilike("full_name", containsLike(sp.q));
   const { data } = await q.order("full_name").limit(1000);
   let people: Row[] = ((data ?? []) as Row[]).map((p): Row => {
     const e = (p.employment ?? []).find((x: Row) => x.is_current); const ra = (p.contact_role_assessment ?? []).find((x: Row) => x.active);

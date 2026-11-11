@@ -537,6 +537,7 @@ const findLeasesExpiring = defineTool({
     let oq = db(t).from("organisation").select("id, display_name, sector").eq("workspace_id", ws(t)).is("archived_at", null).limit(5000);
     if (i.sector) oq = oq.ilike("sector", `%${ilikeSafe(i.sector)}%`);
     const orgs = ((await oq).data ?? []) as Row[];
+    const capped = orgs.length >= 5000;
     const orgBy = new Map(orgs.map((o) => [o.id, o]));
     const leases: Row[] = [];
     for (let p = 0; ; p += 1000) {
@@ -573,6 +574,8 @@ const findLeasesExpiring = defineTool({
       note = `${orgs.length} companies checked; ${orgs.length - orgsWithLease.size} have no lease record.`;
       if (orgs.length - orgsWithLease.size) missing.push(`${orgs.length - orgsWithLease.size} companies have no lease record (expiry unknown, not "no expiry")`);
     }
+    if (capped) { note += " Only the first 5000 companies were checked (cap reached): the list may be incomplete."; missing.push("Company cap of 5000 reached — some companies were not checked"); }
+    if (i.place) note += ` Filtered to "${i.place}".`; else note += " Not filtered by place (whole workspace).";
     const noExpiry = new Set(pool.filter((l) => !l.contractual_expiry).map((l) => l.tenant_org_id));
     const withExpiry = new Set(pool.filter((l) => l.contractual_expiry).map((l) => l.tenant_org_id));
     const onlyNoExpiry = [...noExpiry].filter((x) => !withExpiry.has(x)).length;

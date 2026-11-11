@@ -828,6 +828,475 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
+    "slug": "automation-overview",
+    "title": "Automation: what runs by itself",
+    "category": "Ask AI & automation",
+    "seconds": 77,
+    "learn": "More → Automation shows every background job: what needs you, what is running, what can be started, every workflow and its trigger, recent results, connections and usage limits.",
+    "tryRoute": "/automation",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More in the sidebar, then Automation.",
+        "ms": 3609
+      },
+      {
+        "caption": "Five tabs: Overview, Daily plan, Weekly review, Budgets & usage and Notifications.",
+        "ms": 10184
+      },
+      {
+        "caption": "The counters: workflows switched on, jobs running now, failed jobs, jobs waiting for an approval and changes waiting in Review.",
+        "ms": 13393
+      },
+      {
+        "caption": "Capacity warnings: today's clashes — overlapping meetings, too many meetings, overdue promises.",
+        "ms": 16587
+      },
+      {
+        "caption": "Needs attention: failed, paused and waiting jobs, plus records that became out of date. Start here every day.",
+        "ms": 19746
+      },
+      {
+        "caption": "Each row shows the job, its status chip (Failed, Paused…), how far it got and the error in plain words.",
+        "ms": 23040
+      },
+      {
+        "caption": "Running now lists jobs in progress. Empty means nothing is working in the background right now.",
+        "ms": 26215
+      },
+      {
+        "caption": "Start a job: run a workflow yourself — here, prepare tomorrow's meetings and list open commitments.",
+        "ms": 29408
+      },
+      {
+        "caption": "Scheduled shows recurring jobs and when they will run next.",
+        "ms": 32643
+      },
+      {
+        "caption": "All workflows: each one, whether it is On or Paused, what starts it and how many steps it has.",
+        "ms": 35847
+      },
+      {
+        "caption": "For example: 'Reassess after requirement change' runs by itself whenever a client's requirement changes.",
+        "ms": 39020
+      },
+      {
+        "caption": "Recently finished: the last jobs and how they ended (Done, Partly done, Failed, Cancelled).",
+        "ms": 42178
+      },
+      {
+        "caption": "Connections: when mail or calendar last worked. A broken connection is shown here — never hidden.",
+        "ms": 45519
+      },
+      {
+        "caption": "Usage and limits: AI and research spending against any limits an admin has set.",
+        "ms": 48677
+      },
+      {
+        "caption": "Open a workflow to see exactly what it does.",
+        "ms": 51847
+      },
+      {
+        "caption": "What it does, what starts it, when it last ran and when it runs next.",
+        "ms": 55754
+      },
+      {
+        "caption": "Steps in order. 'After: …' means a step waits for an earlier one; steps without it run in parallel.",
+        "ms": 58911
+      },
+      {
+        "caption": "Controls: Pause workflow stops new runs until you switch it on again. Priority decides which job goes first (admins only).",
+        "ms": 62077
+      },
+      {
+        "caption": "Recent runs, the records the last run touched and the change history are further down. Export log downloads a run's history.",
+        "ms": 65260
+      },
+      {
+        "caption": "The second tab in this area, Chains, holds the older record chains (signal → action, lease → renewal…).",
+        "ms": 69445
+      }
+    ]
+  },
+  {
+    "slug": "daily-plan",
+    "title": "Your 08:00 daily plan (and the weekly review)",
+    "category": "Ask AI & automation",
+    "seconds": 65,
+    "learn": "Every workday at 08:00 CRE OS builds your plan for the day from meetings, tasks and the brief: what to do first, capacity clashes and suggestions you decide on. Weekly review comes on Friday.",
+    "tryRoute": "/automation?view=daily",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Automation.",
+        "ms": 3605
+      },
+      {
+        "caption": "Open the Daily plan tab.",
+        "ms": 9731
+      },
+      {
+        "caption": "Your plan for today. It is built by itself at 08:00 your time (India time by default).",
+        "ms": 13744
+      },
+      {
+        "caption": "Want it earlier, or after a busy morning? Press Build now. It is rebuilt from the latest data.",
+        "ms": 16928
+      },
+      {
+        "caption": "The plan is built from your meetings, tasks, calendar records and the daily brief — nothing is invented.",
+        "ms": 24820
+      },
+      {
+        "caption": "Scroll through the sections: meetings to prepare, commitments due, deals needing attention, signals.",
+        "ms": 32143
+      },
+      {
+        "caption": "Capacity: minutes in meetings, free time and task work against your working hours.",
+        "ms": 35460
+      },
+      {
+        "caption": "Warnings flag clashes: overlapping meetings, more meetings than your limit, overdue commitments.",
+        "ms": 38754
+      },
+      {
+        "caption": "Travel time says 'unknown' — CRE OS has no routing service, so it never guesses.",
+        "ms": 41930
+      },
+      {
+        "caption": "Suggestions are only suggestions: you decide what to move. Nothing is rescheduled for you.",
+        "ms": 45170
+      },
+      {
+        "caption": "Now the Weekly review tab.",
+        "ms": 49319
+      },
+      {
+        "caption": "Built every Friday at 18:00: new opportunities, priority account changes, signals and meetings of the week.",
+        "ms": 54580
+      },
+      {
+        "caption": "Further down: overdue commitments, changed requirements and active deals — a checklist for next week.",
+        "ms": 57775
+      }
+    ]
+  },
+  {
+    "slug": "meeting-briefs-auto",
+    "title": "Meeting briefs an hour before",
+    "category": "Ask AI & automation",
+    "seconds": 58,
+    "learn": "About an hour before each client meeting CRE OS prepares the meeting brief by itself and notifies you, listing what is still missing. Rescheduling moves the job; cancelling stops it.",
+    "tryRoute": "/automation?view=notifications",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "The bell at the top shows new notifications. Click it.",
+        "ms": 3604
+      },
+      {
+        "caption": "'Brief ready' — the Zentrix meeting starts in about an hour, so its brief was prepared automatically.",
+        "ms": 7602
+      },
+      {
+        "caption": "The full list lives in More → Automation → Notifications.",
+        "ms": 10874
+      },
+      {
+        "caption": "It lists what is still missing for the meeting: decision-maker, verified contacts, budget, documents.",
+        "ms": 16656
+      },
+      {
+        "caption": "'Urgent' because the meeting is close. Informational notices wait for your working hours.",
+        "ms": 19827
+      },
+      {
+        "caption": "Open the notification to go to the meeting.",
+        "ms": 23002
+      },
+      {
+        "caption": "The meeting page: the brief has been generated (version 1) with a readiness score.",
+        "ms": 27045
+      },
+      {
+        "caption": "Scroll through the brief: company, requirement, open questions to ask.",
+        "ms": 34397
+      },
+      {
+        "caption": "Unknown facts stay unknown — the brief says what to find out, it never guesses.",
+        "ms": 37716
+      },
+      {
+        "caption": "How it works: the job is due 60 minutes before the start. Move the meeting and the job moves with it.",
+        "ms": 41029
+      },
+      {
+        "caption": "Cancel the meeting and the prep job and its reminders are cancelled too; the meeting record is kept.",
+        "ms": 45216
+      },
+      {
+        "caption": "Back in Notifications, press Done when you have read it.",
+        "ms": 48473
+      }
+    ]
+  },
+  {
+    "slug": "budgets-notifications",
+    "title": "Budgets and notifications",
+    "category": "Ask AI & automation",
+    "seconds": 77,
+    "learn": "Admins set daily or monthly limits for AI, research and other paid usage; at the limit non-critical jobs pause (nothing lost). Notifications can be marked done, snoozed or dismissed.",
+    "tryRoute": "/automation?view=budgets",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Automation, then Budgets & usage.",
+        "ms": 3605
+      },
+      {
+        "caption": "A budget is a daily or monthly limit. When it is reached, non-critical background work pauses — nothing is lost — and admins are alerted.",
+        "ms": 11717
+      },
+      {
+        "caption": "Choose the resource — here 'research' (company research look-ups).",
+        "ms": 14886
+      },
+      {
+        "caption": "Period: Monthly or Daily.",
+        "ms": 18866
+      },
+      {
+        "caption": "Unit: calls (other resources use USD, credits, seconds, pages or runs).",
+        "ms": 22029
+      },
+      {
+        "caption": "Limit: 10 calls a month. Alert at 80% warns admins before the limit.",
+        "ms": 25232
+      },
+      {
+        "caption": "Save budget.",
+        "ms": 29734
+      },
+      {
+        "caption": "The budget line shows used / limit, the alert level and when it resets.",
+        "ms": 35234
+      },
+      {
+        "caption": "A budget never switches to another provider to keep going — it just pauses.",
+        "ms": 38402
+      },
+      {
+        "caption": "Usage this month: by resource, AI cost by module and by workflow.",
+        "ms": 45733
+      },
+      {
+        "caption": "Now the Notifications tab.",
+        "ms": 49881
+      },
+      {
+        "caption": "Each notification says what happened and links to the record. Here: a requirement change reassessed the Zentrix comparisons.",
+        "ms": 54730
+      },
+      {
+        "caption": "Done: you dealt with it. Snooze 3h: bring it back later. Dismiss: remove it (it stays in the history).",
+        "ms": 57910
+      },
+      {
+        "caption": "Snooze this one for three hours.",
+        "ms": 61066
+      },
+      {
+        "caption": "Similar notices are grouped, urgent ones come straight away, others wait for working hours and quiet hours.",
+        "ms": 66414
+      },
+      {
+        "caption": "The bell at the top of every page shows the same list.",
+        "ms": 69583
+      }
+    ]
+  },
+  {
+    "slug": "ask-ai-workflow",
+    "title": "Ask AI to run a workflow",
+    "category": "Ask AI & automation",
+    "seconds": 44,
+    "learn": "Ask AI in plain words — e.g. \"prepare tomorrow's meetings and list pending client commitments\" — and it starts the matching workflow, then shows the result and a link to the run.",
+    "tryRoute": "/assistant",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Ask AI from the sidebar.",
+        "ms": 3608
+      },
+      {
+        "caption": "Start a new conversation.",
+        "ms": 7728
+      },
+      {
+        "caption": "Type the request in plain words: prepare tomorrow's meetings and list pending client commitments.",
+        "ms": 11511
+      },
+      {
+        "caption": "The answer: tomorrow's meetings, briefs prepared, and open or overdue commitments.",
+        "ms": 21499
+      },
+      {
+        "caption": "Press 'Open the run' to see each step.",
+        "ms": 25883
+      },
+      {
+        "caption": "The run page: progress, each step with what it found, and the records involved.",
+        "ms": 34262
+      },
+      {
+        "caption": "The same request works from the Ask AI panel on any page. You can also ask 'what failed?' or 'pause that job'.",
+        "ms": 37503
+      }
+    ]
+  },
+  {
+    "slug": "failed-job",
+    "title": "Fix a failed job (retry, pause, cancel)",
+    "category": "Ask AI & automation",
+    "seconds": 81,
+    "learn": "When a background job fails, Automation → Needs attention shows it. The run page says what failed, what was affected and what to do; Retry re-runs only the failed steps. Pause, Resume and Cancel control a run.",
+    "tryRoute": "/automation",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Automation. The Failed counter shows 1.",
+        "ms": 3605
+      },
+      {
+        "caption": "In Needs attention, open the failed job.",
+        "ms": 11247
+      },
+      {
+        "caption": "The run page: Failed, when it started and finished.",
+        "ms": 15210
+      },
+      {
+        "caption": "Progress: 2 steps done, 1 failed.",
+        "ms": 18363
+      },
+      {
+        "caption": "What went wrong: the failed step and its error in plain words — a timeout, after 3 attempts.",
+        "ms": 21541
+      },
+      {
+        "caption": "Records affected: the meetings this job was working on.",
+        "ms": 24727
+      },
+      {
+        "caption": "Steps that worked keep their results — they will not run again.",
+        "ms": 27894
+      },
+      {
+        "caption": "Will it retry by itself? No — retries are used up. What to do: check the error, then use Retry.",
+        "ms": 31071
+      },
+      {
+        "caption": "Press Retry failed steps.",
+        "ms": 34240
+      },
+      {
+        "caption": "Only the failed step ran again. The job is now Done.",
+        "ms": 41604
+      },
+      {
+        "caption": "History shows every action: started, step finished, manual retry — with who did it.",
+        "ms": 46643
+      },
+      {
+        "caption": "Export log downloads this history.",
+        "ms": 51347
+      },
+      {
+        "caption": "Back to Automation: the second job here is Paused.",
+        "ms": 54531
+      },
+      {
+        "caption": "Open it.",
+        "ms": 60612
+      },
+      {
+        "caption": "A paused run waits. Resume continues where it stopped. Running jobs show Pause instead.",
+        "ms": 64527
+      },
+      {
+        "caption": "Cancel stops it for good (admins). Finished steps and their results are kept.",
+        "ms": 67690
+      },
+      {
+        "caption": "The job is now Cancelled — nothing else will run for it.",
+        "ms": 71663
+      }
+    ]
+  },
+  {
+    "slug": "outdated-proposals",
+    "title": "Outdated proposals after a new quote or requirement change",
+    "category": "Ask AI & automation",
+    "seconds": 68,
+    "learn": "When a quote arrives or a requirement changes, CRE OS recalculates comparisons as new versions and flags proposals built on the old figures. Review → Outdated proposals lists them with Refresh and Dismiss; approved ones are never overwritten.",
+    "tryRoute": "/approvals/outdated",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Zentrix's requirement changed: maximum area went from 28,000 to 30,000 sq ft. Open Review.",
+        "ms": 3607
+      },
+      {
+        "caption": "In the row of queues, open Stale records, then the Outdated proposals tab.",
+        "ms": 7800
+      },
+      {
+        "caption": "Top: approved or shared proposals that used the old figures. They are never changed automatically — you decide.",
+        "ms": 13739
+      },
+      {
+        "caption": "Below: drafts and analyses that need a refresh.",
+        "ms": 16954
+      },
+      {
+        "caption": "'Recalculated (v…)': the comparison already re-ran as a new version; the old versions are kept.",
+        "ms": 20130
+      },
+      {
+        "caption": "'May be outdated': figures you entered yourself — open it, check and re-run.",
+        "ms": 23387
+      },
+      {
+        "caption": "'what changed' shows the old and new values.",
+        "ms": 26702
+      },
+      {
+        "caption": "Press Refresh on a comparison to bring it up to date. It runs the refresh workflow.",
+        "ms": 29874
+      },
+      {
+        "caption": "Done — it disappears from the list. Dismiss closes a warning you don't need (it stays in the history).",
+        "ms": 36910
+      },
+      {
+        "caption": "Dismiss this one.",
+        "ms": 41770
+      },
+      {
+        "caption": "The same warning appears on the record itself. Open the Zentrix requirement.",
+        "ms": 47376
+      },
+      {
+        "caption": "New rent quotations work the same way: comparisons recalculate, proposals using the old quote are flagged.",
+        "ms": 57363
+      },
+      {
+        "caption": "Each reassessment is a job in Automation → Recently finished, with its steps and the records it flagged.",
+        "ms": 60549
+      }
+    ]
+  },
+  {
     "slug": "today-plan",
     "title": "Plan your day from Today",
     "category": "Outreach & meetings",

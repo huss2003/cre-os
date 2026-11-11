@@ -87,7 +87,7 @@ export const CASES: EvalCase[] = [
     judge: ["Flags that the deal has been in proposal/negotiation for a long time and the next action is overdue"] },
   { id: "deal-stuck", request: `Why is the ${NAMES.opp} deal stuck?`,
     expect: (w) => ({ exclude: [w.secretOrg.id] }),
-    mock: () => ({ toolsAny: [["get_company_profile", "search_opportunities", "search_companies"]] }),
+    mock: () => ({ toolsAny: [["get_company_profile", "search_opportunities", "search_companies", "get_opportunity_details"]] }),
     live: () => ({ toolsAny: [["explain_deal_stuck", "get_opportunity_details", "generate_deal_review"]], include: [/overdue|75 days|term sheet/i] }),
     judge: ["Explains likely causes citing evidence (days in stage, overdue next action/task) and labels causes as inferred"] },
 

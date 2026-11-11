@@ -5,9 +5,9 @@
  */
 import { HIRING_NOTE } from "./dossier";
 
-export type SignalKind = "expansion" | "consolidation" | "rto" | "gcc_plan" | "hiring" | "leadership_change" | "funding";
+export type SignalKind = "expansion" | "consolidation" | "rto" | "gcc_plan" | "hiring" | "leadership_change" | "funding" | "lease_expiry";
 
-export interface DetectedSignal { kind: SignalKind; rule: string; matched: string; context: string; surge?: boolean }
+export interface DetectedSignal { kind: SignalKind; rule: string; matched: string; context: string; surge?: boolean; withinMonths?: number }
 
 interface Rule { kind: SignalKind; rule: string; re: RegExp }
 
@@ -20,11 +20,22 @@ const RULES: Rule[] = [
   { kind: "gcc_plan", rule: "gcc_acronym", re: /\bGCCs?\b/ },
   { kind: "hiring", rule: "hiring_terms", re: /\b(hiring|recruit(?:s|ing|ment)|to hire|plans? to add \d[\d,]* (?:people|employees|engineers|staff)|headcount (?:growth|increase)|job openings|open (?:roles|positions)|walk-in drive)\b/i },
   { kind: "leadership_change", rule: "leadership_terms", re: /\b(appoint(?:s|ed|ment)|names? [A-Z][\w.]*(?: [A-Z][\w.]*){0,3} as|new (?:CEO|CFO|COO|CTO|MD|managing director|country head|head of [a-z]+|president|site (?:head|leader)|chief [a-z]+ officer)|join(?:s|ed) as|steps? down|stepped down|resign(?:s|ed|ation)|elevated to|promoted to|takes? (?:over )?charge)\b/i },
+  { kind: "lease_expiry", rule: "lease_expiry_terms", re: /\b(lease[sd]?\b[^.]{0,60}?\b(?:expir\w*|(?:is |are )?due (?:to (?:expire|end)|for renewal)|ends?|ending|runs? out|up for renewal|renewal)|(?:expir\w*|renewal) of (?:its |the |their )?(?:existing |current )?(?:\w+ )?lease)\b/i },
   { kind: "funding", rule: "funding_terms", re: /\b(rais(?:ed|es|ing) (?:\$|₹|rs\.?|inr|usd|us\$)?\s?[\d.,]+\s?(?:million|mn|crore|cr|billion|bn|lakh)?|series [a-h]\b|funding round|seed round|pre-ipo|\bIPO\b|investment from|growth capital|private equity)\b/i },
 ];
 
 const SURGE = /\b(mass hiring|hiring spree|ramp(?:s|ing)? up hiring|aggressive hiring|(?:hire|add|recruit)\w* (?:over |more than |about |around )?(?:[1-9]\d{2,}|[5-9]\d)[\d,]* (?:people|employees|engineers|staff|professionals|roles))\b/i;
 const NEGATION = /\b(no|not|never|den(?:y|ies|ied)|rule[sd]? out|without|unlikely)\b[^.]{0,30}$/i;
+
+const WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, six: 6, nine: 9, twelve: 12, eighteen: 18, twenty: 20, "twenty-four": 24 };
+/** "within 12 months" / "in the next six months" / "within a year" -> months (only when stated; never guessed). */
+export function withinMonths(text: string): number | null {
+  const m = /\b(?:within|in(?: the)?(?: next)?|over the next)\s+(\d{1,2}|one|two|three|four|six|nine|twelve|eighteen|twenty|twenty-four|a)\s+(months?|years?)\b/i.exec(text);
+  if (!m) return null;
+  const n = m[1].toLowerCase() === "a" ? 1 : /^\d+$/.test(m[1]) ? Number(m[1]) : WORDS[m[1].toLowerCase()] ?? null;
+  if (n === null) return null;
+  return /year/i.test(m[2]) ? n * 12 : n;
+}
 
 function contextOf(text: string, idx: number, len: number): string {
   const s = Math.max(0, idx - 80);
@@ -45,6 +56,7 @@ export function detectSignals(text: string): DetectedSignal[] {
       if (NEGATION.test(before)) continue;
       const sig: DetectedSignal = { kind: r.kind, rule: r.rule, matched: m[0], context: contextOf(t, idx, m[0].length) };
       if (r.kind === "hiring") sig.surge = SURGE.test(t);
+      if (r.kind === "lease_expiry") { const n = withinMonths(t.slice(idx, idx + 200)); if (n !== null) sig.withinMonths = n; }
       out.set(r.kind, sig);
       break;
     }
@@ -54,7 +66,7 @@ export function detectSignals(text: string): DetectedSignal[] {
 
 export const SIGNAL_LABEL: Record<SignalKind, string> = {
   expansion: "expansion", consolidation: "consolidation", rto: "return-to-office", gcc_plan: "GCC plan",
-  hiring: "hiring", leadership_change: "leadership change", funding: "funding",
+  hiring: "hiring", leadership_change: "leadership change", funding: "funding", lease_expiry: "lease expiry",
 };
 
 /** Text of the hypothesis claim. Hiring always carries the "not an office-size commitment" caveat. */

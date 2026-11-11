@@ -16,7 +16,7 @@ export function LeaseTermFields({ p, def = {}, title, extra }: { p: string; def?
   const other = def.otherRecurring?.[0];
   const nr = def.nonRecurring?.[0];
   return (
-    <fieldset className="min-w-0 space-y-3 rounded-2xl border-2 border-line bg-white p-3 sm:p-4">
+    <fieldset className="min-w-0 min-w-0 space-y-3 rounded-2xl border-2 border-line bg-white p-3 sm:p-4">
       {title ? <legend className="px-2 text-base font-bold text-ink">{title}</legend> : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <In label="Offer name" name={`${p}name`} defaultValue={v(def.name)} placeholder="Building A" />

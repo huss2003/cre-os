@@ -26,7 +26,7 @@ export function NotesInput({ name = "notes", defaultValue = "" }: { name?: strin
   };
   return (
     <div className="space-y-2">
-      <Textarea name={name} rows={8} required minLength={3} maxLength={20000} value={text} onChange={(e) => setText(e.target.value)}
+      <Textarea name={name} aria-label="Meeting notes" rows={8} required minLength={3} maxLength={20000} value={text} onChange={(e) => setText(e.target.value)}
         placeholder="e.g. Met Priya (finance) at Acme. They now need 220 seats, decision by 15 Dec. I'll send the shortlist by Friday. Concern: parking at Tower B." />
       {ok ? (
         <button type="button" onClick={mic} className="inline-flex min-h-11 items-center rounded-lg border border-line px-3 text-sm font-medium hover:bg-canvas" aria-pressed={listening}>

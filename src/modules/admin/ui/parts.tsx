@@ -92,10 +92,10 @@ export function Section({ title, children, empty, actions, footer }: { title: st
   const hasContent = Array.isArray(children) ? children.some(Boolean) : !!children;
   // Empty sections fold into one quiet line so the page shows only what has data. Click to see why / add something.
   if (!hasContent) return (
-    <details className="group rounded-2xl border border-line bg-surface px-5 py-3">
+    <details className="group/section rounded-2xl border border-line bg-surface px-5 py-3">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-sm">
         <span className="font-medium text-ink">{title}</span>
-        <span className="text-xs text-ink-soft group-open:hidden">{footer ? "Empty · add" : "Empty"} ▸</span>
+        <span className="text-xs text-ink-soft group-open/section:hidden">{footer ? "Empty · add" : "Empty"} ▸</span>
       </summary>
       <div className="mt-3 space-y-3">
         <p className="text-sm text-ink-soft">{empty ?? "Nothing recorded yet."}</p>

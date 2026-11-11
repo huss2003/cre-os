@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase rows are untyped (no generated DB types yet) */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { checkHttpUrl, isDomain } from "@/lib/util/url";
 import { classifyRisk, proposeChange } from "@/lib/services/changes";
 import { badRequest, conflict, notFound } from "./errors";
+import { containsLike } from "@/lib/util/like";
+import { createHash } from "node:crypto";
 
 /**
  * Entity pages (Company / Person / Building) — read models and simple edits.
@@ -17,7 +20,7 @@ export const CLASSIFICATIONS = ["public", "permitted_personal", "corporate_confi
 
 /** Form-editable columns per entity (anything else is owned by imports/captures/other modules). */
 export const EDITABLE: Record<EntityTable, string[]> = {
-  organisation: ["display_name", "legal_name", "domain", "cin", "gstin", "sector", "hq_country", "headcount_min", "headcount_max",
+  organisation: ["display_name", "legal_name", "domain", "cin", "gstin", "sector", "hq_city", "hq_country", "headcount_min", "headcount_max",
     "is_gcc", "crm_external_id", "account_owner_note", "contact_restrictions", "classification"],
   person: ["full_name", "aliases", "public_profile_url", "preferred_language", "preferred_channel", "contact_restrictions", "personal_notes", "classification"],
   asset: ["name", "asset_kind", "parent_asset_id", "locality_id", "address", "status", "grade", "total_area_sf", "floors", "floor_size_text",
@@ -25,10 +28,29 @@ export const EDITABLE: Record<EntityTable, string[]> = {
 };
 
 const NUMERIC = new Set(["headcount_min", "headcount_max", "total_area_sf", "floors", "lat", "lon"]);
+/** Plain-language bounds for numeric fields (checked before the database sees them). */
+const BOUNDS: Record<string, { label: string; min: number; max: number; int?: boolean; positive?: boolean }> = {
+  headcount_min: { label: "Headcount (min)", min: 0, max: 10_000_000, int: true },
+  headcount_max: { label: "Headcount (max)", min: 0, max: 10_000_000, int: true },
+  total_area_sf: { label: "Total area", min: 0, max: 10_000_000, positive: true },
+  floors: { label: "Floors", min: 0, max: 200, int: true },
+  lat: { label: "Latitude", min: -90, max: 90 },
+  lon: { label: "Longitude", min: -180, max: 180 },
+};
+function checkBound(k: string, x: number) {
+  const b = BOUNDS[k];
+  if (!b) return;
+  if (b.int && !Number.isInteger(x)) throw badRequest(`${b.label} must be a whole number.`);
+  if (b.positive ? x <= 0 : x < b.min) throw badRequest(`${b.label} must be ${b.positive ? "more than 0" : `at least ${b.min}`}. Leave it blank if unknown.`);
+  if (x > b.max) throw badRequest(`${b.label} must be at most ${b.max.toLocaleString("en-IN")}.`);
+}
 const BOOL = new Set(["is_gcc"]);
 const ARRAY = new Set(["aliases"]);
 
 /** Normalise form input. Blank stays null (unknown) — never coerced to 0 (rule S6). */
+const URL_FIELDS = ["public_profile_url", "website", "website_url", "linkedin_url"] as const;
+const URL_LABEL: Record<string, string> = { public_profile_url: "Public profile URL", website: "Website", website_url: "Website", linkedin_url: "LinkedIn URL" };
+
 export function normaliseInput(table: EntityTable, input: Record<string, unknown>): Row {
   const out: Row = {};
   for (const k of EDITABLE[table]) {
@@ -40,8 +62,8 @@ export function normaliseInput(table: EntityTable, input: Record<string, unknown
     } else if (NUMERIC.has(k)) {
       const s = String(v ?? "").replace(/,/g, "").trim();
       if (s === "") out[k] = null;
-      else if (!Number.isFinite(Number(s))) throw badRequest(`${k} must be a number`);
-      else out[k] = Number(s);
+      else if (!Number.isFinite(Number(s))) throw badRequest(`${BOUNDS[k]?.label ?? k} must be a number. Enter digits only, or leave it blank.`);
+      else { checkBound(k, Number(s)); out[k] = Number(s); }
     } else if (BOOL.has(k)) {
       const s = String(v ?? "").trim();
       out[k] = s === "" || s === "unknown" ? null : s === "true" || s === "on" || s === "yes";
@@ -50,9 +72,21 @@ export function normaliseInput(table: EntityTable, input: Record<string, unknown
       out[k] = s === "" ? null : s;
     }
   }
+  if (typeof out.headcount_min === "number" && typeof out.headcount_max === "number" && out.headcount_min > out.headcount_max)
+    throw badRequest("Headcount (min) cannot be more than Headcount (max).");
   if (table === "organisation" && "display_name" in out && !out.display_name) throw badRequest("display name is required");
   if (table === "person" && "full_name" in out && !out.full_name) throw badRequest("full name is required");
   if (table === "asset" && "name" in out && !out.name) throw badRequest("building name is required");
+  for (const k of URL_FIELDS) if (k in out) {
+    const r = checkHttpUrl(out[k], URL_LABEL[k] ?? "Link");
+    if (r.error) throw badRequest(r.error);
+    out[k] = r.value;
+  }
+  if (typeof out.domain === "string") {
+    const d = out.domain.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+    if (!isDomain(d)) throw badRequest("Website domain must look like company.com (no spaces, symbols or markup).");
+    out.domain = d;
+  }
   if (out.classification && !(CLASSIFICATIONS as readonly string[]).includes(out.classification)) throw badRequest("invalid classification");
   if (out.classification === null) delete out.classification;
   return out;
@@ -65,12 +99,98 @@ function same(a: unknown, b: unknown) {
   return String(a) === String(b);
 }
 
+/** Company name key: lower-case, punctuation stripped, legal suffixes (Pvt Ltd / Limited / LLP / Inc …) removed. */
+export function orgNameKey(name: string | null | undefined): string {
+  return String(name ?? "").normalize("NFKC").toLowerCase().replace(/[.,'’&()\-_/%]+/g, " ")
+    .replace(/\b(private|pvt|limited|ltd|llp|inc|incorporated|corp|corporation|co|company|plc|opc)\b/g, " ").replace(/\s+/g, " ").trim();
+}
+/** Legal form, kept apart so "ABC Pvt Ltd" and "ABC LLP" (different legal entities) are not treated as the same. */
+function legalForm(name: string | null | undefined): string | null {
+  const s = String(name ?? "").toLowerCase().replace(/[.,]/g, " ");
+  return /\bllp\b/.test(s) ? "llp" : /\b(pvt|private)\b/.test(s) ? "pvt" : /\b(ltd|limited)\b/.test(s) ? "ltd" : null;
+}
+const domainKey = (d: unknown) => String(d ?? "").toLowerCase().trim().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "") || null;
+export const personNameKey = (n: unknown) => String(n ?? "").normalize("NFKC").toLowerCase().replace(/[.,'’]/g, " ").replace(/\s+/g, " ").trim();
+
+export interface DuplicateMatch { id: string; label: string; reason: string; score: number }
+
+/** Possible existing duplicates for a new company/person (rules only). Archived rows don't count. */
+export async function findDuplicates(db: Client, ws: string, table: EntityTable, row: Row, ctx: { orgId?: string | null; email?: string | null; phone?: string | null } = {}): Promise<DuplicateMatch[]> {
+  const out = new Map<string, DuplicateMatch>();
+  const add = (id: string, label: string, reason: string, score: number) => { const p = out.get(id); if (!p || p.score < score) out.set(id, { id, label, reason, score }); };
+  if (table === "organisation") {
+    const key = orgNameKey(row.display_name ?? row.legal_name);
+    const form = legalForm(row.legal_name ?? row.display_name);
+    const first = key.split(" ")[0];
+    if (first) {
+      const { data } = await db.from("organisation").select("id, display_name, legal_name").eq("workspace_id", ws).is("archived_at", null).ilike("display_name", `%${first}%`).limit(200);
+      for (const o of data ?? []) {
+        for (const n of [o.display_name, o.legal_name]) {
+          if (!n || orgNameKey(n) !== key) continue;
+          const f2 = legalForm(n);
+          if (form && f2 && form !== f2 && !(["pvt", "ltd"].includes(form) && ["pvt", "ltd"].includes(f2))) continue; // LLP vs Pvt Ltd = different legal entity
+          add(o.id, o.display_name, "Same company name (ignoring Pvt Ltd / Limited / punctuation)", 0.9);
+        }
+      }
+    }
+    const dk = domainKey(row.domain);
+    if (dk) { const { data } = await db.from("organisation").select("id, display_name").eq("workspace_id", ws).is("archived_at", null).ilike("domain", `%${dk}%`).limit(5); for (const o of data ?? []) add(o.id, o.display_name, `Same website domain (${dk})`, 0.95); }
+    for (const k of ["cin", "gstin"] as const) if (row[k]) {
+      const { data } = await db.from("organisation").select("id, display_name").eq("workspace_id", ws).is("archived_at", null).eq(k, String(row[k]).toUpperCase().trim()).limit(5);
+      for (const o of data ?? []) add(o.id, o.display_name, `Same ${k.toUpperCase()}`, 1);
+    }
+  } else if (table === "person") {
+    const key = personNameKey(row.full_name);
+    if (key) {
+      const { data } = await db.from("person").select("id, full_name").eq("workspace_id", ws).is("archived_at", null).ilike("full_name", key.replace(/[%_\\]/g, "").replace(/ /g, "%")).limit(50);
+      const same = (data ?? []).filter((p) => personNameKey(p.full_name) === key);
+      if (same.length && ctx.orgId) {
+        const { data: emp } = await db.from("employment").select("person_id").eq("workspace_id", ws).eq("org_id", ctx.orgId).is("archived_at", null).in("person_id", same.map((p) => p.id));
+        const at = new Set((emp ?? []).map((e) => e.person_id));
+        for (const p of same) add(p.id, p.full_name, at.has(p.id) ? "Same name, already at this company" : "Same name (different or no employer)", at.has(p.id) ? 0.9 : 0.6);
+      } else for (const p of same) add(p.id, p.full_name, "Same name", 0.6);
+    }
+    for (const v of [ctx.email, ctx.phone].filter(Boolean) as string[]) {
+      const hash = createHash("sha256").update(v.toLowerCase().trim()).digest("hex");
+      const { data } = await db.from("contact_method").select("person_id, person:person_id(full_name)").eq("workspace_id", ws).eq("value_hash", hash).limit(5);
+      for (const c of (data ?? []) as Row[]) add(c.person_id, c.person?.full_name ?? "Person", "Same email / phone", 0.95);
+    }
+  }
+  return [...out.values()].sort((a, b) => b.score - a.score);
+}
+
+/** Puts each possible duplicate in the Database review queue (identity_match_candidate, pending). Never merges. */
+export async function flagDuplicates(db: Client, ws: string, userId: string, table: EntityTable, matches: DuplicateMatch[], raw: Row, newId: string | null) {
+  for (const m of matches) {
+    const { data: open } = await db.from("identity_match_candidate").select("id").eq("workspace_id", ws).eq("entity_type", table).eq("left_id", m.id).eq("decision", "pending").contains("right_raw", raw).limit(1);
+    if (open?.length && !newId) continue;
+    const ins = { workspace_id: ws, owner_user_id: userId, entity_type: table, left_id: m.id, right_id: newId, right_raw: raw, score: m.score, evidence: { reason: m.reason, source: "manual_create" }, suggested: newId ? "review_merge" : "open_existing" };
+    await db.from("identity_match_candidate").insert(ins);
+  }
+}
+
+export class DuplicateError extends Error {
+  status = 409;
+  constructor(public matches: DuplicateMatch[], label: string) {
+    super(`Possible duplicate — ${matches.slice(0, 3).map((m) => `"${m.label}" (${m.reason})`).join("; ")}. Open the existing ${label} instead, or tick "Create anyway" if this really is a different one. Flagged in Database › Review.`);
+  }
+}
+
+/** Create a company/person/building. Possible duplicates (company / person) stop the create unless `confirm_duplicate` is set. */
 export async function createEntity(db: Client, workspaceId: string, userId: string, table: EntityTable, input: Record<string, unknown>) {
   const row = normaliseInput(table, input);
+  const confirmed = ["1", "true", "on", "yes"].includes(String(input.confirm_duplicate ?? "").toLowerCase());
+  const matches = table === "asset" ? [] : await findDuplicates(db, workspaceId, table, row);
+  const raw = table === "organisation" ? { display_name: row.display_name, legal_name: row.legal_name ?? null, domain: row.domain ?? null } : { full_name: row.full_name };
+  if (matches.length && !confirmed) {
+    await flagDuplicates(db, workspaceId, userId, table, matches, raw, null);
+    throw new DuplicateError(matches, table === "organisation" ? "company" : "person");
+  }
   const { data, error } = await db.from(table)
     .insert({ ...row, workspace_id: workspaceId, owner_user_id: userId })
     .select().single();
   if (error) throw badRequest(error.message);
+  if (matches.length) await flagDuplicates(db, workspaceId, userId, table, matches, raw, data.id as string);
   return data as Row;
 }
 
@@ -179,7 +299,7 @@ export async function listEntities(db: Client, workspaceId: string, table: Entit
       : "id, name, asset_kind, parent_asset_id, address, status, grade, total_area_sf, classification, updated_at, archived_at";
   let query: any = (db as any).from(table).select(cols, { count: "exact" }).eq("workspace_id", workspaceId);
   query = opts.archived ? query.not("archived_at", "is", null) : query.is("archived_at", null);
-  if (opts.q?.trim()) query = query.ilike(nameCol, `%${opts.q.trim().replace(/[%_]/g, (m) => `\\${m}`)}%`);
+  if (opts.q?.trim()) query = query.ilike(nameCol, containsLike(opts.q.trim()));
   const { data, count, error } = await query.order(nameCol).range(page * pageSize, page * pageSize + pageSize - 1);
   if (error) throw badRequest(error.message);
   return { rows: (data ?? []) as Row[], total: count ?? 0, page, pageSize };

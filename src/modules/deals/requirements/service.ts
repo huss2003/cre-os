@@ -5,6 +5,7 @@
  * - Every save appends an immutable requirement_version snapshot.
  */
 import { proposeChange } from "@/lib/services/changes";
+import { escapeLike } from "@/lib/util/like";
 import { type DealsCtx, DealsError, dbError, must, owned } from "../ctx";
 import { syncQuestionTasks } from "./tasks";
 import {
@@ -116,16 +117,21 @@ export function assertRequirementRanges(r: Record<string, unknown>) {
 
 export async function createRequirement(ctx: DealsCtx, input: CreateRequirementInput) {
   if (!input.title?.trim()) throw new DealsError(400, "title is required");
+  // Validate everything before any write, so a bad value never leaves an orphan company behind.
+  const { columns, constraints } = buildPatch({ constraints: {} }, input.changes ?? []);
+  assertRequirementRanges(columns);
   let orgId = input.orgId ?? null;
   if (!orgId) {
     const name = input.orgName?.trim();
     if (!name) throw new DealsError(400, "choose a company or enter a new company name");
-    const existing = await ctx.db.from("organisation").select("id").eq("workspace_id", ctx.workspaceId).ilike("display_name", name).limit(1).maybeSingle();
-    if (existing.data) orgId = (existing.data as { id: string }).id;
+    // Exact, case-insensitive match (wildcards escaped). Two matches => ask the user to pick.
+    const existing = await ctx.db.from("organisation").select("id").eq("workspace_id", ctx.workspaceId).is("archived_at", null).ilike("display_name", escapeLike(name)).limit(2);
+    if (existing.error) throw dbError(existing.error, "organisation");
+    const hits = (existing.data ?? []) as { id: string }[];
+    if (hits.length > 1) throw new DealsError(409, `More than one company is called "${name}". Choose the right one from the company list instead.`);
+    if (hits.length === 1) orgId = hits[0].id;
     else orgId = (must(await ctx.db.from("organisation").insert({ ...owned(ctx, input.classification), display_name: name }).select("id").single(), "organisation") as { id: string }).id;
   }
-  const { columns, constraints } = buildPatch({ constraints: {} }, input.changes ?? []);
-  assertRequirementRanges(columns);
   const anyValue = Object.values(columns).some((v) => v !== null && !(Array.isArray(v) && v.length === 0)) || Object.keys(constraints.values ?? {}).length > 0;
   const row = must(await ctx.db.from("requirement").insert({
     ...owned(ctx, input.classification), org_id: orgId, title: input.title.trim(), ...columns, constraints,

@@ -76,7 +76,8 @@ async function seedRow(db: Q, s: Schema, table: string, memo: Map<string, string
     if (c.col === "id" || c.col === "row_version" || c.col === "created_at" || c.col === "updated_at" || c.col === "archived_at") continue;
     const fk = s.fks.find((f) => f.table === table && f.col === c.col);
     const required = (!c.nullable && !c.hasDefault) || (c.udt === "bool" && s.chks.some((k) => k.table === table && k.def === `CHECK (${c.col})`));
-    if (!required && !(fillAll && fk)) continue;
+    const inCheck = s.chks.some((k) => k.table === table && k.col === c.col); // e.g. CHECK (a IS NOT NULL OR b IS NOT NULL)
+    if (!required && !(fillAll && (fk || inCheck))) continue;
     if (fk) {
       if (fk.ref_schema === "auth") { row[c.col] = USERS.owner.id; continue; }
       if (fk.ref_table === "workspace") { row[c.col] = WS1; continue; }

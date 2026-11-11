@@ -55,7 +55,17 @@ export function extract(kind: string, out: Row, inp: Row): Pick<DeckModel, "reco
       const ps = ((out.properties ?? []) as Row[]).slice().sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
       tables.push({ title: "Options", head: ["Rank", "Property", "Score", "Occupancy cost", "Eligibility", "Evidence"], rows: ps.map((p) => [v(p.rank), v(p.name), v(p.score), rs(p.occupancyCost), v(p.eligibility), v(p.evidence)]) });
       charts.push(chartOf("Weighted score", "points", ps.map((p) => [String(p.name), p.score])), chartOf("Occupancy cost over the term", "₹", ps.map((p) => [String(p.name), p.occupancyCost])));
-      rec = [out.recommendation?.explanation].filter(Boolean).map(String);
+      const rq = (inp.requirement ?? {}) as Row;
+      if (Object.keys(rq).length) tables.unshift({ title: "Your requirement — summary", head: ["Item", "Value"], rows: [
+        ["Requirement", v(rq.title)], ["Area (SF)", `${v(rq.areaMinSf)} – ${v(rq.areaMaxSf)} (target ${v(rq.areaTargetSf)}) ${rq.areaBasis ?? ""}`.trim()],
+        ["Preferred micro-markets", Array.isArray(rq.microMarkets) && rq.microMarkets.length ? rq.microMarkets.join(", ") : "Unknown"],
+        ["Rent budget ₹/SF/month", rq.budgetMax != null ? `${v(rq.budgetMax)} (client-confirmed)` : rq.budgetEstimate != null ? `${v(rq.budgetEstimate)} (estimated — unconfirmed, not used to exclude)` : "Not set"],
+        ["Term (months)", v(rq.termMonths)]] });
+      const pc = ps.map((p) => [v(p.name), [...strs(p.advantages)].join("; ") || "None recorded", [...strs(p.disadvantages), ...strs(p.limitations)].join("; ") || "None recorded"]);
+      tables.push({ title: "Advantages and shortcomings", head: ["Property", "Advantages", "Shortcomings / disadvantages"], rows: pc });
+      const fb = (out.siteVisitFeedback ?? []) as Row[];
+      if (fb.length) tables.push({ title: "Site-visit feedback (context only — never excludes)", head: ["Property", "Visit", "Interest", "Comments", "Concerns"], rows: fb.map((f) => [v(f.name), `${v(f.meeting)} ${f.date ?? ""}`.trim(), v(f.interest), strs(f.comments).join("; ") || "—", strs(f.concerns).join("; ") || "—"]) });
+      if (out.recommendation?.explanation) rec = [`Recommended: ${String(out.recommendation.explanation)}`];
       break;
     }
     case "lease_economics": {

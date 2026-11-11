@@ -1,4 +1,7 @@
-/** Default scoring models (version 1 for every new workspace). Admins change them on /scoring/models — no code change. */
+/**
+ * Default scoring models. Admins change them on /scoring/models — no code change. When these defaults change, a workspace
+ * still on an untouched default version gets a NEW version (old results keep pointing at the old one — history stays).
+ */
 import type { ModelKey, ModelVersion, FactorDef } from "./engine";
 
 const f = (key: string, label: string, weight: number, unknown: FactorDef["unknown"], description: string): FactorDef => ({ key, label, weight, unknown, description });
@@ -25,13 +28,12 @@ export const MODELS: Record<ModelKey, { name: string; purpose: string; entity: s
   lead: {
     name: "Lead priority", entity: "organisation", purpose: "How soon a company is likely to become an actionable CRE opportunity. A high score is not readiness to transact.",
     version: { bands: FIVE, config: {}, factors: [
-      f("need", "Identifiable need", 25, "zero", "Lease event, requirement, expansion/GCC/relocation/consolidation signal."),
-      f("timing", "Timing", 20, "exclude", "Days to the nearest dated event or requirement decision date."),
-      f("budget", "Budget evidence", 10, "exclude", "Only a recorded requirement budget counts. Never inferred."),
-      f("authority", "Decision-maker access", 15, "zero", "Best contact relevance at the company."),
-      f("fit", "Target fit", 10, "neutral", "Company attractiveness score."),
+      f("timing", "Timing", 25, "exclude", "Days to the nearest dated event or requirement decision date."),
+      f("need", "Need / trigger", 25, "zero", "Lease event, requirement, expansion/GCC/relocation/consolidation signal."),
+      f("authority", "Relationship access", 20, "zero", "Best contact relevance at the company (decision-maker access)."),
+      f("fit", "Commercial fit", 15, "neutral", "Company attractiveness, plus a recorded requirement budget (never inferred)."),
       f("engagement", "Engagement", 10, "zero", "Meaningful interactions in the last 180 days."),
-      f("evidence", "Evidence strength", 10, "zero", "Strength and recency of the best supporting signal."),
+      f("evidence", "Evidence freshness", 5, "zero", "Recency and strength of the best supporting signal."),
     ] },
   },
   contact: {
@@ -50,10 +52,12 @@ export const MODELS: Record<ModelKey, { name: string; purpose: string; entity: s
       f("verified", "Verified", 15, "zero", "Client-confirmed vs draft/estimated."),
       f("area", "Area range", 15, "zero", "Min/target/max area provided."),
       f("location", "Preferred micro-market", 10, "zero", "Preferred geographies set."),
-      f("budget", "Budget", 10, "zero", "Budget min/max recorded."),
+      f("budget", "Budget", 10, "exclude", "Budget min/max recorded. Unknown budget is excluded (not scored as zero) and listed as missing."),
       f("timing", "Move-in / decision date", 15, "zero", "Occupation or decision date set, and how soon."),
       f("specs", "Lease terms & specs", 10, "zero", "Lease duration, furnishing and other constraints captured."),
       f("decision_maker", "Decision-maker", 10, "zero", "Confirmed-by person or stakeholder recorded."),
+      f("approval", "Approval process", 5, "zero", "Procurement process / commercial authority or an approver stakeholder recorded."),
+      f("feasibility", "Commercial feasibility", 5, "exclude", "Recorded budget compared with asking rents of matched / shortlisted properties."),
       f("freshness", "Last verified", 15, "exclude", "Days since confirmation / last update."),
     ] },
   },

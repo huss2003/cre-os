@@ -64,6 +64,21 @@ describe("space duplicate (DB-144)", () => {
   });
 });
 
+describe("place duplicate", () => {
+  it("blocks the same place name/alias (case + spaces ignored) under the same parent; archived places don't block", async () => {
+    const { addLinked } = await import("./linked");
+    const db = await userClient("owner");
+    const t = tag("gp");
+    const owner = "00000000-0000-4000-8000-000000000001";
+    const city = (await db.from("geography").insert({ workspace_id: WS1, level: "city", name: `City ${t}` }).select("id").single()).data!.id;
+    await addLinked(db, WS1, owner, "geography", null, fd({ level: "locality", name: `Kharadi ${t}`, parent_id: city, aliases: `Kharadi Bypass ${t}` }));
+    await expect(addLinked(db, WS1, owner, "geography", null, fd({ level: "locality", name: `  kharadi   ${t.toUpperCase()} `, parent_id: city }))).rejects.toThrow(/already exists/);
+    await expect(addLinked(db, WS1, owner, "geography", null, fd({ level: "micro_market", name: `KHARADI BYPASS ${t}`, parent_id: city }))).rejects.toThrow(/already exists/);
+    await db.from("geography").insert({ workspace_id: WS1, level: "locality", name: `Old ${t}`, parent_id: city, archived_at: new Date().toISOString() });
+    await addLinked(db, WS1, owner, "geography", null, fd({ level: "locality", name: `Old ${t}`, parent_id: city }));
+  });
+});
+
 describe("search by domain (DB-029)", () => {
   it("finds a company by its website domain", async () => {
     const db = await userClient("owner");

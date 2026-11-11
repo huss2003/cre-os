@@ -90,7 +90,7 @@ export function Chip({ tone, children }: { tone: "ok" | "bad" | "muted"; childre
 /** Calm disclosure row for the Manage area. */
 export function Disclosure({ title, meta, children }: { title: string; meta?: string; children: ReactNode }) {
   return (
-    <details className="group border-b border-line">
+    <details className="group/dossier border-b border-line">
       <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 py-3 text-[15px] font-medium focus-visible:outline-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
         <span>{title}{meta ? <span className="ml-2 text-sm font-normal text-ink-soft">{meta}</span> : null}</span>
         <Chevron />
@@ -100,7 +100,7 @@ export function Disclosure({ title, meta, children }: { title: string; meta?: st
   );
 }
 export function Chevron() {
-  return <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-ink-soft transition-transform group-open:rotate-180 motion-reduce:transition-none" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+  return <svg aria-hidden viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-ink-soft transition-transform group-open/dossier:rotate-180 motion-reduce:transition-none" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
 export const OUTCOME_LABEL: Record<string, string> = { positive: "Went well", neutral: "Neutral", negative: "Not interested", no_show: "Didn't take place" };

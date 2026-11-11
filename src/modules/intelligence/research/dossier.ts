@@ -8,6 +8,13 @@ import {
   expiryFor, isExpired, isoDate, addDays,
 } from "../common";
 
+/** Human labels for internal source kinds (never show table names or ids to users). */
+export const SOURCE_KIND_LABEL: Record<string, string> = {
+  signal_claim: "Stored evidence", organisation: "Company record", organisation_relation: "Company relationship", employment: "Employment record",
+  lease: "Lease record", lease_event: "Lease date", market_transaction: "Market transaction", interaction: "Interaction log",
+  stakeholder: "Stakeholder record", relationship_edge: "Relationship record", rule: "Rule",
+};
+
 export interface ClaimSource { kind: "signal_claim" | "organisation" | "organisation_relation" | "employment" | "lease" | "lease_event" | "market_transaction" | "interaction" | "stakeholder" | "relationship_edge" | "rule"; id?: string | null; url?: string | null; locator?: string | null }
 
 /**
@@ -406,7 +413,7 @@ export function sourcesSection(sections: DossierSection[]): DossierSection {
   for (const s of sections) for (const c of s.claims) {
     if (c.source.kind === "rule") continue;
     const k = `${c.source.kind}:${c.source.id ?? ""}:${c.source.url ?? ""}`;
-    if (!seen.has(k)) seen.set(k, { ...c, text: c.source.url ?? `${c.source.kind}${c.source.id ? ` ${c.source.id.slice(0, 8)}` : ""}${c.source.locator ? ` (${c.source.locator})` : ""}` });
+    if (!seen.has(k)) seen.set(k, { ...c, text: c.source.url ?? `${SOURCE_KIND_LABEL[c.source.kind] ?? "Record"}: ${c.text.length > 90 ? `${c.text.slice(0, 89)}…` : c.text}` });
   }
   const claims = [...seen.values()].sort((a, b) => EVIDENCE_TIER_RANK[b.evidence_tier] - EVIDENCE_TIER_RANK[a.evidence_tier]);
   return { key: "sources", title: SECTION_TITLES.sources, status: claims.length ? "known" : "unknown", claims, note: claims.length ? undefined : "No sources on file yet." };

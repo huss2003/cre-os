@@ -31,20 +31,25 @@ async function find(db: Db, ws: string): Promise<PracticeIds> {
     const { data } = await db.from(table).select("id").eq("workspace_id", ws).eq(col, val).is("archived_at", null).order("created_at").limit(1);
     return (data?.[0] as Row | undefined)?.id as string | undefined;
   };
-  [ids.company, ids.contact, ids.requirement, ids.opportunity, ids.signal] = await Promise.all([
-    one("organisation", "display_name", PRACTICE.company), one("person", "full_name", PRACTICE.contact),
-    one("requirement", "title", PRACTICE.requirement), one("opportunity", "name", PRACTICE.opportunity), one("signal", "title", PRACTICE.signal),
-  ]);
-  const { data: mv } = await db.from("meeting_visit").select("id").eq("workspace_id", ws).eq("title", PRACTICE.meeting).is("archived_at", null).limit(5);
-  const mvIds = ((mv ?? []) as Row[]).map((m) => m.id);
-  if (mvIds.length) {
+  // One round trip for the five lookups, the meeting chain and the outreach chain (outreach needs the contact id).
+  const contactP = one("person", "full_name", PRACTICE.contact);
+  const meetingP = (async () => {
+    const { data: mv } = await db.from("meeting_visit").select("id").eq("workspace_id", ws).eq("title", PRACTICE.meeting).is("archived_at", null).limit(5);
+    const mvIds = ((mv ?? []) as Row[]).map((m) => m.id);
+    if (!mvIds.length) return undefined;
     const { data: prep } = await db.from("meeting_prep").select("id").eq("workspace_id", ws).in("meeting_visit_id", mvIds).is("archived_at", null).order("created_at").limit(1);
-    ids.meeting = (prep?.[0] as Row | undefined)?.id;
-  }
-  if (ids.contact) {
-    const { data: oi } = await db.from("outreach_item").select("id").eq("workspace_id", ws).eq("person_id", ids.contact).is("archived_at", null).order("created_at", { ascending: false }).limit(1);
-    ids.outreach = (oi?.[0] as Row | undefined)?.id;
-  }
+    return (prep?.[0] as Row | undefined)?.id as string | undefined;
+  })();
+  const outreachP = contactP.then(async (contact) => {
+    if (!contact) return undefined;
+    const { data: oi } = await db.from("outreach_item").select("id").eq("workspace_id", ws).eq("person_id", contact).is("archived_at", null).order("created_at", { ascending: false }).limit(1);
+    return (oi?.[0] as Row | undefined)?.id as string | undefined;
+  });
+  [ids.company, ids.contact, ids.requirement, ids.opportunity, ids.signal, ids.meeting, ids.outreach] = await Promise.all([
+    one("organisation", "display_name", PRACTICE.company), contactP,
+    one("requirement", "title", PRACTICE.requirement), one("opportunity", "name", PRACTICE.opportunity), one("signal", "title", PRACTICE.signal),
+    meetingP, outreachP,
+  ]);
   return ids;
 }
 

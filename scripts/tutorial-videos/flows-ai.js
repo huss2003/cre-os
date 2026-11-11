@@ -303,14 +303,15 @@ const FLOWS = [
     },
   },
   {
-    slug: "automations", category: "Ask AI & automation", title: "Automations — what each chain does, on/off, a run's steps",
+    slug: "automations", category: "Ask AI & automation", title: "Automation → Chains — what each chain does, on/off, a run's steps",
     learn: "Six chains run by themselves every few minutes. Read what each does, switch any off, and open a run to see each step and why.", tryRoute: "/workflows",
     async run(t) {
       const p = t.page;
       leaseChain("prepare");
       await t.goto("/today");
-      await t.title("Automations", "Chains that run on their own every few minutes. Each step shows what happened and why.");
-      await t.step("Open More, then Automations.", async () => { await t.moveAndClick(nav(p).getByRole("button", { name: /More/ })); await t.moveAndClick(navLink(p, "Automations")); });
+      await t.title("Automation → Chains", "Chains that run on their own every few minutes. Each step shows what happened and why.");
+      await t.step("Open More, then Automation.", async () => { await t.moveAndClick(nav(p).getByRole("button", { name: /More/ })); await t.moveAndClick(navLink(p, "Automation")); });
+      await t.step("Open the Chains tab at the top.", () => t.moveAndClick(p.getByRole("link", { name: "Chains", exact: true })));
       await t.step("Signal → action: a new signal matches the company, finds decision-makers, rescores, maybe prepares one draft.", () => t.point(main(p).getByText(/^Signal → action/)));
       await t.step("Lease → renewal / relocation: a lease near expiry gets a proposed requirement, options and a task.", () => t.point(main(p).getByText(/^Lease → renewal/)));
       await t.step("Reply → meeting: a reply asking to meet links the meeting (no time is guessed) and pauses follow-ups.", () => t.point(main(p).getByText(/^Reply → meeting/)));

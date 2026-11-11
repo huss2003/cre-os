@@ -82,3 +82,14 @@ describe("nego-1.0 negotiation comparison", () => {
     expect(sameOutputs(a, analyseNegotiation(versions, [{ name: "Fit-out ₹50L", items: [{ type: "fitout_contribution", amount: 5000000 }] }]))).toBe(true);
   });
 });
+
+describe("offer names are kept", () => {
+  it("typed name persists in terms and label; versions keep their own names; generic names fall back", () => {
+    let v = appendOffer([], { ...base, name: "Building A" }, "2026-11-01T00:00:00Z");
+    v = appendOffer(v, { ...base, name: "Building A revised" }, "2026-11-02T00:00:00Z");
+    v = appendOffer(v, { ...base, name: "Offer" }, "2026-11-03T00:00:00Z");
+    expect(v.map((x) => x.label)).toEqual(["Offer 1 — Building A", "Offer 2 — Building A revised", "Offer 3"]);
+    expect(v[0].terms.name).toBe("Building A");
+    expect(analyseNegotiation(v, []).offers[0].label).toBe("Offer 1 — Building A");
+  });
+});

@@ -10,6 +10,7 @@ import { compareRenewalRelocation, type RvrInput, type RvrResult } from "@/modul
 import { RenewalForm } from "../_parts/form";
 import { RenewalResults } from "../_parts/results";
 import { VersionList, type StoredAnalysis } from "../../managed/_parts/shared";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 export default async function RenewalView({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const { id } = await params; const { v } = await searchParams;
@@ -23,6 +24,7 @@ export default async function RenewalView({ params, searchParams }: { params: Pr
   const reproducible = formula === "rvr-1.0" ? stableStringify(compareRenewalRelocation(inputs)) === stableStringify(outputs) : null;
   return (
     <div className="space-y-6">
+      <ReassessBanner ctx={ctx} entityType="deal_analysis" entityId={a.id} />
       <ToolHeader eyebrow={`Renewal vs relocation · version ${viewing} of ${a.current_version}`} title={a.title}
         purpose="Read the answer first, then the numbers behind it. Change any input below and compare again — that saves a new version."
         back={{ href: "/toolkit/renewal", label: "All analyses" }} steps={["Stay option", "Move option", "Compare", "Decide"]} current={3}

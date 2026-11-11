@@ -50,7 +50,8 @@ export const NAV_GROUPS: NavGroup[] = [
     { key: "intel", label: "Market & reports", hint: "Market, network, legal, content", href: "/market", tabs: [
       { href: "/market", label: "Market" }, { href: "/network", label: "Network" }, { href: "/legal", label: "Legal" },
       { href: "/content", label: "Content" }, { href: "/insights", label: "Reports" }] },
-    one("workflows", "Automations", "Chains that run on their own", "/workflows"),
+    { key: "automation", label: "Automation", hint: "Background jobs, schedules, plans and notifications", href: "/automation", tabs: [
+      { href: "/automation", label: "Automation" }, { href: "/workflows", label: "Chains" }] },
     one("imports", "Imports", "Bring in a spreadsheet", "/imports", { minRole: "editor" }),
     one("database", "Database", "Browse all tables", "/database", { minRole: "editor" }),
     one("geography", "Places", "Cities, micro-markets", "/geography", { minRole: "editor" }),

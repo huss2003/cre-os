@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { userClient, adminClient, USERS, WS1, tag } from "../../../../tests/helpers";
 import { intakeDocument, processDocument, updateAndReprocess, NO_TRANSCRIPTION, type DocCtx, type DocDeps } from "./service";
-import { attentionQueues, listFailedJobs, requestMoreInfo, retryJob } from "./review";
+import { attentionQueues, failedJobCount, listFailedJobs, requestMoreInfo, retryJob } from "./review";
 
 type Db = Awaited<ReturnType<typeof userClient>>;
 let colleague: Db, owner: Db, admin: Db;
@@ -104,6 +104,7 @@ describe("review queues", () => {
     const ownerQ = await attentionQueues(owner, WS1, "owner");
     expect(ownerQ.failedJobs!.some((j) => j.id === job!.id)).toBe(true);
     expect((await listFailedJobs(owner, WS1)).some((j) => j.id === job!.id)).toBe(true);
+    expect(await failedJobCount(colleague, WS1)).toBeGreaterThanOrEqual(1); // non-admins get the count only
     const colQ = await attentionQueues(colleague, WS1, "editor");
     expect(colQ.failedJobs).toBeNull();
     await expect(retryJob(colleague, WS1, "editor", job!.id)).rejects.toThrow(/admin/);

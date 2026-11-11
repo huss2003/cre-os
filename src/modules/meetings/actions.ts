@@ -128,7 +128,8 @@ export async function emailFollowupAction(id: string): Promise<ActionState> {
     const target = x.attendees.find((a) => a.personId && !a.doNotContact);
     if (!target) return { error: "No attendee is a saved contact who can be contacted." };
     const { createOutreach } = await import("@/modules/outreach/service");
-    await createOutreach(ctx.db, ctx.workspaceId, ctx.userId, { personId: target.personId!, channels: ["meeting_followup"], scenario: "meeting_followup", opportunityId: x.prep.opportunity_id });
+    const o = x.prep.outcome?.proposed as S.Outcome | undefined;
+    await createOutreach(ctx.db, ctx.workspaceId, ctx.userId, { personId: target.personId!, channels: ["meeting_followup"], scenario: "meeting_followup", opportunityId: x.prep.opportunity_id, extraFacts: o ? S.followupFacts(o, x.attendees) : [] });
     return done("Email follow-up draft ready in Outreach — nothing was sent.", id);
   } catch (e) { return fail(e); }
 }

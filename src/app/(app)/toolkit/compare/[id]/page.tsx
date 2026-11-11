@@ -1,3 +1,5 @@
+import { cleanText } from "@/modules/changes/display";
+import type { SiteVisitFeedback } from "@/modules/toolkit/comparison";
 import { DeckPanel } from "@/modules/toolkit/ui/deck-button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,6 +12,7 @@ import { getAnalysis } from "@/modules/toolkit/store";
 import type { PropertyRating, RatingProperty, RatingResult } from "@/modules/toolkit/calc/rating";
 import { COMPARE_STEPS, whyLost } from "@/modules/toolkit/ui/compare/explain";
 import { Certainty, Field, Legend, MissingNote, Readout, Status, ToolHeader, btn, inputCls } from "@/modules/toolkit/ui/kit";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 const CERT: Record<string, string> = { approved: "confirmed", actual: "confirmed", quoted: "quoted", estimated: "estimated", manual: "estimated" };
 const certOf = (p: PropertyRating) => (p.evidence ? CERT[p.evidence] ?? "estimated" : "missing");
@@ -55,6 +58,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
+      <ReassessBanner ctx={ctx} entityType="deal_analysis" entityId={a.id} />
       <ToolHeader back={{ href: "/toolkit/compare", label: "All comparisons" }} eyebrow="Property comparison" title={a.title}
         purpose={`${a.requirement?.title ?? "No requirement linked"} · rating model ${out.model.name}${out.model.version ? ` v${out.model.version}` : ""} · lease term ${out.termMonths} months${out.termAssumed ? " (assumed)" : ""} · formula ${out.formula}`}
         steps={COMPARE_STEPS} current={2} />
@@ -75,7 +79,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
 
       <section aria-labelledby="rank-h" className="space-y-3">
         <h2 id="rank-h" className="text-lg font-semibold">Ranking</h2>
-        <ol className="grid gap-3 md:grid-cols-2">
+        <ol className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {ranked.map((p) => {
             const r = raw.get(p.key);
             return (
@@ -85,7 +89,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
                   <div className="flex flex-wrap gap-1"><Status s={p.eligibility} />{p.source === "manual" ? <Status s="manual" label="✎ Manual entry" /> : null}</div>
                 </div>
                 <p className="mt-0.5 text-xs text-ink-soft">{[r?.microMarket, r?.grade ? `Grade ${r.grade}` : null, r?.areaSf != null ? sf(r.areaSf) : null].filter(Boolean).join(" · ") || "Location, grade and area unknown"}</p>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <ScoreBar score={p.score} eligible={p.eligibility === "eligible"} />
                   <Readout label="Effective cost" unknown={p.occupancyCost === null} value={p.occupancyCost === null ? "" : `₹${p.occupancyCost.toFixed(2)}`} sub={`per sf / month over ${out.termMonths} months`} />
                 </div>
@@ -100,7 +104,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
                         <p className="text-xs text-ink-soft">{f.score === null ? `Left out — ${f.reason ?? "unknown"}` : f.reason}</p>
                       </li>
                     ))}
-                    {p.rules.map((x, i) => <li key={`r${i}`} className="text-xs"><span aria-hidden>{x.outcome === "fail" ? "✕" : x.outcome === "unknown" ? "?" : "✓"} </span><span className="font-medium">{x.outcome === "fail" ? "Fails" : x.outcome === "unknown" ? "Can't check" : "Passes"}:</span> {x.label} <span className="text-ink-soft">({x.detail})</span></li>)}
+                    {p.rules.map((x, i) => <li key={`r${i}`} className="text-xs"><span aria-hidden>{x.outcome === "fail" ? "✕" : x.outcome === "unknown" ? "?" : x.outcome === "not_applied" ? "–" : "✓"} </span><span className="font-medium">{x.outcome === "fail" ? "Fails" : x.outcome === "unknown" ? "Can't check" : x.outcome === "not_applied" ? "Not applied" : "Passes"}:</span> {x.label} <span className="text-ink-soft">({x.detail})</span></li>)}
                   </ul>
                 </details>
               </li>
@@ -111,10 +115,20 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
 
       <MissingNote items={missingAll} what="fill these in and re-run to firm up the ranking" />
 
+      {(out as RatingResult & { siteVisitFeedback?: SiteVisitFeedback[] }).siteVisitFeedback?.length ? (
+        <section aria-labelledby="fb-h" className="space-y-2 rounded-xl border border-line bg-surface p-5">
+          <h2 id="fb-h" className="font-semibold">Site-visit feedback</h2>
+          <p className="text-xs text-ink-soft">From the client&apos;s site visits. Shown for context — it does not change the ranking or exclude any building.</p>
+          <ul className="space-y-2 text-sm">{(out as RatingResult & { siteVisitFeedback: SiteVisitFeedback[] }).siteVisitFeedback.map((f, i) => (
+            <li key={i}><span className="font-medium">{f.name}</span> <span className="text-ink-soft">· {f.meeting}{f.date ? ` · ${f.date}` : ""}{f.interest ? ` · interest: ${f.interest}` : ""}{f.overall ? ` · ${f.overall}/5` : ""}{f.clientRejected ? " · client said no" : ""}</span>
+              {f.comments.length ? <ul className="ml-4 list-disc text-xs">{f.comments.map((c) => <li key={c}>{c}</li>)}</ul> : null}
+              {f.concerns.length ? <ul className="ml-4 list-disc text-xs text-amber-800">{f.concerns.map((c) => <li key={c}>Concern — {c}</li>)}</ul> : null}</li>))}</ul>
+        </section>
+      ) : null}
       <section aria-labelledby="tbl-h" className="space-y-3">
         <h2 id="tbl-h" className="text-lg font-semibold">Side-by-side detail</h2>
         <p className="text-sm text-ink-soft md:hidden">Scroll sideways to see every building →</p>
-        <div data-tour="compare-table" className="overflow-x-auto rounded-2xl border border-line bg-surface">
+        <div data-tour="compare-table" className="relative max-w-full overflow-x-auto rounded-2xl border border-line bg-surface">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-canvas">
@@ -143,7 +157,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
                 if (!x || x.score === null) return <span className="text-xs text-ink-soft">Left out — {x?.reason ?? "unknown"}</span>;
                 return <div><div className="h-1.5 rounded-full bg-canvas"><div className="h-1.5 rounded-full bg-brand/70" style={{ width: `${x.score * 100}%` }} /></div><p className="mt-1 text-xs text-ink-soft">{Math.round(x.score * 100)}% · {x.reason}</p></div>;
               }))}
-              {row("Must-have rules", (p) => <ul className="space-y-1 text-xs">{p.rules.map((r, i) => <li key={i} className={r.outcome === "fail" ? "text-rose-700" : r.outcome === "unknown" ? "text-amber-800" : "text-ink-soft"}><span aria-hidden>{r.outcome === "fail" ? "✕" : r.outcome === "unknown" ? "?" : "✓"} </span><span className="sr-only">{r.outcome === "fail" ? "Fails: " : r.outcome === "unknown" ? "Cannot check: " : "Passes: "}</span>{r.label} <span className="opacity-70">({r.detail})</span></li>)}</ul>)}
+              {row("Must-have rules", (p) => <ul className="space-y-1 text-xs">{p.rules.map((r, i) => <li key={i} className={r.outcome === "fail" ? "text-rose-700" : r.outcome === "unknown" ? "text-amber-800" : "text-ink-soft"}><span aria-hidden>{r.outcome === "fail" ? "✕" : r.outcome === "unknown" ? "?" : r.outcome === "not_applied" ? "–" : "✓"} </span><span className="sr-only">{r.outcome === "fail" ? "Fails: " : r.outcome === "unknown" ? "Cannot check: " : r.outcome === "not_applied" ? "Not applied: " : "Passes: "}</span>{r.label} <span className="opacity-70">({r.detail})</span></li>)}</ul>)}
               {row("Advantages", (p) => <List items={p.advantages} icon="+" />)}
               {row("Disadvantages", (p) => <List items={p.disadvantages} icon="−" />)}
               {row("Limitations", (p) => <List items={p.limitations} icon="•" />)}
@@ -160,7 +174,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
         <Link href="/toolkit" className={`${btn.secondary} mt-3`}>Open Deal toolkit</Link>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <section aria-labelledby="rerun-h" className="rounded-xl border border-line bg-surface p-5">
           <h2 id="rerun-h" className="font-semibold">Change inputs &amp; re-run (saves a new version)</h2>
           <p className="mt-1 mb-3 text-sm text-ink-soft">Re-reads buildings, quotes and availability, keeps manual rows, and saves a new version. Older versions stay unchanged.</p>
@@ -174,7 +188,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
           <h2 id="ver-h" className="text-sm font-semibold text-ink-soft">Versions</h2>
           <ul className="mt-2 divide-y divide-line text-sm">
             {(a.versions as { version: number; formula_version: string; note: string | null; created_at: string }[]).map((x) => (
-              <li key={x.version} className="flex flex-wrap justify-between gap-2 py-2 text-ink-soft"><span><span className="font-medium text-ink">v{x.version}</span> · {x.formula_version}{x.note ? ` · ${x.note}` : ""}</span><span className="text-xs">{new Date(x.created_at).toLocaleString("en-IN")}</span></li>
+              <li key={x.version} className="flex flex-wrap justify-between gap-2 py-2 text-ink-soft"><span><span className="font-medium text-ink">v{x.version}</span> · {x.formula_version}{x.note && cleanText(x.note) ? ` · ${cleanText(x.note)}` : ""}</span><span className="text-xs">{new Date(x.created_at).toLocaleString("en-IN")}</span></li>
             ))}
           </ul>
         </section>

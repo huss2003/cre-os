@@ -5,10 +5,11 @@ import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
 import { listQueue, type QueueTab } from "@/modules/changes/service";
+import { cleanText, humanToken } from "@/modules/changes/display";
 import { ProposalCard } from "@/modules/changes/ui/proposal-card";
 import { ActionForm, Submit } from "@/modules/changes/ui/client";
 import { batchUndoAction } from "@/modules/changes/actions";
-import { attentionQueues } from "@/modules/capture/docs/review";
+import { attentionQueues, failedJobCount } from "@/modules/capture/docs/review";
 import { AttentionPanel, RequestInfo } from "@/modules/capture/docs/attention";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = Record<string, any>;
@@ -42,6 +43,12 @@ async function Body({ searchParams }: Props) {
       .eq("status", "needs_review").is("archived_at", null).order("created_at", { ascending: false }).limit(50),
     attentionQueues(ctx.db, ctx.workspaceId, ctx.role),
   ]);
+  // Drafts belonging to an outreach item open on that item's page; others in the Drafts queue (there is no /drafts/<id> page).
+  const draftIds = ("drafts" in q && q.drafts ? q.drafts : []).map((d) => d.id as string);
+  const { data: oItems } = draftIds.length ? await ctx.db.from("outreach_item").select("id, draft_id").eq("workspace_id", ctx.workspaceId).in("draft_id", draftIds) : { data: [] };
+  const outreachByDraft = new Map(((oItems ?? []) as AnyRow[]).map((o) => [o.draft_id as string, o.id as string]));
+  const failedJobs = await failedJobCount(ctx.db, ctx.workspaceId).catch(() => 0);
+  const { count: outdatedCount } = await ctx.db.from("reassessment_mark").select("id", { count: "exact", head: true }).eq("workspace_id", ctx.workspaceId).eq("state", "open");
   const pendingCaptures = (caps ?? []) as AnyRow[];
   // Imports with rows still waiting (counted per source file); reviewed in bulk on the import summary page.
   const { data: batches } = await ctx.db.from("import_batch").select("id, file_name, created_at, source_object_id, counts").eq("workspace_id", ctx.workspaceId)
@@ -99,6 +106,8 @@ async function Body({ searchParams }: Props) {
         ))}
         <Link href="/approvals/conflicts" className="whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-sm">Conflicts</Link>
         <Link href="/approvals/stale" className="whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-sm">Stale records</Link>
+        <Link href="/approvals/outdated" className="whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-sm">Outdated proposals{outdatedCount ? <> <Badge tone="warn">{outdatedCount}</Badge></> : null}</Link>
+        <Link href="/approvals/jobs" className="whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-sm">Failed jobs{failedJobs ? <> <Badge tone="bad">{failedJobs}</Badge></> : null}</Link>
       </nav>
 
       {"proposals" in q && q.proposals ? (
@@ -128,7 +137,7 @@ async function Body({ searchParams }: Props) {
           <Card title="Drafts to review">
             <ul className="divide-y divide-line">{q.drafts.map((d) => (
               <li key={d.id} className="py-3 text-sm">
-                <Link href={`/drafts/${d.id}`} className="font-medium text-brand">{d.subject ?? `${d.channel} draft`}</Link>
+                <Link href={outreachByDraft.has(d.id) ? `/outreach/${outreachByDraft.get(d.id)}` : "/drafts"} className="font-medium text-brand">{d.subject ?? `${d.channel} draft`}</Link>
                 <span className="ml-2"><Badge tone={d.state === "approved" && d.approved_hash === d.content_hash ? "ok" : "warn"}>{d.state === "approved" && d.approved_hash !== d.content_hash ? "approval invalidated" : d.state}</Badge></span>
                 <p className="text-ink-soft">To {d.recipient_display ?? "—"} · {fmt(d.created_at)}</p>
                 <p className="line-clamp-2">{d.body}</p>
@@ -143,7 +152,7 @@ async function Body({ searchParams }: Props) {
         q.documents.length === 0 ? <Card><EmptyState title="All clear">{EMPTY.documents}</EmptyState></Card> : (
           <Card title="Documents">
             <ul className="divide-y divide-line">{(q.documents as AnyRow[]).map((d) => (
-              <li key={d.id} className="py-2 text-sm"><Link className="text-brand" href={`/documents/${d.id}`}>{d.title ?? d.file_name ?? d.id}</Link>
+              <li key={d.id} className="py-2 text-sm"><Link className="text-brand" href="/documents">{documentLabel(d)}</Link>
                 <span className="text-ink-soft"> · {d.status ?? "pending"} · {fmt(d.created_at)}</span></li>
             ))}</ul>
           </Card>
@@ -151,6 +160,12 @@ async function Body({ searchParams }: Props) {
       ) : null}
     </div>
   );
+}
+
+function documentLabel(d: AnyRow): string {
+  const name = cleanText(d.title ?? d.file_name ?? "") || humanToken(d.purpose ?? "") || "Document";
+  const kind = d.kind && d.kind !== "other" ? ` (${String(d.kind).toUpperCase()})` : "";
+  return `${name}${kind}${d.version_no ? ` v${d.version_no}` : ""}`;
 }
 
 export default function Page(props: Props) {

@@ -27,7 +27,7 @@ export default async function PacksPage() {
               <Field label="Requirement" htmlFor="pk-req" required><select id="pk-req" name="requirement_id" required defaultValue="" className={inputCls}>{[<option key="" value="" disabled>Choose…</option>, ...r.map((x) => <option key={x.id} value={x.id}>{x.title}</option>)]}</select></Field>
               <Field label="Prepared for" htmlFor="pk-for" hint="Client name on the cover."><input id="pk-for" name="prepared_for" placeholder="e.g. Acme Ltd" className={inputCls} /></Field>
             </div>
-            <fieldset><legend className="mb-1.5 flex items-center gap-1.5 text-sm font-medium"><span aria-hidden className="text-slate-400">✎</span>Buildings to show <span className="text-xs font-normal text-ink-soft">tick one or more</span></legend>
+            <fieldset className="min-w-0"><legend className="mb-1.5 flex items-center gap-1.5 text-sm font-medium"><span aria-hidden className="text-slate-400">✎</span>Buildings to show <span className="text-xs font-normal text-ink-soft">tick one or more</span></legend>
               <div className="grid max-h-72 gap-1 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2 sm:grid-cols-2">
                 {a.map((x) => <label key={x.id} className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md px-2 text-sm hover:bg-canvas has-[:checked]:bg-brand-soft/50"><input type="checkbox" name="asset_id" value={x.id} className="size-5 accent-[var(--color-brand)]" /> <span>{x.name}{x.micro?.name ? <span className="text-xs text-ink-soft"> · {x.micro.name}</span> : null}</span></label>)}
               </div>

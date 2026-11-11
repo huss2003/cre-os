@@ -18,6 +18,8 @@ function valueOf(row: Row | null, f: FieldDef): string {
   return String(v);
 }
 
+const INT_FIELDS = new Set(["headcount_min", "headcount_max", "floors"]);
+
 function FieldInput({ f, row, options }: { f: FieldDef; row: Row | null; options?: [string, string][] }) {
   const dv = valueOf(row, f);
   const opts = options ?? f.options;
@@ -25,7 +27,7 @@ function FieldInput({ f, row, options }: { f: FieldDef; row: Row | null; options
     return <Select name={f.name} defaultValue={dv}>{opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</Select>;
   }
   if (f.type === "textarea") return <Textarea name={f.name} defaultValue={dv} rows={3} />;
-  return <Input name={f.name} type={f.type === "number" ? "text" : f.type ?? "text"} inputMode={f.type === "number" ? "decimal" : undefined}
+  return <Input name={f.name} type={f.type === "number" ? "text" : f.type ?? "text"} inputMode={f.type === "number" ? (INT_FIELDS.has(f.name) ? "numeric" : "decimal") : undefined}
     defaultValue={dv} required={f.required} />;
 }
 
@@ -52,6 +54,12 @@ export function EntityForm({ table, row, parentOptions, localityOptions }: { tab
           </div>
         );
       })()}
+      {!row && table !== "asset" ? (
+        <label className="flex max-w-md items-start gap-2 text-sm">
+          <input type="checkbox" name="confirm_duplicate" value="1" className="mt-1" />
+          <span>Create anyway — I checked, this is a different {ENTITY_LABEL[table]} from any similar record already saved (same names are flagged for review).</span>
+        </label>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Submit>{row ? "Save changes" : `Create ${ENTITY_LABEL[table]}`}</Submit>
         <ButtonLink variant="secondary" href={row ? `${ENTITY_ROUTE[table]}/${row.id}` : ENTITY_ROUTE[table]}>Cancel</ButtonLink>
@@ -112,7 +120,7 @@ export function ArchiveCard({ ctx, table, row }: { ctx: AppContext; table: Entit
       ) : (
         <>
           <p className="text-ink-soft">Records are archived, never deleted. Archiving needs approval.</p>
-          <Input name="reason" placeholder="Reason (e.g. duplicate, closed down)" />
+          <Input name="reason" aria-label="Reason for archiving" placeholder="Reason (e.g. duplicate, closed down)" />
           <Submit variant="danger" confirm={`Request archive of this ${ENTITY_LABEL[table]}?`}>Request archive</Submit>
         </>
       )}
@@ -145,7 +153,7 @@ export async function EntityList({ ctx, table, sp }: { ctx: AppContext; table: E
   return (
     <div className="space-y-4">
       <form action={base} className="flex flex-wrap gap-2">
-        <Input name="q" defaultValue={q} placeholder={`Filter ${label} names…`} className="max-w-sm" />
+        <Input name="q" aria-label={`Filter ${label}`} defaultValue={q} placeholder={`Filter ${label} names…`} className="max-w-sm" />
         {archived ? <input type="hidden" name="archived" value="1" /> : null}
         <button className="min-h-10 rounded-lg border border-line bg-surface px-3 text-sm">Filter</button>
         <Link className="min-h-10 px-2 py-2 text-sm text-brand" href={archived ? base : `${base}?archived=1`}>{archived ? "Show active" : "Show archived"}</Link>

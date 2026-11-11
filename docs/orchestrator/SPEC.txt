@@ -1,0 +1,1328 @@
+MODULE 9: ORCHESTRATOR
+
+Master AI Development and Implementation Prompt
+
+You are a senior software architect, workflow automation engineer, AI systems engineer and full-stack developer.
+
+Your task is to build Module 9 – Orchestrator for the Pune Commercial Real Estate AI Operating System.
+
+The Orchestrator is the central coordination engine responsible for managing schedules, dependencies, background jobs, automated workflows, reminders and communication between the system's modules.
+
+It must ensure that the entire CRE operating system functions as one connected business application rather than a collection of independent modules.
+
+The Orchestrator must understand which operations need to happen, when they should happen, which module should perform them, what information they require, what depends on their completion and what should happen if an operation fails.
+
+It must not duplicate the business logic of individual modules. It must coordinate their existing services.
+
+---
+
+1. CORE OBJECTIVE
+
+Build a central workflow orchestration system capable of:
+
+1. Running scheduled source updates.
+2. Running research and signal checks.
+3. Triggering scoring recalculations.
+4. Coordinating contact enrichment.
+5. Managing meeting preparation.
+6. Triggering post-call and post-meeting processing.
+7. Generating daily plans.
+8. Managing reminders and follow-ups.
+9. Coordinating weekly reviews.
+10. Managing background processing jobs.
+11. Reassessing affected outputs when underlying information changes.
+12. Respecting the user's calendar, travel requirements and daily capacity.
+13. Prioritising urgent client work over routine research.
+14. Routing tasks to the appropriate specialist module.
+15. Retrying temporary failures without creating duplicate actions.
+16. Tracking successful, delayed, failed and pending operations.
+17. Managing research, enrichment, transcription and AI usage budgets.
+18. Providing pause, resume and retry controls.
+19. Maintaining a complete execution history.
+20. Providing meaningful alerts instead of overwhelming users with notifications.
+
+The system should operate in the background with minimal user intervention while maintaining human control over consequential actions.
+
+2. ARCHITECTURAL PRINCIPLE
+
+The Orchestrator is a workflow coordination layer, not another business database or AI assistant.
+
+Use the following responsibilities:
+
+- Module 1 owns business records.
+- Module 2 owns research and signal detection.
+- Module 3 owns scoring calculations.
+- Module 4 owns contact enrichment.
+- Module 5 owns outreach drafting and communication workflows.
+- Module 7 owns meeting preparation and follow-through.
+- Module 8 owns commercial analysis and validated calculations.
+- Module 12 owns conversational interaction and natural-language task requests.
+- Module 9 coordinates when these services execute and in what sequence.
+
+Do not recreate these modules' functionality inside Module 9.
+
+The Orchestrator should invoke existing backend services through well-defined APIs or internal service interfaces.
+
+It must not directly bypass business rules, permissions or approval requirements.
+
+3. CENTRAL WORKFLOW ENGINE
+
+Create a workflow execution engine that supports:
+
+- Scheduled workflows.
+- Event-triggered workflows.
+- User-triggered workflows.
+- Conditional workflows.
+- Multi-step workflows.
+- Dependent workflows.
+- Recurring workflows.
+- Background jobs.
+- Long-running workflows.
+
+Every workflow must have:
+
+- Workflow ID.
+- Workflow name.
+- Description.
+- Trigger type.
+- Trigger configuration.
+- Execution steps.
+- Dependencies.
+- Conditions.
+- Required module services.
+- Input parameters.
+- Output references.
+- Permission requirements.
+- Approval requirements.
+- Retry configuration.
+- Execution timeout.
+- Priority.
+- Owner.
+- Status.
+- Execution history.
+
+Workflow states
+
+Implement:
+
+- Draft.
+- Active.
+- Paused.
+- Queued.
+- Running.
+- Waiting for dependency.
+- Waiting for approval.
+- Partially completed.
+- Completed.
+- Failed.
+- Cancelled.
+
+Execution requirements
+
+- Execute dependent tasks in the correct order.
+- Do not execute a dependent task until its prerequisites are satisfied.
+- Support parallel execution when tasks are independent.
+- Prevent duplicate execution.
+- Maintain execution history.
+- Handle partial failures.
+- Support safe retries.
+- Record outputs and errors.
+- Allow authorised users to pause or cancel workflows.
+- Preserve the state of long-running operations.
+
+4. SCHEDULING ENGINE
+
+The Orchestrator must manage all scheduled activities across the CRE application.
+
+4.1 Daily Scheduling
+
+Schedule:
+
+- Source updates.
+- Research checks.
+- Signal detection.
+- Scoring recalculation.
+- Contact verification and refresh where needed.
+- Daily planning.
+- Meeting preparation.
+- Follow-up reminders.
+- Pending commitment reviews.
+
+Allow users to configure scheduling preferences.
+
+4.2 Daily 08:00 Plan
+
+Generate the user's daily plan at 08:00 in their configured timezone.
+
+The plan should include:
+
+1. Today's meetings.
+2. Meetings requiring preparation.
+3. Priority accounts.
+4. Important new signals.
+5. Lease expiry alerts.
+6. Follow-ups due today.
+7. Overdue commitments.
+8. Active deals requiring attention.
+9. Pending approvals.
+10. Recommended next actions.
+
+The daily plan should use current database information, active tasks and calendar records.
+
+If the AI provider is unavailable, the system must still produce a basic daily plan using existing tasks, meeting records and calendar information.
+
+4.3 Meeting Preparation Scheduling
+
+Automatically trigger Module 7 approximately one hour before a scheduled meeting.
+
+Execution:
+
+1. Retrieve the meeting.
+2. Identify attendees.
+3. Retrieve company information.
+4. Retrieve relationship history.
+5. Retrieve previous commitments.
+6. Retrieve active requirements.
+7. Retrieve current property options.
+8. Generate the meeting brief.
+9. Save it against the meeting.
+10. Notify the user that the brief is ready.
+
+If relevant information is unavailable, show the missing information rather than inventing it.
+
+4.4 Post-Meeting Processing
+
+After a meeting is completed:
+
+1. Check whether meeting notes or a permitted recording are available.
+2. Trigger Module 7 processing.
+3. Extract facts, objections and commitments.
+4. Identify possible CRM updates.
+5. Identify requirement changes.
+6. Trigger Module 3 reassessment where relevant.
+7. Trigger Module 8 recalculation when confirmed commercial inputs change.
+8. Prepare follow-up drafts through Module 5.
+9. Create proposed tasks.
+10. Place material changes in the Review queue.
+
+Do not assume a meeting is completed simply because its scheduled end time has passed.
+
+Use the actual meeting status or user confirmation.
+
+4.5 Weekly Review
+
+Generate a weekly business review containing:
+
+- New opportunities.
+- Priority account changes.
+- Important signals.
+- Meetings completed.
+- Meetings scheduled.
+- Follow-ups completed.
+- Overdue commitments.
+- Requirements added or changed.
+- Active deals.
+- Stalled transactions.
+- Commercial proposals pending.
+- Important market developments.
+- Recommended actions for the following week.
+
+5. EVENT-DRIVEN ORCHESTRATION
+
+The Orchestrator must respond to important business events.
+
+Create an event-driven architecture where modules publish meaningful events and the Orchestrator decides whether downstream work should be triggered.
+
+5.1 Company Events
+
+Examples:
+
+- New company created.
+- Company information updated.
+- New location discovered.
+- New occupancy record added.
+- Lease information changed.
+- Company ownership or identity updated.
+
+Possible downstream actions:
+
+- Check for duplicate records.
+- Refresh relevant research.
+- Reassess account priority.
+- Identify missing information.
+- Refresh relevant reports.
+
+5.2 Research Events
+
+Examples:
+
+- New expansion signal detected.
+- Lease expiry discovered.
+- Leadership change identified.
+- Infrastructure announcement detected.
+- New property trigger identified.
+
+Possible downstream actions:
+
+- Link signal to company.
+- Update evidence.
+- Recalculate relevant scores.
+- Identify relevant contacts.
+- Create a review item.
+- Suggest next actions.
+
+5.3 Contact Events
+
+Examples:
+
+- New contact enriched.
+- Contact verification completed.
+- Employment change detected.
+- Email delivery failure recorded.
+- Contact role updated.
+
+Possible downstream actions:
+
+- Update contact records.
+- Preserve employment history.
+- Review relationship connections.
+- Identify whether a contact's company association has changed.
+- Refresh relevant stakeholder maps.
+
+A changed employer must trigger contact review, not automatic transfer of company opportunities.
+
+5.4 Outreach Events
+
+Examples:
+
+- Outreach draft generated.
+- Draft approved.
+- Manually confirmed communication sent.
+- Reply received.
+- Follow-up overdue.
+- Meeting requested.
+
+Possible downstream actions:
+
+- Update interaction history.
+- Update engagement information.
+- Suggest a meeting.
+- Reassess scoring inputs.
+- Create relevant follow-up tasks.
+
+5.5 Meeting Events
+
+Examples:
+
+- Meeting scheduled.
+- Meeting rescheduled.
+- Meeting cancelled.
+- Meeting completed.
+- Notes uploaded.
+- Meeting summary approved.
+
+Possible downstream actions:
+
+- Generate or reschedule meeting briefs.
+- Cancel associated reminders when appropriate.
+- Process notes.
+- Extract commitments.
+- Update requirements.
+- Reassess relevant scores.
+- Prepare follow-up drafts.
+
+5.6 Commercial Events
+
+Examples:
+
+- New rent quotation received.
+- Commercial terms revised.
+- Property availability changed.
+- Requirement changed.
+- Negotiation offer revised.
+- Proposal version created.
+
+Possible downstream actions:
+
+- Recalculate affected comparisons.
+- Identify outdated proposals.
+- Warn the user about changed assumptions.
+- Update relevant opportunity information.
+- Generate a new decision summary when requested.
+
+A new rent quote must trigger an updated comparison and a warning on affected drafts. It must not silently overwrite an already approved proposal.
+
+6. WORKFLOW DEPENDENCY MANAGEMENT
+
+The Orchestrator must understand that some tasks depend on other tasks.
+
+For example:
+
+A property comparison cannot be considered complete if the required property quotations are missing.
+
+A meeting brief cannot be prepared accurately if the meeting attendees cannot be identified.
+
+A scoring recalculation must use the latest available relevant information.
+
+Example dependency chain: New CRE opportunity
+
+1. Module 2 detects a signal.
+2. Module 1 identifies the company.
+3. Module 3 recalculates the lead priority.
+4. Module 4 identifies missing stakeholders.
+5. Module 12 can explain the opportunity.
+6. Module 5 can prepare outreach when requested or configured.
+
+The Orchestrator must track the completion of each step.
+
+Dependency rules
+
+- Use explicit dependencies.
+- Identify missing prerequisites.
+- Avoid unnecessary repeated processing.
+- Allow independent tasks to execute in parallel.
+- Do not assume that a previous result remains current after its inputs change.
+- Reassess affected outputs when relevant information changes.
+- Preserve the previous output and its version.
+
+7. INTELLIGENT REASSESSMENT ENGINE
+
+One of the most important functions of Module 9 is to identify which existing outputs have become outdated after a business record changes.
+
+Implement a dependency-aware invalidation and recalculation system.
+
+Example 1: New rent quotation
+
+Event: A new rent quotation is uploaded.
+
+Orchestrator actions:
+
+1. Identify the affected property.
+2. Identify requirements and opportunities linked to the property.
+3. Identify existing commercial comparisons.
+4. Identify proposals using the old quotation.
+5. Trigger recalculation through Module 8.
+6. Mark affected draft outputs as requiring refresh.
+7. Warn the user if an approved or shared proposal contains outdated information.
+8. Preserve the old quotation and calculations.
+
+Example 2: Requirement area changes
+
+Event: Client requirement changes from 25,000 SF to 30,000 SF.
+
+Orchestrator actions:
+
+1. Update the requirement through the authorised workflow.
+2. Identify affected property comparisons.
+3. Trigger new suitability assessments.
+4. Recalculate relevant occupancy economics where inputs are affected.
+5. Reassess requirement readiness.
+6. Identify outdated proposals.
+7. Notify the responsible user.
+
+Example 3: Meeting cancelled
+
+Event: Meeting is cancelled.
+
+Orchestrator actions:
+
+1. Update meeting status.
+2. Cancel associated preparation reminders.
+3. Cancel meeting-specific pending tasks where appropriate.
+4. Preserve historical meeting information.
+5. Notify the user if other commitments remain active.
+
+Example 4: Contact changes employer
+
+Event: A contact's employment changes.
+
+Orchestrator actions:
+
+1. Update or propose the employment-history change.
+2. Preserve previous employment.
+3. Review current contact-company relationships.
+4. Identify affected stakeholder maps.
+5. Flag any open relationship or opportunity associations requiring review.
+6. Do not automatically move company opportunities to the new employer.
+
+Example 5: Source outage
+
+Event: A monitored source becomes unavailable.
+
+Orchestrator actions:
+
+1. Record the failure.
+2. Identify the affected data source.
+3. Display the last successful update.
+4. Mark affected information as potentially stale.
+5. Retry according to the configured policy.
+6. Alert the user if the failure affects important decisions.
+
+8. DAILY CAPACITY AND PRIORITY MANAGEMENT
+
+The Orchestrator must plan work around actual user capacity.
+
+It must not simply create an unlimited list of reminders and tasks.
+
+8.1 Priority classification
+
+Classify work into:
+
+- Critical client commitments.
+- Time-sensitive transaction work.
+- Meeting preparation.
+- Important follow-ups.
+- Commercial proposal deadlines.
+- Routine account research.
+- Background data refresh.
+- Non-urgent system maintenance.
+
+Prioritise urgent client work over routine background research.
+
+8.2 Calendar Integration
+
+Where an authorised calendar integration is available:
+
+- Retrieve scheduled meetings.
+- Identify available working time.
+- Account for meeting durations.
+- Account for travel requirements.
+- Identify conflicting appointments.
+- Avoid scheduling overlapping tasks.
+- Respect working hours.
+- Allow users to override suggested scheduling.
+
+Do not invent travel times. Use an authorised mapping or routing service when travel estimates are required.
+
+8.3 Task Scheduling
+
+Every task should contain:
+
+- Task title.
+- Description.
+- Related company.
+- Related contact.
+- Related requirement.
+- Related opportunity.
+- Owner.
+- Priority.
+- Due date.
+- Estimated duration.
+- Dependencies.
+- Status.
+- Source.
+- Creation date.
+
+8.4 Capacity Warnings
+
+Identify situations such as:
+
+- Too many meetings on one day.
+- Several overdue client commitments.
+- Multiple urgent proposals.
+- Insufficient time for scheduled preparation.
+- Conflicting travel requirements.
+
+Recommend realistic rescheduling rather than adding more tasks.
+
+9. REMINDER AND NOTIFICATION ENGINE
+
+Create a central notification service.
+
+Support:
+
+- In-app notifications.
+- Daily plan notifications.
+- Meeting preparation alerts.
+- Follow-up reminders.
+- Lease event reminders.
+- Pending approval alerts.
+- Failed job alerts.
+- Important commercial change alerts.
+
+Notification rules
+
+- Do not send repeated notifications for the same event.
+- Group related notifications.
+- Allow users to configure notification preferences.
+- Respect quiet hours and working hours.
+- Distinguish urgent alerts from informational updates.
+- Link each notification to the relevant business record.
+- Allow users to dismiss, snooze or complete reminders.
+- Cancel obsolete reminders when their triggering conditions no longer apply.
+
+Notifications must not automatically send external messages to clients.
+
+10. BACKGROUND JOB MANAGEMENT
+
+The Orchestrator must execute large and time-consuming operations asynchronously.
+
+Examples:
+
+- Bulk company research.
+- Signal monitoring.
+- Bulk contact enrichment.
+- Large document processing.
+- Spreadsheet imports.
+- Meeting transcription.
+- Weekly reports.
+- Large property comparisons.
+- Historical recalculations.
+
+Each background job must contain:
+
+- Job ID.
+- Job type.
+- Initiating user or system process.
+- Related module.
+- Related records.
+- Input references.
+- Current step.
+- Progress.
+- Status.
+- Start time.
+- Completion time.
+- Retry count.
+- Error details.
+- Result references.
+
+Job states
+
+- Queued.
+- Running.
+- Waiting for dependency.
+- Waiting for approval.
+- Partially completed.
+- Completed.
+- Failed.
+- Cancelled.
+
+Execution controls
+
+- View progress.
+- Pause.
+- Resume.
+- Retry.
+- Cancel.
+- View errors.
+- View output.
+- View execution history.
+
+Do not create duplicate records or tasks when a job is retried.
+
+11. RETRY AND FAILURE MANAGEMENT
+
+Implement a durable retry and recovery system.
+
+11.1 Retry Rules
+
+- Retry temporary network failures.
+- Retry recoverable provider errors.
+- Use exponential backoff with configurable limits.
+- Do not endlessly retry permanent failures.
+- Do not retry a consequential action blindly.
+- Use idempotency keys for operations that may be repeated.
+- Preserve successful earlier steps.
+- Resume from the failed step where safe.
+
+11.2 Partial Failure
+
+Example:
+
+A research workflow contains:
+
+1. Company search.
+2. News retrieval.
+3. Contact enrichment.
+4. Scoring recalculation.
+
+If contact enrichment fails, the system should preserve the successful research and company matching results.
+
+It should retry the failed enrichment step without repeating successful operations unnecessarily.
+
+11.3 Failure Reporting
+
+Every failure must explain:
+
+- What failed.
+- Which records are affected.
+- Whether any previous steps succeeded.
+- Whether information may be stale.
+- Whether the system will retry.
+- What the user needs to do.
+
+11.4 Recovery Controls
+
+Provide:
+
+- Pause.
+- Resume.
+- Retry.
+- Reconnect.
+- Cancel.
+- Export logs.
+- View affected records.
+
+12. BUDGET AND RESOURCE MANAGEMENT
+
+The Orchestrator must manage the cost of background processing.
+
+Monitor:
+
+- Web research usage.
+- Contact enrichment credits.
+- Model API usage.
+- AI token consumption.
+- Transcription usage.
+- Document processing.
+- External API calls.
+- Background job execution.
+
+Budget controls
+
+- Set monthly and daily usage budgets.
+- Configure per-provider limits.
+- Track usage by module.
+- Track usage by workflow.
+- Track usage by user.
+- Prevent uncontrolled recurring jobs.
+- Avoid repeated processing of unchanged information.
+- Use incremental updates.
+- Prioritise important accounts for expensive refresh operations.
+- Provide cost estimates before large operations where possible.
+- Alert users when usage approaches configured limits.
+
+Budget behaviour
+
+When a budget is exhausted:
+
+- Pause non-critical processing.
+- Preserve already completed work.
+- Continue critical internal operations where possible.
+- Notify authorised users.
+- Allow budget adjustments by authorised administrators.
+
+Do not silently switch to an unapproved paid provider.
+
+13. MODULE INTEGRATION
+
+The Orchestrator must coordinate all relevant modules through their existing services.
+
+Module 1 – Database
+
+- Receive business record events.
+- Trigger relevant downstream workflows.
+- Identify affected records.
+- Preserve entity relationships.
+- Maintain workflow references.
+
+Module 2 – Signal Engine
+
+- Schedule research updates.
+- Run signal checks.
+- Process new signal events.
+- Trigger relevant scoring.
+- Monitor source freshness.
+- Manage research budgets.
+
+Module 3 – Scoring Engine
+
+- Trigger reassessments after relevant changes.
+- Schedule periodic scoring refreshes.
+- Preserve previous scores.
+- Track recalculation status.
+
+Module 4 – Contact Enrichment
+
+- Schedule authorised enrichment.
+- Refresh important contacts.
+- Process role-change events.
+- Manage provider credits.
+- Retry recoverable failures.
+
+Module 5 – Outreach Engine
+
+- Schedule follow-up reminders.
+- Coordinate outreach review tasks.
+- Track communication workflow states.
+- Prevent duplicate follow-ups.
+- Ensure external sending follows manual approval controls.
+
+Module 7 – Meeting Intelligence
+
+- Schedule meeting preparation.
+- Trigger post-meeting processing.
+- Manage transcription jobs.
+- Create proposed follow-up tasks.
+- Cancel obsolete meeting reminders.
+
+Module 8 – Deal Toolkit
+
+- Trigger recalculation when relevant commercial inputs change.
+- Identify outdated proposals.
+- Track quotation validity.
+- Reassess affected property comparisons.
+- Preserve calculation and proposal versions.
+
+Module 12 – Supercharged AI Assistant
+
+- Accept workflow requests from natural-language instructions.
+- Convert authorised requests into executable workflows.
+- Report progress.
+- Present pending approvals.
+- Return execution results.
+- Allow users to inspect or cancel running tasks.
+
+Module 12 decides what the user wants. Module 9 coordinates the execution.
+
+14. THE FOUR MAIN USER ENTRY POINTS
+
+The Orchestrator must remain mostly invisible during normal use.
+
+Its functionality should be accessible through the existing four application entry points.
+
+TODAY
+
+Display:
+
+- Daily plan.
+- Meetings.
+- Upcoming commitments.
+- Follow-ups.
+- Priority tasks.
+- Important alerts.
+- Background jobs requiring attention.
+
+ASK
+
+Allow the AI Assistant to create or trigger authorised workflows.
+
+Example:
+
+"Prepare tomorrow's meetings and identify all pending client commitments."
+
+The assistant should invoke Module 9 to coordinate the necessary operations.
+
+CAPTURE
+
+When new information is captured, coordinate relevant processing.
+
+Example:
+
+A user uploads a quotation.
+
+The system should:
+
+1. Process the uploaded document through the appropriate input/document service.
+2. Identify the property and quotation.
+3. Propose the relevant record updates.
+4. Route uncertain commercial information for review.
+5. Trigger affected Module 8 calculations after confirmation.
+6. Identify outdated proposal drafts.
+
+REVIEW
+
+Show only decisions requiring human attention:
+
+- Material record changes.
+- Conflicting sources.
+- Approval requests.
+- Failed jobs.
+- Outdated commercial proposals.
+- Important workflow exceptions.
+- Permission changes.
+- Uncertain identity matches.
+
+15. DATABASE AND TECHNICAL ARCHITECTURE
+
+Inspect the existing application database before implementation.
+
+Do not create duplicate company, contact, property or opportunity records.
+
+Create only the orchestration-specific structures required.
+
+Suggested logical tables:
+
+1. workflows
+2. workflow_versions
+3. workflow_steps
+4. workflow_triggers
+5. workflow_dependencies
+6. workflow_executions
+7. workflow_execution_steps
+8. scheduled_jobs
+9. background_jobs
+10. job_attempts
+11. event_outbox
+12. event_inbox
+13. event_processing_log
+14. task_schedule
+15. notifications
+16. notification_preferences
+17. resource_budgets
+18. resource_usage
+19. integration_health
+20. workflow_audit_log
+
+These are logical structures. Reuse existing task, notification, approval and audit tables if the application already has equivalent functionality.
+
+Technical requirements
+
+- Use a durable queue for background execution.
+- Use a scheduler for recurring jobs.
+- Use database-backed workflow state.
+- Use idempotency keys.
+- Use transactional event publishing where appropriate.
+- Use retries with backoff.
+- Support concurrency limits.
+- Support job timeouts.
+- Support dead-letter handling for repeatedly failing jobs.
+- Use distributed locks where required.
+- Maintain audit logs.
+- Respect workspace isolation.
+- Support cancellation and recovery.
+
+Do not depend on a single in-memory process for important scheduled work.
+
+A server restart must not silently erase pending jobs or scheduled workflows.
+
+Event processing reliability
+
+Use reliable event publishing and consumption patterns.
+
+Where appropriate, implement a transactional outbox and idempotent consumers so a database update and its corresponding event are not lost or inconsistently processed.
+
+Do not guarantee exactly-once execution across external systems. Instead, use durable processing, idempotency and reconciliation to achieve safe practical behaviour.
+
+16. USER INTERFACE
+
+Build a simple, professional Orchestrator interface.
+
+The user should not need to understand workflow-engine terminology.
+
+16.1 Automation Dashboard
+
+Display:
+
+- Active workflows.
+- Scheduled operations.
+- Running jobs.
+- Completed jobs.
+- Failed jobs.
+- Paused workflows.
+- Pending approvals.
+- Next scheduled operations.
+- Integration health.
+- Usage and budget information.
+
+16.2 Workflow Detail
+
+Display:
+
+- Workflow name.
+- Purpose.
+- Trigger.
+- Execution steps.
+- Dependencies.
+- Last execution.
+- Next execution.
+- Status.
+- Results.
+- Errors.
+- Related records.
+
+16.3 Job Detail
+
+Display:
+
+- Job progress.
+- Current step.
+- Completed steps.
+- Failed steps.
+- Remaining steps.
+- Execution history.
+- Retry controls.
+- Related business records.
+
+16.4 User Controls
+
+Provide:
+
+- Pause.
+- Resume.
+- Retry.
+- Cancel.
+- Edit schedule.
+- Change priority.
+- View history.
+- View affected records.
+
+16.5 Alerts
+
+Use meaningful notifications.
+
+Do not display every background operation as an alert.
+
+Only surface important results, failures, stale information and decisions requiring user attention.
+
+17. EXAMPLE END-TO-END WORKFLOWS
+
+Workflow A: 08:00 Daily CRE Plan
+
+Trigger: Every day at 08:00 in the user's configured timezone.
+
+Execution:
+
+1. Retrieve today's calendar.
+2. Retrieve active tasks.
+3. Retrieve overdue commitments.
+4. Retrieve priority accounts.
+5. Retrieve important new research signals.
+6. Retrieve pending approvals.
+7. Identify meetings requiring preparation.
+8. Assess available working capacity.
+9. Prioritise important tasks.
+10. Generate the daily plan.
+11. Notify the user.
+
+Expected result:
+
+A concise daily dashboard showing what needs attention, why it matters and what should happen next.
+
+Workflow B: New Expansion Signal
+
+Trigger: New relevant expansion signal detected.
+
+Execution:
+
+1. Module 2 publishes the signal.
+2. Module 9 receives the event.
+3. Module 1 matches the company.
+4. Module 3 reassesses priority.
+5. Module 4 identifies whether important contacts are missing.
+6. Module 12 can present the opportunity.
+7. The user can request Module 5 to prepare outreach.
+
+Expected result:
+
+A new opportunity is processed and presented without requiring the user to manually operate every module.
+
+Workflow C: Meeting Preparation
+
+Trigger: A meeting is scheduled or updated.
+
+Execution:
+
+1. Identify the meeting.
+2. Check its status.
+3. Schedule a preparation job.
+4. Retrieve relevant company and contact information.
+5. Retrieve previous interaction history.
+6. Retrieve current requirements and property options.
+7. Trigger Module 7.
+8. Save the generated brief.
+9. Notify the user.
+
+Expected result:
+
+A meeting brief is ready approximately one hour before the meeting.
+
+Workflow D: Post-Meeting Follow-Through
+
+Trigger: Meeting completed and notes become available.
+
+Execution:
+
+1. Process the meeting through Module 7.
+2. Extract relevant information.
+3. Propose database updates.
+4. Send material changes to Review.
+5. Reassess affected scores through Module 3 after approved changes.
+6. Trigger Module 8 calculations when confirmed inputs change.
+7. Prepare follow-up drafts through Module 5.
+8. Create proposed reminders.
+9. Present the completion summary.
+
+Expected result:
+
+The user receives a structured meeting summary, proposed CRM updates, commercial recalculations where needed and next actions.
+
+Workflow E: New Rent Quotation
+
+Trigger: A new quotation is added.
+
+Execution:
+
+1. Identify the property.
+2. Link the quotation.
+3. Validate the commercial fields.
+4. Preserve the previous quotation.
+5. Identify affected comparisons.
+6. Trigger Module 8 recalculation.
+7. Identify proposals that use outdated terms.
+8. Warn the responsible user.
+9. Request review where needed.
+
+Expected result:
+
+The latest commercial analysis is available without silently changing previously approved deliverables.
+
+Workflow F: Overdue Commitment
+
+Trigger: A commitment deadline passes.
+
+Execution:
+
+1. Identify the commitment.
+2. Check whether it is completed.
+3. Retrieve the associated company, contact and opportunity.
+4. Assess its importance.
+5. Add it to the user's daily plan.
+6. Suggest an appropriate follow-up.
+7. Avoid creating a duplicate task.
+
+Expected result:
+
+The user sees the overdue commitment with its context and recommended next action.
+
+Workflow G: Weekly CRE Review
+
+Trigger: Configured weekly schedule.
+
+Execution:
+
+1. Retrieve weekly business activity.
+2. Retrieve new signals.
+3. Retrieve account score changes.
+4. Retrieve contact and relationship updates.
+5. Retrieve outreach outcomes.
+6. Retrieve meetings and commitments.
+7. Retrieve deal progress.
+8. Retrieve commercial proposal status.
+9. Identify stalled opportunities.
+10. Generate the weekly review.
+
+Expected result:
+
+A concise review showing what progressed, what is blocked, what needs attention and what should be prioritised next week.
+
+18. TESTING AND ACCEPTANCE CRITERIA
+
+Test Module 9 with real application services and synthetic business records.
+
+Test 1: Daily Plan
+
+Configure an 08:00 daily plan.
+
+Expected:
+
+- It executes at the correct local time.
+- It retrieves existing calendar and task data.
+- It generates the daily plan.
+- It does not create duplicate tasks.
+
+Test 2: Meeting Brief
+
+Create a meeting.
+
+Expected:
+
+- Preparation is scheduled.
+- The correct meeting is identified.
+- The brief is triggered approximately one hour beforehand.
+- The result is linked to the meeting.
+
+Test 3: Cancelled Meeting
+
+Cancel the meeting.
+
+Expected:
+
+- Associated reminders are cancelled.
+- The meeting history remains.
+- Unrelated commitments remain active.
+
+Test 4: New Rent Quotation
+
+Upload a revised quotation.
+
+Expected:
+
+- Affected comparisons are identified.
+- Module 8 recalculation is triggered.
+- Old versions are preserved.
+- Affected proposal drafts are flagged.
+
+Test 5: Requirement Change
+
+Change a requirement from 25,000 SF to 30,000 SF.
+
+Expected:
+
+- Affected comparisons are identified.
+- Relevant scores are reassessed.
+- Historical requirement values remain accessible.
+- The responsible user is notified.
+
+Test 6: Temporary Provider Failure
+
+Simulate a temporary research API failure.
+
+Expected:
+
+- Failure is recorded.
+- Retry occurs according to policy.
+- Successful earlier steps are preserved.
+- No duplicate signals are created.
+
+Test 7: AI Provider Unavailable
+
+Simulate an AI provider outage.
+
+Expected:
+
+- Existing calendar and task data remain accessible.
+- The basic daily plan can still be generated.
+- AI-dependent operations are marked as delayed.
+
+Test 8: Contact Employment Change
+
+Update a contact's employer.
+
+Expected:
+
+- Employment history is preserved.
+- Existing company opportunities are not transferred automatically.
+- Relevant relationship review is triggered.
+
+Test 9: Budget Limit
+
+Set a low research usage budget.
+
+Expected:
+
+- Usage is tracked.
+- Non-critical processing is paused when the budget is exhausted.
+- The user is notified.
+- No unapproved paid provider is selected.
+
+Test 10: Duplicate Job Prevention
+
+Trigger the same event twice.
+
+Expected:
+
+- Duplicate processing is prevented.
+- Only one intended downstream action is created.
+- Execution history records the duplicate event safely.
+
+Test 11: Partial Failure
+
+Create a multi-step workflow and force one intermediate step to fail.
+
+Expected:
+
+- Successful steps remain completed.
+- Failed step is identified.
+- Safe retries resume from the appropriate point.
+- Final status indicates partial completion until resolved.
+
+Test 12: Pause and Resume
+
+Pause an active recurring workflow and resume it.
+
+Expected:
+
+- No new scheduled execution occurs while paused.
+- Existing execution history remains.
+- Future scheduling resumes correctly.
+
+19. IMPLEMENTATION PRIORITY
+
+Implement Module 9 in the following order.
+
+Phase 1 — Core Orchestration
+
+- Workflow engine.
+- Workflow state management.
+- Event handling.
+- Job queue.
+- Execution history.
+- Idempotency.
+
+Phase 2 — Scheduling
+
+- Daily 08:00 plan.
+- Meeting preparation.
+- Follow-up reminders.
+- Weekly reviews.
+- Timezone support.
+
+Phase 3 — Cross-Module Automation
+
+- Signal-to-scoring workflows.
+- Contact refresh workflows.
+- Meeting-to-CRM workflows.
+- Requirement-change reassessment.
+- Commercial recalculation triggers.
+
+Phase 4 — Reliability
+
+- Retry management.
+- Partial failure recovery.
+- Pause and resume.
+- Integration health.
+- Stale-data warnings.
+
+Phase 5 — Capacity and Cost
+
+- Calendar-aware scheduling.
+- Daily capacity management.
+- API usage tracking.
+- Budget limits.
+- Resource optimisation.
+
+Phase 6 — User Interface
+
+- Automation dashboard.
+- Workflow detail.
+- Job monitoring.
+- Notifications.
+- Review integration.
+
+20. FINAL DEVELOPMENT INSTRUCTIONS
+
+Before development:
+
+1. Inspect the existing application.
+2. Inspect the current module architecture.
+3. Inspect the existing database.
+4. Identify existing task, reminder and notification services.
+5. Identify existing scheduling and queue infrastructure.
+6. Identify module APIs and event sources.
+7. Identify calendar integrations.
+8. Identify approval and audit mechanisms.
+9. Prepare a technical implementation plan.
+10. Implement without duplicating existing functionality.
+
+Do not replace the existing technology stack without a strong technical reason.
+
+Do not build a second CRM, task manager or notification system if those services already exist.
+
+Do not create fake workflow executions or simulated successful results in the production interface.
+
+All important scheduled operations must survive application restarts.
+
+All consequential actions must respect existing approval and manual-send rules.
+
+Every workflow must be observable, recoverable and auditable.
+
+FINAL PRODUCT EXPECTATION
+
+The Orchestrator should make the entire CRE operating system work in the background.
+
+A user should not have to remember to refresh research, recalculate scores, prepare meeting briefs, check overdue commitments or manually identify every downstream task after a commercial change.
+
+The system should coordinate these activities automatically, respect user priorities and business rules, recover from temporary failures and present only meaningful results and decisions.
+
+The user manages the business. The Orchestrator manages the coordination of the work.

@@ -5,6 +5,7 @@ import { NAV_GROUPS, NAV_FOOTER, inFocusMenu, type NavSection } from "@/lib/nav"
 import { atLocal, localDate } from "@/lib/util/time";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 import { AppShell, type Badges } from "./nav-links";
+import { NotificationBell } from "@/modules/orchestrator/ui/bell";
 
 /** Cheap head-only counts for menu badges. Any failure just hides that badge. */
 async function loadBadges(ctx: AppContext): Promise<Badges> {
@@ -48,6 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="truncate text-xs font-medium text-ink">{ctx.email}</div>
         <div className="text-[11px] capitalize text-ink-soft">{ctx.role}{ctx.isPlatformAdmin ? " · platform admin" : ""}</div>
       </div>
+      <Suspense fallback={null}><NotificationBell ctx={ctx} /></Suspense>
       <form action="/auth/signout" method="post">
         <button className="min-h-11 rounded-md px-1.5 text-xs text-ink-soft hover:bg-ink/[0.05] hover:text-ink lg:min-h-7">Sign out</button>
       </form>

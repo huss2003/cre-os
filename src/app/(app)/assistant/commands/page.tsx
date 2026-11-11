@@ -54,7 +54,7 @@ export default async function CommandsPage({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-5">
       <PageHeader title="Saved commands" subtitle="Requests you run often, saved with their inputs. Scheduling is off unless you switch it on and authorise it." actions={<>{editor ? <ButtonLink href="/assistant/commands?new=1">New command</ButtonLink> : null}<ButtonLink href="/assistant" variant="secondary">Back to assistant</ButtonLink></>} />
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <div className="space-y-5">
           <Card title="Your commands">
             {!cmds.length ? <EmptyState title="No saved commands yet">Add one of the ready-made commands below, press New command, or ask the assistant to &ldquo;save this as a command&rdquo;.</EmptyState> : (

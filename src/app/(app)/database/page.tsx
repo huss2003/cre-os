@@ -5,6 +5,7 @@ import { requirePageContext } from "@/lib/auth/context";
 import { databaseOverview, recentChanges, reviewQueue, type ReviewItem } from "@/modules/admin/database";
 import { memberDirectory } from "@/modules/admin/entities";
 import { Loading, fmtDate } from "@/modules/admin/ui/parts";
+import { cleanText, humanToken } from "@/modules/changes/display";
 
 export const metadata = { title: "Database" };
 
@@ -101,7 +102,7 @@ async function Body() {
               <li key={r.id} className="py-2 text-sm">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className="text-xs text-ink-soft">{fmtDate(r.occurred_at, true)}</span>
-                  <Badge tone="brand">{r.action}</Badge><span>{r.entity_type.replace(/_/g, " ")}</span>
+                  <Badge tone="brand">{humanToken(r.action)}</Badge><span>{r.entity_type.replace(/_/g, " ")}</span>
                   <Badge>{who(r.actor_user_id, r.actor_kind)}</Badge>
                   {r.change_proposal_id ? <Badge tone="ok">approved change</Badge> : null}
                 </div>
@@ -113,7 +114,7 @@ async function Body() {
                     ))}
                   </tbody></table>
                 ) : null}
-                {r.reason || r.evidence ? <div className="mt-1 text-xs text-ink-soft">Why: {r.reason ?? "—"}{r.evidence ? ` · Evidence: ${r.evidence}` : ""}</div> : null}
+                {r.reason || r.evidence ? <div className="mt-1 text-xs text-ink-soft">Why: {cleanText(r.reason) || "—"}{r.evidence ? ` · Evidence: ${cleanText(r.evidence)}` : ""}</div> : null}
               </li>
             ))}
           </ul>

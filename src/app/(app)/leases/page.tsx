@@ -72,7 +72,7 @@ async function Body({ searchParams }: { searchParams: SP }) {
           </nav>
           <form action="/leases" className="flex gap-2">
             {w !== "all" ? <input type="hidden" name="window" value={w} /> : null}
-            <Input name="q" defaultValue={q} placeholder="Tenant, building or landlord" />
+            <Input name="q" aria-label="Search leases" defaultValue={q} placeholder="Tenant, building or landlord" />
           </form>
           {focus ? <p className="text-sm"><Link href={href({})} className="text-brand">← Show all leases</Link></p> : null}
 

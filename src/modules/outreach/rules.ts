@@ -125,7 +125,7 @@ export const LENGTH_HINT: Record<Channel, string> = {
 export interface DraftOut { subject: string | null; body: string; opening_alternatives: string[]; cta_alternatives: string[]; call_script: { opener: string; reason: string; questions: string[]; objections: { objection: string; reply: string }[]; close: string } | null; forwardable: string | null }
 
 /** Offline draft (used when no AI key) — built only from the facts passed in, never inventing history. */
-export function templateDraft(i: { channel: Channel; scenario: Scenario; first: string; company: string; level: Level; reason: string; roleKey: string; sender: string; via?: string | null; lang?: Lang }): DraftOut {
+export function templateDraft(i: { channel: Channel; scenario: Scenario; first: string; company: string; level: Level; reason: string; roleKey: string; sender: string; via?: string | null; lang?: Lang; facts?: { text: string; source_type: string }[] }): DraftOut {
   const sc = SCENARIOS[i.scenario];
   const focus = (ROLE_FOCUS[i.roleKey] ?? ROLE_FOCUS.other).focus[0];
   const known = i.level !== "not_interacted" && i.level !== "not_interested";
@@ -140,7 +140,18 @@ export function templateDraft(i: { channel: Channel; scenario: Scenario; first: 
     case "introduction":
       body = `Hi ${i.via ?? "there"}, could you introduce me to ${i.first} at ${i.company}? ${why} I'd like to understand their plans and see if I can help with ${focus}. Only if you're comfortable — happy to send a short note you can forward.`;
       forwardable = `${i.sender} advises companies on office space in Pune. ${why} He'd welcome a short call with ${i.first} to understand ${i.company}'s plans.`; break;
-    case "meeting_followup": subject = `Thanks — next steps for ${i.company}`; body = `Hi ${i.first},\n\nThank you for your time. As discussed:\n- [summary point]\n- [commitment and owner]\n\nNext step: [agreed action and date].\n\nRegards,\n${i.sender}`; break;
+    case "meeting_followup": {
+      // Filled only from the meeting's own facts (summary, commitments, next step) — no placeholders, nothing invented.
+      const of = (t: string) => (i.facts ?? []).filter((f) => f.source_type === t).map((f) => f.text.trim()).filter(Boolean);
+      const summary = of("meeting_summary"), commitments = of("meeting_commitment"), next = of("meeting_next_step")[0];
+      subject = `Thanks — next steps for ${i.company}`;
+      body = [`Hi ${i.first},`, "",
+        summary.length ? `Thank you for your time. As discussed:\n${summary.map((x) => `- ${x}`).join("\n")}` : "Thank you for your time today.",
+        ...(commitments.length ? ["", `Agreed actions:\n${commitments.map((x) => `- ${x}`).join("\n")}`] : []),
+        "", next ? `Next step: ${next.replace(/\.$/, "")}.` : "Next step: I will confirm the next step with you shortly.",
+        "", `Regards,\n${i.sender}`].join("\n");
+      break;
+    }
     case "call": body = `${opener} ${why} ${ask}`; break;
     default: subject = `${i.company}: ${sc.label.toLowerCase()} in Pune`; body = `${opener}\n\n${why} Given your focus on ${focus}, I thought it may be useful to compare options early rather than when timelines are tight.\n\n${ask}\n\nRegards,\n${i.sender}`;
   }
@@ -155,13 +166,18 @@ const DAY = 864e5;
 export const daysBetween = (from: string, to: string) => Math.round((Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / DAY);
 export const plusDays = (d: string, n: number) => new Date(Date.parse(`${d.slice(0, 10)}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
 
-/** "Show 3 versions": complete alternatives for the same channel, each a different angle. */
-export type Angle = "concise" | "value" | "question";
-export const VARIANT_ANGLES: { key: Angle; label: string; instruction: string }[] = [
+/** "Show 3 versions": complete alternatives for the same channel, each a different tone/angle. */
+export type Angle = "professional" | "conversational" | "very_short" | "concise" | "value" | "question";
+export const ALL_ANGLES: { key: Angle; label: string; instruction: string }[] = [
+  { key: "professional", label: "Professional", instruction: "Write a complete alternative in a formal, professional tone: courteous greeting, the reason, one clear ask. Use only the listed facts." },
+  { key: "conversational", label: "Conversational", instruction: "Write a complete alternative in a warm, conversational tone, as you would write to someone you know. Use only the listed facts." },
+  { key: "very_short", label: "Very short", instruction: "Write a complete alternative of at most two short sentences: the reason and one question only." },
   { key: "concise", label: "Concise", instruction: "Write a complete alternative that is as short as possible: the reason and one question only." },
   { key: "value", label: "Value-led", instruction: "Write a complete alternative that leads with the concrete value for this role, using only the listed facts." },
   { key: "question", label: "Question-led", instruction: "Write a complete alternative that opens with a specific, easy-to-answer question about their plans." },
 ];
+/** Default "3 versions": the tones users ask for. Other angles can be requested via generateVariants(..., { angles }). */
+export const VARIANT_ANGLES = ALL_ANGLES.filter((a) => ["professional", "conversational", "very_short"].includes(a.key));
 /** Offline variant built from the current text — never adds facts that weren't in it. */
 export function variantMock(cur: { subject: string | null; body: string }, angle: Angle, first: string, question: string): { subject: string | null; body: string } {
   const sentences = cur.body.replace(/\n+/g, " ").split(/(?<=[.?!])\s+/).map((s) => s.trim()).filter(Boolean);
@@ -169,6 +185,10 @@ export function variantMock(cur: { subject: string | null; body: string }, angle
   const ask = sentences.find((s) => s.endsWith("?")) ?? "Would a short call be useful?";
   const signoff = /\nRegards,\n(.+)$/.exec(cur.body)?.[1];
   const end = signoff ? `\n\nRegards,\n${signoff}` : "";
+  const bare = reason.replace(/^(Hi|Dear) [^,]+,\s*/, "");
+  if (angle === "professional") return { subject: cur.subject, body: `Dear ${first},\n\nI hope this finds you well. ${bare}\n\n${ask}\n\nThank you for your time.${end}` };
+  if (angle === "conversational") return { subject: cur.subject, body: `Hi ${first}, hope things are going well!\n\n${bare} Thought it was worth a quick note. ${ask.replace(/\?$/, "")} — no pressure either way?${end}` };
+  if (angle === "very_short") return { subject: cur.subject, body: `${first} — ${bare} ${ask}${end}` };
   if (angle === "concise") return { subject: cur.subject, body: `Hi ${first}, ${reason.replace(/^Hi [^,]+,\s*/, "")} ${ask}${end}`.trim() };
   if (angle === "question") return { subject: cur.subject ? `Quick question, ${first}` : null, body: `Hi ${first}, quick question: ${question.charAt(0).toLowerCase()}${question.slice(1)}\n\n${reason} If useful, I can share what comparable companies are doing.${end}` };
   return { subject: cur.subject, body: `Hi ${first},\n\n${reason} Planning early usually means more options and better terms than deciding when timelines are tight.\n\n${ask}${end}` };
@@ -276,3 +296,5 @@ export function availabilityLabel(a: { status: string; as_of: string; fact_statu
   if (a.status === "unverified") return { verified: false, text: `Availability not verified (reported ${a.as_of}) — check before mentioning` };
   return { verified: false, text: `Reported ${a.status.replace(/_/g, " ")} as of ${a.as_of} (${age} days ago) — confirm before mentioning` };
 }
+
+export { recipientError } from "@/lib/services/drafts";

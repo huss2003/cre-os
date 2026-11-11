@@ -5,6 +5,7 @@ import { enqueue } from "@/lib/jobs/queue";
 import { sha256 } from "@/lib/util/crypto";
 import { appUrl, isProviderConfigured } from "./config";
 import { getValidAccessToken, type ConnectorAccountRow, type FetchLike } from "./tokens";
+import { escapeLike } from "@/lib/util/like";
 
 /**
  * Push sync (workflow 04): Microsoft Graph change notifications and Gmail Pub/Sub push. A notification never carries
@@ -159,7 +160,7 @@ export async function handleGmailPush(admin: Db, token: string | null, body: Pub
   try { payload = JSON.parse(Buffer.from(body?.message?.data ?? "", "base64").toString("utf8")); } catch { /* malformed => ack and ignore */ }
   const email = String(payload.emailAddress ?? "").trim().toLowerCase();
   if (!msgId || !email) return { status: 204 as const, accepted: 0, duplicates: 0, unknown: 1 };
-  const { data: accounts } = await admin.from("connector_account").select("id, workspace_id, status").eq("provider", "google").ilike("account_email", email).in("status", ["connected", "error"]);
+  const { data: accounts } = await admin.from("connector_account").select("id, workspace_id, status").eq("provider", "google").ilike("account_email", escapeLike(email)).in("status", ["connected", "error"]);
   const out = { status: 204 as const, accepted: 0, duplicates: 0, unknown: accounts?.length ? 0 : 1 };
   for (const a of accounts ?? []) {
     const receipt = await recordReceipt(admin, { ws: a.workspace_id, accountId: a.id, provider: "google", key: `pubsub:${msgId}`, kind: "history" });

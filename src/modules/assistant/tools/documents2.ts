@@ -163,9 +163,11 @@ const saveLeaseTerms = defineTool({
       let proposalId: string | null = null;
       if (d.changes.length) {
         const patch: PatchOp[] = d.changes.map((p) => ({ op: "replace", path: `/${p.column}`, value: p.value }));
+        const srcDoc = x.attachment_id ? await loadAttachment(t, "save_lease_terms", x.attachment_id) : null;
+        const docName = srcDoc?.file_name ? `"${String(srcDoc.file_name).slice(0, 120)}"` : "attached document";
         const pr = await proposeChange(db(t), ws(t), {
           targetType: "lease", targetId: l.id, operation: "update", expectedVersion: Number(l.row_version), patch,
-          reason: `Assistant: terms from attached document (extraction ${x.id}); ${d.diff.map((z) => z.field).join("; ")}`.slice(0, 1900),
+          reason: `Assistant: terms from ${docName} for ${l.tenant_name_raw ?? "lease"}; ${d.diff.map((z) => z.field).join("; ")}`.slice(0, 1900),
           proposedByKind: "user", idempotencyKey: `lease-terms:${x.id}:${l.id}:${d.changes.map((p) => `${p.column}=${p.value}`).join(",")}`, ownerUserId: t.ctx.userId,
         });
         proposalId = (pr as Row)?.id ?? (pr as Row)?.proposal_id ?? null;

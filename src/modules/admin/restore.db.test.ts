@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { adminClient, USERS, WS1, tag } from "../../../tests/helpers";
 import { encryptSecret } from "@/lib/util/crypto";
-import { exportWorkspace, restoreSampleCheck, restoreTableSample, deleteExportFiles, exportTables, BACKUP_BUCKET, RESTORE_TEST, type RestoreTableResult } from "./backup";
+import { exportWorkspace, restoreSampleCheck, restoreTableSample, deleteExportFiles, exportTables, fetchTableRows, BACKUP_BUCKET, RESTORE_TEST, type RestoreTableResult } from "./backup";
 
 // Acceptance (workflow 22): "backup recovery is periodically tested" — a real restore into scratch copies of the live tables.
 describe("real restore test (monthly restore sample)", () => {
@@ -68,9 +68,8 @@ describe("real restore test (monthly restore sample)", () => {
     const queue = [...tables];
     await Promise.all(Array.from({ length: RESTORE_TEST.concurrency }, async () => {
       for (let t = queue.shift(); t !== undefined; t = queue.shift()) {
-        const { data, error } = await admin.schema("mudar_app").rpc("export_table", { p_workspace: WS1, p_table: t });
-        if (error) throw error;
-        results.push(await restoreTableSample(admin, WS1, t, JSON.parse(JSON.stringify(data ?? [])))); // same JSON round trip as a stored export
+        const data = await fetchTableRows(admin, WS1, t);
+        results.push(await restoreTableSample(admin, WS1, t, JSON.parse(JSON.stringify(data)))); // same JSON round trip as a stored export
       }
     }));
     const ms = Date.now() - started;

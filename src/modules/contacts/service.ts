@@ -38,13 +38,20 @@ export function sources(): Source[] {
 
 // ------------------------------------------------------------------ helpers
 
-async function existingPeople(db: Db, ws: string, names: string[], emails: string[]): Promise<Existing[]> {
+const likeEsc = (s: string) => s.replace(/[\\%_]/g, (c) => `\\${c}`);
+async function existingPeople(db: Db, ws: string, names: string[], emails: string[], extraIds: string[] = []): Promise<Existing[]> {
   const ns = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
-  const ids = new Set<string>();
+  const ids = new Set<string>(extraIds.filter(Boolean));
   for (const n of ns) {
-    const first = normName(n).split(" ")[0];
-    const { data } = await db.from("person").select("id").eq("workspace_id", ws).is("archived_at", null).ilike("full_name", `%${first}%`).limit(50);
-    (data ?? []).forEach((r) => ids.add(r.id));
+    // Full-name match (case-insensitive; whitespace-tolerant) plus alias match — never a first-token search with an
+    // arbitrary limit, which missed the real person in workspaces with many people sharing a first name.
+    const pattern = likeEsc(n.replace(/\s+/g, " ")).replace(/ /g, "%");
+    const [byName, byAlias] = await Promise.all([
+      db.from("person").select("id, full_name").eq("workspace_id", ws).is("archived_at", null).ilike("full_name", pattern).limit(500),
+      db.from("person").select("id").eq("workspace_id", ws).is("archived_at", null).contains("aliases", [n]).limit(200),
+    ]);
+    (byName.data ?? []).filter((r) => normName(r.full_name) === normName(n)).forEach((r) => ids.add(r.id));
+    (byAlias.data ?? []).forEach((r) => ids.add(r.id));
   }
   if (emails.length) {
     const { data } = await db.from("contact_method").select("person_id").eq("workspace_id", ws).in("value", emails).is("archived_at", null);
@@ -195,7 +202,19 @@ export async function discoverCompany(db: Db, ws: string, orgId: string, opts: {
       error: r.mocked ? (r.errors[0] ?? (r.model.startsWith("fallback:") ? "Web search failed or its answer couldn't be read — press Retry." : "Web research is off (no AI key).")) : r.failedPasses ? `${r.failedPasses} of 3 search passes failed — press Retry for more.` : n ? null : "No relevant people were found on public sources.",
       finished_at: new Date().toISOString(),
     }).eq("id", job.id);
-    return { jobId: job.id, found: n, mocked: r.mocked, suggested: r.suggested, error: r.mocked ? r.errors[0] ?? null : null };
+    if (r.mocked) {
+      // No web research (no key / all passes failed): deterministic fallback from your own records — the people already
+      // linked to this company mapped to the target functions, plus the functions nobody covers yet ("who to look for").
+      const { companyPeople } = await import("./queries");
+      const cp = await companyPeople(db, ws, orgId);
+      const linked = cp.people.filter((e) => e.person).map((e) => {
+        const ra = (e.person.contact_role_assessment ?? []).find((x: Row) => x.active);
+        const c = classify(e.title);
+        return { personId: e.person.id as string, name: e.person.full_name as string, title: (e.title ?? null) as string | null, function: (ra?.department ?? c.department ?? "Other") as string, role: (ra?.role_class ?? c.role) as string };
+      });
+      return { jobId: job.id, found: linked.length, mocked: true, source: "records" as const, linked, missing: cp.missing, suggested: cp.missing.map((m) => m.label), error: r.errors[0] ?? null };
+    }
+    return { jobId: job.id, found: n, mocked: r.mocked, suggested: r.suggested, error: null };
   } catch (e) {
     await db.from("enrichment_job").update({ status: "failed", error: String((e as Error).message).slice(0, 300), finished_at: new Date().toISOString() }).eq("id", job.id);
     if (e instanceof AiUnavailableError) throw new ContactError(e.message);
@@ -234,7 +253,7 @@ export async function enrichPerson(db: Db, ws: string, personId: string, opts: {
         input: `Person: ${p.full_name}. Recorded as: ${cur?.title ?? "unknown title"} at ${org.display_name}${org.domain ? ` (${org.domain})` : ""}.\nConfirm current company and designation, responsibilities, and any published business email/phone. Return at most 2 entries (current role; and a different employer only if a source shows a move).`,
         mock: () => ({ people: [], company_contact: null, suggested_roles: [] }),
       });
-      const existing = await existingPeople(db, ws, [p.full_name], []);
+      const existing = await existingPeople(db, ws, [p.full_name, ...r.data.people.map((x) => x.full_name)], [], [personId]);
       for (const f of r.data.people.filter((x) => /^https?:\/\//.test(x.source_url) && !/linkedin\.com/i.test(x.source_url)).slice(0, 2)) {
         await buildItem(db, ws, job.id, org, { full_name: f.full_name, title: f.title, location: f.location, emails: f.emails_published, phones: f.phones_published, phone_is_mobile: !!f.phone_is_mobile, profile: null, source_url: f.source_url, source_name: f.source_name, published_on: f.published_on && /^\d{4}-\d{2}-\d{2}$/.test(f.published_on) ? f.published_on : null }, existing, "web_search");
         found++;
@@ -346,6 +365,8 @@ export async function approveItem(db: Db, ws: string, userId: string, itemId: st
       { op: "add", path: "/person_id", value: personId }, { op: "add", path: "/method_type", value: f.field }, { op: "add", path: "/value", value: f.value },
       { op: "add", path: "/verify_status", value: f.status }, { op: "add", path: "/verify_evidence", value: f.evidence ?? [] },
       { op: "add", path: "/source_name", value: f.source_name ?? null }, { op: "add", path: "/source_url", value: f.source_url ?? null }, { op: "add", path: "/observed_on", value: f.observed_on ?? null },
+      { op: "add", path: "/last_checked_at", value: new Date().toISOString() },
+      ...(f.status === "verified" ? [{ op: "add" as const, path: "/verified_on", value: today() }] : []),
     ], reason: `Business ${f.field} from ${f.source_name ?? "enrichment"}`, idempotencyKey: `contacts.cm:${it.id}:${String(f.value).toLowerCase()}` });
     proposals.push(r.id);
   }
@@ -485,4 +506,34 @@ export async function importLinkedIn(db: Db, ws: string, text: string, opts: { u
   }
   await db.from("enrichment_job").update({ status: "done", total: n, done: n, finished_at: new Date().toISOString() }).eq("id", job.id);
   return { jobId: job.id, imported: n, total: rows.length };
+}
+
+// ------------------------------------------------------------------ create-time duplicate warning (warn, never merge)
+
+export interface LikelyDuplicate { id: string; full_name: string; why: string[] }
+/**
+ * People who share this person's normalised name AND a current company, an email or a phone number. Used to warn when a
+ * person is created (or a role/channel is added). Nothing is merged — the user reviews it (Contacts → Duplicates).
+ */
+export async function likelyDuplicates(db: Db, ws: string, personId: string): Promise<LikelyDuplicate[]> {
+  const sel = "id, full_name, aliases, contact_method(value, method_type, archived_at), employment(org_id, is_current, archived_at)";
+  const { data: me } = await db.from("person").select(sel).eq("workspace_id", ws).eq("id", personId).maybeSingle();
+  if (!me) return [];
+  const n = normName(me.full_name);
+  if (!n) return [];
+  const pattern = likeEsc(String(me.full_name).trim().replace(/\s+/g, " ")).replace(/ /g, "%");
+  const { data } = await db.from("person").select(sel).eq("workspace_id", ws).is("archived_at", null).neq("id", personId).ilike("full_name", pattern).limit(200);
+  const orgs = (p: Row) => new Set(((p.employment ?? []) as Row[]).filter((e) => e.is_current && !e.archived_at).map((e) => e.org_id));
+  const chans = (p: Row, t: string) => new Set(((p.contact_method ?? []) as Row[]).filter((m) => m.method_type === t && !m.archived_at).map((m) => String(m.value).toLowerCase().replace(/[\s-]/g, "")));
+  const myOrgs = orgs(me), myEmails = chans(me, "email"), myPhones = chans(me, "phone");
+  const out: LikelyDuplicate[] = [];
+  for (const p of (data ?? []) as Row[]) {
+    if (normName(p.full_name) !== n) continue;
+    const why: string[] = [];
+    if ([...orgs(p)].some((o) => myOrgs.has(o))) why.push("same current company");
+    if ([...chans(p, "email")].some((e) => myEmails.has(e))) why.push("same email");
+    if ([...chans(p, "phone")].some((e) => myPhones.has(e))) why.push("same phone");
+    if (why.length) out.push({ id: p.id, full_name: p.full_name, why });
+  }
+  return out;
 }

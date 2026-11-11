@@ -75,8 +75,8 @@ export default async function FinancePage({ searchParams }: { searchParams: Prom
               <Field label="Discount-rate source"><Input name="discount_source" placeholder="e.g. client WACC per CFO email 30 Oct" /></Field>
             </MoreFields>
             <MoreFields label="Other costs (unknown until set)">
-              <CostRow item="cam" label="CAM / maintenance"><Input name="cam_rate" inputMode="decimal" placeholder="₹/SF/month" /><Input name="cam_fixed" inputMode="decimal" placeholder="or fixed ₹/month" /></CostRow>
-              <CostRow item="parking" label="Parking"><Input name="parking_slots" inputMode="numeric" placeholder="slots" /><Input name="parking_rate" inputMode="decimal" placeholder="₹/slot/month" /></CostRow>
+              <CostRow item="cam" label="CAM / maintenance"><Input name="cam_rate" aria-label="CAM rate" inputMode="decimal" placeholder="₹/SF/month" /><Input name="cam_fixed" aria-label="CAM fixed" inputMode="decimal" placeholder="or fixed ₹/month" /></CostRow>
+              <CostRow item="parking" label="Parking"><Input name="parking_slots" aria-label="Parking slots" inputMode="numeric" placeholder="slots" /><Input name="parking_rate" aria-label="Parking rate" inputMode="decimal" placeholder="₹/slot/month" /></CostRow>
               <CostRow item="deposit" label="Security deposit"><Input name="deposit_months" inputMode="decimal" placeholder="months of rent" /></CostRow>
               <CostRow item="fitout" label="Fit-out capex"><Input name="fitout" inputMode="decimal" placeholder="₹ total" /></CostRow>
               <CostRow item="opex" label="Other operating costs"><Input name="opex_monthly" inputMode="decimal" placeholder="₹/month (power, housekeeping…)" /></CostRow>

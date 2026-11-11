@@ -3,6 +3,7 @@ import { evaluate, concessionEquivalence, FinanceInputError } from "@/modules/de
 import type { Concession } from "@/modules/deals/finance/engine";
 import type { Num } from "@/modules/deals/finance/types";
 import { toFinanceInput, leaseEconomics, type LeaseTerms } from "./lease";
+import { assertValidInputs } from "./validate";
 
 /**
  * Negotiation Comparison ("nego-1.0") — PURE. Offer versions are append-only (Offer 1, Offer 2 …); diffs, financial
@@ -228,6 +229,7 @@ export function strategyFor(versions: OfferVersion[], offers: OfferFinance[], pa
 }
 
 export function analyseNegotiation(versions: OfferVersion[], packages: ConcessionPackage[] = []): NegotiationAnalysis {
+  versions.forEach((v) => assertValidInputs(v.terms, `${v.label}: `)); packages.forEach((p) => assertValidInputs(p.items, `${p.name}: `));
   if (!versions.length) throw new FinanceInputError("add at least one offer");
   const dates = new Set(versions.map((v) => v.terms.leaseCommencement));
   const warnings: string[] = [];
@@ -246,8 +248,12 @@ export function analyseNegotiation(versions: OfferVersion[], packages: Concessio
   return { formulaVersion: NEGO_FORMULA, horizonMonths: H, offers, diffs, packages: pk, strategy: strategyFor(versions, offers, pk), warnings };
 }
 
-/** Append a new offer version (never overwrites). */
+/** The name the user typed, or null when blank/generic ("Offer", "Offer 2"). */
+export const offerName = (name?: string | null) => { const t = (name ?? "").trim().slice(0, 120); return !t || /^offer(\s*\d+)?$/i.test(t) ? null : t; };
+
+/** Append a new offer version (never overwrites). The typed offer name is kept: label "Offer 2 — Building A". */
 export function appendOffer(versions: OfferVersion[], terms: OfferTerms, createdAt: string, note?: string | null): OfferVersion[] {
   const no = versions.length ? Math.max(...versions.map((v) => v.no)) + 1 : 1;
-  return [...versions, { no, label: `Offer ${no}`, terms: { ...terms, name: `Offer ${no}` }, createdAt, note: note ?? null }];
+  const nm = offerName(terms.name);
+  return [...versions, { no, label: nm ? `Offer ${no} — ${nm}` : `Offer ${no}`, terms: { ...terms, name: nm ?? `Offer ${no}` }, createdAt, note: note ?? null }];
 }

@@ -5,6 +5,8 @@ import { callStructured } from "@/lib/ai/gateway";
 import { proposeChange } from "@/lib/services/changes";
 import { contactValueHash } from "@/lib/services/drafts";
 import * as R from "./rules";
+import { escapeLike } from "@/lib/util/like";
+import { edate, isPastInstant, localDate } from "@/lib/util/time";
 
 /**
  * Module 7 — Meeting Preparation. A meeting is a mudar.meeting_visit (shared with calendar sync); meeting_prep holds
@@ -358,6 +360,7 @@ export async function reschedule(db: Db, ws: string, prepId: string, startIso: s
   if (!p) throw new MeetingError("Not found.");
   const dur = Date.parse((p.meeting as Row).end_at) - Date.parse((p.meeting as Row).start_at);
   const s = new Date(startIso); if (isNaN(+s)) throw new MeetingError("Invalid date.");
+  if (isPastInstant(s)) throw new MeetingError("That time has already passed. Pick a date and time in the future.");
   await db.from("meeting_visit").update({ start_at: s.toISOString(), end_at: endIso ? new Date(endIso).toISOString() : new Date(+s + dur).toISOString() }).eq("id", p.meeting_visit_id);
   await db.from("meeting_prep").update({ status: "rescheduled", remind_at: new Date(+s - 24 * 3600e3).toISOString() }).eq("id", prepId);
 }
@@ -394,7 +397,7 @@ const Basis = z.enum(["statement", "interpretation"]);
 const Extract = z.object({ text: z.string(), basis: Basis, quote: z.string().nullable() });
 const Out = z.object({
   summary: z.string(), outcome: z.enum(["positive", "neutral", "negative", "no_show"]), topics: z.array(z.string()),
-  requirement_updates: z.array(z.object({ field: z.enum(["seats_target", "area_target_sf", "budget_max", "occupation_date", "decision_date", "objective"]), value: z.string(), quote: z.string() })),
+  requirement_updates: z.array(z.object({ field: z.enum(["seats_target", "area_target_sf", "budget_max", "occupation_date", "decision_date", "objective", "lease_tenure_months"]), value: z.string(), quote: z.string() })),
   decision_process: z.string().nullable(), objections: z.array(z.string()), property_feedback: z.array(z.object({ property: z.string(), feedback: z.string() })),
   commitments: z.array(z.object({ who: z.enum(["us", "them"]), what: z.string(), due: z.string().nullable() })),
   next_meeting: z.string().nullable(), followup_date: z.string().nullable(),
@@ -410,9 +413,33 @@ const Out = z.object({
 export type Outcome = z.infer<typeof Out>;
 const lines = (all: string) => all.split(/\n|(?<=[.!?।])\s+/).map((l) => l.replace(/^\[\w+\]\s*/, "").trim()).filter(Boolean);
 const st = (l: string) => ({ text: l.slice(0, 200), basis: "statement" as const, quote: l.slice(0, 200) });
+const NUM: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, eighteen: 18, twenty: 20, "twenty-four": 24, thirty: 30, "thirty-six": 36 };
+const num = (w: string) => (/^\d+$/.test(w) ? Number(w) : NUM[w.toLowerCase()] ?? null);
+const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+/** "by Friday" / "by tomorrow" / "by 2026-11-20" → YYYY-MM-DD relative to the meeting's IST date (next such weekday after it). */
+export function dueFrom(line: string, meetingDate: string): string | null {
+  const iso = line.match(/\b(\d{4}-\d{2}-\d{2})\b/); if (iso) return iso[1];
+  if (/\b(by )?tomorrow\b/i.test(line)) return addDays(meetingDate, 1);
+  const wd = line.match(/\b(?:by|on|before|this|next)\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i);
+  if (!wd) return null;
+  const target = WEEKDAYS.indexOf(wd[1].toLowerCase());
+  const cur = new Date(`${meetingDate}T00:00:00Z`).getUTCDay();
+  let diff = (target - cur + 7) % 7; if (diff === 0) diff = 7;
+  if (/\bnext\s/i.test(wd[0]) && diff < 7) diff += 7;
+  return addDays(meetingDate, diff);
+}
 /** Deterministic mock analysis (AI off). Understands common English / Hindi / Hinglish phrasing; never invents names, dates or amounts. */
-export function mockOutcome(all: string, ctx: { properties: string[]; attendees: string[]; feedback: { property: string; interest: string; explicit: boolean }[] }): Outcome {
+export function mockOutcome(all: string, ctx: { properties: string[]; attendees: string[]; feedback: { property: string; interest: string; explicit: boolean }[]; meetingDate?: string }): Outcome {
   const L = lines(all);
+  const mDate = ctx.meetingDate && /^\d{4}-\d{2}-\d{2}$/.test(ctx.meetingDate) ? ctx.meetingDate : localDate();
+  const W = "(\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|eighteen|twenty|twenty-four|thirty|thirty-six)";
+  const within = L.map((l) => ({ l, m: l.match(new RegExp(`\\b(?:within|in|next)\\s+(?:the\\s+next\\s+)?${W}\\s+months?\\b`, "i")) })).find((x) => x.m && /occup|move|shift|timeline|target|ready|possession/i.test(x.l));
+  const tenure = L.map((l) => ({ l, m: l.match(new RegExp(`\\b(?:tenure|lease term|lease length|term|lock-in)\\b[^.]*?\\b${W}\\s+(years?|months?)\\b`, "i")) })).find((x) => x.m);
+  const finance = L.find((l) => /\b(finance|cfo|board|management|procurement)\b[^.]*\bapprov|approv[^.]*\b(finance|cfo|board|management|procurement)\b/i.test(l));
+  const renew = L.find((l) => /\brenew|\brelocat|existing office|current office/i.test(l));
+  const expensive = L.filter((l) => /expensive|costly|too high|over budget|mehenga|mahanga/i.test(l));
+  const firstNames = ctx.attendees.map((a) => a.trim().split(/\s+/)[0]?.toLowerCase()).filter(Boolean);
+  const isThem = (l: string) => /^(they|he|she|client|the client)\b/i.test(l) || firstNames.includes(l.trim().split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, "") ?? "");
   const seats = all.match(/(\d{2,5})\s*(seats|people|headcount|log|logon|seat)/i); const area = all.match(/(\d[\d,]{2,})\s*(sq\.?\s*ft|sqft|sf|square feet)/i); const date = all.match(/\d{4}-\d{2}-\d{2}/);
   const neg = /not interested|no need|interest nahi|nahi chahiye|zaroorat nahi/i.test(all);
   const interestOf = (l: string): Outcome["per_property_interest"][number]["interest"] => /reject|not interested|pasand nahi|nahi chahiye|no go|ruled out|cancel kar/i.test(l) ? "rejected" : /maybe|shayad|sochenge|will think|not sure|dekhte/i.test(l) ? "maybe" : /like|liked|pasand|interested|accha|achha|good|shortlist/i.test(l) ? "interested" : "unclear";
@@ -429,6 +456,12 @@ export function mockOutcome(all: string, ctx: { properties: string[]; attendees:
   if (vagueDate) clar.push({ question: `Which exact date was meant by: "${vagueDate.slice(0, 120)}"?`, about: "date" });
   const vagueAmt = L.find((l) => /budget|rent|kiraya|price|rate/i.test(l) && !/\d/.test(l));
   if (vagueAmt) clar.push({ question: `What amount was discussed in: "${vagueAmt.slice(0, 120)}"?`, about: "amount" });
+  if (expensive.length) {
+    // One amount question: what commercial range is acceptable (merged with a vague budget line if there is one).
+    const q = `What commercial (rent) range is acceptable to the client? They said: "${expensive[0].slice(0, 120)}"${vagueAmt ? ` and "${vagueAmt.slice(0, 80)}"` : ""}`;
+    const i = clar.findIndex((c) => c.about === "amount");
+    if (i >= 0) clar[i] = { question: `${q} (budget)`, about: "amount" }; else clar.push({ question: q, about: "amount" });
+  }
   const contact_updates: Outcome["contact_updates"] = [];
   for (const l of L) {
     const who = ctx.attendees.find((n) => n && l.toLowerCase().includes(n.toLowerCase().split(/\s+/)[0]));
@@ -445,22 +478,31 @@ export function mockOutcome(all: string, ctx: { properties: string[]; attendees:
     new_stakeholders.push({ name: m[1], role: ROLE[m[2].toLowerCase()] ?? "other", quote: m[0] });
   }
   return {
-    summary: all.slice(0, 240), outcome: (/did ?n.t happen|not held|no.show|cancell?ed|postponed|didn.t meet|meeting nahi hui/i.test(all) ? "no_show" : neg ? "negative" : "positive") as Outcome["outcome"], topics: [],
-    requirement_updates: [...(seats ? [{ field: "seats_target" as const, value: seats[1], quote: seats[0] }] : []), ...(area ? [{ field: "area_target_sf" as const, value: area[1].replace(/,/g, ""), quote: area[0] }] : []), ...(date && /move|shift/i.test(all) ? [{ field: "occupation_date" as const, value: date[0], quote: date[0] }] : [])],
-    decision_process: null, objections: /broker/i.test(all) ? ["Mentioned an existing broker"] : [], property_feedback: [],
-    commitments: L.filter((l) => /\b(we will|i will|send|share|bhej|bhejenge|bhejunga)\b/i.test(l)).map((l) => ({ who: "us" as const, what: l.slice(0, 160), due: null })),
+    summary: all.slice(0, 240), outcome: (/did ?n.t happen|not held|no.show|cancell?ed|postponed|didn.t meet|meeting nahi hui/i.test(all) ? "no_show" : neg ? "negative" : "positive") as Outcome["outcome"],
+    requirement_updates: [...(seats ? [{ field: "seats_target" as const, value: seats[1], quote: seats[0] }] : []), ...(area ? [{ field: "area_target_sf" as const, value: area[1].replace(/,/g, ""), quote: area[0] }] : []),
+      ...(date && /move|shift/i.test(all) ? [{ field: "occupation_date" as const, value: date[0], quote: date[0] }]
+        : within?.m && num(within.m[1]) ? [{ field: "occupation_date" as const, value: edate(mDate, num(within.m[1])!), quote: within.l.slice(0, 200) }] : []),
+      ...(tenure?.m && num(tenure.m[1]) ? [{ field: "lease_tenure_months" as const, value: String(num(tenure.m[1])! * (/year/i.test(tenure.m[2]) ? 12 : 1)), quote: tenure.l.slice(0, 200) }] : [])],
+    decision_process: finance ? finance.slice(0, 200) : null,
+    objections: [...(/broker/i.test(all) ? ["Mentioned an existing broker"] : []), ...expensive.map((l) => `Price objection: ${l.slice(0, 160)}`)], property_feedback: [],
+    commitments: L.filter((l) => /\b(we will|i will|will send|will share|send|share|bhej|bhejenge|bhejunga)\b/i.test(l)).map((l) => ({ who: (isThem(l) && !/^(we|i)\b/i.test(l) ? "them" : "us") as "us" | "them", what: l.slice(0, 160), due: dueFrom(l, mDate) })),
     next_meeting: null, followup_date: null,
     buying_signals: L.filter((l) => /shortlist|site visit|proposal|approved|pasand|interested|ready to|finali[sz]e|loi|term sheet/i.test(l) && !/not interested|pasand nahi/i.test(l)).map(st),
     risks: L.filter((l) => /concern|worried|expensive|mehenga|mahanga|delay|broker|competitor|budget (is )?tight|problem|issue/i.test(l)).map(st),
-    unresolved_questions: L.filter((l) => /\?$|tbd|pata nahi|not sure|to confirm|confirm karna|unclear/i.test(l)).map(st),
+    unresolved_questions: [...L.filter((l) => /\?$|tbd|pata nahi|not sure|to confirm|confirm karna|unclear/i.test(l)).map(st),
+      ...(renew ? [{ text: `Decision pending: renew the existing office or relocate — "${renew.slice(0, 160)}"`, basis: "interpretation" as const, quote: renew.slice(0, 200) }] : []),
+      ...(finance ? [{ text: `Finance approval is needed — who approves in Finance and what do they need to see?`, basis: "interpretation" as const, quote: finance.slice(0, 200) }] : [])],
     per_property_interest: ppi,
-    confidence_notes: ["Rule-based extraction (AI off): only explicit phrases were picked up; review before applying."],
+    topics: [...(tenure?.m ? [`Lease tenure: ${tenure.m[1]} ${tenure.m[2]}`] : []), ...(within?.m ? [`Timeline: occupancy within ${within.m[1]} months`] : [])],
+    confidence_notes: ["Rule-based extraction (AI off): only explicit phrases were picked up; review before applying.", ...(within?.m ? [`Occupation date is approximate: "${within.m[0]}" counted from the meeting date ${mDate}.`] : [])],
     clarifications_needed: clar, contact_updates, company_notes: [], new_stakeholders,
   };
 }
 export async function structureOutcome(db: Db, ws: string, userId: string, prepId: string, text: string, ai: Ai = callStructured) {
-  const { data: p } = await db.from("meeting_prep").select("asset_ids, meeting_prep_attendee(raw_name, person:person_id(full_name))").eq("workspace_id", ws).eq("id", prepId).maybeSingle();
+  const { data: p } = await db.from("meeting_prep").select("asset_ids, meeting:meeting_visit_id(start_at), meeting_prep_attendee(raw_name, person:person_id(full_name))").eq("workspace_id", ws).eq("id", prepId).maybeSingle();
   if (!p) throw new MeetingError("Meeting not found.");
+  const startAt = (p.meeting as Row | null)?.start_at as string | undefined;
+  const meetingDate = startAt ? localDate(new Date(startAt)) : localDate();
   const [{ data: notes }, { data: assets }, { data: fb }] = await Promise.all([
     db.from("meeting_note").select("kind, text").eq("prep_id", prepId).is("archived_at", null).order("created_at"),
     (p.asset_ids ?? []).length ? db.from("asset").select("id, name").in("id", p.asset_ids) : Promise.resolve({ data: [] as Row[] }),
@@ -482,8 +524,8 @@ export async function structureOutcome(db: Db, ws: string, userId: string, prepI
       "If a name, date, amount or commitment is ambiguous (e.g. 'next week', 'budget is ok', 'he will check'), add a clarifications_needed question instead of guessing. Never invent people, phone numbers, emails or titles.",
       "confidence_notes: short notes on what is uncertain.",
     ].join(" "),
-    input: `Structure these notes. Attendees on record: ${attendees.join(", ") || "none"}. Properties discussed: ${((assets ?? []) as Row[]).map((a) => a.name).join(", ") || "none"}.`, evidence,
-    mock: () => mockOutcome(evidence, { properties: ((assets ?? []) as Row[]).map((a) => a.name), attendees, feedback }) });
+    input: `Meeting date (IST): ${meetingDate} — resolve "by Friday"/"within nine months" relative to it; commitments by a client attendee are who "them". Lease tenure goes in requirement_updates as lease_tenure_months. Structure these notes. Attendees on record: ${attendees.join(", ") || "none"}. Properties discussed: ${((assets ?? []) as Row[]).map((a) => a.name).join(", ") || "none"}.`, evidence,
+    mock: () => mockOutcome(evidence, { properties: ((assets ?? []) as Row[]).map((a) => a.name), attendees, feedback, meetingDate }) });
   await db.from("meeting_prep").update({ outcome: { proposed: r.data, notes_text: text.slice(0, 8000), structured_at: new Date().toISOString(), applied: null, clarifications: {} } }).eq("id", prepId);
   return r.data;
 }
@@ -501,6 +543,25 @@ export async function answerClarifications(db: Db, ws: string, prepId: string, a
 export function openClarifications(outcome: Row | null | undefined) {
   const qs = ((outcome?.proposed?.clarifications_needed ?? []) as { question: string; about: string }[]);
   return qs.map((q, i) => ({ ...q, i, answer: (outcome?.clarifications ?? {})[String(i)] ?? "" })).filter((q) => !String(q.answer).trim());
+}
+
+const REQ_LABEL: Record<string, (v: string) => string> = {
+  area_target_sf: (v) => `Area: about ${Number(v).toLocaleString("en-IN")} sq ft`, seats_target: (v) => `Seats: ${v}`, budget_max: (v) => `Budget up to ${v}`,
+  occupation_date: (v) => `Target occupancy: ${v}`, decision_date: (v) => `Decision by ${v}`, objective: (v) => `Objective: ${v}`,
+  lease_tenure_months: (v) => `Preferred lease tenure: ${Number(v) % 12 === 0 ? `${Number(v) / 12} years` : `${v} months`}`,
+};
+/** Facts for the follow-up email (Module 5), taken only from the structured outcome the user reviewed. */
+export function followupFacts(o: Outcome, attendees: { name: string }[]): { text: string; source_type: string; source_id: null }[] {
+  const f = (text: string, source_type: string) => ({ text: text.replace(/^\[\w+\]\s*/gm, "").trim(), source_type, source_id: null });
+  const reqs = o.requirement_updates.map((u) => REQ_LABEL[u.field]?.(u.value)).filter(Boolean) as string[];
+  const first = (n: string) => n.split(/\s+/)[0];
+  const them = attendees[0]?.name ? first(attendees[0].name) : "You";
+  const summary = reqs.length ? reqs : o.summary.replace(/\[\w+\]\s*/g, "").split(/(?<=[.!?])\s+/).filter(Boolean).slice(0, 3);
+  const extras = [...(o.decision_process ? [o.decision_process] : []), ...o.unresolved_questions.filter((u) => /renew|relocat/i.test(u.text)).map((u) => u.text)];
+  const commitments = o.commitments.map((c) => `${c.what.replace(/\.$/, "")} (${c.who === "us" ? "us" : them}${c.due ? `, by ${c.due}` : ""})`);
+  const ours = o.commitments.find((c) => c.who === "us");
+  const next = o.next_meeting ?? (ours ? `${ours.what.replace(/^we will\s+/i, "we will ").replace(/\.$/, "")}${ours.due && !ours.what.includes(ours.due) ? ` (by ${ours.due})` : ""}` : null);
+  return [...[...summary, ...extras].map((t) => f(t, "meeting_summary")), ...commitments.map((t) => f(t, "meeting_commitment")), ...(next ? [f(next.charAt(0).toUpperCase() + next.slice(1), "meeting_next_step")] : [])];
 }
 
 export interface ApplySel { requirement: boolean; tasks: boolean; interaction: boolean; followupDraft: boolean; contacts?: boolean; company?: boolean; stakeholders?: boolean; nextActionDate?: string | null; assigneeUserId?: string | null }
@@ -531,7 +592,13 @@ export async function applyOutcome(db: Db, ws: string, userId: string, prepId: s
     if (!prev) await db.from("interaction_link").insert([...x.attendees.filter((a) => a.personId).map((a) => ({ workspace_id: ws, interaction_id: ins.id, entity_type: "person", entity_id: a.personId, role: "participant" })), ...(x.prep.org_id ? [{ workspace_id: ws, interaction_id: ins.id, entity_type: "organisation", entity_id: x.prep.org_id, role: "mentioned" }] : [])]);
   }
   if (sel.requirement && x.requirement && o.requirement_updates.length) {
-    const patch = o.requirement_updates.map((u) => ({ op: "replace" as const, path: `/${u.field}`, value: ["seats_target", "area_target_sf", "budget_max"].includes(u.field) ? Number(String(u.value).replace(/[^\d.]/g, "")) : u.value }));
+    const cols = o.requirement_updates.filter((u) => u.field !== "lease_tenure_months");
+    const ten = o.requirement_updates.find((u) => u.field === "lease_tenure_months");
+    const patch = [
+      ...cols.map((u) => ({ op: "replace" as const, path: `/${u.field}`, value: ["seats_target", "area_target_sf", "budget_max"].includes(u.field) ? Number(String(u.value).replace(/[^\d.]/g, "")) : u.value })),
+      // No tenure column: kept as a structured requirement constraint (months), with the quote in the proposal reason.
+      ...(ten && Number(ten.value) > 0 ? [{ op: "replace" as const, path: "/constraints", value: { ...((x.requirement.constraints ?? {}) as Row), lease_tenure_months: Number(ten.value) } }] : []),
+    ];
     await proposeChange(db, ws, { targetType: "requirement", targetId: x.requirement.id, patch, reason: `From meeting notes "${x.meeting.title}": ${o.requirement_updates.map((u) => `"${u.quote}"`).join(", ")}`, proposedByKind: "model", idempotencyKey: `meeting:${prepId}:req`, ownerUserId: userId });
     res.proposals++;
   }
@@ -562,7 +629,7 @@ export async function applyOutcome(db: Db, ws: string, userId: string, prepId: s
   }
   if (sel.stakeholders && x.requirement && (o.new_stakeholders ?? []).length) {
     for (const [i, s] of o.new_stakeholders.entries()) {
-      const known = personByName(s.name)?.personId ?? (await db.from("person").select("id").eq("workspace_id", ws).ilike("full_name", s.name).limit(2)).data?.filter((_, __, arr) => arr.length === 1)[0]?.id ?? null;
+      const known = personByName(s.name)?.personId ?? (await db.from("person").select("id").eq("workspace_id", ws).ilike("full_name", escapeLike(s.name)).limit(2)).data?.filter((_, __, arr) => arr.length === 1)[0]?.id ?? null;
       if (known) {
         await proposeChange(db, ws, { targetType: "stakeholder", operation: "create", patch: [{ op: "add", path: "/requirement_id", value: x.requirement.id }, { op: "add", path: "/person_id", value: known }, { op: "add", path: "/role", value: s.role }, { op: "add", path: "/influence_basis", value: `Mentioned in meeting: "${s.quote}"`.slice(0, 300) }], reason: reason(`"${s.quote}"`), proposedByKind: "model", idempotencyKey: `meeting:${prepId}:stk:${i}`, ownerUserId: userId });
       } else {
@@ -588,7 +655,7 @@ export async function applyOutcome(db: Db, ws: string, userId: string, prepId: s
     const target = x.attendees.find((a) => a.personId && !a.doNotContact);
     if (target) {
       const { createOutreach } = await import("@/modules/outreach/service");
-      const r = await createOutreach(db, ws, userId, { personId: target.personId!, channels: ["meeting_followup"], scenario: "meeting_followup", opportunityId: x.prep.opportunity_id }).catch(() => null);
+      const r = await createOutreach(db, ws, userId, { personId: target.personId!, channels: ["meeting_followup"], scenario: "meeting_followup", opportunityId: x.prep.opportunity_id, extraFacts: followupFacts(o, x.attendees) }).catch(() => null);
       res.draft = r?.ids[0] ?? null;
     }
   }

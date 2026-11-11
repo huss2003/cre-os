@@ -30,3 +30,24 @@ describe("proposal display formatter", () => {
     expect([...m.get("geography")!]).toEqual([G1]);
   });
 });
+
+describe("cleanText / proposalHeadline (bug hunt m1/m3)", () => {
+  it("removes ids and storage paths", async () => {
+    const { cleanText, proposalHeadline, humanToken } = await import("./display");
+    expect(cleanText('From uploaded file "q.pdf" (capture document 8621196c, stored at de000000-0000-4000-8000-000000000001/captures/uploads/x/q.pdf)')).toBe('From uploaded file "q.pdf"');
+    expect(cleanText("Assistant: terms from attached document (extraction ec89c05c-5b10-4e2c-…) for Acme")).toBe("Assistant: terms from attached document for Acme");
+    expect(cleanText("see 00000000-0000-4000-8000-000000000001 now")).toBe("see now");
+    expect(proposalHeadline("update", "lease", "clarify")).toBe("Needs clarification: update lease");
+    expect(proposalHeadline("create", "organisation")).toBe("New company");
+    expect(humanToken("draft_edit")).toBe("Draft edit");
+  });
+});
+
+describe("cleanText: ids from retest", () => {
+  it("strips task extraction ids and orchestrator event keys", async () => {
+    const { cleanText: ct } = await import("./display");
+    expect(ct("Assistant: terms from attached document (extraction 9cf1cacf-…)")).toBe("Assistant: terms from attached document");
+    expect(ct("Recalculated by the orchestrator: a requirement change [evt:ee434170-1111-2222-3333-444455556666:reassess.requirement:recalculate]"))
+      .toBe("Recalculated by the orchestrator: a requirement change");
+  });
+});

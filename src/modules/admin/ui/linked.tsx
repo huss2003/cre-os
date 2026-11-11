@@ -44,8 +44,8 @@ export async function LinkedAdd({ kind, hostId, backPath, open = false }: { kind
     </div>
   );
   return (
-    <details className="group" open={open || undefined}>
-      <summary className="inline-flex min-h-10 cursor-pointer list-none items-center rounded-xl border border-line px-4 text-sm font-semibold text-brand hover:border-brand/40 group-open:hidden">+ {spec.title}</summary>
+    <details className="group/add" open={open || undefined}>
+      <summary className="inline-flex min-h-10 cursor-pointer list-none items-center rounded-xl border border-line px-4 text-sm font-semibold text-brand hover:border-brand/40 group-open/add:hidden">+ {spec.title}</summary>
       <div className="rounded-xl border border-line bg-canvas/40 p-4">
         <p className="mb-4 text-sm font-semibold">{spec.title}</p>
         <ActionForm action={action} className="max-w-md space-y-4">

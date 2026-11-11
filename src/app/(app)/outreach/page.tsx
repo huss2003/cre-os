@@ -50,7 +50,7 @@ async function Today({ db, ws, editor, userId }: { db: Row; ws: string; editor: 
       <section className="space-y-3">
         <h2 data-tour="outreach-today" className="flex items-center font-semibold">New conversations to start<HelpFor k="New conversations to start" /></h2>
         {!sug.length ? <Empty title="No new reasons to reach out today" text="Suggestions come from recent signals and upcoming lease dates for companies where a relevant contact is saved. Add signals in Signals, or find people in Contacts." /> : (
-          <ul className="grid gap-4 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {sug.map((x, idx) => {
               // Tutorial target: the practice contact's card if present, otherwise the first card.
               const tourCard = sug.some((y) => /\(tutorial\)/.test(y.name)) ? /\(tutorial\)/.test(x.name) : idx === 0;
@@ -58,12 +58,12 @@ async function Today({ db, ws, editor, userId }: { db: Row; ws: string; editor: 
               const ini = x.name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
               const title = x.title && !/named in import/i.test(x.title) ? x.title : null;
               return (
-              <li key={x.personId} data-tour={tourCard ? "outreach-practice-card" : undefined} className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-sm transition hover:border-brand/40 hover:shadow-md">
-                <div className="flex items-start gap-3">
+              <li key={x.personId} data-tour={tourCard ? "outreach-practice-card" : undefined} className="flex min-w-0 flex-col break-words rounded-2xl border border-line bg-surface p-5 shadow-sm transition hover:border-brand/40 hover:shadow-md">
+                <div className="flex min-w-0 items-start gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-soft font-semibold text-brand">{ini}</span>
                   <div className="min-w-0 flex-1">
-                    <Link href={`/contacts/${x.personId}`} className="block truncate font-semibold hover:text-brand">{x.name}</Link>
-                    <p className="truncate text-sm text-ink-soft">{title ? `${title} · ` : ""}{x.org}</p>
+                    <Link href={`/contacts/${x.personId}`} className="block break-words font-semibold hover:text-brand">{x.name}</Link>
+                    <p className="break-words text-sm text-ink-soft">{title ? `${title} · ` : ""}{x.org}</p>
                   </div>
                   {x.score !== null ? <span className="shrink-0 rounded-lg bg-canvas px-2 py-1 text-center leading-none" title="Lead score (0–100)"><span className="block text-base font-bold tabular-nums">{x.score}</span><span className="text-[10px] text-ink-soft">lead</span></span> : null}
                 </div>

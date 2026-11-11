@@ -10,6 +10,7 @@ import { scoreUnrankedAction } from "@/modules/scoring/actions";
 import { MODELS } from "@/modules/scoring/models";
 import { ScoreBar, Completeness, CONF_LABEL } from "@/modules/scoring/ui/parts";
 import type { ModelKey } from "@/modules/scoring/engine";
+import { escapeLike } from "@/lib/util/like";
 
 export const metadata = { title: "Scoring" };
 type Row = Record<string, any>;
@@ -39,7 +40,7 @@ async function entityFilter(db: Row, ws: string, tab: ModelKey, sp: SP & { userI
   if (!sp.industry && !sp.geo && !sp.expiry && !sp.owner) return null;
   let orgs: Set<string> | null = null;
   const and = (ids: string[]) => { const s = new Set(ids); orgs = orgs ? new Set([...orgs].filter((x) => s.has(x))) : s; };
-  if (sp.industry) and(((await db.from("organisation").select("id").eq("workspace_id", ws).ilike("sector", sp.industry)).data ?? []).map((r: Row) => r.id));
+  if (sp.industry) and(((await db.from("organisation").select("id").eq("workspace_id", ws).ilike("sector", escapeLike(sp.industry))).data ?? []).map((r: Row) => r.id));
   if (sp.geo) and(((await db.from("lease").select("tenant_org_id, asset:asset_id!inner(locality_id, micro_market_id)").eq("workspace_id", ws).or(`locality_id.eq.${sp.geo},micro_market_id.eq.${sp.geo}`, { referencedTable: "asset" })).data ?? []).map((r: Row) => r.tenant_org_id).filter(Boolean));
   if (sp.expiry) {
     const to = new Date(Date.now() + Number(sp.expiry) * 30 * 86_400_000).toISOString().slice(0, 10);

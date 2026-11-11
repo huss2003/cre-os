@@ -71,6 +71,8 @@ function industryWeight(sector: string | null, weights: Record<string, number>):
 
 // ---------------------------------------------------------------- per-model extractors
 
+const BUDGET_WHY = "needed to filter properties by affordability and check commercial feasibility";
+
 export async function companyFeatures(db: Db, ws: string, orgId: string, config: Row): Promise<Features> {
   const b = await orgBundle(db, ws, orgId);
   if (!b.org) throw new Error("Company not found");
@@ -179,13 +181,34 @@ export async function requirementFeatures(db: Db, ws: string, reqId: string): Pr
   const areaN = [r.area_min_sf, r.area_target_sf, r.area_max_sf].filter((x) => x != null).length;
   v.area = fv(areaN >= 2 ? 1 : areaN === 1 ? 0.6 : 0, areaN ? `Area ${[r.area_min_sf, r.area_target_sf, r.area_max_sf].map((x) => x ?? "?").join(" / ")} sq ft (min/target/max)` : "No area given", ev("Area"));
   v.location = fv((r.preferred_geography_ids ?? []).length ? 1 : 0, (r.preferred_geography_ids ?? []).length ? `${r.preferred_geography_ids.length} preferred location(s)` : "No preferred micro-market");
-  v.budget = fv(r.budget_min != null && r.budget_max != null ? 1 : r.budget_min != null || r.budget_max != null ? 0.6 : 0, r.budget_min != null || r.budget_max != null ? `Budget ${r.budget_min ?? "?"}–${r.budget_max ?? "?"} ${r.budget_basis ?? ""}` : "Budget unknown");
+  const hasBudget = r.budget_min != null || r.budget_max != null;
+  v.budget = hasBudget ? fv(r.budget_min != null && r.budget_max != null ? 1 : 0.6, `Budget ${r.budget_min ?? "?"}–${r.budget_max ?? "?"} ${r.budget_basis ?? ""}`)
+    : fv(null, `Budget unknown — ${BUDGET_WHY}`);
   const when = r.occupation_date ?? r.decision_date;
   const dd = days(when);
   v.timing = fv(when ? (dd !== null && dd < 0 ? 0.3 : 1) : 0, when ? `${r.occupation_date ? "Move-in" : "Decision"} ${when}${dd !== null ? ` (${dd >= 0 ? `in ${dd} days` : "passed"})` : ""}` : "No move-in or decision date");
-  const specKeys = ["lease_term_years", "furnishing", "fitout", "parking", "power", "certifications"].filter((k) => c[k] != null && c[k] !== "");
-  v.specs = fv(Math.min(1, specKeys.length / 3), specKeys.length ? `Captured: ${specKeys.join(", ")}` : "Lease term and furnishing not captured");
+  // The requirement form stores captured values under constraints.values (older rows used top-level keys) — read both.
+  const cv = { ...c, ...((c.values ?? {}) as Row) } as Row;
+  const has = (k: string) => cv[k] != null && cv[k] !== "" && !(Array.isArray(cv[k]) && !cv[k].length);
+  const tenureKnown = has("tenure_months") || has("lease_term_years");
+  const SPEC_LABEL: Record<string, string> = { tenure_months: "lease tenure", lease_term_years: "lease tenure", lockin_months: "lock-in", furnishing: "furnishing", fitout_standard: "fit-out standard", fitout: "fit-out", parking: "parking", power: "power", it_load: "IT load", certifications: "certifications" };
+  const specKeys = Object.keys(SPEC_LABEL).filter(has).filter((k) => !(k === "lease_term_years" && has("tenure_months")));
+  v.specs = fv(Math.min(1, specKeys.length / 3), specKeys.length ? `Lease terms & technical specs captured: ${specKeys.map((k) => SPEC_LABEL[k]).join(", ")}` : "Lease tenure and technical specs (power, IT load, parking) not captured");
   v.decision_maker = fv(r.confirmed_by_person_id || sh.some((s) => ["approver", "sponsor"].includes(s.role)) ? 1 : sh.length ? 0.5 : 0, sh.length ? `${sh.length} stakeholder(s): ${sh.map((s) => `${s.person?.full_name} (${s.role})`).slice(0, 3).join(", ")}` : "No stakeholder recorded");
+  const approver = sh.some((s) => ["approver", "economic_buyer", "signatory", "finance"].includes(String(s.role)));
+  const approvalBits = [has("procurement_process") && `procurement: ${cv.procurement_process}`, has("commercial_authority") && `commercial authority: ${cv.commercial_authority}`, approver && "approver stakeholder recorded"].filter(Boolean) as string[];
+  v.approval = fv(approvalBits.length >= 2 ? 1 : approvalBits.length ? 0.6 : 0, approvalBits.length ? `Approval process: ${approvalBits.join("; ")}` : "Approval process / commercial authority not recorded");
+  // Commercial feasibility: recorded budget vs asking rents of shortlisted options (deterministic, no inference).
+  const opts = await rows(db.from("shortlist_option").select("space_id, asset_id, availability_id").eq("workspace_id", ws).eq("requirement_id", reqId).is("archived_at", null).limit(100));
+  let rents: number[] = [];
+  const avIds = opts.map((o) => o.availability_id).filter(Boolean);
+  if (avIds.length) rents = (await rows(db.from("availability").select("asking_rent_min").eq("workspace_id", ws).in("id", avIds))).map((a) => Number(a.asking_rent_min)).filter((x) => Number.isFinite(x) && x > 0);
+  const budgetMax = r.budget_max != null ? Number(r.budget_max) : r.budget_min != null ? Number(r.budget_min) : null;
+  const perSf = !r.budget_basis || /sf|sq|psf/i.test(String(r.budget_basis));
+  if (budgetMax === null) v.feasibility = fv(null, "Commercial feasibility unknown — no budget to compare with asking rents");
+  else if (!perSf) v.feasibility = fv(null, `Commercial feasibility not compared — budget basis "${r.budget_basis}" is not per sq ft`);
+  else if (!rents.length) v.feasibility = fv(null, "Commercial feasibility not yet checked — no shortlisted options with an asking rent");
+  else { const ok = rents.filter((x) => x <= budgetMax).length; v.feasibility = fv(ok / rents.length, `Commercial feasibility: ${ok} of ${rents.length} shortlisted option(s) at or under the ₹${budgetMax}/sf budget`); }
   const ver = ago(r.confirmed_at ?? r.updated_at);
   v.freshness = ver === null ? fv(null, "Never verified") : fv(ver <= 30 ? 1 : ver <= 90 ? 0.7 : ver <= 180 ? 0.4 : 0.15, `Last updated ${ver} days ago`);
   // Separate sub-assessments, as required: completeness / urgency / attractiveness / verification.
@@ -195,7 +218,7 @@ export async function requirementFeatures(db: Db, ws: string, reqId: string): Pr
   return {
     values: v,
     extra: { company: r.org?.display_name, title: r.title, urgency, attractiveness, verification: r.status },
-    missing: [!areaN && "Area range", !(r.preferred_geography_ids ?? []).length && "Preferred micro-market", r.budget_min == null && r.budget_max == null && "Budget", !when && "Move-in date", !c.lease_term_years && "Lease duration", !c.furnishing && "Furnishing preference", !sh.length && !r.confirmed_by_person_id && "Decision-maker"].filter(Boolean) as string[],
+    missing: [!areaN && "Area range", !(r.preferred_geography_ids ?? []).length && "Preferred micro-market", !hasBudget && "Budget", !when && "Move-in date", !tenureKnown && "Lease duration", !has("furnishing") && !has("fitout_standard") && "Furnishing / fit-out preference", !approvalBits.length && "Approval process / commercial authority", !sh.length && !r.confirmed_by_person_id && "Decision-maker"].filter(Boolean) as string[],
     recommended: r.status !== "client_confirmed" ? "Confirm the requirement with the client." : !when ? "Get the move-in date." : "Run property matching and shortlist.",
   };
 }
@@ -229,11 +252,15 @@ export async function leadFeatures(db: Db, ws: string, orgId: string): Promise<F
   const nd = dates.length ? days(dates[0]) : null;
   v.timing = nd === null ? fv(null, "No dated event (timing unknown)") : fv(nd <= 90 ? 1 : nd <= 180 ? 0.75 : nd <= 365 ? 0.45 : 0.2, `Nearest dated event in ${nd} days (${dates[0]})`);
   const budgeted = b.reqs.find((r) => r.budget_min != null || r.budget_max != null);
-  v.budget = budgeted ? fv(budgeted.status === "client_confirmed" ? 1 : 0.6, `Budget recorded on “${budgeted.title}”`, [{ type: "requirement", id: budgeted.id, label: budgeted.title, tier: "records" }]) : fv(null, "No budget evidence (not inferred)");
   const bc = await bestContact(db, ws, b.emps);
   v.authority = fv(bc.v, bc.why, bc.ev);
+  // Commercial fit = company attractiveness (scored on demand by the service) + recorded budget evidence (never inferred).
   const cs = await current(db, ws, "company", orgId);
-  v.fit = cs === null ? fv(null, "Company not scored yet") : fv(cs / 100, `Company attractiveness ${cs}/100`);
+  const bv = budgeted ? (budgeted.status === "client_confirmed" ? 1 : 0.6) : null;
+  const fitParts = [cs !== null && `company attractiveness ${cs}/100`, budgeted ? `budget recorded on “${budgeted.title}”${budgeted.status === "client_confirmed" ? " (client-confirmed)" : ""}` : "no budget evidence (not inferred)"].filter(Boolean);
+  v.fit = cs === null && bv === null ? fv(null, "Company not scored and no budget evidence")
+    : fv(cs === null ? (bv as number) : bv === null ? cs / 100 : 0.7 * (cs / 100) + 0.3 * bv, `Commercial fit: ${fitParts.join("; ")}`,
+      budgeted ? [{ type: "requirement", id: budgeted.id, label: budgeted.title, tier: "records" }] : []);
   // Engagement counts interactions with the company AND with its current people (deduplicated).
   const pids = b.emps.map((e) => e.person_id);
   const pl = pids.length ? await rows(db.from("interaction_link").select("interaction:interaction_id(id, occurred_at, channel, is_meaningful)").eq("workspace_id", ws).eq("entity_type", "person").in("entity_id", pids).limit(1000)) : [];
@@ -243,7 +270,8 @@ export async function leadFeatures(db: Db, ws: string, orgId: string): Promise<F
   v.engagement = fv(Math.min(1, recent.filter((i) => i.is_meaningful || ["meeting", "call", "visit"].includes(i.channel)).length * 0.35 + (recent.length ? 0.15 : 0)), recent.length ? `${recent.length} interaction(s) in 180 days` : "No recent engagement");
   const best = [...b.sigs].sort((x, y) => (y.confidence === "high" ? 3 : y.confidence === "medium" ? 2 : 1) - (x.confidence === "high" ? 3 : x.confidence === "medium" ? 2 : 1))[0];
   const bestAge = best ? ago(best.latest_evidence_on ?? best.detected_at) : null;
-  v.evidence = best ? fv((best.confidence === "high" ? 1 : best.confidence === "medium" ? 0.65 : 0.3) * ((bestAge ?? 0) > 365 ? 0.5 : 1), `Best evidence: ${best.title} (${best.confidence}${bestAge !== null ? `, ${bestAge} days old` : ""})`, [sigEv(best)])
+  const freshness = bestAge === null ? 0.5 : bestAge <= 30 ? 1 : bestAge <= 90 ? 0.8 : bestAge <= 180 ? 0.6 : bestAge <= 365 ? 0.4 : 0.2;
+  v.evidence = best ? fv((best.confidence === "high" ? 1 : best.confidence === "medium" ? 0.8 : 0.6) * freshness, `Best evidence: ${best.title} (${best.confidence}${bestAge !== null ? `, ${bestAge} days old` : ", date unknown"})`, [sigEv(best)])
     : upcoming.length ? fv(upcoming[0].confirmed ? 1 : 0.6, "Lease record", [{ type: "lease_event", id: upcoming[0].id, label: upcoming[0].event_type, tier: upcoming[0].confirmed ? "documentary_current" : "records" }]) : fv(0, "No supporting evidence");
   return { values: v, extra: { company: b.org.display_name },
     missing: [!budgeted && "Budget", bc.v === 0 && "Decision-maker", nd === null && "Timing / dates", !b.leases.length && "Current occupancy"].filter(Boolean) as string[],
@@ -280,11 +308,37 @@ export async function opportunityFeatures(db: Db, ws: string, oppId: string): Pr
   const recent = links.filter((i) => (ago(i.occurred_at) ?? 999) <= 60);
   v.engagement = fv(Math.min(1, recent.length * 0.3), recent.length ? `${recent.length} interaction(s) in 60 days` : "No recent engagement on this deal");
   v.next_action = fv(o.next_action ? 1 : 0, o.next_action ? `Next: ${o.next_action}` : "No next action set");
+  const health = await dealHealth(db, ws, o, links);
   // Revenue only when inputs exist; no win probability (no validated outcome history yet).
   const risks = [!req && "No requirement linked", (bc.v ?? 0) < 0.6 && "No clear decision-maker access", o.mandate_status !== "exclusive" && "No exclusive mandate", dd !== null && dd < 0 && "Close date has passed", o.risks].filter(Boolean) as string[];
-  return { values: v, extra: { company: o.org?.display_name, name: o.name, stage: o.stage, risks, revenue: o.expected_fee ? Number(o.expected_fee) : null, probability: "Not estimated: not enough historical outcomes to validate a win probability." },
+  return { values: v, extra: { company: o.org?.display_name, name: o.name, stage: o.stage, risks, health, revenue: o.expected_fee ? Number(o.expected_fee) : null, probability: "Not estimated: not enough historical outcomes to validate a win probability." },
     missing: [!req && "Linked requirement", !o.expected_fee && "Expected fee", !when && "Expected close date", (o.mandate_status ?? "unknown") === "unknown" && "Mandate status"].filter(Boolean) as string[],
-    recommended: !o.next_action ? "Set the next action." : (bc.v ?? 0) < 0.6 ? "Get access to the decision-maker." : !opts.length && req ? "Run property matching." : "Advance to the next stage." };
+    recommended: health.blockers.length ? `Resolve the blocker: ${health.blockers[0]}` : health.pendingApprovals.length ? "Clear the pending approval in Approvals." : health.overdue.length ? `Overdue: ${health.overdue[0]}` : !o.next_action ? "Set the next action." : (bc.v ?? 0) < 0.6 ? "Get access to the decision-maker." : !opts.length && req ? "Run property matching." : "Advance to the next stage." };
+}
+
+/**
+ * Deal health — kept SEPARATE from attractiveness: what is blocking the deal right now (unresolved objections, pending
+ * approvals, overdue next action, no recent progress). Rules only; every item says why.
+ */
+export interface DealHealth { status: "healthy" | "at_risk" | "stalled"; blockers: string[]; pendingApprovals: string[]; overdue: string[]; stalled: string | null; daysSinceInteraction: number | null; daysInStage: number | null; reasons: string[] }
+export async function dealHealth(db: Db, ws: string, o: Row, interactions: Row[]): Promise<DealHealth> {
+  const [objs, props] = await Promise.all([
+    rows(db.from("objection_log").select("id, category, objection, outcome, raised_on").eq("workspace_id", ws).eq("opportunity_id", o.id).is("archived_at", null).limit(50)),
+    rows(db.from("change_proposal").select("id, reason, created_at").eq("workspace_id", ws).eq("target_type", "opportunity").eq("target_id", o.id).in("state", ["proposed", "clarify"]).limit(20)),
+  ]);
+  const open = objs.filter((x) => !["resolved", "overcome", "accepted", "withdrawn"].includes(String(x.outcome ?? "").toLowerCase()));
+  const blockers = open.map((x) => `Unresolved objection (${String(x.category ?? "other").replace(/_/g, " ")}): ${x.objection}`);
+  const pendingApprovals = props.map((p) => `Pending approval since ${String(p.created_at).slice(0, 10)}: ${p.reason ?? "change awaiting review"}`);
+  const dueIn = days(o.next_action_due);
+  const overdue = o.next_action && dueIn !== null && dueIn < 0 ? [`Next action "${o.next_action}" overdue by ${-dueIn} days (due ${o.next_action_due})`] : [];
+  const last = interactions.map((i) => i.occurred_at).filter(Boolean).sort().pop();
+  const since = ago(last);
+  const inStage = ago(o.stage_entered_at);
+  const closed = o.outcome && o.outcome !== "open";
+  const stallBits = [since === null ? "no interaction logged on this deal" : since > 30 ? `no interaction for ${since} days` : null, overdue.length ? "next action overdue" : null, inStage !== null && inStage > 60 ? `${inStage} days in stage ${String(o.stage ?? "").replace(/_/g, " ")}` : null].filter(Boolean) as string[];
+  const stalled = !closed && stallBits.length && (since === null || since > 30) ? `Stalled — no recent progress: ${stallBits.join("; ")}` : null;
+  const status = stalled ? "stalled" : blockers.length || pendingApprovals.length || overdue.length ? "at_risk" : "healthy";
+  return { status, blockers, pendingApprovals, overdue, stalled, daysSinceInteraction: since, daysInStage: inStage, reasons: [...blockers, ...pendingApprovals, ...overdue, ...(stalled ? [stalled] : [])] };
 }
 
 export const ENTITY_FOR: Record<ModelKey, string> = { company: "organisation", lead: "organisation", relationship: "organisation", contact: "person", requirement: "requirement", opportunity: "opportunity" };

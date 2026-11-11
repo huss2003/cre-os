@@ -94,7 +94,7 @@ async function Body({ sp }: { sp: SP }) {
           <form method="get" className="flex gap-2" data-tour="signals-search">
             <input type="hidden" name="view" value={view} />
             <label className="sr-only" htmlFor="sq">Search signals</label>
-            <input id="sq" name="q" defaultValue={sp.q} placeholder="Search company, place or evidence" className="min-h-11 flex-1 rounded-xl border border-line bg-surface px-4 text-sm" />
+            <input id="sq" name="q" aria-label="Search signals" defaultValue={sp.q} placeholder="Search company, place or evidence" className="min-h-11 flex-1 rounded-xl border border-line bg-surface px-4 text-sm" />
             <button className="min-h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-white">Search</button>
           </form>
 

@@ -31,7 +31,7 @@ export default async function NegotiationPage() {
             <BlankHint />
             <div className="grid gap-4 rounded-xl border border-line bg-surface p-4 sm:grid-cols-2">
               <In label="Negotiation title" name="title" placeholder="Tower B, 4th floor — landlord X" />
-              <In label="Discount rate" unit="% per year" name="discount" inputMode="decimal" required />
+              <In label="Discount rate" unit="% per year" name="discount" inputMode="decimal" required placeholder="e.g. 10" hint="Your cost of money; used for present value. Required." />
             </div>
             <LeaseTermFields p="o0_" title="Offer 1 — financial terms" extra={<NonFinancialFields />} />
             <StickyBar note="Saves Offer 1. Nothing is sent to anyone.">

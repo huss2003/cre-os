@@ -18,6 +18,7 @@
  */
 import Decimal from "decimal.js";
 import type { AreaBasis } from "./bts";
+import { assertValidInputs } from "./validate";
 
 export const INV_FORMULA = "inv-1.0";
 const Dec = Decimal.clone({ precision: 50, rounding: Decimal.ROUND_HALF_UP });
@@ -122,6 +123,7 @@ function operate(i: InvestmentInput, H: number, rentFactor: D): Core {
 }
 
 export function computeInvestment(i: InvestmentInput): InvestmentResult {
+  assertValidInputs(i);
   const missing: string[] = []; const nulls: Record<string, string> = {}; const assumptions: string[] = [];
   const need = (x: N, label: string) => { if (!known(x)) missing.push(label); return dn(x); };
   const price = need(i.purchasePrice, "Purchase price");

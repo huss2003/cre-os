@@ -1,0 +1,58 @@
+{
+  "durationMs": 68486,
+  "steps": [
+    {
+      "caption": "Zentrix's requirement changed: maximum area went from 28,000 to 30,000 sq ft. Open Review.",
+      "ms": 3607
+    },
+    {
+      "caption": "In the row of queues, open Stale records, then the Outdated proposals tab.",
+      "ms": 7800
+    },
+    {
+      "caption": "Top: approved or shared proposals that used the old figures. They are never changed automatically — you decide.",
+      "ms": 13739
+    },
+    {
+      "caption": "Below: drafts and analyses that need a refresh.",
+      "ms": 16954
+    },
+    {
+      "caption": "'Recalculated (v…)': the comparison already re-ran as a new version; the old versions are kept.",
+      "ms": 20130
+    },
+    {
+      "caption": "'May be outdated': figures you entered yourself — open it, check and re-run.",
+      "ms": 23387
+    },
+    {
+      "caption": "'what changed' shows the old and new values.",
+      "ms": 26702
+    },
+    {
+      "caption": "Press Refresh on a comparison to bring it up to date. It runs the refresh workflow.",
+      "ms": 29874
+    },
+    {
+      "caption": "Done — it disappears from the list. Dismiss closes a warning you don't need (it stays in the history).",
+      "ms": 36910
+    },
+    {
+      "caption": "Dismiss this one.",
+      "ms": 41770
+    },
+    {
+      "caption": "The same warning appears on the record itself. Open the Zentrix requirement.",
+      "ms": 47376
+    },
+    {
+      "caption": "New rent quotations work the same way: comparisons recalculate, proposals using the old quote are flagged.",
+      "ms": 57363
+    },
+    {
+      "caption": "Each reassessment is a job in Automation → Recently finished, with its steps and the records it flagged.",
+      "ms": 60549
+    }
+  ],
+  "bytes": 1138201
+}

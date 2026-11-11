@@ -10,6 +10,7 @@ import type { FitoutResult, QuoteCompareResult } from "@/modules/toolkit/calc/fi
 import { FitoutEditor } from "../editor";
 import { FitoutResults } from "../results";
 import { loadPartners } from "../data";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 export default async function FitoutView({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -25,6 +26,7 @@ export default async function FitoutView({ params, searchParams }: { params: Pro
   const partners = await loadPartners(ctx.db, ctx.workspaceId);
   return (
     <div className="space-y-6">
+      <ReassessBanner ctx={ctx} entityType="deal_analysis" entityId={a.id} />
       <ToolHeader eyebrow={`Fit-out budget · version ${ver ? ver.version : a.current_version} · formula ${src.formula_version}`} title={a.title}
         purpose={`Totals and partner ranking first; edit below to save a new version.${outputs.asOf ? ` Quote validity checked against ${outputs.asOf}.` : ""}`}
         back={{ href: "/toolkit/fitout", label: "All budgets" }} steps={["Add budget lines", "Add partner quotes", "Compare"]} current={2} />

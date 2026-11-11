@@ -1,3 +1,4 @@
+import { humanToken } from "@/modules/changes/display";
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { PageHeader, Badge, EmptyState, Input, Select, Textarea, Button, ButtonLink } from "@/components/ui";
@@ -26,7 +27,15 @@ function Chips({ m }: { m: MemoryListItem }) {
   );
 }
 
-function MemoryCard({ m, editor }: { m: MemoryListItem; editor: boolean }) {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Who provided a memory, for display: never a raw user id. */
+function providerLabel(v: string, names: Map<string, string>, me: string): string {
+  if (v === me) return "you";
+  if (UUID_RE.test(v)) return names.get(v) ?? "a workspace member";
+  return v === "user" ? "you" : v;
+}
+
+function MemoryCard({ m, editor, names, me }: { m: MemoryListItem; editor: boolean; names: Map<string, string>; me: string }) {
   const live = m.status === "active" || m.status === "restricted";
   return (
     <li className="rounded-2xl border border-line bg-surface p-4">
@@ -35,8 +44,8 @@ function MemoryCard({ m, editor }: { m: MemoryListItem; editor: boolean }) {
           <p className={m.status === "forgotten" ? "italic text-ink-soft" : "font-medium"}>{m.content}</p>
           <p className="mt-1 text-xs text-ink-soft">
             About <Link href={m.href} className="font-medium text-brand hover:underline">{m.entityLabel ?? "record not visible"}</Link>
-            {" · "}from {m.source.startsWith("conversation:") ? <Link className="hover:underline" href={`/assistant/${m.source.slice(13)}`}>a conversation</Link> : m.source}
-            {m.provided_by ? ` · by ${m.provided_by}` : ""} · captured {fmtDate(m.captured_at)}
+            {" · "}from {m.source.startsWith("conversation:") ? <Link className="hover:underline" href={`/assistant/${m.source.slice(13)}`}>a conversation</Link> : sourceLabel(m.source)}
+            {m.provided_by ? ` · by ${providerLabel(m.provided_by, names, me)}` : ""} · captured {fmtDate(m.captured_at)}
             {m.last_verified_at ? ` · verified ${fmtDate(m.last_verified_at)}` : " · never verified"}
             {m.review_at ? ` · review by ${fmtDate(m.review_at)}` : ""}
           </p>
@@ -79,6 +88,8 @@ function MemoryCard({ m, editor }: { m: MemoryListItem; editor: boolean }) {
 
 export default async function MemoryPage({ searchParams }: { searchParams: Promise<SP> }) {
   const ctx = await requirePageContext();
+  const { data: members } = await ctx.db.from("membership").select("user_id, display_name").eq("workspace_id", ctx.workspaceId);
+  const names = new Map(((members ?? []) as { user_id: string; display_name: string | null }[]).filter((r) => r.display_name).map((r) => [r.user_id, r.display_name as string]));
   const sp = await searchParams;
   const status = (sp.status && STATUS_LABEL[sp.status] ? sp.status : "current") as "current";
   const category = CATEGORIES.includes(sp.category as never) ? (sp.category as "person") : "";
@@ -104,8 +115,14 @@ export default async function MemoryPage({ searchParams }: { searchParams: Promi
           </EmptyState>
         )
       ) : (
-        <ul className="space-y-3">{items.map((m) => <MemoryCard key={m.id} m={m} editor={editor} />)}</ul>
+        <ul className="space-y-3">{items.map((m) => <MemoryCard key={m.id} m={m} editor={editor} names={names} me={ctx.userId} />)}</ul>
       )}
     </div>
   );
+}
+
+const SOURCE_LABEL: Record<string, string> = { draft_edit: "your edits to a draft", user: "you", manual: "you", capture: "a capture", import: "an import" };
+function sourceLabel(src: string): string {
+  const head = src.split(":")[0];
+  return SOURCE_LABEL[head] ?? humanToken(head).toLowerCase();
 }

@@ -1,6 +1,7 @@
 import Decimal from "decimal.js";
 import { z } from "zod";
 import { compareLeaseOffers, occupancyEconomics, validateTerms, LEASE_FORMULA, type LeaseTerms } from "./lease";
+import { assertValidInputs } from "./validate";
 
 /**
  * Landlord offer comparator ("offer-cmp-1.0"). PURE. A LandlordOffer is the fixed, typed shape of a landlord's commercial
@@ -126,6 +127,7 @@ const highest = (vals: Cell[]): number | null => {
 
 /** Compare 1..10 offers. Offers missing area/rent/term are shown line by line but excluded from money totals. */
 export function compareLandlordOffers(offers: LandlordOffer[], opt: CompareOptions): OfferComparisonResult {
+  offers.forEach((o) => assertValidInputs(o, `${o.name}: `));
   if (!offers.length) throw new Error("at least one offer required");
   const parsed = offers.map((o) => landlordOfferSchema.parse(o));
   const names = parsed.map((o, i) => (parsed.findIndex((x) => x.name === o.name) === i ? o.name : `${o.name} (${i + 1})`));

@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { saveEntity, setArchived, EDITABLE } from "@/modules/admin/entities";
 import { classifyRisk, proposeChange } from "@/lib/services/changes";
-import { updateRequirementFields } from "@/modules/deals/requirements/service";
+import { buildPatch, assertRequirementRanges } from "@/modules/deals/requirements/service";
 import { FIELD_BY_KEY, fieldValue, type RequirementRow } from "@/modules/deals/requirements/contract";
 import { createOpportunity, moveStage } from "@/modules/deals/pipeline/service";
 import { STAGES } from "@/modules/deals/pipeline/stages";
@@ -60,25 +60,58 @@ const updateCompanyRecord = defineTool({
 });
 
 // ---------------------------------------------------------------------------------------------------- requirement
+const REQ_KEYS = [...FIELD_BY_KEY.keys()];
+/** Invalid changes (unknown key, bad range shape) — rejected before an approval is ever shown. */
+export function requirementChangeProblems(changes: { key: string; value?: unknown }[]): string[] {
+  const out: string[] = [];
+  for (const c of changes) {
+    const f = FIELD_BY_KEY.get(c.key);
+    if (!f) { out.push(`"${c.key}" is not a requirement field. Valid keys: ${REQ_KEYS.join(", ")} (area and seats are [min, target, max]; budget is [min, max]).`); continue; }
+    if (f.kind === "range") {
+      const n = (f.columns ?? []).length;
+      if (!Array.isArray(c.value) || c.value.length !== n || c.value.some((x) => x !== null && !Number.isFinite(Number(x)))) out.push(`${c.key} must be an array of ${n} numbers or null ([${(f.columns ?? []).join(", ")}]).`);
+    }
+  }
+  return out;
+}
+
 const updateRequirementRecord = defineTool({
   id: "update_requirement_record", module: "database", category: "C", minRole: "member",
-  description: "Change requirement fields (seats, area, budget, dates, locations, specs…) with their status (client_confirmed / reported / estimated). Needs approval. Uses the Deals service: estimated/unknown fields are saved, client-confirmed fields become a change proposal.",
+  description: `Change requirement fields with their status (client_confirmed / reported / estimated). Needs approval; on approval the change is filed as a change proposal (old value preserved, source = this assistant conversation) for Review. Keys (Deals contract): ${REQ_KEYS.join(", ")}. Ranges: area = [min_sf, target_sf, max_sf], seats = [min, target, max], budget = [min, max]; e.g. {key:"area", value:[22000,30000,33000]}. Unknown keys are rejected.`,
   input: z.object({
     requirementId: z.string(),
-    changes: z.array(z.object({ key: z.string().describe("Requirement field key, e.g. seats_target, area_target_sf, budget_max, occupation_date"), value: z.unknown(), status: z.enum(["client_confirmed", "reported", "estimated", "unknown"]).optional() })).min(1).max(15),
+    changes: z.array(z.object({ key: z.string().describe(`Requirement field key: ${REQ_KEYS.join(", ")}`), value: z.unknown(), status: z.enum(["client_confirmed", "reported", "estimated", "unknown"]).optional() })).min(1).max(15)
+      .superRefine((cs, ctx) => { for (const p of requirementChangeProblems(cs)) ctx.addIssue({ code: "custom", message: p }); }),
     reason: z.string().min(3).max(500),
   }),
   async plan(i, t) {
     const r = await mustGet(t, "update_requirement_record", "requirement", i.requirementId);
-    const unknown = i.changes.filter((c) => !FIELD_BY_KEY.has(c.key)).map((c) => c.key);
-    const diff = i.changes.filter((c) => FIELD_BY_KEY.has(c.key)).map((c) => ({ field: `${FIELD_BY_KEY.get(c.key)!.label}${c.status ? ` (${c.status})` : ""}`, before: fieldValue(r as RequirementRow, c.key) ?? null, after: c.value ?? null }));
-    return { title: `Update requirement ${r.title}`, affected: [ref("requirement", r.id, r.title, HREF.requirement(r.id))], diff, explanation: `${i.reason}.${unknown.length ? ` Unknown field(s) will be rejected: ${unknown.join(", ")}.` : ""} Client-confirmed fields go to Review as a change proposal.` };
+    const diff = i.changes.map((c) => ({ field: `${FIELD_BY_KEY.get(c.key)!.label}${c.status ? ` (${c.status})` : ""}`, before: fieldValue(r as RequirementRow, c.key) ?? null, after: c.value ?? null }));
+    return { title: `Update requirement ${r.title}`, affected: [ref("requirement", r.id, r.title, HREF.requirement(r.id))], diff, explanation: `${i.reason}. After approval this is filed as a change proposal in Review (/approvals); the current value is kept until it is applied.` };
   },
   async run(i, t) {
     try {
-      const r = await mustGet(t, "update_requirement_record", "requirement", i.requirementId, "id, title, row_version");
-      const res = await updateRequirementFields(dealsCtx(t), r.id, Number(r.row_version), i.changes.map((c) => ({ key: c.key, value: c.value, status: c.status })), `Assistant: ${i.reason}`, t.runId);
-      return { ok: true, summary: `${res.applied.length} field(s) saved${res.proposals.length ? `, ${res.proposals.length} proposal(s) to Review` : ""}`, data: { applied: res.applied, proposals: res.proposals, specNotes: res.specNotes }, entities: [ref("requirement", r.id, r.title, HREF.requirement(r.id))], blocks: [{ kind: "status", done: res.applied.map((f) => `Saved ${f}`), pending: res.proposals.flatMap((p) => p.fields.map((f) => `${f} awaiting approval in Review`)), blocked: [] }] };
+      const problems = requirementChangeProblems(i.changes);
+      if (problems.length) return { ok: false, error: "invalid_input", summary: problems.join(" ") };
+      const r = await mustGet(t, "update_requirement_record", "requirement", i.requirementId);
+      const changes = i.changes.map((c) => ({ key: c.key, value: c.value, status: c.status ?? "client_confirmed" }));
+      const { columns, constraints } = buildPatch(r as RequirementRow, changes as never);
+      assertRequirementRanges({ ...r, ...columns });
+      const patch = [...Object.entries(columns).map(([k, v]) => ({ op: "replace" as const, path: `/${k}`, value: v })), { op: "replace" as const, path: "/constraints", value: constraints }];
+      const source = `assistant conversation ${t.conversationId ?? "(none)"}, run ${t.runId}`;
+      const cp = (await proposeChange(db(t), ws(t), {
+        targetType: "requirement", targetId: r.id, operation: "update", expectedVersion: Number(r.row_version), patch,
+        reason: `Assistant: ${i.reason} [source: ${source}]`, proposedByKind: "user", ownerUserId: t.ctx.userId,
+        classification: String(r.classification ?? "corporate_confidential"), idempotencyKey: `assistant:req:${r.id}:${t.runId}:${changes.map((c) => c.key).join(",")}`,
+      })) as Row;
+      const fields = changes.map((c) => FIELD_BY_KEY.get(c.key)!.label);
+      const applied = cp.state === "applied";
+      return {
+        ok: true, summary: applied ? `${fields.join(", ")} updated (routine change applied)` : `Change proposal filed for Review: ${fields.join(", ")} — the current value stays until it is approved there`,
+        data: { proposalId: cp.id, state: cp.state, risk: cp.risk, fields: changes.map((c) => c.key), source, href: "/approvals" },
+        entities: [ref("requirement", r.id, r.title, HREF.requirement(r.id))],
+        blocks: [{ kind: "status", done: applied ? fields.map((f) => `Saved ${f}`) : [], pending: applied ? [] : fields.map((f) => `${f} awaiting approval in Review`), blocked: [] }],
+      };
     } catch (e) { return notVisible(e) ?? failed("Requirement update failed", e); }
   },
 });

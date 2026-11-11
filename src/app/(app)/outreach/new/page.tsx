@@ -21,7 +21,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
         <Link href="/outreach" className="text-sm text-ink-soft hover:text-ink">← Outreach</Link>
         <h1 className="text-2xl font-bold">Who do you want to contact?</h1>
         <form data-tour="outreach-pick-contact" method="get" className={`${box} space-y-3`}>
-          <select name="person" required className={sel} defaultValue=""><option value="" disabled>Choose a contact</option>{((data ?? []) as Row[]).filter((p) => !p.do_not_contact).map((p) => { const e = (p.employment ?? []).find((x: Row) => x.is_current); return <option key={p.id} value={p.id}>{p.full_name}{e ? ` — ${e.title ?? ""} ${e.org?.display_name ? `at ${e.org.display_name}` : ""}` : ""}</option>; })}</select>
+          <select name="person" aria-label="Contact" required className={sel} defaultValue=""><option value="" disabled>Choose a contact</option>{((data ?? []) as Row[]).filter((p) => !p.do_not_contact).map((p) => { const e = (p.employment ?? []).find((x: Row) => x.is_current); return <option key={p.id} value={p.id}>{p.full_name}{e ? ` — ${e.title ?? ""} ${e.org?.display_name ? `at ${e.org.display_name}` : ""}` : ""}</option>; })}</select>
           <button className="min-h-10 rounded-xl bg-brand px-4 text-sm font-semibold text-white">Continue</button>
         </form>
       </div>
@@ -62,7 +62,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
               <h3 className="flex items-center font-semibold">Warm introduction<HelpFor k="Warm introduction" /></h3>
               <ul className="mt-2 space-y-2">{paths.slice(0, 4).map((p) => (
                 <li key={p.personId} className={`${sp.via === p.personId ? "ring-2 ring-brand/30 " : ""}flex flex-wrap items-center gap-3 rounded-xl bg-canvas p-3 text-sm`}>
-                  <span className="min-w-0 flex-1"><b>{p.name}</b><span className="block text-xs text-ink-soft">Knows them: {p.theirLink} · You: {p.yourLink}{p.introPermission ? " · has agreed to introduce before" : ""}</span></span>
+                  <span className="min-w-0 flex-1"><b>{p.name}</b><span className="block text-xs text-ink-soft">Knows them: {p.theirLink} · You: {p.yourLink}{p.introPermission ? " · has agreed to introduce before" : ""}{p.evidence.theirs ? <span className="block">Evidence (their link): {p.evidence.theirs.basis ?? "no basis recorded"}{p.evidence.theirs.lastContact ? ` · last contact ${p.evidence.theirs.lastContact}` : ""}</span> : <span className="block">No evidence recorded for their link.</span>}{p.evidence.yours ? <span className="block">Evidence (your link): {p.evidence.yours.basis ?? "no basis recorded"}{p.evidence.yours.lastContact ? ` · last contact ${p.evidence.yours.lastContact}` : ""}</span> : null}</span></span>
                   <ActionForm action={createAction}><input type="hidden" name="person_id" value={sp.person} /><input type="hidden" name="via" value={p.personId} /><input type="hidden" name="channel" value="introduction" /><Submit variant="secondary">Ask {p.name.split(" ")[0]}</Submit></ActionForm>
                 </li>))}</ul>
             </div>

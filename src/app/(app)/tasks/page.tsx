@@ -6,7 +6,8 @@ import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select } fro
 import { fmt } from "@/lib/util/time";
 import { loadSettings } from "@/modules/brief/db";
 import { listTasks, taskFilterSchema, TASK_STATES, type TaskRow } from "@/modules/brief/tasks-service";
-import { completeAction, createAction, reopenAction, snoozeAction } from "./actions";
+import { createAction, taskAction } from "./actions";
+import { cleanText } from "@/modules/changes/display";
 
 
 const STATE_LABEL: Record<string, string> = { open: "Open", overdue: "Overdue", snoozed: "Snoozed", stale: "Stale", done: "Done", all: "All" };
@@ -59,21 +60,26 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
       </nav>
       <form className="flex flex-col gap-2 sm:flex-row" action="/tasks">
         <input type="hidden" name="state" value={f.state} />
-        <Input name="q" defaultValue={f.q ?? ""} placeholder="Search titles" />
-        <Select name="scope" defaultValue={f.scope} className="sm:w-44"><option value="mine">Mine</option><option value="all">Everyone</option></Select>
-        <Select name="source" defaultValue={f.source ?? ""} className="sm:w-44">
+        <Input name="q" aria-label="Search tasks" defaultValue={f.q ?? ""} placeholder="Search titles" />
+        <Select name="scope" aria-label="Whose tasks" defaultValue={f.scope} className="sm:w-44"><option value="mine">Mine</option><option value="all">Everyone</option></Select>
+        <Select name="source" aria-label="Task source" defaultValue={f.source ?? ""} className="sm:w-44">
           <option value="">Any source</option><option value="brief">Brief / targets</option><option value="workflow">Lease radar / relationships</option><option value="capture">Capture</option><option value="manual">Manual</option><option value="import">Import</option>
         </Select>
         <Button type="submit" variant="secondary">Filter</Button>
       </form>
 
       {tasks.length === 0 ? <EmptyState title={`No ${STATE_LABEL[f.state].toLowerCase()} tasks`}>{EMPTY[f.state]}</EmptyState> : (
+        // One form for the whole list (was one per task): each button submits "op:<task id>", row fields carry the id.
+        <form action={taskAction}>
+          <input type="hidden" name="return_to" value={returnTo} />
+          {/* Disabled default button: pressing Enter in a row's evidence box must not complete the first task. */}
+          <button type="submit" disabled hidden aria-hidden tabIndex={-1} />
         <ul className="space-y-2">
           {tasks.map((t) => (
             <li key={t.id} id={t.id} className="rounded-xl border border-line bg-surface p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={STATE_TONE[t.state]}>{t.state === "snoozed" && t.snoozedUntil ? `Snoozed until ${fmt(t.snoozedUntil, "dd MMM", tz)}` : STATE_LABEL[t.state] ?? t.state}</Badge>
-                <span className="font-medium">{t.title}</span>
+                <span className="min-w-0 break-words font-medium">{cleanText(t.title) || t.title}</span>
                 {t.waitsOn ? <Badge tone="bad">Blocked</Badge> : null}
               </div>
               {t.waitsOn ? <p className="mt-1 text-xs text-bad">Waits on {t.waitsOn} — not ranked as doable until that is done.</p> : null}
@@ -84,30 +90,33 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
                 {t.linkedEntityType === "interaction" ? <> · linked to the interaction it came from</> : null}
                 {t.linkedEntityType === "meeting_visit" ? <> · <Link className="text-brand" href="/calendar">visit</Link></> : null}
               </div>
-              {t.description ? <p className="mt-1 text-sm text-ink-soft">{t.description}</p> : null}
+              {t.description ? <p className="mt-1 text-sm text-ink-soft">{cleanText(t.description)}</p> : null}
               {t.completionEvidence ? <p className="mt-1 text-sm"><span className="font-medium">Evidence:</span> {t.completionEvidence} {t.completedAt ? <span className="text-xs text-ink-soft">({fmt(t.completedAt, "dd MMM HH:mm", tz)})</span> : null}</p> : null}
               {canEdit ? (
-                t.state === "done" || t.state === "cancelled" ? (
-                  <form action={reopenAction} className="mt-2"><Hidden t={t} r={returnTo} /><Button type="submit" variant="ghost">Reopen</Button></form>
-                ) : (
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                    <form action={completeAction} className="flex flex-1 gap-2">
-                      <Hidden t={t} r={returnTo} />
-                      <Input name="evidence" placeholder="What was done (evidence)" required minLength={3} />
-                      <Button type="submit">Complete</Button>
-                    </form>
-                    <form action={snoozeAction} className="flex gap-2">
-                      <Hidden t={t} r={returnTo} />
-                      <Select name="days" defaultValue="1" className="w-24"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option></Select>
-                      <Button type="submit" variant="secondary">Snooze</Button>
-                    </form>
-                    {t.state === "snoozed" || t.state === "stale" ? <form action={reopenAction}><Hidden t={t} r={returnTo} /><Button type="submit" variant="ghost">Reopen</Button></form> : null}
-                  </div>
-                )
+                // Evidence is validated on the server for Complete only, so Snooze/Reopen are never blocked by it.
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <input type="hidden" name={`version:${t.id}`} value={t.rowVersion} />
+                  {t.state === "done" || t.state === "cancelled" ? (
+                    <Button type="submit" variant="ghost" name="op" value={`reopen:${t.id}`}>Reopen</Button>
+                  ) : (
+                    <>
+                      <span className="flex flex-1 gap-2">
+                        <Input name={`evidence:${t.id}`} aria-label="Evidence of completion" placeholder="What was done (evidence)" maxLength={2000} />
+                        <Button type="submit" name="op" value={`complete:${t.id}`}>Complete</Button>
+                      </span>
+                      <span className="flex gap-2">
+                        <Select name={`days:${t.id}`} aria-label="Snooze for" defaultValue="1" className="w-24"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option><option value="14">14 days</option></Select>
+                        <Button type="submit" variant="secondary" name="op" value={`snooze:${t.id}`}>Snooze</Button>
+                      </span>
+                      {t.state === "snoozed" || t.state === "stale" ? <Button type="submit" variant="ghost" name="op" value={`reopen:${t.id}`}>Reopen</Button> : null}
+                    </>
+                  )}
+                </div>
               ) : null}
             </li>
           ))}
         </ul>
+        </form>
       )}
 
       {canEdit ? (
@@ -123,8 +132,4 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
       ) : null}
     </div>
   );
-}
-
-function Hidden({ t, r }: { t: TaskRow; r: string }) {
-  return (<><input type="hidden" name="id" value={t.id} /><input type="hidden" name="version" value={t.rowVersion} /><input type="hidden" name="return_to" value={r} /></>);
 }

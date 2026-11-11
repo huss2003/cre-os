@@ -1,4 +1,5 @@
 "use server";
+import { checkHttpUrl } from "@/lib/util/url";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth/context";
@@ -29,6 +30,11 @@ export async function saveFitoutAction(_p: ActionState, form: FormData): Promise
       requiredScope: cats(raw.requiredScope), criteria: raw.criteria,
       preferredIndex: raw.preferredIndex ?? null, preferredReason: raw.preferredReason ?? null,
     };
+    for (const q of inputs.quotes) {
+      const link = checkHttpUrl(q.documentsUrl, `Documents link for ${q.partnerName || "a quotation"}`);
+      if (link.error) throw new Error(link.error);
+      q.documentsUrl = link.value;
+    }
     if (inputs.preferredIndex !== null && !inputs.quotes[inputs.preferredIndex!]) inputs.preferredIndex = null;
     const asOf = new Date().toISOString().slice(0, 10);
     const budget = computeFitout(inputs);

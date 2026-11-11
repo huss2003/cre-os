@@ -61,10 +61,10 @@ async function Body({ tab }: { tab: string }) {
         </ul>
       )}
       {editor ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <section data-tour="meetings-import" className="rounded-2xl border border-line bg-surface p-5"><h2 className="flex items-center font-semibold">Import from your calendar<HelpFor k="Import from your calendar" /></h2><p className="mt-1 text-sm text-ink-soft">Export an .ics file from Google/Outlook and upload it. Re-importing the same file won't create duplicates.</p>
-            <ActionForm action={icsAction} className="mt-3 flex flex-wrap items-center gap-3"><input type="file" name="file" accept=".ics,text/calendar" required className="text-sm" /><Submit variant="secondary">Import</Submit></ActionForm></section>
-          <section data-tour="meetings-connect" className="rounded-2xl border border-line bg-surface p-5"><h2 className="font-semibold">Connected calendar</h2><p className="mt-1 text-sm text-ink-soft">If Google or Outlook is connected, new meetings get a preparation page automatically every hour.</p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <section data-tour="meetings-import" className="min-w-0 rounded-2xl border border-line bg-surface p-5"><h2 className="flex items-center font-semibold">Import from your calendar<HelpFor k="Import from your calendar" /></h2><p className="mt-1 text-sm text-ink-soft">Export an .ics file from Google/Outlook and upload it. Re-importing the same file won't create duplicates.</p>
+            <ActionForm action={icsAction} className="mt-3 flex flex-wrap items-center gap-3"><input type="file" name="file" accept=".ics,text/calendar" required aria-label="Calendar file (.ics)" className="w-full min-w-0 max-w-full text-sm" /><Submit variant="secondary">Import</Submit></ActionForm></section>
+          <section data-tour="meetings-connect" className="min-w-0 rounded-2xl border border-line bg-surface p-5"><h2 className="font-semibold">Connected calendar</h2><p className="mt-1 text-sm text-ink-soft">If Google or Outlook is connected, new meetings get a preparation page automatically every hour.</p>
             <div className="mt-3 flex flex-wrap gap-2"><Link href="/settings/connections" className="inline-flex min-h-10 items-center rounded-xl bg-brand px-4 text-sm font-semibold text-white">Connect Google / Outlook</Link><ActionForm action={syncAction}><Submit variant="secondary">Check now</Submit></ActionForm></div></section>
         </div>
       ) : null}

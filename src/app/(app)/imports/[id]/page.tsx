@@ -237,7 +237,7 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
                 <form action={resolveExceptionAction} className="mt-2 flex flex-wrap gap-2">
                   <input type="hidden" name="batch_id" value={batch.id} />
                   <input type="hidden" name="exception_id" value={e.id} />
-                  <input name="note" placeholder="Resolution note" className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-sm" />
+                  <input name="note" aria-label="Resolution note" placeholder="Resolution note" className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-sm" />
                   <Button variant="secondary" type="submit" name="status" value="resolved">Resolved</Button>
                   <Button variant="ghost" type="submit" name="status" value="dismissed">Dismiss</Button>
                 </form>

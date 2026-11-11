@@ -11,6 +11,7 @@ import { BlankHint, Delta, DiffPill, H, In, Panel, StickyBar } from "@/modules/t
 import { NothingSent } from "@/modules/toolkit/ui/lease/negotiation";
 import { LeaseTermFields, Money, Warnings } from "../../lease/parts";
 import { NonFinancialFields } from "../fields";
+import { ReassessBanner } from "@/modules/orchestrator/ui/components";
 
 const STEPS = ["Record Offer 1", "Add each counter-offer", "See what changed", "Value concessions & plan"];
 const itemText = (i: PackageItem) => {
@@ -38,6 +39,7 @@ export default async function NegotiationDetail({ params }: { params: Promise<{ 
   const step = out.packages.length ? 3 : versions.length > 1 ? 2 : 1;
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-16">
+      <ReassessBanner ctx={ctx} entityType="deal_analysis" entityId={a.id} />
       <ToolHeader eyebrow="Negotiation" title={a.title} back={{ href: "/toolkit/negotiation", label: "All negotiations" }} purpose={`${versions.length} offer version${versions.length === 1 ? "" : "s"} · analysis v${a.current_version} · ${a.formula_version} · all offers compared over ${out.horizonMonths} months`} steps={STEPS} current={step} />
       <DeckPanel db={ctx.db} ws={ctx.workspaceId} analysisId={a.id} />
       <NothingSent />

@@ -82,7 +82,7 @@ export function LiveDictation({ value, onChange }: { value: string; onChange: (t
         <p className="text-sm font-medium">{listening ? <>Listening… <span className="tabular-nums text-ink-soft">{mm}</span> — tap to stop</> : value ? "Tap to continue speaking" : "Tap the microphone and start speaking"}</p>
         <label className="flex items-center gap-2 text-xs text-ink-soft">
           Language
-          <select value={lang} onChange={(e) => setLang(e.target.value)} disabled={listening} className="rounded-lg border border-line bg-surface px-2 py-1 text-xs">
+          <select aria-label="Dictation language" value={lang} onChange={(e) => setLang(e.target.value)} disabled={listening} className="rounded-lg border border-line bg-surface px-2 py-1 text-xs">
             {LANGS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </label>

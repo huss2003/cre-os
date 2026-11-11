@@ -44,3 +44,8 @@ export function edate(isoDate: string, months: number): string {
 export function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 86_400_000);
 }
+
+/** True when `at` is earlier than now minus a small tolerance (default 15 min) — used to reject "reschedule to the past". */
+export function isPastInstant(at: Date, toleranceMin = 15, now: Date = new Date()): boolean {
+  return +at < +now - toleranceMin * 60e3;
+}

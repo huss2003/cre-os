@@ -29,6 +29,73 @@ export async function listFailedJobs(db: Db, ws: string, limit = 50) {
   return (data ?? []) as Row[];
 }
 
+/** How many background jobs failed — visible to every member (details stay admin-only). */
+export async function failedJobCount(db: Db, ws: string): Promise<number> {
+  const { data, error } = await db.schema("mudar_app").rpc("failed_job_count", { p_workspace: ws });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+/** Queued jobs overdue by more than `minutes` (count + oldest due time). Member-safe RPC; null when unavailable. */
+export async function jobBacklog(db: Db, ws: string, minutes = 15): Promise<{ overdue: number; oldestDueAt: string | null } | null> {
+  const { data, error } = await db.schema("mudar_app").rpc("job_backlog", { p_workspace: ws, p_overdue_minutes: minutes });
+  if (error) return null;
+  const r = (Array.isArray(data) ? data[0] : data) as { overdue: number | string; oldest_due_at: string | null } | undefined;
+  return r ? { overdue: Number(r.overdue ?? 0), oldestDueAt: r.oldest_due_at ?? null } : null;
+}
+
+const JOB_WORDS: Record<string, string> = {
+  "capture.process": "Reading a capture", "capture.document": "Processing an uploaded file", "imports.process": "Importing a spreadsheet",
+  "imports.steward_stale": "Checking for stale records", "brief.recalc": "Rebuilding today's brief", "brief.replan": "Re-planning tasks",
+  "brief.radar": "Lease expiry radar", "brief.caretaker": "Daily housekeeping", "brief.deadline_watch": "Deadline watch",
+  "deals.rematch": "Matching buildings to a requirement", "deals.req_tasks": "Creating requirement tasks", "deals.concession_npv": "Concession NPV calculation",
+  "intelligence.market_analysis": "Market analysis", "intelligence.strategy": "Strategy note", "intelligence.research": "Research",
+  "intelligence.research_org": "Company research", "intelligence.patrol": "News patrol", "scoring.recalc": "Lead score update", "scoring.bulk": "Bulk lead scoring",
+  "assistant.embed": "Indexing records for the assistant", "assistant.command": "Assistant command", "workflows.sweep": "Workflow check",
+  "contacts.reverify": "Re-checking contact details", "outreach.sweep": "Outreach follow-ups", "signals.scan": "Signals scan",
+  "meetings.remind": "Meeting reminder", "meetings.autobrief": "Meeting brief", "meetings.calendar": "Calendar sync",
+  "integrations.sequence_tick": "Draft sequence step", "integrations.push_subscribe": "Push notifications", "integrations.calendar_conflicts": "Calendar conflicts",
+  "admin.export": "Data export", "admin.restore_sample": "Sample data restore", "admin.retention_purge": "Retention clean-up", "tutorials.sync": "Tutorial sync",
+};
+
+/** Job type in plain words ("imports.process" → "Importing a spreadsheet"); unknown types are humanised, never hidden. */
+export function jobLabel(type: string): string {
+  if (JOB_WORDS[type]) return JOB_WORDS[type];
+  const [mod, rest] = type.includes(".") ? type.split(/\.(.+)/) : ["", type];
+  const words = String(rest ?? type).replace(/[_.:-]+/g, " ").trim();
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}${mod ? ` (${mod})` : ""}`;
+}
+
+/** First line of the error, trimmed — the full text stays in the job row. */
+export function errorSummary(err: unknown, max = 160): string {
+  const line = String(err ?? "").split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? "";
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line || "No error message was recorded.";
+}
+
+const LINK_KEYS: [string, (id: string) => string, string][] = [
+  ["document_id", (id) => `/capture/documents/${id}`, "Open file"], ["capture_document_id", (id) => `/capture/documents/${id}`, "Open file"],
+  ["capture_id", (id) => `/capture/${id}`, "Open capture"], ["batch_id", (id) => `/imports/${id}`, "Open import"], ["import_batch_id", (id) => `/imports/${id}`, "Open import"],
+  ["requirement_id", (id) => `/requirements/${id}`, "Open requirement"], ["opportunity_id", (id) => `/deals/${id}`, "Open deal"],
+  ["org_id", (id) => `/companies/${id}`, "Open company"], ["organisation_id", (id) => `/companies/${id}`, "Open company"],
+  ["person_id", (id) => `/people/${id}`, "Open person"], ["asset_id", (id) => `/buildings/${id}`, "Open building"],
+  ["meeting_id", (id) => `/meetings/${id}`, "Open meeting"],
+];
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Link to the record a job was working on, when its payload names one. */
+export function jobRecordLink(job: { job_type?: string; payload?: unknown }): { href: string; label: string } | null {
+  const raw = (job.payload && typeof job.payload === "object" ? job.payload : {}) as Row;
+  const p: Row = {};
+  for (const [k, v] of Object.entries(raw)) p[k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`)] = v; // documentId → document_id
+  for (const [k, href, label] of LINK_KEYS) if (typeof p[k] === "string" && UUID.test(p[k])) return { href: href(p[k]), label };
+  if (typeof p.id === "string" && UUID.test(p.id)) {
+    if (job.job_type === "capture.document") return { href: `/capture/documents/${p.id}`, label: "Open file" };
+    if (job.job_type === "capture.process") return { href: `/capture/${p.id}`, label: "Open capture" };
+    if (job.job_type === "imports.process") return { href: `/imports/${p.id}`, label: "Open import" };
+  }
+  return null;
+}
+
 export async function retryJob(db: Db, ws: string, role: Role, jobId: string) {
   if (!hasRole({ role }, "admin")) throw new ChangeError("forbidden", "Only an admin can retry background jobs.");
   const { data } = await db.from("job").select("id").eq("workspace_id", ws).eq("id", jobId).maybeSingle();

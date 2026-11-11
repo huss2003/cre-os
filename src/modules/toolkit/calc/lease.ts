@@ -2,6 +2,7 @@ import Decimal from "decimal.js";
 import { edate } from "@/lib/util/time";
 import { evaluate, compareScenarios, sensitivities, FinanceInputError } from "@/modules/deals/finance/engine";
 import type { FinanceInput, FinanceResult, Sensitivity, CostItem, CostState, Num } from "@/modules/deals/finance/types";
+import { assertValidInputs } from "./validate";
 
 /**
  * Lease Economics ("lease-1.0") and Occupancy Economics ("occ-1.0") — PURE wrappers around the deals finance engine
@@ -167,7 +168,10 @@ export interface LeaseEconomics {
   areaSf: string;
   areaBasis: string;
   rentFreeMonths: number;
-  monthly: { baseRent: string; cam: string | null; parking: string | null; other: string | null };
+  monthly: { baseRent: string; cam: string | null; parking: string | null; other: string | null; totalBeforeOther: string | null };
+  /** Display labels: "none" when no CAM escalation entered; "not provided" when other charges are unknown (never 0). */
+  camEscalation: string;
+  otherCharges: string;
   annual: { baseRent: string; cam: string | null; parking: string | null; other: string | null };
   rentSteps: RentStep[];
   totals: { rent: string; cam: string | null; parking: string | null; other: string | null; nonRecurring: string; contractualExpenditure: string; npv: string };
@@ -188,6 +192,7 @@ const EXPENSE_CATS: Record<string, keyof Omit<MonthRow, "month" | "date" | "tota
 
 /** Lease economics from engine results only. */
 export function leaseEconomics(t: LeaseTerms, extras: Extras = {}): LeaseEconomics {
+  assertValidInputs({ ...t, extras }, t.name && t.name !== "Offer" ? `${t.name}: ` : "");
   const fin = toFinanceInput(t, extras);
   const r = evaluate(fin);
   // rent-free benefit = rent the engine charges with no rent-free minus rent with it (same engine, same terms)
@@ -240,7 +245,9 @@ export function leaseEconomics(t: LeaseTerms, extras: Extras = {}): LeaseEconomi
   return {
     formulaVersion: LEASE_FORMULA, engineVersion: r.engineVersion, name: t.name, label: t.label,
     areaSf: d(t.areaSf).toString(), areaBasis: t.areaBasis, rentFreeMonths: rentFreeOf(t),
-    monthly: { baseRent: s2(monthlyRent), cam: camM ? s2(camM) : null, parking: parkM ? s2(parkM) : null, other: otherM ? s2(otherM) : null },
+    monthly: { baseRent: s2(monthlyRent), cam: camM ? s2(camM) : null, parking: parkM ? s2(parkM) : null, other: otherM ? s2(otherM) : null, totalBeforeOther: camM ? s2(monthlyRent.plus(camM)) : null },
+    camEscalation: fin.cam && fin.cam.mode === "per_sf" && !blank(t.camEscalationPct) && d(t.camEscalationPct).gt(0) ? `${t.camEscalationPct}% every ${t.camEscalationEveryMonths ?? t.escalationEveryMonths} months` : "none",
+    otherCharges: otherM ? s2(otherM) : "not provided",
     annual: { baseRent: s2(monthlyRent.times(12)), cam: camM ? s2(camM.times(12)) : null, parking: parkM ? s2(parkM.times(12)) : null, other: otherM ? s2(otherM.times(12)) : null },
     rentSteps: steps,
     totals: {
@@ -266,6 +273,7 @@ export interface OfferComparison {
 
 /** Side-by-side offers on an equal horizon (engine.compareScenarios refuses unequal horizons/base dates/rates). */
 export function compareLeaseOffers(terms: LeaseTerms[]): OfferComparison {
+  terms.forEach((t, i) => assertValidInputs(t, `${t.name && t.name !== "Offer" ? t.name : `Offer ${i + 1}`}: `));
   if (!terms.length) throw new FinanceInputError("at least one offer required");
   const H = Math.max(...terms.map((t) => t.tenureMonths));
   const inputs = terms.map((t) => toFinanceInput(t, { horizonMonths: H }));
@@ -314,6 +322,7 @@ export interface OccupancyResult {
 }
 
 export function occupancyEconomics(o: OccupancyInput): OccupancyResult {
+  assertValidInputs(o);
   const t = o.terms;
   const fin = toFinanceInput(t, o.extras);
   const r: FinanceResult = evaluate(fin);
@@ -363,6 +372,7 @@ export function applyOverrides(t: LeaseTerms, o: SensitivityOverrides): LeaseTer
   return x;
 }
 export function occupancySensitivity(base: OccupancyInput, o: SensitivityOverrides) {
+  assertValidInputs(o, "Sensitivity: ");
   const a = occupancyEconomics(base);
   const b = occupancyEconomics({ terms: applyOverrides(base.terms, o), extras: base.extras });
   return {

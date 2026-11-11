@@ -88,6 +88,7 @@ describe("Module 7 — meeting preparation end to end", () => {
     const { data: p } = await db.from("meeting_prep").select("brief, readiness").eq("id", m.id).single();
     expect(p!.brief.history.first).toBe(true);
     expect(p!.brief.company.unknowns).toContain("Company not linked");
+    await expect(S.reschedule(db, WS1, m.id, "2001-01-01T04:30:00.000Z")).rejects.toThrow(/already passed/);
     await S.reschedule(db, WS1, m.id, new Date(Date.now() + 5 * 864e5).toISOString());
     expect((await db.from("meeting_prep").select("status").eq("id", m.id).single()).data!.status).toBe("rescheduled");
     await S.cancelMeeting(db, WS1, m.id);

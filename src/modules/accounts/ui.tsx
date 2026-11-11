@@ -228,9 +228,9 @@ export function Timeline({ a }: { a: Account }) {
     </div>)}</Guard>;
 }
 
-export function Meetings({ r }: { r: R.Loaded<Row[]> }) {
+export function Meetings({ r, addHref }: { r: R.Loaded<Row[]>; addHref?: string }) {
   return <Guard r={r} what="meetings">{(ms) => (
-    <Section title="Meetings & visits" empty="No meetings or site visits recorded.">
+    <Section title="Meetings & visits" empty="No meetings or site visits recorded." footer={addHref ? <Link className="text-sm font-medium text-brand" href={addHref}>+ Log a meeting</Link> : undefined}>
       {ms.length ? <ul className="space-y-1 text-sm">{ms.map((m) => <li key={m.id}><span className="text-xs text-ink-soft">{fmtDate(m.start_at, true)}</span> {m.title ?? "Meeting"} <Badge>{m.kind ?? "meeting"}</Badge>{m.status ? <span className="text-xs text-ink-soft"> {m.status}</span> : null}{m.location ? <span className="text-xs text-ink-soft"> · {m.location}</span> : null}</li>)}</ul> : null}
     </Section>)}</Guard>;
 }

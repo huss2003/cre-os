@@ -9,6 +9,8 @@ const LINKS = [
   { href: "/approvals/conflicts", key: "conflicts", label: "Conflicts" },
   { href: "/approvals/stale", key: "stale", label: "Stale records" },
   { href: "/approvals?tab=history", key: "history", label: "History & undo" },
+  { href: "/approvals/outdated", key: "outdated", label: "Outdated proposals" },
+  { href: "/approvals/jobs", key: "jobs", label: "Failed jobs" },
 ];
 
 /** Secondary navigation for the Database Steward views under /approvals. */

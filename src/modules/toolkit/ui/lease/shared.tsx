@@ -3,12 +3,13 @@ import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 import { inr } from "@/components/ui";
 import { Certainty, Field, Status, inputCls } from "@/modules/toolkit/ui/kit";
+import { CalcInput } from "@/modules/toolkit/ui/calc-input";
 
 /** Labelled text/number/date input. `unit` is rendered inside the field; padding keeps text clear of it. */
 export function In({ label, hint, unit, required, name, ...p }: Omit<ComponentProps<"input">, "name"> & { label: string; hint?: string; unit?: string; name: string }) {
   return (
     <Field label={label} hint={hint} unit={unit} required={required} htmlFor={name}>
-      <input id={name} name={name} required={required} className={`${inputCls} ${unit ? (unit.length > 8 ? "pr-32" : "pr-20") : ""}`} {...p} />
+      <CalcInput id={name} name={name} required={required} unit={unit} label={label} className={`${inputCls} ${unit ? (unit.length > 8 ? "pr-32" : "pr-20") : ""}`} {...p} />
     </Field>
   );
 }

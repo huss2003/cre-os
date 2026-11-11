@@ -31,6 +31,9 @@ export const QUESTIONS: (Q & { check?: (r: Rec) => string | null; priority: numb
   { key: "move_in", group: "requirement", priority: 4, text: "What is the target move-in date?", check: (r) => (r.req?.occupation_date ? `Move-in ${r.req.occupation_date} on record` : null) },
   { key: "objective", group: "requirement", priority: 5, text: "Is this an expansion, a relocation or a consolidation?", check: (r) => (r.req?.objective ? `Objective: ${r.req.objective}` : null) },
   { key: "tenure", group: "requirement", priority: 6, text: "What lease length and lock-in would you prefer?" },
+  { key: "existing_lease", group: "requirement", priority: 7, text: "When does your current lease expire, and what notice period or lock-in applies?", check: (r) => (r.leases ? `${r.leases} lease(s) on record` : null) },
+  { key: "technical", group: "requirement", priority: 8, text: "What technical requirements apply — power load and backup, IT/server room, network and HVAC, fit-out specifications?" },
+  { key: "operational", group: "requirement", priority: 9, text: "What operational needs matter — shift timings, parking, cafeteria and amenities, staff transport, security?" },
   { key: "who_else", group: "decision", priority: 1, text: "Who else is involved in the property decision?", check: (r) => (r.stakeholders >= 2 ? `${r.stakeholders} stakeholders on record` : null) },
   { key: "approval", group: "decision", priority: 2, text: "What is the internal approval process?" },
   { key: "decision_date", group: "decision", priority: 3, text: "When does a decision need to be made?", check: (r) => (r.req?.decision_date ? `Decision ${r.req.decision_date} on record` : null) },
@@ -49,14 +52,19 @@ export const QUESTIONS: (Q & { check?: (r: Rec) => string | null; priority: numb
   { key: "st_why_us", group: "strategic", priority: 3, text: "Why would this client choose us over doing it themselves or another adviser?" },
 ];
 
-/** 5 essential + 5 additional + up to 3 strategic; answered questions are kept but flagged and pushed down. */
+const DISCOVERY_KEYS = new Set(["seats", "area", "locations", "budget", "move_in", "tenure", "existing_lease", "who_else", "approval", "technical", "operational"]);
+/** 5 essential + 5 additional (more when needed to cover the discovery checklist) + up to 3 strategic; answered questions are kept but flagged and pushed down. */
 export function pickQuestions(type: string, rec: Rec) {
   const groups = MEETING_TYPES[type]?.groups ?? ["company", "requirement"];
   const all = QUESTIONS.filter((q) => groups.includes(q.group)).map((q) => ({ key: q.key, text: q.text, group: q.group, answered: q.check?.(rec) ?? null, priority: q.priority }));
   const open = all.filter((q) => !q.answered).sort((a, b) => a.priority - b.priority || groups.indexOf(a.group) - groups.indexOf(b.group));
   const answered = all.filter((q) => q.answered);
   const essential = open.slice(0, 5);
-  const additional = [...open.slice(5, 8), ...answered].slice(0, 5);   // answered ones stay visible, flagged
+  // Requirement-gathering meetings must cover the full discovery checklist (area, capacity, location, budget, timeline,
+  // tenure, existing lease, decision-makers, approval, technical, operational) — those are never cut by the cap.
+  const must = groups.includes("requirement") ? open.slice(5).filter((q) => DISCOVERY_KEYS.has(q.key)) : [];
+  const rest = open.slice(5).filter((q) => !must.includes(q));
+  const additional = [...must, ...rest.slice(0, Math.max(0, 3 - must.length)), ...answered].slice(0, Math.max(5, must.length + answered.length));   // answered ones stay visible, flagged
   const strategic = type === "internal" ? [] : QUESTIONS.filter((q) => q.group === "strategic").slice(0, 3).map((q) => ({ key: q.key, text: q.text, group: q.group, answered: null, priority: q.priority }));
   return { essential, additional, strategic };
 }

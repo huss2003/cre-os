@@ -33,7 +33,7 @@ export default async function BriefPage({ params }: { params: Promise<{ requirem
       <ActionForm action={saveBriefSnapshotAction} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="requirement_id" value={requirementId} />
         <label className="sr-only" htmlFor="snap-note">Snapshot note (optional)</label>
-        <input id="snap-note" name="note" placeholder="✎ Note (optional)" className={`${inputCls} sm:w-52`} />
+        <input id="snap-note" name="note" aria-label="Note" placeholder="✎ Note (optional)" className={`${inputCls} sm:w-52`} />
         <Submit>Save brief snapshot</Submit>
       </ActionForm>
       {analysis && analysis.status === "ready" && (

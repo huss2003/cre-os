@@ -29,7 +29,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  if (ws) await admin.from("workspace").delete().eq("id", ws);
+  if (!ws) return;
+  // Delete; if anything still references it, archive so it never shows in the workspace switcher.
+  const { error } = await admin.from("workspace").delete().eq("id", ws);
+  if (error) await admin.from("workspace").update({ status: "archived" }).eq("id", ws);
 });
 
 describe("radar task keys (long idempotency keys)", () => {

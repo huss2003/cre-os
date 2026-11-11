@@ -49,3 +49,11 @@ describe("loan-1.0", () => {
     expect(c.totals.principal).toBe("1200000.00");
   });
 });
+
+describe("financing input checks (bug hunt B #6)", () => {
+  const base = { annualRatePct: "10", tenureMonths: "12" };
+  it("rejects a rate above 100 %", () => { expect(() => computeLoan({ ...base, financedAmount: "1000", annualRatePct: "1000" })).toThrow(/between 0 and 100/); });
+  it("rejects exponent notation like 1e30", () => { expect(() => computeLoan({ ...base, projectCost: "1e30", financedAmount: "1e30" })).toThrow(/plain number/); });
+  it("rejects financed amount above cost − contribution", () => { expect(() => computeLoan({ ...base, projectCost: "1000", clientContribution: "1000", financedAmount: "1000" })).toThrow(/cannot be more than project cost/); });
+  it("rejects contribution above cost", () => { expect(() => computeLoan({ ...base, projectCost: "1000", clientContribution: "2000" })).toThrow(/cannot be more than the project cost/); });
+});

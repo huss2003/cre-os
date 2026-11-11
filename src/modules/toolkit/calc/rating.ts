@@ -17,6 +17,8 @@
  *     custom keys   manual 0–1 score supplied per property.
  *   Mandatory rule failed or disqualifying rule hit => "not_eligible" (cannot be recommended, whatever the score).
  *   A mandatory rule that cannot be checked (data unknown) => "unconfirmed" (not recommended until verified).
+ *   A rule whose requirement value is not set => "not_applied" (never counted as a pass; does not block eligibility).
+ *   Estimated (not client-confirmed) budget => never a hard rule; a soft "over the estimated budget (unconfirmed)" flag.
  */
 import Decimal from "decimal.js";
 
@@ -35,7 +37,8 @@ export type AreaBasis = "carpet" | "chargeable";
 export interface RatingRequirement {
   title?: string;
   areaMinSf?: number | null; areaTargetSf?: number | null; areaMaxSf?: number | null; areaBasis?: AreaBasis | null;
-  budgetMax?: number | null;            // ₹/sf/month (rent)
+  budgetMax?: number | null;            // ₹/sf/month (rent) — ONLY when client-confirmed (hard rule)
+  budgetEstimate?: number | null;       // ₹/sf/month — estimated/unconfirmed budget: soft flag only, never excludes
   microMarkets?: string[];              // preferred
   requiredAmenities?: string[];
   termMonths?: number | null;
@@ -55,7 +58,7 @@ export interface RatingProperty {
 }
 
 export interface FactorResult { key: string; label: string; weight: number; score: number | null; points: number | null; reason: string }
-export interface RuleResult { label: string; kind: RatingRule["kind"]; outcome: "pass" | "fail" | "unknown"; detail: string }
+export interface RuleResult { label: string; kind: RatingRule["kind"]; outcome: "pass" | "fail" | "unknown" | "not_applied"; detail: string }
 export type Eligibility = "eligible" | "not_eligible" | "unconfirmed";
 export interface PropertyRating {
   key: string; name: string; source: RatingProperty["source"]; evidence: Evidence | null;
@@ -155,7 +158,7 @@ function ruleValue(v: RatingRule["value"], req: RatingRequirement): number | str
 function evalRule(rule: RatingRule, p: RatingProperty, req: RatingRequirement, ctx: { area: number | null; cost: number | null }): RuleResult {
   const target = ruleValue(rule.value, req);
   const base = { label: rule.label, kind: rule.kind };
-  if (target === null) return { ...base, outcome: "pass", detail: "Requirement value not set — rule not applied" };
+  if (target === null) return { ...base, outcome: "not_applied", detail: "Requirement value not set — rule not applied" };
   const actual: unknown = rule.field === "areaSf" ? ctx.area : rule.field === "occupancyCost" ? ctx.cost : (p as unknown as Record<string, unknown>)[rule.field];
   if (actual === null || actual === undefined || actual === "") return { ...base, outcome: "unknown", detail: `${rule.field} unknown — cannot check` };
   let hit: boolean;
@@ -261,6 +264,10 @@ export function rateProperties(model: RatingModel, req: RatingRequirement, prope
       else if (f.score <= 0.5) disadvantages.push(`${f.label}: ${f.reason}`);
     }
     for (const r of failed) disadvantages.unshift(`Fails "${r.label}" (${r.detail})`);
+    if (!known(req.budgetMax) && known(req.budgetEstimate) && known(p.rent) && new Decimal(p.rent).gt(req.budgetEstimate)) {
+      disadvantages.push(`Over the estimated budget (unconfirmed): rent ₹${fmt(p.rent)} vs estimated ₹${fmt(req.budgetEstimate)}/sf/month — not excluded`);
+      verification.push("Confirm the client budget — rent is above the estimated (unconfirmed) budget");
+    }
     if (known(p.depositMonths) && deposits.length > 1 && maxDep !== minDep) {
       if (p.depositMonths === maxDep) disadvantages.push(`Highest refundable deposit (${p.depositMonths} months) — held separately, not in cost`);
       if (p.depositMonths === minDep) advantages.push(`Lowest refundable deposit (${p.depositMonths} months)`);

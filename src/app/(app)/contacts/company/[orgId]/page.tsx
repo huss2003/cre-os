@@ -16,7 +16,7 @@ export default async function Page({ params }: { params: Promise<{ orgId: string
   const ctx = await requirePageContext("viewer");
   const { data: org } = await ctx.db.from("organisation").select("id, display_name, sector").eq("workspace_id", ctx.workspaceId).eq("id", orgId).maybeSingle();
   if (!org) notFound();
-  const { people, lines } = await companyPeople(ctx.db, ctx.workspaceId, orgId);
+  const { people, lines, missing } = await companyPeople(ctx.db, ctx.workspaceId, orgId);
   const byId = new Map(people.map((e) => [e.person?.id, e]));
   const groups = new Map<string, Row[]>();
   for (const e of people) {
@@ -34,6 +34,12 @@ export default async function Page({ params }: { params: Promise<{ orgId: string
         {editor ? <ActionForm action={discoverAction}><input type="hidden" name="org_id" value={orgId} /><Submit>Find more people</Submit></ActionForm> : null}
       </header>
       {!people.length ? <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center text-sm text-ink-soft">No people recorded at this company yet. Press <b>Find more people</b>.</div> : null}
+      {missing.length ? (
+        <section className="rounded-2xl border border-line bg-surface p-4">
+          <h2 className="font-semibold">Missing stakeholder categories</h2>
+          <p className="text-sm text-ink-soft">No current person recorded for: {missing.map((m) => m.label).join(", ")}. Use <b>Find more people</b> or add them from your own contacts.</p>
+        </section>
+      ) : null}
       {ORDER.filter((g) => groups.has(g)).map((g) => (
         <section key={g}>
           <h2 className="mb-2 font-semibold">{g} <span className="font-normal text-ink-soft">({groups.get(g)!.length})</span></h2>

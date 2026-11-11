@@ -30,7 +30,7 @@ export default async function NewComparisonPage() {
         steps={COMPARE_STEPS} current={0} />
       <ActionForm action={createComparisonAction} className="space-y-6 pb-4">
         <div data-tour="compare-basics"><Step n={1} title="Requirement & rating model" desc="What the client needs, and how buildings should be scored.">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label="Comparison title" required htmlFor="c-title"><input id="c-title" name="title" className={inputCls} placeholder="e.g. Kharadi 25k sf options" required /></Field>
             <Field label="Client requirement" htmlFor="c-req" hint="Its area, budget and preferred micro-markets set the must-have rules.">
               <select id="c-req" name="requirement_id" defaultValue="" className={inputCls}><option value="">None — no must-have rules from a requirement</option>{reqs.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}</select>
@@ -44,9 +44,9 @@ export default async function NewComparisonPage() {
 
         <Step n={2} title="Buildings from your database" desc="Tick each building to include. Quotes and availability on file are used automatically.">
           {assets.length === 0 ? <p className="rounded-lg border-2 border-dashed border-slate-300 px-4 py-6 text-center text-sm text-ink-soft">No buildings in the database yet — add them under Buildings, or type them in Step 3.</p> : (
-            <fieldset>
+            <fieldset className="min-w-0">
               <legend className="sr-only">Buildings to compare</legend>
-              <div className="grid max-h-96 gap-2 overflow-y-auto p-0.5 sm:grid-cols-2">
+              <div className="grid max-h-96 grid-cols-1 gap-2 overflow-y-auto p-0.5 sm:grid-cols-2">
                 {assets.map((a) => (
                   <label key={a.id} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-slate-300 bg-white px-3 py-2 hover:border-brand/60 has-[:checked]:border-brand has-[:checked]:bg-brand-soft has-[:checked]:ring-1 has-[:checked]:ring-brand has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40">
                     <input type="checkbox" name="asset_ids" value={a.id} className="peer h-5 w-5 shrink-0 accent-brand" />

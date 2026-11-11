@@ -15,6 +15,7 @@ function table(t: string): EntityTable {
 function formInput(t: EntityTable, form: FormData) {
   const out: Record<string, unknown> = {};
   for (const k of EDITABLE[t]) if (form.has(k)) out[k] = form.get(k);
+  if (form.has("confirm_duplicate")) out.confirm_duplicate = form.get("confirm_duplicate");
   return out;
 }
 

@@ -31,6 +31,7 @@ function OfferResult({ r }: { r: LeaseEconomics }) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Readout label="Monthly rent (starting)" value={<Money x={r.monthly.baseRent} />} sub={<>per year <Money x={r.annual.baseRent} /></>} />
         <Readout label="Monthly CAM" value={<Money x={r.monthly.cam} />} unknown={r.monthly.cam === null} sub={<>parking / month <Money x={r.monthly.parking} /></>} />
+        <Readout label="Total before other charges (rent + CAM)" value={<Money x={r.monthly.totalBeforeOther ?? null} />} unknown={r.monthly.totalBeforeOther == null} sub={<>CAM escalation: {r.camEscalation ?? "none"} · Other charges: {r.otherCharges ?? "not provided"}</>} />
         <Readout label="Effective rent" value={eff ? `₹${eff} /sf/month` : "—"} unknown={!eff} sub="average after rent-free and escalation" />
         <Readout emphasis label="Total cost over tenure" value={<Money x={r.totals.contractualExpenditure} />} sub={<>present value <Money x={r.totals.npv} /> · <Certainty c={r.complete ? certOf(r.label) : "missing"} /></>} />
         <Readout label="Rent-free benefit" value={<Money x={r.rentFreeBenefit} />} sub="rent you don't pay during rent-free" />
