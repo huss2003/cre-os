@@ -1,54 +1,58 @@
 {
-  "durationMs": 52889,
+  "durationMs": 52553,
   "steps": [
     {
-      "caption": "Open More, then Automations.",
-      "ms": 3619
+      "caption": "Open More, then Automation.",
+      "ms": 3605
+    },
+    {
+      "caption": "Open the Chains tab at the top.",
+      "ms": 9322
     },
     {
       "caption": "Signal → action: a new signal matches the company, finds decision-makers, rescores, maybe prepares one draft.",
-      "ms": 11673
+      "ms": 13269
     },
     {
       "caption": "Lease → renewal / relocation: a lease near expiry gets a proposed requirement, options and a task.",
-      "ms": 14920
+      "ms": 16460
     },
     {
       "caption": "Reply → meeting: a reply asking to meet links the meeting (no time is guessed) and pauses follow-ups.",
-      "ms": 18449
+      "ms": 19649
     },
     {
       "caption": "Job change → re-engagement: a contact moves company; history is kept and the new employer rescored.",
-      "ms": 21887
+      "ms": 22857
     },
     {
       "caption": "Visit feedback → comparison: site-visit feedback re-runs the saved building comparison.",
-      "ms": 25208
+      "ms": 26028
     },
     {
       "caption": "Meeting completed → follow-ups: rescore and show the tasks and draft it created.",
-      "ms": 28627
+      "ms": 29194
     },
     {
       "caption": "Each shows On or Off. 'Turn off' stops that chain; 'Turn on' restarts it.",
-      "ms": 31946
+      "ms": 32391
     },
     {
       "caption": "Check now runs all chains immediately instead of waiting.",
-      "ms": 35323
+      "ms": 35567
     },
     {
       "caption": "Below: runs. This one is for Zentrix's lease — 'Waiting for approval'.",
-      "ms": 38672
+      "ms": 38741
     },
     {
       "caption": "Each step is listed with what it did and why.",
-      "ms": 43032
+      "ms": 42945
     },
     {
       "caption": "Material steps (like a new requirement) stop and wait for you. 'Approval' opens it.",
-      "ms": 46481
+      "ms": 46143
     }
   ],
-  "bytes": 654849
+  "bytes": 774386
 }

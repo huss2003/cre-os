@@ -514,7 +514,7 @@ export const VIDEOS: TutorialVideo[] = [
   },
   {
     "slug": "automations",
-    "title": "Automations — what each chain does, on/off, a run's steps",
+    "title": "Automation → Chains — what each chain does, on/off, a run's steps",
     "category": "Ask AI & automation",
     "seconds": 53,
     "learn": "Six chains run by themselves every few minutes. Read what each does, switch any off, and open a run to see each step and why.",
@@ -522,52 +522,56 @@ export const VIDEOS: TutorialVideo[] = [
     "featured": false,
     "steps": [
       {
-        "caption": "Open More, then Automations.",
-        "ms": 3619
+        "caption": "Open More, then Automation.",
+        "ms": 3605
+      },
+      {
+        "caption": "Open the Chains tab at the top.",
+        "ms": 9322
       },
       {
         "caption": "Signal → action: a new signal matches the company, finds decision-makers, rescores, maybe prepares one draft.",
-        "ms": 11673
+        "ms": 13269
       },
       {
         "caption": "Lease → renewal / relocation: a lease near expiry gets a proposed requirement, options and a task.",
-        "ms": 14920
+        "ms": 16460
       },
       {
         "caption": "Reply → meeting: a reply asking to meet links the meeting (no time is guessed) and pauses follow-ups.",
-        "ms": 18449
+        "ms": 19649
       },
       {
         "caption": "Job change → re-engagement: a contact moves company; history is kept and the new employer rescored.",
-        "ms": 21887
+        "ms": 22857
       },
       {
         "caption": "Visit feedback → comparison: site-visit feedback re-runs the saved building comparison.",
-        "ms": 25208
+        "ms": 26028
       },
       {
         "caption": "Meeting completed → follow-ups: rescore and show the tasks and draft it created.",
-        "ms": 28627
+        "ms": 29194
       },
       {
         "caption": "Each shows On or Off. 'Turn off' stops that chain; 'Turn on' restarts it.",
-        "ms": 31946
+        "ms": 32391
       },
       {
         "caption": "Check now runs all chains immediately instead of waiting.",
-        "ms": 35323
+        "ms": 35567
       },
       {
         "caption": "Below: runs. This one is for Zentrix's lease — 'Waiting for approval'.",
-        "ms": 38672
+        "ms": 38741
       },
       {
         "caption": "Each step is listed with what it did and why.",
-        "ms": 43032
+        "ms": 42945
       },
       {
         "caption": "Material steps (like a new requirement) stop and wait for you. 'Approval' opens it.",
-        "ms": 46481
+        "ms": 46143
       }
     ]
   },
@@ -831,90 +835,90 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "automation-overview",
     "title": "Automation: what runs by itself",
     "category": "Ask AI & automation",
-    "seconds": 77,
+    "seconds": 80,
     "learn": "More → Automation shows every background job: what needs you, what is running, what can be started, every workflow and its trigger, recent results, connections and usage limits.",
     "tryRoute": "/automation",
     "featured": false,
     "steps": [
       {
         "caption": "Open More in the sidebar, then Automation.",
-        "ms": 3609
+        "ms": 3604
       },
       {
         "caption": "Five tabs: Overview, Daily plan, Weekly review, Budgets & usage and Notifications.",
-        "ms": 10184
+        "ms": 11254
       },
       {
         "caption": "The counters: workflows switched on, jobs running now, failed jobs, jobs waiting for an approval and changes waiting in Review.",
-        "ms": 13393
+        "ms": 14504
       },
       {
         "caption": "Capacity warnings: today's clashes — overlapping meetings, too many meetings, overdue promises.",
-        "ms": 16587
+        "ms": 17885
       },
       {
         "caption": "Needs attention: failed, paused and waiting jobs, plus records that became out of date. Start here every day.",
-        "ms": 19746
+        "ms": 21271
       },
       {
         "caption": "Each row shows the job, its status chip (Failed, Paused…), how far it got and the error in plain words.",
-        "ms": 23040
+        "ms": 24507
       },
       {
         "caption": "Running now lists jobs in progress. Empty means nothing is working in the background right now.",
-        "ms": 26215
+        "ms": 27883
       },
       {
         "caption": "Start a job: run a workflow yourself — here, prepare tomorrow's meetings and list open commitments.",
-        "ms": 29408
+        "ms": 31365
       },
       {
         "caption": "Scheduled shows recurring jobs and when they will run next.",
-        "ms": 32643
+        "ms": 34655
       },
       {
         "caption": "All workflows: each one, whether it is On or Paused, what starts it and how many steps it has.",
-        "ms": 35847
+        "ms": 38189
       },
       {
         "caption": "For example: 'Reassess after requirement change' runs by itself whenever a client's requirement changes.",
-        "ms": 39020
+        "ms": 41377
       },
       {
         "caption": "Recently finished: the last jobs and how they ended (Done, Partly done, Failed, Cancelled).",
-        "ms": 42178
+        "ms": 44663
       },
       {
         "caption": "Connections: when mail or calendar last worked. A broken connection is shown here — never hidden.",
-        "ms": 45519
+        "ms": 47854
       },
       {
         "caption": "Usage and limits: AI and research spending against any limits an admin has set.",
-        "ms": 48677
+        "ms": 51041
       },
       {
         "caption": "Open a workflow to see exactly what it does.",
-        "ms": 51847
+        "ms": 54209
       },
       {
         "caption": "What it does, what starts it, when it last ran and when it runs next.",
-        "ms": 55754
+        "ms": 58127
       },
       {
         "caption": "Steps in order. 'After: …' means a step waits for an earlier one; steps without it run in parallel.",
-        "ms": 58911
+        "ms": 61292
       },
       {
         "caption": "Controls: Pause workflow stops new runs until you switch it on again. Priority decides which job goes first (admins only).",
-        "ms": 62077
+        "ms": 64552
       },
       {
         "caption": "Recent runs, the records the last run touched and the change history are further down. Export log downloads a run's history.",
-        "ms": 65260
+        "ms": 67906
       },
       {
         "caption": "The second tab in this area, Chains, holds the older record chains (signal → action, lease → renewal…).",
-        "ms": 69445
+        "ms": 72262
       }
     ]
   },
@@ -922,62 +926,62 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "daily-plan",
     "title": "Your 08:00 daily plan (and the weekly review)",
     "category": "Ask AI & automation",
-    "seconds": 65,
+    "seconds": 66,
     "learn": "Every workday at 08:00 CRE OS builds your plan for the day from meetings, tasks and the brief: what to do first, capacity clashes and suggestions you decide on. Weekly review comes on Friday.",
     "tryRoute": "/automation?view=daily",
     "featured": false,
     "steps": [
       {
         "caption": "Open More → Automation.",
-        "ms": 3605
+        "ms": 3606
       },
       {
         "caption": "Open the Daily plan tab.",
-        "ms": 9731
+        "ms": 9804
       },
       {
         "caption": "Your plan for today. It is built by itself at 08:00 your time (India time by default).",
-        "ms": 13744
+        "ms": 13788
       },
       {
         "caption": "Want it earlier, or after a busy morning? Press Build now. It is rebuilt from the latest data.",
-        "ms": 16928
+        "ms": 16975
       },
       {
         "caption": "The plan is built from your meetings, tasks, calendar records and the daily brief — nothing is invented.",
-        "ms": 24820
+        "ms": 25147
       },
       {
         "caption": "Scroll through the sections: meetings to prepare, commitments due, deals needing attention, signals.",
-        "ms": 32143
+        "ms": 32708
       },
       {
         "caption": "Capacity: minutes in meetings, free time and task work against your working hours.",
-        "ms": 35460
+        "ms": 36088
       },
       {
         "caption": "Warnings flag clashes: overlapping meetings, more meetings than your limit, overdue commitments.",
-        "ms": 38754
+        "ms": 39333
       },
       {
         "caption": "Travel time says 'unknown' — CRE OS has no routing service, so it never guesses.",
-        "ms": 41930
+        "ms": 42583
       },
       {
         "caption": "Suggestions are only suggestions: you decide what to move. Nothing is rescheduled for you.",
-        "ms": 45170
+        "ms": 45789
       },
       {
         "caption": "Now the Weekly review tab.",
-        "ms": 49319
+        "ms": 50034
       },
       {
         "caption": "Built every Friday at 18:00: new opportunities, priority account changes, signals and meetings of the week.",
-        "ms": 54580
+        "ms": 55117
       },
       {
         "caption": "Further down: overdue commitments, changed requirements and active deals — a checklist for next week.",
-        "ms": 57775
+        "ms": 58371
       }
     ]
   },
@@ -985,58 +989,58 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "meeting-briefs-auto",
     "title": "Meeting briefs an hour before",
     "category": "Ask AI & automation",
-    "seconds": 58,
+    "seconds": 62,
     "learn": "About an hour before each client meeting CRE OS prepares the meeting brief by itself and notifies you, listing what is still missing. Rescheduling moves the job; cancelling stops it.",
     "tryRoute": "/automation?view=notifications",
     "featured": false,
     "steps": [
       {
         "caption": "The bell at the top shows new notifications. Click it.",
-        "ms": 3604
+        "ms": 3606
       },
       {
         "caption": "'Brief ready' — the Zentrix meeting starts in about an hour, so its brief was prepared automatically.",
-        "ms": 7602
+        "ms": 7864
       },
       {
         "caption": "The full list lives in More → Automation → Notifications.",
-        "ms": 10874
+        "ms": 11160
       },
       {
         "caption": "It lists what is still missing for the meeting: decision-maker, verified contacts, budget, documents.",
-        "ms": 16656
+        "ms": 17051
       },
       {
         "caption": "'Urgent' because the meeting is close. Informational notices wait for your working hours.",
-        "ms": 19827
+        "ms": 20219
       },
       {
         "caption": "Open the notification to go to the meeting.",
-        "ms": 23002
+        "ms": 27531
       },
       {
         "caption": "The meeting page: the brief has been generated (version 1) with a readiness score.",
-        "ms": 27045
+        "ms": 31414
       },
       {
         "caption": "Scroll through the brief: company, requirement, open questions to ask.",
-        "ms": 34397
+        "ms": 38922
       },
       {
         "caption": "Unknown facts stay unknown — the brief says what to find out, it never guesses.",
-        "ms": 37716
+        "ms": 42272
       },
       {
         "caption": "How it works: the job is due 60 minutes before the start. Move the meeting and the job moves with it.",
-        "ms": 41029
+        "ms": 45601
       },
       {
         "caption": "Cancel the meeting and the prep job and its reminders are cancelled too; the meeting record is kept.",
-        "ms": 45216
+        "ms": 49723
       },
       {
         "caption": "Back in Notifications, press Done when you have read it.",
-        "ms": 48473
+        "ms": 52888
       }
     ]
   },
@@ -1044,7 +1048,7 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "budgets-notifications",
     "title": "Budgets and notifications",
     "category": "Ask AI & automation",
-    "seconds": 77,
+    "seconds": 76,
     "learn": "Admins set daily or monthly limits for AI, research and other paid usage; at the limit non-critical jobs pause (nothing lost). Notifications can be marked done, snoozed or dismissed.",
     "tryRoute": "/automation?view=budgets",
     "featured": false,
@@ -1055,63 +1059,63 @@ export const VIDEOS: TutorialVideo[] = [
       },
       {
         "caption": "A budget is a daily or monthly limit. When it is reached, non-critical background work pauses — nothing is lost — and admins are alerted.",
-        "ms": 11717
+        "ms": 11519
       },
       {
         "caption": "Choose the resource — here 'research' (company research look-ups).",
-        "ms": 14886
+        "ms": 14675
       },
       {
         "caption": "Period: Monthly or Daily.",
-        "ms": 18866
+        "ms": 18528
       },
       {
         "caption": "Unit: calls (other resources use USD, credits, seconds, pages or runs).",
-        "ms": 22029
+        "ms": 21682
       },
       {
         "caption": "Limit: 10 calls a month. Alert at 80% warns admins before the limit.",
-        "ms": 25232
+        "ms": 24861
       },
       {
         "caption": "Save budget.",
-        "ms": 29734
+        "ms": 29585
       },
       {
         "caption": "The budget line shows used / limit, the alert level and when it resets.",
-        "ms": 35234
+        "ms": 34948
       },
       {
         "caption": "A budget never switches to another provider to keep going — it just pauses.",
-        "ms": 38402
+        "ms": 38131
       },
       {
         "caption": "Usage this month: by resource, AI cost by module and by workflow.",
-        "ms": 45733
+        "ms": 45451
       },
       {
         "caption": "Now the Notifications tab.",
-        "ms": 49881
+        "ms": 49582
       },
       {
         "caption": "Each notification says what happened and links to the record. Here: a requirement change reassessed the Zentrix comparisons.",
-        "ms": 54730
+        "ms": 54418
       },
       {
         "caption": "Done: you dealt with it. Snooze 3h: bring it back later. Dismiss: remove it (it stays in the history).",
-        "ms": 57910
+        "ms": 57589
       },
       {
         "caption": "Snooze this one for three hours.",
-        "ms": 61066
+        "ms": 60749
       },
       {
         "caption": "Similar notices are grouped, urgent ones come straight away, others wait for working hours and quiet hours.",
-        "ms": 66414
+        "ms": 66100
       },
       {
         "caption": "The bell at the top of every page shows the same list.",
-        "ms": 69583
+        "ms": 69252
       }
     ]
   },
@@ -1119,38 +1123,38 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "ask-ai-workflow",
     "title": "Ask AI to run a workflow",
     "category": "Ask AI & automation",
-    "seconds": 44,
+    "seconds": 43,
     "learn": "Ask AI in plain words — e.g. \"prepare tomorrow's meetings and list pending client commitments\" — and it starts the matching workflow, then shows the result and a link to the run.",
     "tryRoute": "/assistant",
     "featured": false,
     "steps": [
       {
         "caption": "Open Ask AI from the sidebar.",
-        "ms": 3608
+        "ms": 3605
       },
       {
         "caption": "Start a new conversation.",
-        "ms": 7728
+        "ms": 7667
       },
       {
         "caption": "Type the request in plain words: prepare tomorrow's meetings and list pending client commitments.",
-        "ms": 11511
+        "ms": 11230
       },
       {
         "caption": "The answer: tomorrow's meetings, briefs prepared, and open or overdue commitments.",
-        "ms": 21499
+        "ms": 20936
       },
       {
         "caption": "Press 'Open the run' to see each step.",
-        "ms": 25883
+        "ms": 25232
       },
       {
         "caption": "The run page: progress, each step with what it found, and the records involved.",
-        "ms": 34262
+        "ms": 33362
       },
       {
         "caption": "The same request works from the Ask AI panel on any page. You can also ask 'what failed?' or 'pause that job'.",
-        "ms": 37503
+        "ms": 36568
       }
     ]
   },
@@ -1158,7 +1162,7 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "failed-job",
     "title": "Fix a failed job (retry, pause, cancel)",
     "category": "Ask AI & automation",
-    "seconds": 81,
+    "seconds": 79,
     "learn": "When a background job fails, Automation → Needs attention shows it. The run page says what failed, what was affected and what to do; Retry re-runs only the failed steps. Pause, Resume and Cancel control a run.",
     "tryRoute": "/automation",
     "featured": false,
@@ -1169,67 +1173,67 @@ export const VIDEOS: TutorialVideo[] = [
       },
       {
         "caption": "In Needs attention, open the failed job.",
-        "ms": 11247
+        "ms": 10791
       },
       {
         "caption": "The run page: Failed, when it started and finished.",
-        "ms": 15210
+        "ms": 14732
       },
       {
         "caption": "Progress: 2 steps done, 1 failed.",
-        "ms": 18363
+        "ms": 17900
       },
       {
         "caption": "What went wrong: the failed step and its error in plain words — a timeout, after 3 attempts.",
-        "ms": 21541
+        "ms": 21067
       },
       {
         "caption": "Records affected: the meetings this job was working on.",
-        "ms": 24727
+        "ms": 24240
       },
       {
         "caption": "Steps that worked keep their results — they will not run again.",
-        "ms": 27894
+        "ms": 27410
       },
       {
         "caption": "Will it retry by itself? No — retries are used up. What to do: check the error, then use Retry.",
-        "ms": 31071
+        "ms": 30589
       },
       {
         "caption": "Press Retry failed steps.",
-        "ms": 34240
+        "ms": 33758
       },
       {
         "caption": "Only the failed step ran again. The job is now Done.",
-        "ms": 41604
+        "ms": 40708
       },
       {
         "caption": "History shows every action: started, step finished, manual retry — with who did it.",
-        "ms": 46643
+        "ms": 46075
       },
       {
         "caption": "Export log downloads this history.",
-        "ms": 51347
+        "ms": 50272
       },
       {
         "caption": "Back to Automation: the second job here is Paused.",
-        "ms": 54531
+        "ms": 53453
       },
       {
         "caption": "Open it.",
-        "ms": 60612
+        "ms": 58526
       },
       {
         "caption": "A paused run waits. Resume continues where it stopped. Running jobs show Pause instead.",
-        "ms": 64527
+        "ms": 62474
       },
       {
         "caption": "Cancel stops it for good (admins). Finished steps and their results are kept.",
-        "ms": 67690
+        "ms": 65662
       },
       {
         "caption": "The job is now Cancelled — nothing else will run for it.",
-        "ms": 71663
+        "ms": 69623
       }
     ]
   },
@@ -1238,61 +1242,61 @@ export const VIDEOS: TutorialVideo[] = [
     "title": "Outdated proposals after a new quote or requirement change",
     "category": "Ask AI & automation",
     "seconds": 68,
-    "learn": "When a quote arrives or a requirement changes, CRE OS recalculates comparisons as new versions and flags proposals built on the old figures. Review → Outdated proposals lists them with Refresh and Dismiss; approved ones are never overwritten.",
+    "learn": "When a quote arrives or a requirement changes, CRE OS recalculates comparisons as new versions and flags proposals built on the old figures. Review → Outdated proposals lists them: Review opens a recalculated result, Refresh re-runs one you entered yourself, Dismiss closes the note; approved ones are never overwritten.",
     "tryRoute": "/approvals/outdated",
     "featured": false,
     "steps": [
       {
         "caption": "Zentrix's requirement changed: maximum area went from 28,000 to 30,000 sq ft. Open Review.",
-        "ms": 3607
+        "ms": 3606
       },
       {
         "caption": "In the row of queues, open Stale records, then the Outdated proposals tab.",
-        "ms": 7800
+        "ms": 7914
       },
       {
         "caption": "Top: approved or shared proposals that used the old figures. They are never changed automatically — you decide.",
-        "ms": 13739
+        "ms": 14199
       },
       {
         "caption": "Below: drafts and analyses that need a refresh.",
-        "ms": 16954
+        "ms": 17406
       },
       {
-        "caption": "'Recalculated (v…)': the comparison already re-ran as a new version; the old versions are kept.",
-        "ms": 20130
-      },
-      {
-        "caption": "'May be outdated': figures you entered yourself — open it, check and re-run.",
-        "ms": 23387
+        "caption": "'Recalculated — review': the comparison already re-ran as a new version; the old versions are kept.",
+        "ms": 20653
       },
       {
         "caption": "'what changed' shows the old and new values.",
-        "ms": 26702
+        "ms": 23847
       },
       {
-        "caption": "Press Refresh on a comparison to bring it up to date. It runs the refresh workflow.",
-        "ms": 29874
+        "caption": "Press Review to open the recalculated comparison and check the new result.",
+        "ms": 27021
       },
       {
-        "caption": "Done — it disappears from the list. Dismiss closes a warning you don't need (it stays in the history).",
-        "ms": 36910
+        "caption": "Back in Review: once you've checked it, Dismiss closes the note (it stays in the history).",
+        "ms": 33622
       },
       {
         "caption": "Dismiss this one.",
-        "ms": 41770
+        "ms": 38514
+      },
+      {
+        "caption": "Items you entered yourself show 'May be outdated' with a Refresh button instead.",
+        "ms": 44013
       },
       {
         "caption": "The same warning appears on the record itself. Open the Zentrix requirement.",
-        "ms": 47376
+        "ms": 47201
       },
       {
         "caption": "New rent quotations work the same way: comparisons recalculate, proposals using the old quote are flagged.",
-        "ms": 57363
+        "ms": 56640
       },
       {
         "caption": "Each reassessment is a job in Automation → Recently finished, with its steps and the records it flagged.",
-        "ms": 60549
+        "ms": 59833
       }
     ]
   },

@@ -227,7 +227,7 @@ const FLOWS = [
   // ------------------------------------------------------------------ 7. outdated proposals
   {
     slug: "outdated-proposals", category: CAT, title: "Outdated proposals after a new quote or requirement change",
-    learn: "When a quote arrives or a requirement changes, CRE OS recalculates comparisons as new versions and flags proposals built on the old figures. Review → Outdated proposals lists them with Refresh and Dismiss; approved ones are never overwritten.",
+    learn: "When a quote arrives or a requirement changes, CRE OS recalculates comparisons as new versions and flags proposals built on the old figures. Review → Outdated proposals lists them: Review opens a recalculated result, Refresh re-runs one you entered yourself, Dismiss closes the note; approved ones are never overwritten.",
     tryRoute: "/approvals/outdated",
     async run(t) {
       const p = t.page;
@@ -241,13 +241,14 @@ const FLOWS = [
       });
       await t.step("Top: approved or shared proposals that used the old figures. They are never changed automatically — you decide.", () => t.point(main(p).getByText(/Approved or shared/).first()));
       await t.step("Below: drafts and analyses that need a refresh.", () => t.point(main(p).getByText("Needs a refresh").first()));
-      const item = (txt) => main(p).locator("li").filter({ hasText: txt }).filter({ has: p.getByRole("button", { name: "Refresh" }) }).last();
-      await t.step("'Recalculated (v…)': the comparison already re-ran as a new version; the old versions are kept.", () => t.point(item(/Recalculated \(v\d+\)/).first()));
-      await t.step("'May be outdated': figures you entered yourself — open it, check and re-run.", () => soft(t, item("may be outdated")));
+      const item = (txt) => main(p).locator("li").filter({ hasText: txt }).filter({ has: p.getByRole("button", { name: "Dismiss" }) }).last();
+      const recalc = () => main(p).locator("li").filter({ hasText: /Recalculated \(v\d+\)/ }).filter({ has: p.getByRole("button", { name: "Dismiss" }) }).first();
+      await t.step("'Recalculated — review': the comparison already re-ran as a new version; the old versions are kept.", () => t.point(main(p).getByText(/Recalculated \(v\d+\)/).first()));
       await t.step("'what changed' shows the old and new values.", () => soft(t, main(p).getByText("what changed").first()));
-      await t.step("Press Refresh on a comparison to bring it up to date. It runs the refresh workflow.", async () => { await t.moveAndClick(item(/Recalculated \(v\d+\)/).getByRole("button", { name: "Refresh" })); await sleep(3000); });
-      await t.step("Done — it disappears from the list. Dismiss closes a warning you don't need (it stays in the history).", async () => { await t.goto("/approvals/outdated"); await t.point(item("may be outdated").getByRole("button", { name: "Dismiss" })); });
-      await t.step("Dismiss this one.", async () => { await t.moveAndClick(item("may be outdated").getByRole("button", { name: "Dismiss" })); await sleep(1500); });
+      await t.step("Press Review to open the recalculated comparison and check the new result.", async () => { await t.moveAndClick(recalc().getByRole("link", { name: "Review", exact: true })); await sleep(2500); });
+      await t.step("Back in Review: once you've checked it, Dismiss closes the note (it stays in the history).", async () => { await t.goto("/approvals/outdated"); await t.point(recalc().getByRole("button", { name: "Dismiss" })); });
+      await t.step("Dismiss this one.", async () => { await t.moveAndClick(recalc().getByRole("button", { name: "Dismiss" })); await sleep(1500); });
+      await t.step("Items you entered yourself show 'May be outdated' with a Refresh button instead.", () => soft(t, item(/may be outdated/i)));
       await t.step("The same warning appears on the record itself. Open the Zentrix requirement.", async () => {
         const id = sql(`select id from mudar.requirement where workspace_id='${WS}' and title like 'Zentrix Analytics — 25,000 sf%' and archived_at is null limit 1`);
         await t.goto(`/requirements/${id}`);
@@ -255,7 +256,7 @@ const FLOWS = [
       });
       await t.step("New rent quotations work the same way: comparisons recalculate, proposals using the old quote are flagged.", () => t.point(main(p).locator("h1").first()));
       await t.step("Each reassessment is a job in Automation → Recently finished, with its steps and the records it flagged.", async () => { await t.goto("/automation"); await soft(t, main(p).getByText("Recently finished")); });
-      await t.outro("refreshed and dismissed outdated proposals after a requirement change.", "set budgets and manage notifications.");
+      await t.outro("reviewed and dismissed outdated proposals after a requirement change.", "set budgets and manage notifications.");
     },
   },
 ];

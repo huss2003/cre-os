@@ -1,5 +1,5 @@
 {
-  "durationMs": 81429,
+  "durationMs": 79202,
   "steps": [
     {
       "caption": "Open More → Automation. The Failed counter shows 1.",
@@ -7,68 +7,68 @@
     },
     {
       "caption": "In Needs attention, open the failed job.",
-      "ms": 11247
+      "ms": 10791
     },
     {
       "caption": "The run page: Failed, when it started and finished.",
-      "ms": 15210
+      "ms": 14732
     },
     {
       "caption": "Progress: 2 steps done, 1 failed.",
-      "ms": 18363
+      "ms": 17900
     },
     {
       "caption": "What went wrong: the failed step and its error in plain words — a timeout, after 3 attempts.",
-      "ms": 21541
+      "ms": 21067
     },
     {
       "caption": "Records affected: the meetings this job was working on.",
-      "ms": 24727
+      "ms": 24240
     },
     {
       "caption": "Steps that worked keep their results — they will not run again.",
-      "ms": 27894
+      "ms": 27410
     },
     {
       "caption": "Will it retry by itself? No — retries are used up. What to do: check the error, then use Retry.",
-      "ms": 31071
+      "ms": 30589
     },
     {
       "caption": "Press Retry failed steps.",
-      "ms": 34240
+      "ms": 33758
     },
     {
       "caption": "Only the failed step ran again. The job is now Done.",
-      "ms": 41604
+      "ms": 40708
     },
     {
       "caption": "History shows every action: started, step finished, manual retry — with who did it.",
-      "ms": 46643
+      "ms": 46075
     },
     {
       "caption": "Export log downloads this history.",
-      "ms": 51347
+      "ms": 50272
     },
     {
       "caption": "Back to Automation: the second job here is Paused.",
-      "ms": 54531
+      "ms": 53453
     },
     {
       "caption": "Open it.",
-      "ms": 60612
+      "ms": 58526
     },
     {
       "caption": "A paused run waits. Resume continues where it stopped. Running jobs show Pause instead.",
-      "ms": 64527
+      "ms": 62474
     },
     {
       "caption": "Cancel stops it for good (admins). Finished steps and their results are kept.",
-      "ms": 67690
+      "ms": 65662
     },
     {
       "caption": "The job is now Cancelled — nothing else will run for it.",
-      "ms": 71663
+      "ms": 69623
     }
   ],
-  "bytes": 1451483
+  "bytes": 1451105
 }

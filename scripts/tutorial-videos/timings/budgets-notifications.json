@@ -1,5 +1,5 @@
 {
-  "durationMs": 76692,
+  "durationMs": 76308,
   "steps": [
     {
       "caption": "Open More → Automation, then Budgets & usage.",
@@ -7,64 +7,64 @@
     },
     {
       "caption": "A budget is a daily or monthly limit. When it is reached, non-critical background work pauses — nothing is lost — and admins are alerted.",
-      "ms": 11717
+      "ms": 11519
     },
     {
       "caption": "Choose the resource — here 'research' (company research look-ups).",
-      "ms": 14886
+      "ms": 14675
     },
     {
       "caption": "Period: Monthly or Daily.",
-      "ms": 18866
+      "ms": 18528
     },
     {
       "caption": "Unit: calls (other resources use USD, credits, seconds, pages or runs).",
-      "ms": 22029
+      "ms": 21682
     },
     {
       "caption": "Limit: 10 calls a month. Alert at 80% warns admins before the limit.",
-      "ms": 25232
+      "ms": 24861
     },
     {
       "caption": "Save budget.",
-      "ms": 29734
+      "ms": 29585
     },
     {
       "caption": "The budget line shows used / limit, the alert level and when it resets.",
-      "ms": 35234
+      "ms": 34948
     },
     {
       "caption": "A budget never switches to another provider to keep going — it just pauses.",
-      "ms": 38402
+      "ms": 38131
     },
     {
       "caption": "Usage this month: by resource, AI cost by module and by workflow.",
-      "ms": 45733
+      "ms": 45451
     },
     {
       "caption": "Now the Notifications tab.",
-      "ms": 49881
+      "ms": 49582
     },
     {
       "caption": "Each notification says what happened and links to the record. Here: a requirement change reassessed the Zentrix comparisons.",
-      "ms": 54730
+      "ms": 54418
     },
     {
       "caption": "Done: you dealt with it. Snooze 3h: bring it back later. Dismiss: remove it (it stays in the history).",
-      "ms": 57910
+      "ms": 57589
     },
     {
       "caption": "Snooze this one for three hours.",
-      "ms": 61066
+      "ms": 60749
     },
     {
       "caption": "Similar notices are grouped, urgent ones come straight away, others wait for working hours and quiet hours.",
-      "ms": 66414
+      "ms": 66100
     },
     {
       "caption": "The bell at the top of every page shows the same list.",
-      "ms": 69583
+      "ms": 69252
     }
   ],
-  "bytes": 908614
+  "bytes": 731949
 }

@@ -1,34 +1,34 @@
 {
-  "durationMs": 44062,
+  "durationMs": 43134,
   "steps": [
     {
       "caption": "Open Ask AI from the sidebar.",
-      "ms": 3608
+      "ms": 3605
     },
     {
       "caption": "Start a new conversation.",
-      "ms": 7728
+      "ms": 7667
     },
     {
       "caption": "Type the request in plain words: prepare tomorrow's meetings and list pending client commitments.",
-      "ms": 11511
+      "ms": 11230
     },
     {
       "caption": "The answer: tomorrow's meetings, briefs prepared, and open or overdue commitments.",
-      "ms": 21499
+      "ms": 20936
     },
     {
       "caption": "Press 'Open the run' to see each step.",
-      "ms": 25883
+      "ms": 25232
     },
     {
       "caption": "The run page: progress, each step with what it found, and the records involved.",
-      "ms": 34262
+      "ms": 33362
     },
     {
       "caption": "The same request works from the Ask AI panel on any page. You can also ask 'what failed?' or 'pause that job'.",
-      "ms": 37503
+      "ms": 36568
     }
   ],
-  "bytes": 1173061
+  "bytes": 1141442
 }
