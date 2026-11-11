@@ -1,0 +1,50 @@
+{
+  "durationMs": 47961,
+  "steps": [
+    {
+      "caption": "Open More in the sidebar, then Lease radar.",
+      "ms": 3605
+    },
+    {
+      "caption": "Verified dates come from the lease; 'calculated by radar' dates are formulas, never treated as verified.",
+      "ms": 9338
+    },
+    {
+      "caption": "Buckets: needs review, notice in 90 days, expiring in 0–3, 3–12, 12–24 months…",
+      "ms": 12585
+    },
+    {
+      "caption": "…expired but not confirmed, and dates unknown. Each shows how many leases are in it.",
+      "ms": 15776
+    },
+    {
+      "caption": "Start with notice deadlines in the next 90 days — the most urgent.",
+      "ms": 19090
+    },
+    {
+      "caption": "Each lease: tenant, building, landlord, area, and a call-window status.",
+      "ms": 23101
+    },
+    {
+      "caption": "Expiry, lock-in end and notice-by, each with days left.",
+      "ms": 26273
+    },
+    {
+      "caption": "Under each date: where it came from — contractual, or calculated (formula shown).",
+      "ms": 29453
+    },
+    {
+      "caption": "Reverse plan: working back from the move date — warns when the decision date has passed.",
+      "ms": 32660
+    },
+    {
+      "caption": "See all leases, then search one tenant, building or landlord.",
+      "ms": 35869
+    },
+    {
+      "caption": "Click the tenant to open the company and act on it.",
+      "ms": 41520
+    }
+  ],
+  "bytes": 674655
+}

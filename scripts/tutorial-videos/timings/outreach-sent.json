@@ -1,0 +1,42 @@
+{
+  "durationMs": 42882,
+  "steps": [
+    {
+      "caption": "An approved email to Priya Nair. The progress bar shows it is Ready.",
+      "ms": 3624
+    },
+    {
+      "caption": "Confirm the recipient and the text.",
+      "ms": 7041
+    },
+    {
+      "caption": "Check & open shows buttons to open your own mail app. Send it from there.",
+      "ms": 13934
+    },
+    {
+      "caption": "Back in CRE OS, press I sent it.",
+      "ms": 18776
+    },
+    {
+      "caption": "The message is now marked Sent.",
+      "ms": 22831
+    },
+    {
+      "caption": "Same conversation: the follow-ups are already planned, with dates.",
+      "ms": 26012
+    },
+    {
+      "caption": "A follow-up is only drafted when you ask, and pauses itself if they reply.",
+      "ms": 29363
+    },
+    {
+      "caption": "Activity records every step — drafted, approved, opened, sent — with times.",
+      "ms": 32557
+    },
+    {
+      "caption": "When they answer, paste it under 'Did they reply?'.",
+      "ms": 36454
+    }
+  ],
+  "bytes": 506790
+}

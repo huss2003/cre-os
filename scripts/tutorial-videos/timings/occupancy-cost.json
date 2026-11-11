@@ -1,0 +1,78 @@
+{
+  "durationMs": 95614,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3615
+    },
+    {
+      "caption": "Choose Cost per seat.",
+      "ms": 9162
+    },
+    {
+      "caption": "How to read this page opens a short guide to every box and label on this screen.",
+      "ms": 14261
+    },
+    {
+      "caption": "Blank = unknown, 0 = none. A blank is listed as missing and never counted as zero.",
+      "ms": 19119
+    },
+    {
+      "caption": "Enter the lease terms — the same boxes as lease economics.",
+      "ms": 22695
+    },
+    {
+      "caption": "A one-off at signing: ₹12 lakh legal and stamp duty — a cost you don't get back.",
+      "ms": 30446
+    },
+    {
+      "caption": "Cash at signing: fit-out ₹3 crore and moving ₹25 lakh.",
+      "ms": 37131
+    },
+    {
+      "caption": "Calculate & save — fixed, tested formulas, not AI.",
+      "ms": 44454
+    },
+    {
+      "caption": "Nominal rent is the quoted rate; effective rent spreads rent-free and escalation over the term.",
+      "ms": 50159
+    },
+    {
+      "caption": "Present value: the whole term in today's money. Peak cash: the most you are out of pocket.",
+      "ms": 53667
+    },
+    {
+      "caption": "Cash at signing: the deposit is marked refundable; fit-out, moving and fees are not.",
+      "ms": 57248
+    },
+    {
+      "caption": "Unknown items stay 'unknown' and are left out of the total — never guessed.",
+      "ms": 60801
+    },
+    {
+      "caption": "What-ifs: how much the present value moves if rent, escalation or fit-out change.",
+      "ms": 64203
+    },
+    {
+      "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+      "ms": 70630
+    },
+    {
+      "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+      "ms": 74214
+    },
+    {
+      "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+      "ms": 79264
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 82958
+    },
+    {
+      "caption": "Everything you save is also listed here and on the Deal toolkit home under Recently updated.",
+      "ms": 88839
+    }
+  ],
+  "bytes": 1239717
+}

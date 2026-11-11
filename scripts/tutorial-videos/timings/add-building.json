@@ -1,0 +1,90 @@
+{
+  "durationMs": 103693,
+  "steps": [
+    {
+      "caption": "Open Buildings under Records, then Add building.",
+      "ms": 3619
+    },
+    {
+      "caption": "Type the building name.",
+      "ms": 13683
+    },
+    {
+      "caption": "Kind: a building, a tower inside a campus, a campus, or a project. Add the campus first, then each tower.",
+      "ms": 18737
+    },
+    {
+      "caption": "More details: parent campus, locality, address, grade, area, floors, completion and map pin.",
+      "ms": 21935
+    },
+    {
+      "caption": "Pick the locality, so searches and shortlists by place find it.",
+      "ms": 26592
+    },
+    {
+      "caption": "Press Create building.",
+      "ms": 30330
+    },
+    {
+      "caption": "The building page. The Building section lists its facts; blanks say unknown.",
+      "ms": 34871
+    },
+    {
+      "caption": "Spaces & availability is empty — nothing is assumed vacant. Add a floor.",
+      "ms": 38302
+    },
+    {
+      "caption": "Floor label is kept as text, like '5' or 'Upper Ground'. Unit is optional.",
+      "ms": 43928
+    },
+    {
+      "caption": "More details: carpet and chargeable area, and seats — add if known.",
+      "ms": 49566
+    },
+    {
+      "caption": "Press Add space.",
+      "ms": 55533
+    },
+    {
+      "caption": "Floor 5 appears with 'No availability evidence' — we haven't said it is free yet.",
+      "ms": 59636
+    },
+    {
+      "caption": "Now record availability: a dated snapshot.",
+      "ms": 62848
+    },
+    {
+      "caption": "Choose the floor and the date you heard it.",
+      "ms": 67323
+    },
+    {
+      "caption": "Status: available, under offer, leased, withdrawn — or unknown.",
+      "ms": 72430
+    },
+    {
+      "caption": "Evidence: 'claimed' if the landlord said so, 'verified' only if you checked it now.",
+      "ms": 76301
+    },
+    {
+      "caption": "More details: available-from, valid-until, and the asking rent.",
+      "ms": 79605
+    },
+    {
+      "caption": "Rent basis says which area the rent is quoted on — carpet, chargeable or per seat.",
+      "ms": 85385
+    },
+    {
+      "caption": "Press Save snapshot.",
+      "ms": 89203
+    },
+    {
+      "caption": "Floor 5: Available (reported), as of today, asking ₹85/sf on chargeable area.",
+      "ms": 93758
+    },
+    {
+      "caption": "Leases, specifications and other names are added the same way, further down.",
+      "ms": 97004
+    }
+  ],
+  "bytes": 845899
+}

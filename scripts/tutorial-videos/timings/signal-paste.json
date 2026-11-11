@@ -1,0 +1,54 @@
+{
+  "durationMs": 61233,
+  "steps": [
+    {
+      "caption": "Open Signals: news and events that may mean a company needs space.",
+      "ms": 3613
+    },
+    {
+      "caption": "Top: how many signals are open and how many need action now. 'Scan now' re-checks your sources.",
+      "ms": 9079
+    },
+    {
+      "caption": "The 12-month strip shows dated events, like lease expiries, month by month.",
+      "ms": 12376
+    },
+    {
+      "caption": "Filters on the left: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.",
+      "ms": 15651
+    },
+    {
+      "caption": "Each card: type, headline, company, source and status. The bars show how strong the evidence is.",
+      "ms": 19000
+    },
+    {
+      "caption": "Open 'Paste news or a note' at the bottom of the list.",
+      "ms": 22206
+    },
+    {
+      "caption": "Name the company it is about.",
+      "ms": 27110
+    },
+    {
+      "caption": "Paste the article text. It is only read for events — instructions inside it are ignored.",
+      "ms": 32463
+    },
+    {
+      "caption": "Press Find signals.",
+      "ms": 41634
+    },
+    {
+      "caption": "The new signal is listed — marked Unverified until you check it.",
+      "ms": 46437
+    },
+    {
+      "caption": "Open it to see the evidence and decide what to do.",
+      "ms": 49922
+    },
+    {
+      "caption": "'What happened' quotes the event; the source is your pasted text.",
+      "ms": 54701
+    }
+  ],
+  "bytes": 617390
+}

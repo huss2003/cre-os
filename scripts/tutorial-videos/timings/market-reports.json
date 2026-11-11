@@ -1,0 +1,78 @@
+{
+  "durationMs": 82158,
+  "steps": [
+    {
+      "caption": "Open Market & reports from the More menu.",
+      "ms": 3613
+    },
+    {
+      "caption": "Market: validated releases only. 'Re-run checks' re-validates the figures.",
+      "ms": 11793
+    },
+    {
+      "caption": "Descriptive only — not a forecast. Stock is never summed and no vacancy is guessed.",
+      "ms": 15298
+    },
+    {
+      "caption": "Each series names its measure, area and unit — here absorption in msf, per year.",
+      "ms": 19227
+    },
+    {
+      "caption": "Below each chart: period, unit and source with its release date. Missing years stay unknown.",
+      "ms": 22797
+    },
+    {
+      "caption": "Network: job moves, who knows whom, introduction paths and deal gaps.",
+      "ms": 28645
+    },
+    {
+      "caption": "Recent job moves are unverified until you confirm them.",
+      "ms": 34570
+    },
+    {
+      "caption": "Legal: for LOIs, term sheets and leases — for the tenant's lawyers, not legal advice.",
+      "ms": 37999
+    },
+    {
+      "caption": "Upload a PDF or Word file; add a later version with the same family key to get a redline.",
+      "ms": 42749
+    },
+    {
+      "caption": "Link it to a lease so Lease radar can use its clauses (notice dates, break options).",
+      "ms": 45972
+    },
+    {
+      "caption": "Content: LinkedIn posts and market notes in your voice. You publish them yourself.",
+      "ms": 49324
+    },
+    {
+      "caption": "'Plan this week' suggests two post ideas and a market-note slot (it also runs every Monday).",
+      "ms": 54686
+    },
+    {
+      "caption": "Drafts are checked against the evidence and confidentiality rules before they can be approved.",
+      "ms": 57919
+    },
+    {
+      "caption": "Reports: approaches, discussions and deals by month — descriptive, not predictions.",
+      "ms": 61416
+    },
+    {
+      "caption": "Targets are your planning assumptions. Drafts and follow-ups never count as approaches.",
+      "ms": 65850
+    },
+    {
+      "caption": "Cohort funnel: what happened to the approaches started each month.",
+      "ms": 69168
+    },
+    {
+      "caption": "Stage conversion: how many deals are at each stage, from research to collected.",
+      "ms": 72438
+    },
+    {
+      "caption": "Time to stage: how many days deals take to reach each step.",
+      "ms": 75653
+    }
+  ],
+  "bytes": 1148650
+}

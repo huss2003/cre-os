@@ -1,0 +1,74 @@
+{
+  "durationMs": 82686,
+  "steps": [
+    {
+      "caption": "Open Ask AI from the sidebar.",
+      "ms": 3616
+    },
+    {
+      "caption": "Start a new conversation.",
+      "ms": 7828
+    },
+    {
+      "caption": "Press the paper-clip to attach a file: PDF, Word, TXT, CSV or MD, up to 15 MB.",
+      "ms": 12432
+    },
+    {
+      "caption": "The lease PDF is attached (× removes it).",
+      "ms": 16450
+    },
+    {
+      "caption": "Ask it to extract the lease terms.",
+      "ms": 19655
+    },
+    {
+      "caption": "A table of terms: value, page number, the exact quote and a check mark.",
+      "ms": 30247
+    },
+    {
+      "caption": "Area, rent and dates are parsed by code from the quote — not invented by the AI.",
+      "ms": 33738
+    },
+    {
+      "caption": "'verified on page' means the quote really is on that page.",
+      "ms": 37053
+    },
+    {
+      "caption": "Terms not in the document stay 'unknown' — e.g. CAM and fit-out.",
+      "ms": 40309
+    },
+    {
+      "caption": "Now attach the terms to a lease record. Search by tenant name.",
+      "ms": 43660
+    },
+    {
+      "caption": "Pick Zentrix's lease at Kharadi Tech Park.",
+      "ms": 50036
+    },
+    {
+      "caption": "Tick to also store the PDF on the lease.",
+      "ms": 54188
+    },
+    {
+      "caption": "Press Attach to lease record. Nothing is saved yet.",
+      "ms": 57396
+    },
+    {
+      "caption": "An approval card shows every field: what it is now, what it would become, and the page it came from.",
+      "ms": 62124
+    },
+    {
+      "caption": "Here the area changes from 18,000 to 18,500 sq ft (page 1).",
+      "ms": 65607
+    },
+    {
+      "caption": "Approve change. Material lease fields go on to Review for a second check.",
+      "ms": 68888
+    },
+    {
+      "caption": "Done — the proposal now waits in Review.",
+      "ms": 73549
+    }
+  ],
+  "bytes": 942551
+}

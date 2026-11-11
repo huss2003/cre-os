@@ -1,0 +1,82 @@
+{
+  "durationMs": 97662,
+  "steps": [
+    {
+      "caption": "Open Research from the More menu.",
+      "ms": 3608
+    },
+    {
+      "caption": "The banner says web research is off (no AI key) — only pasted news and your own data are used.",
+      "ms": 10716
+    },
+    {
+      "caption": "The counters: companies watched, research due now, and AI spend this month.",
+      "ms": 14009
+    },
+    {
+      "caption": "'Is this a potential client?' scores one company out of 100. Pick Zentrix Analytics.",
+      "ms": 17477
+    },
+    {
+      "caption": "Press Assess company.",
+      "ms": 20901
+    },
+    {
+      "caption": "The result: a score out of 100, scored from your records because AI is not connected.",
+      "ms": 25399
+    },
+    {
+      "caption": "Live research lists each run — what was searched and which sites gave evidence.",
+      "ms": 28865
+    },
+    {
+      "caption": "To keep researching it on a schedule, add it to the watchlist.",
+      "ms": 32101
+    },
+    {
+      "caption": "Press Add to watchlist.",
+      "ms": 39714
+    },
+    {
+      "caption": "Zentrix is now watched. Open it to see its research dossier.",
+      "ms": 43986
+    },
+    {
+      "caption": "The dossier page. Paste evidence first — sections without evidence will say 'unknown'.",
+      "ms": 48381
+    },
+    {
+      "caption": "Paste what the source says.",
+      "ms": 51896
+    },
+    {
+      "caption": "Add the link and publication date, so anyone can check it later.",
+      "ms": 59326
+    },
+    {
+      "caption": "Store evidence.",
+      "ms": 66777
+    },
+    {
+      "caption": "Watchlist tier sets how often it is re-researched: weekly, monthly or quarterly.",
+      "ms": 71035
+    },
+    {
+      "caption": "Detect signals checks the stored evidence for expansion, hiring, funding and similar — as hypotheses.",
+      "ms": 75084
+    },
+    {
+      "caption": "Generate (or refresh) the dossier from everything on file.",
+      "ms": 80595
+    },
+    {
+      "caption": "Each section lists its sources and dates; missing ones say 'unknown'.",
+      "ms": 84837
+    },
+    {
+      "caption": "Evidence on file: every item with its source and date.",
+      "ms": 90980
+    }
+  ],
+  "bytes": 1509453
+}

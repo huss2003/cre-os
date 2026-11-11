@@ -1,0 +1,70 @@
+{
+  "durationMs": 74438,
+  "steps": [
+    {
+      "caption": "Automations live under More → Automations. They run by themselves every few minutes.",
+      "ms": 3608
+    },
+    {
+      "caption": "Check now runs them immediately instead of waiting.",
+      "ms": 7045
+    },
+    {
+      "caption": "Each automation can be turned off or on here.",
+      "ms": 10793
+    },
+    {
+      "caption": "This one watches leases: when a notice date or expiry comes close, it starts.",
+      "ms": 14106
+    },
+    {
+      "caption": "Zentrix's notice deadline is near, so it proposed a requirement — and is waiting for you.",
+      "ms": 17548
+    },
+    {
+      "caption": "Open the approval.",
+      "ms": 20942
+    },
+    {
+      "caption": "A new requirement, prefilled from the lease. Unknowns are left blank.",
+      "ms": 26266
+    },
+    {
+      "caption": "Edit proposed values if something needs changing before you approve.",
+      "ms": 33029
+    },
+    {
+      "caption": "Or ask to clarify, or reject — the automation then stops here.",
+      "ms": 36493
+    },
+    {
+      "caption": "Approve it.",
+      "ms": 39901
+    },
+    {
+      "caption": "On its next check, the automation carries on by itself.",
+      "ms": 44795
+    },
+    {
+      "caption": "Back in Automations: every step is listed with what it did.",
+      "ms": 50590
+    },
+    {
+      "caption": "It matched alternative buildings and compared renewing vs moving.",
+      "ms": 56923
+    },
+    {
+      "caption": "And it added a task for you.",
+      "ms": 60291
+    },
+    {
+      "caption": "Open the task.",
+      "ms": 63578
+    },
+    {
+      "caption": "The task also appears on Today and in Tasks; the comparison is in Deal toolkit.",
+      "ms": 67609
+    }
+  ],
+  "bytes": 1052164
+}

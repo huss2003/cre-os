@@ -1,0 +1,34 @@
+{
+  "durationMs": 34102,
+  "steps": [
+    {
+      "caption": "This email to Riya Gokhale was sent. Now she has replied.",
+      "ms": 3604
+    },
+    {
+      "caption": "Paste her reply, or note what she said on the phone.",
+      "ms": 6837
+    },
+    {
+      "caption": "Press Save reply.",
+      "ms": 13868
+    },
+    {
+      "caption": "It is sorted as a Meeting reply. Others: Interested, Not now, Referred someone else, Declined…",
+      "ms": 18212
+    },
+    {
+      "caption": "What we promised is listed, and Next says what to do now.",
+      "ms": 21398
+    },
+    {
+      "caption": "Planned follow-ups stop, so she won't get a chaser after replying.",
+      "ms": 24562
+    },
+    {
+      "caption": "A referral would add the new person to Review — never straight into your contacts.",
+      "ms": 27731
+    }
+  ],
+  "bytes": 383977
+}

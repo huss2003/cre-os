@@ -1,0 +1,62 @@
+{
+  "durationMs": 63376,
+  "steps": [
+    {
+      "caption": "Open Companies from the sidebar.",
+      "ms": 3611
+    },
+    {
+      "caption": "Search for the company — here, Zentrix Analytics.",
+      "ms": 8406
+    },
+    {
+      "caption": "Open its company page.",
+      "ms": 12759
+    },
+    {
+      "caption": "Ask AI sits in the top bar on every page (shortcut Ctrl+J).",
+      "ms": 16867
+    },
+    {
+      "caption": "The panel opens on the right. 'Viewing' shows the record it will use: Company · Zentrix Analytics.",
+      "ms": 20890
+    },
+    {
+      "caption": "Suggested questions are tailored to this record — or type your own.",
+      "ms": 24192
+    },
+    {
+      "caption": "Ask about 'this company' — no need to type its name.",
+      "ms": 27418
+    },
+    {
+      "caption": "The answer is built only from your records: profile, leases, contacts.",
+      "ms": 36167
+    },
+    {
+      "caption": "Unknown facts stay 'Unknown' — the assistant never guesses them.",
+      "ms": 39431
+    },
+    {
+      "caption": "Sources show where each part came from and how sure it is (Reported, Confirmed…).",
+      "ms": 42619
+    },
+    {
+      "caption": "'Missing / not verified' lists the gaps, e.g. no identified decision-maker.",
+      "ms": 45807
+    },
+    {
+      "caption": "Turn the answer into a deck, Word doc or PDF, or copy it. Thumbs up/down teach it what helped.",
+      "ms": 49059
+    },
+    {
+      "caption": "'Open full chat' continues the same conversation on the big Ask AI page.",
+      "ms": 52353
+    },
+    {
+      "caption": "Close the panel — you're still on the company page.",
+      "ms": 55605
+    }
+  ],
+  "bytes": 692111
+}

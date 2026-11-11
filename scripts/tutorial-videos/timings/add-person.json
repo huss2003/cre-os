@@ -1,0 +1,66 @@
+{
+  "durationMs": 74560,
+  "steps": [
+    {
+      "caption": "Open People under Records.",
+      "ms": 3644
+    },
+    {
+      "caption": "Search first, as with companies — then press Add person.",
+      "ms": 9406
+    },
+    {
+      "caption": "Full name is the only required field.",
+      "ms": 14894
+    },
+    {
+      "caption": "Other spellings help CRE OS match notes and imports to this person later.",
+      "ms": 19860
+    },
+    {
+      "caption": "More details: profile link, preferred language and channel, contact limits and notes.",
+      "ms": 23532
+    },
+    {
+      "caption": "Press Create person.",
+      "ms": 27960
+    },
+    {
+      "caption": "The person page. 'No current role on record' — so let's link them to a company.",
+      "ms": 33638
+    },
+    {
+      "caption": "Open Employment timeline, then Add employment.",
+      "ms": 36952
+    },
+    {
+      "caption": "Choose the company they work for.",
+      "ms": 42783
+    },
+    {
+      "caption": "Designation: their role, so you know who decides.",
+      "ms": 46385
+    },
+    {
+      "caption": "Works here now? Yes. Start and end dates are optional.",
+      "ms": 51629
+    },
+    {
+      "caption": "Press Add role.",
+      "ms": 55212
+    },
+    {
+      "caption": "The timeline now shows Head of Workplace at Zentrix Analytics.",
+      "ms": 60672
+    },
+    {
+      "caption": "Relationship level on the right: only you set it — suggestions never claim a good relationship.",
+      "ms": 64407
+    },
+    {
+      "caption": "Further down: relationship context, intro paths, interactions, meetings and outreach.",
+      "ms": 67693
+    }
+  ],
+  "bytes": 789816
+}

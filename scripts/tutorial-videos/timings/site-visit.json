@@ -1,0 +1,50 @@
+{
+  "durationMs": 56118,
+  "steps": [
+    {
+      "caption": "Open Meetings from the sidebar.",
+      "ms": 3605
+    },
+    {
+      "caption": "Today's meetings are listed first. Open this one.",
+      "ms": 7696
+    },
+    {
+      "caption": "Jump to the Site visit checklist.",
+      "ms": 11892
+    },
+    {
+      "caption": "Before, during and after: tick each item as you go.",
+      "ms": 18650
+    },
+    {
+      "caption": "Before (confirm access, send the pack), during (check the space) and after (collect feedback).",
+      "ms": 25120
+    },
+    {
+      "caption": "Property feedback: one form per building visited.",
+      "ms": 28296
+    },
+    {
+      "caption": "Open Kharadi Tech Park.",
+      "ms": 32595
+    },
+    {
+      "caption": "Rate it and set the client's interest.",
+      "ms": 36458
+    },
+    {
+      "caption": "Add what they said. Only tick 'clearly rejected' if the client said no.",
+      "ms": 40767
+    },
+    {
+      "caption": "Save feedback.",
+      "ms": 45506
+    },
+    {
+      "caption": "The building now shows the client's interest and rating.",
+      "ms": 49696
+    }
+  ],
+  "bytes": 894426
+}

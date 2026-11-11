@@ -1,0 +1,62 @@
+{
+  "durationMs": 65272,
+  "steps": [
+    {
+      "caption": "Tasks sit under Today. Open the Tasks tab.",
+      "ms": 3615
+    },
+    {
+      "caption": "Filters: Open, Overdue, Snoozed, Stale and Done. Overdue ones are marked in red.",
+      "ms": 8480
+    },
+    {
+      "caption": "Search titles, choose Mine or Everyone, and filter by where the task came from.",
+      "ms": 11833
+    },
+    {
+      "caption": "Each task shows its status, due date, priority and source — 'Blocked' means it waits on another task.",
+      "ms": 15130
+    },
+    {
+      "caption": "Stale holds tasks overdue for too long, so they don't silently disappear.",
+      "ms": 18472
+    },
+    {
+      "caption": "To add your own, scroll to New task at the bottom.",
+      "ms": 21790
+    },
+    {
+      "caption": "Type what needs doing.",
+      "ms": 26407
+    },
+    {
+      "caption": "Pick a due date — here, tomorrow.",
+      "ms": 31672
+    },
+    {
+      "caption": "Set the priority to High, then press Add.",
+      "ms": 34930
+    },
+    {
+      "caption": "The new task is in the list with its due date and priority.",
+      "ms": 40785
+    },
+    {
+      "caption": "When it's done, write what you did — that note is kept as evidence.",
+      "ms": 43983
+    },
+    {
+      "caption": "Press Complete. (Not today? Snooze it for 1, 3, 7 or 14 days instead.)",
+      "ms": 48925
+    },
+    {
+      "caption": "Done tasks move to the Done filter, with your note.",
+      "ms": 53324
+    },
+    {
+      "caption": "Your note is kept as evidence; Reopen brings a task back if needed.",
+      "ms": 58868
+    }
+  ],
+  "bytes": 954809
+}

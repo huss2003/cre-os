@@ -1,0 +1,50 @@
+{
+  "durationMs": 56182,
+  "steps": [
+    {
+      "caption": "Open Ask AI, then the Usage tab.",
+      "ms": 3617
+    },
+    {
+      "caption": "Today, this month, projected month-end. Test mode without an AI key costs ₹0.",
+      "ms": 13245
+    },
+    {
+      "caption": "Budget used: share of the monthly cap. Warnings appear as you approach it; at 100% AI features pause.",
+      "ms": 16542
+    },
+    {
+      "caption": "Last 30 days: spend per day.",
+      "ms": 19999
+    },
+    {
+      "caption": "Set the monthly budget in rupees (0 = no cap).",
+      "ms": 23286
+    },
+    {
+      "caption": "Save budget.",
+      "ms": 28202
+    },
+    {
+      "caption": "Breakdowns: by question type, by route (fast or deep model), by person.",
+      "ms": 32876
+    },
+    {
+      "caption": "By feature: Ask AI, captures, meeting briefs, outreach drafts, search…",
+      "ms": 36398
+    },
+    {
+      "caption": "Tokens this month, and how much the cache saved.",
+      "ms": 39688
+    },
+    {
+      "caption": "Most expensive questions — click one to open that conversation.",
+      "ms": 42999
+    },
+    {
+      "caption": "Put the budget back to ₹3,000.",
+      "ms": 46427
+    }
+  ],
+  "bytes": 564836
+}

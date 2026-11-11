@@ -1,0 +1,50 @@
+{
+  "durationMs": 55464,
+  "steps": [
+    {
+      "caption": "Open Requirements and pick one.",
+      "ms": 3608
+    },
+    {
+      "caption": "Hard constraints decide what gets excluded — e.g. the area range and must-have locations.",
+      "ms": 10421
+    },
+    {
+      "caption": "Scroll to Shortlist. If the client hasn't confirmed, the shortlist is marked provisional.",
+      "ms": 14298
+    },
+    {
+      "caption": "Press Run shortlist.",
+      "ms": 18173
+    },
+    {
+      "caption": "One row per floor or unit, ranked. Eligibility: eligible, needs verification, or ineligible.",
+      "ms": 22850
+    },
+    {
+      "caption": "Fit score: how well it matches. Data completeness: how much of the needed data is known.",
+      "ms": 27067
+    },
+    {
+      "caption": "Flags say what to check: vacancy unverified, stale availability, seat count unknown…",
+      "ms": 30451
+    },
+    {
+      "caption": "Open 'Why it qualifies' to read the matching reasons.",
+      "ms": 33762
+    },
+    {
+      "caption": "Ineligible rows say exactly why — e.g. area outside the range, too few seats.",
+      "ms": 38405
+    },
+    {
+      "caption": "Set each option's status as you go: proposed, shortlisted, visited, rejected, selected.",
+      "ms": 42032
+    },
+    {
+      "caption": "The status is saved on that option; the shortlist count at the top of the page updates.",
+      "ms": 48314
+    }
+  ],
+  "bytes": 743502
+}

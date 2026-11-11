@@ -1,0 +1,82 @@
+{
+  "durationMs": 95359,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3609
+    },
+    {
+      "caption": "Choose Cost a lease.",
+      "ms": 8540
+    },
+    {
+      "caption": "How to read this page opens a short guide to every box and label on this screen.",
+      "ms": 13500
+    },
+    {
+      "caption": "Blank = unknown, 0 = none. A blank is listed as missing and never counted as zero.",
+      "ms": 18033
+    },
+    {
+      "caption": "Name it and set a discount rate — used to work out today's value of future rent.",
+      "ms": 21585
+    },
+    {
+      "caption": "Space and term: 25,000 sq ft for 60 months, 3 months rent-free.",
+      "ms": 29929
+    },
+    {
+      "caption": "Rent ₹95 per sq ft per month, going up 5% every 12 months.",
+      "ms": 36020
+    },
+    {
+      "caption": "CAM ₹18 per sq ft and a 6-month deposit. Blank means unknown — never zero.",
+      "ms": 40037
+    },
+    {
+      "caption": "Calculate & save. Fixed formulas do the maths — no AI.",
+      "ms": 45970
+    },
+    {
+      "caption": "Monthly rent and CAM: what is paid each month at the start.",
+      "ms": 51940
+    },
+    {
+      "caption": "Effective rent: the average per sq ft after rent-free and escalation.",
+      "ms": 55244
+    },
+    {
+      "caption": "Total cost over the tenure, and its present value — today's money at your discount rate.",
+      "ms": 58828
+    },
+    {
+      "caption": "The deposit is shown apart: it is not a cost, it comes back at the end.",
+      "ms": 62259
+    },
+    {
+      "caption": "Year by year: rent, CAM and total cost for each lease year.",
+      "ms": 65616
+    },
+    {
+      "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+      "ms": 71972
+    },
+    {
+      "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+      "ms": 75224
+    },
+    {
+      "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+      "ms": 80313
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 83717
+    },
+    {
+      "caption": "Everything you save is also listed here and on the Deal toolkit home under Recently updated.",
+      "ms": 88894
+    }
+  ],
+  "bytes": 1084513
+}

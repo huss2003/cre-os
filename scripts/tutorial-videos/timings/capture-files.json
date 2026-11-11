@@ -1,0 +1,70 @@
+{
+  "durationMs": 75500,
+  "steps": [
+    {
+      "caption": "Open Capture.",
+      "ms": 3651
+    },
+    {
+      "caption": "'Add files' takes almost anything, up to 25 MB each.",
+      "ms": 8987
+    },
+    {
+      "caption": "Optional: link it to a record first — company, person, building, requirement or meeting.",
+      "ms": 12321
+    },
+    {
+      "caption": "This quote is for Zentrix's requirement.",
+      "ms": 16939
+    },
+    {
+      "caption": "'What is it?' — leave on Detect, or pick: quotation, lease, LOI, notes, business card, photo, layout…",
+      "ms": 20199
+    },
+    {
+      "caption": "Choose the landlord's quotation PDF.",
+      "ms": 23562
+    },
+    {
+      "caption": "It's recognised as a Quotation. Open it.",
+      "ms": 27185
+    },
+    {
+      "caption": "What CRE OS found: type, confidence, and each value with its page and quote.",
+      "ms": 31771
+    },
+    {
+      "caption": "Without an AI key it uses pattern matching — 'check every value'.",
+      "ms": 35124
+    },
+    {
+      "caption": "Proposals: here, create a quote. Review opens it for your approval.",
+      "ms": 38456
+    },
+    {
+      "caption": "Wrong guess? 'Fix and process again' changes the type or linked records.",
+      "ms": 41888
+    },
+    {
+      "caption": "Back to Capture for a building photo.",
+      "ms": 45587
+    },
+    {
+      "caption": "Upload the photo.",
+      "ms": 49800
+    },
+    {
+      "caption": "A photo needs a building or visit — open it to choose.",
+      "ms": 55137
+    },
+    {
+      "caption": "Pick the building, then Process again. Business cards work the same way: type 'Business card'.",
+      "ms": 60484
+    },
+    {
+      "caption": "Recent files on Capture list every file and whether it needs your input.",
+      "ms": 67156
+    }
+  ],
+  "bytes": 721468
+}

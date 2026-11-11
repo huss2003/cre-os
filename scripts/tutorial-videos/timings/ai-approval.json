@@ -1,0 +1,46 @@
+{
+  "durationMs": 51352,
+  "steps": [
+    {
+      "caption": "Open Outreach from the sidebar.",
+      "ms": 3611
+    },
+    {
+      "caption": "Open an outreach draft — here, the email to Ananya Rao.",
+      "ms": 8550
+    },
+    {
+      "caption": "Open Ask AI. It knows you're viewing this outreach draft.",
+      "ms": 15457
+    },
+    {
+      "caption": "Ask it to send the proposal email.",
+      "ms": 19396
+    },
+    {
+      "caption": "It doesn't send. It shows an approval card: 'Nothing has been sent or changed'.",
+      "ms": 27624
+    },
+    {
+      "caption": "'Waiting for you' — the request is paused until you decide.",
+      "ms": 30847
+    },
+    {
+      "caption": "The table shows exactly what would change: recipient, subject and the full text.",
+      "ms": 34040
+    },
+    {
+      "caption": "Approve binds to this exact text and recipient — then it opens your mail app; you press send yourself.",
+      "ms": 37336
+    },
+    {
+      "caption": "Not ready? Press Reject.",
+      "ms": 40616
+    },
+    {
+      "caption": "Rejected — nothing was changed, nothing was sent.",
+      "ms": 44666
+    }
+  ],
+  "bytes": 556202
+}

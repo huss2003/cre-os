@@ -1,0 +1,154 @@
+{
+  "durationMs": 153520,
+  "steps": [
+    {
+      "caption": "The sidebar on the left is the map of the whole app, grouped into main, Records, Work and More.",
+      "ms": 3606
+    },
+    {
+      "caption": "Today is your start page: everything that needs you today, in one place.",
+      "ms": 6907
+    },
+    {
+      "caption": "Recommended next actions: lease dates and overdue tasks, most urgent first.",
+      "ms": 11645
+    },
+    {
+      "caption": "Meetings in the next three days, each with a link to its preparation brief.",
+      "ms": 14947
+    },
+    {
+      "caption": "Priority accounts: the companies most worth your time, with 'See why' for the reasons.",
+      "ms": 18341
+    },
+    {
+      "caption": "New signals, follow-ups that are due and approvals waiting for you.",
+      "ms": 21796
+    },
+    {
+      "caption": "Lease events: expiries, notice deadlines and lock-ins coming up in 12, 6 and 3 months.",
+      "ms": 25452
+    },
+    {
+      "caption": "Day plan turns all of this into an ordered plan for today; Re-plan rebuilds it.",
+      "ms": 28772
+    },
+    {
+      "caption": "Today also has tabs at the top: Overview, Tasks and Calendar.",
+      "ms": 32558
+    },
+    {
+      "caption": "Ask AI answers questions about your own data and shows where each answer came from.",
+      "ms": 36366
+    },
+    {
+      "caption": "Ready-made questions get you started; or type your own in the box.",
+      "ms": 41146
+    },
+    {
+      "caption": "Step 1 of the flow — information comes in. Capture is where you add notes, voice, photos and files.",
+      "ms": 44689
+    },
+    {
+      "caption": "Speak, Type or Photo: three ways to record what happened after a call or visit.",
+      "ms": 49923
+    },
+    {
+      "caption": "Recent captures lists what you saved and how many changes each one is proposing.",
+      "ms": 53669
+    },
+    {
+      "caption": "Step 2 — Review. Nothing changes your records until you approve it here.",
+      "ms": 57162
+    },
+    {
+      "caption": "Changes from captures, imports and automations wait here, each with its evidence.",
+      "ms": 62573
+    },
+    {
+      "caption": "You can approve, edit, ask to clarify or reject each proposed change.",
+      "ms": 67461
+    },
+    {
+      "caption": "Step 3 — Records. Companies is every account you track.",
+      "ms": 70727
+    },
+    {
+      "caption": "Filter by name, or add a company by hand.",
+      "ms": 76166
+    },
+    {
+      "caption": "People: the contacts at those companies.",
+      "ms": 79690
+    },
+    {
+      "caption": "Buildings: campuses, towers and the space in them.",
+      "ms": 84644
+    },
+    {
+      "caption": "Requirements: what each client is looking for — size, place, dates. Filter by status.",
+      "ms": 89102
+    },
+    {
+      "caption": "Deals: every opportunity as a pipeline, from research to fee collected.",
+      "ms": 93291
+    },
+    {
+      "caption": "Each column is a stage; the Deals tabs also hold Financials, Documents and Fees.",
+      "ms": 97845
+    },
+    {
+      "caption": "Step 4 — Act. Outreach: who to contact today and drafts of what to say.",
+      "ms": 101079
+    },
+    {
+      "caption": "Drafts only — you always send from your own mail or WhatsApp. CRE OS never sends.",
+      "ms": 105349
+    },
+    {
+      "caption": "Meetings: prepare a brief before each meeting and log what happened after.",
+      "ms": 108522
+    },
+    {
+      "caption": "Deal toolkit: compare buildings, cost a lease, stay-or-move and make client packs.",
+      "ms": 113302
+    },
+    {
+      "caption": "Signals: news and events that may mean a company needs space — checked before you trust them.",
+      "ms": 117470
+    },
+    {
+      "caption": "More holds the less-used screens. Open it.",
+      "ms": 121775
+    },
+    {
+      "caption": "Scores rank who to focus on first; Find contacts finds and verifies decision-makers.",
+      "ms": 126157
+    },
+    {
+      "caption": "Research looks into one company; Lease radar lists leases coming up for renewal.",
+      "ms": 129355
+    },
+    {
+      "caption": "Market & reports: market data, network, legal, content and reports.",
+      "ms": 132536
+    },
+    {
+      "caption": "Automations: chains that run on their own, like turning a lease date into a requirement.",
+      "ms": 135886
+    },
+    {
+      "caption": "Imports bring in spreadsheets; Database and Places are for browsing and setup.",
+      "ms": 139457
+    },
+    {
+      "caption": "Tutorials: these videos, any time.",
+      "ms": 142769
+    },
+    {
+      "caption": "The whole loop: things come in → you Review → records update → Today tells you what to act on.",
+      "ms": 146051
+    }
+  ],
+  "bytes": 1859880
+}

@@ -1,0 +1,70 @@
+{
+  "durationMs": 69514,
+  "steps": [
+    {
+      "caption": "Open Scores.",
+      "ms": 3613
+    },
+    {
+      "caption": "Press Scoring rules.",
+      "ms": 11397
+    },
+    {
+      "caption": "Six models, one per thing being scored: companies, leads, contacts, requirements, opportunities, relationships.",
+      "ms": 16015
+    },
+    {
+      "caption": "This is Company attractiveness. The version number shows which rules are live.",
+      "ms": 19226
+    },
+    {
+      "caption": "Weights add up to 100; if they don't, they are scaled to 100.",
+      "ms": 22576
+    },
+    {
+      "caption": "Each factor says what it measures — here Company scale: headcount and number of sites.",
+      "ms": 25938
+    },
+    {
+      "caption": "'If unknown': leave it out (default), count it as half, or count it as zero.",
+      "ms": 29233
+    },
+    {
+      "caption": "Say growth matters more this quarter: raise Growth indicators from 20 to 30.",
+      "ms": 32500
+    },
+    {
+      "caption": "Priority thresholds: the lowest score for each band — e.g. 80 and up is Very High.",
+      "ms": 36408
+    },
+    {
+      "caption": "Industry weights: how attractive each sector is, from 0 to 1. GCCs always count as 1.",
+      "ms": 39792
+    },
+    {
+      "caption": "Focus cities: where occupancy counts for the location factor — here Pune.",
+      "ms": 43119
+    },
+    {
+      "caption": "Try on a record before saving — pick Zentrix Analytics.",
+      "ms": 46457
+    },
+    {
+      "caption": "Press Preview.",
+      "ms": 49969
+    },
+    {
+      "caption": "The preview shows the score under the new weights. Nothing is saved yet.",
+      "ms": 55094
+    },
+    {
+      "caption": "To keep it: add a note saying why, then 'Save as new version'. Old versions stay, so past scores can be explained.",
+      "ms": 59182
+    },
+    {
+      "caption": "Versions: switch back to an older one, or switch a model off, any time.",
+      "ms": 62810
+    }
+  ],
+  "bytes": 713327
+}

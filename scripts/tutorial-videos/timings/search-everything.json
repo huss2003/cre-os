@@ -1,0 +1,46 @@
+{
+  "durationMs": 49861,
+  "steps": [
+    {
+      "caption": "Click Search at the top of the sidebar.",
+      "ms": 3604
+    },
+    {
+      "caption": "Two modes: Search everything (words), and Find accounts (describe companies you want).",
+      "ms": 9000
+    },
+    {
+      "caption": "Type a word — here a company name — and press Search.",
+      "ms": 12228
+    },
+    {
+      "caption": "Results of every type: lease, company, signal, requirement, meetings…",
+      "ms": 18811
+    },
+    {
+      "caption": "Each keeps its status — reported, confirmed or hypothesis are never mixed.",
+      "ms": 22048
+    },
+    {
+      "caption": "You only see what your access allows.",
+      "ms": 25239
+    },
+    {
+      "caption": "Narrow it: choose a type — Lease.",
+      "ms": 28409
+    },
+    {
+      "caption": "More filters: place, from/to dates, status and source.",
+      "ms": 31635
+    },
+    {
+      "caption": "Press Search — only leases in Kharadi remain.",
+      "ms": 37287
+    },
+    {
+      "caption": "Click any result to open it.",
+      "ms": 43359
+    }
+  ],
+  "bytes": 508083
+}

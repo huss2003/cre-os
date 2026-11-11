@@ -1,0 +1,54 @@
+{
+  "durationMs": 53463,
+  "steps": [
+    {
+      "caption": "Open Today from the sidebar. It is your start page every morning.",
+      "ms": 3609
+    },
+    {
+      "caption": "The date line says whether this is the morning brief or a live preview. 'Generate brief now' prepares it on demand.",
+      "ms": 7830
+    },
+    {
+      "caption": "Getting started tracks the set-up steps still left, with a button for the next one.",
+      "ms": 11031
+    },
+    {
+      "caption": "Recommended next actions: the most urgent things first, each with the reason.",
+      "ms": 14309
+    },
+    {
+      "caption": "Each action has a button that takes you straight to the work.",
+      "ms": 17493
+    },
+    {
+      "caption": "Meetings in the next three days, with their preparation status.",
+      "ms": 20682
+    },
+    {
+      "caption": "Priority accounts: the companies most worth calling, with their score and why.",
+      "ms": 24985
+    },
+    {
+      "caption": "Follow-ups and commitments due: overdue tasks and drafts waiting to be sent.",
+      "ms": 29278
+    },
+    {
+      "caption": "Pending approvals: changes waiting in Review before they touch your records.",
+      "ms": 33509
+    },
+    {
+      "caption": "Lease events: notice deadlines and expiries coming up, so nothing is missed.",
+      "ms": 37748
+    },
+    {
+      "caption": "Back to the top: open the first task to start working on it.",
+      "ms": 41945
+    },
+    {
+      "caption": "It opens in Tasks, where you complete it, snooze it or see what it is linked to.",
+      "ms": 47053
+    }
+  ],
+  "bytes": 1664759
+}

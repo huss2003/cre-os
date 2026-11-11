@@ -1,0 +1,78 @@
+{
+  "durationMs": 94663,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3631
+    },
+    {
+      "caption": "Choose Stay or move.",
+      "ms": 8269
+    },
+    {
+      "caption": "How to read this page opens a short guide to every box and label on this screen.",
+      "ms": 12669
+    },
+    {
+      "caption": "Compare over 60 months at a 10% discount rate.",
+      "ms": 20042
+    },
+    {
+      "caption": "Stay: the landlord's renewal rent of ₹21.5 lakh a month, plus CAM and a refurbishment.",
+      "ms": 27579
+    },
+    {
+      "caption": "Move: new rent, 3 months rent-free — and 2 months of overlap paying both rents.",
+      "ms": 34506
+    },
+    {
+      "caption": "Moving costs: fit-out, moving, restoring the old office, IT, downtime and deposits.",
+      "ms": 39708
+    },
+    {
+      "caption": "Non-money factors (location, disruption…) are scored 1–5 separately — optional, never mixed into cost.",
+      "ms": 45441
+    },
+    {
+      "caption": "Compare & save — fixed formulas, not AI.",
+      "ms": 48947
+    },
+    {
+      "caption": "The answer: staying is cheaper in today's money. Non-money scores are kept separate.",
+      "ms": 54233
+    },
+    {
+      "caption": "Break-even: the month moving would become cheaper — here, not within 60 months.",
+      "ms": 58035
+    },
+    {
+      "caption": "Present-value difference: positive means moving costs more in today's money.",
+      "ms": 61441
+    },
+    {
+      "caption": "Cost over time: running totals — dashed is stay, solid is move. If they cross, that is break-even.",
+      "ms": 64750
+    },
+    {
+      "caption": "Line by line: every cost behind each total, including the overlap rent.",
+      "ms": 68288
+    },
+    {
+      "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+      "ms": 74820
+    },
+    {
+      "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+      "ms": 78111
+    },
+    {
+      "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+      "ms": 83068
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 86422
+    }
+  ],
+  "bytes": 1398584
+}

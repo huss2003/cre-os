@@ -1,0 +1,54 @@
+{
+  "durationMs": 49594,
+  "steps": [
+    {
+      "caption": "Settings is at the bottom of the sidebar (owners and admins).",
+      "ms": 3654
+    },
+    {
+      "caption": "Owners must set up an authenticator app before admin pages — CRE OS never sends codes by SMS or email.",
+      "ms": 8373
+    },
+    {
+      "caption": "Tabs: General, Members, Partners, Templates, Licensed sources, Data lanes, Retention, Security.",
+      "ms": 11617
+    },
+    {
+      "caption": "Open Connections.",
+      "ms": 14940
+    },
+    {
+      "caption": "Read-only: CRE OS cannot send email, change your calendar or delete anything.",
+      "ms": 18964
+    },
+    {
+      "caption": "Microsoft 365: reads mail and calendar with Mail.Read and Calendars.Read only.",
+      "ms": 22209
+    },
+    {
+      "caption": "'Permissions requested' lists exactly what it asks for.",
+      "ms": 25397
+    },
+    {
+      "caption": "Google (Gmail & Calendar): same read-only rules. Until set up, import threads by hand in Drafts → Inbox triage.",
+      "ms": 29763
+    },
+    {
+      "caption": "'Use mock data' lets you try it without connecting a real account.",
+      "ms": 32995
+    },
+    {
+      "caption": "Urgent alerts: private notes to you only, for verified senders. Off by default.",
+      "ms": 36275
+    },
+    {
+      "caption": "Choose which events alert you, and a do-not-disturb window.",
+      "ms": 39710
+    },
+    {
+      "caption": "Nothing is ever sent to a client automatically — drafts only, you send them yourself.",
+      "ms": 42972
+    }
+  ],
+  "bytes": 528581
+}

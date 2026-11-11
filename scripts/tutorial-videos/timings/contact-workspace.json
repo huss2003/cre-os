@@ -1,0 +1,66 @@
+{
+  "durationMs": 68883,
+  "steps": [
+    {
+      "caption": "Open People.",
+      "ms": 3610
+    },
+    {
+      "caption": "Find Ananya Rao.",
+      "ms": 8604
+    },
+    {
+      "caption": "Her role and company at the top. 'Why do we believe this?' shows the evidence.",
+      "ms": 17275
+    },
+    {
+      "caption": "Plan outreach starts a draft; Enrichment & verification checks her details; Edit changes them.",
+      "ms": 20544
+    },
+    {
+      "caption": "Employment history: each job with its dates. Past roles are kept, not overwritten.",
+      "ms": 23896
+    },
+    {
+      "caption": "Relationships: who knows her, how (client of), how warm, and the last contact.",
+      "ms": 27180
+    },
+    {
+      "caption": "Add relationship context or connect her to another person — this feeds intro paths.",
+      "ms": 30626
+    },
+    {
+      "caption": "Introduction consent: whether she agreed to introduce you. 'Permission not recorded' means ask first.",
+      "ms": 33975
+    },
+    {
+      "caption": "Interactions: every meeting, call and email with her, newest first.",
+      "ms": 37247
+    },
+    {
+      "caption": "Outreach: drafts and approved messages to her, with their status.",
+      "ms": 41148
+    },
+    {
+      "caption": "Commitments and tasks you promised her — like 'Send 3 options'.",
+      "ms": 44691
+    },
+    {
+      "caption": "Relationship level: CRE OS suggests one from your history — 'Use suggestion' or pick your own.",
+      "ms": 48025
+    },
+    {
+      "caption": "Memories: what the assistant remembers about her, which you can review.",
+      "ms": 51430
+    },
+    {
+      "caption": "Contact details: add only what she shared — never guessed.",
+      "ms": 54753
+    },
+    {
+      "caption": "Archive needs a reason and goes to Review — nothing is deleted outright.",
+      "ms": 62281
+    }
+  ],
+  "bytes": 914399
+}

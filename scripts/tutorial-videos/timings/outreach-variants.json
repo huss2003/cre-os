@@ -1,0 +1,62 @@
+{
+  "durationMs": 61706,
+  "steps": [
+    {
+      "caption": "Open Outreach, then the Messages tab.",
+      "ms": 3606
+    },
+    {
+      "caption": "Open the draft to Arjun Nair at Quokka Grid Infotech.",
+      "ms": 9644
+    },
+    {
+      "caption": "This is the draft. You can edit the text yourself at any time.",
+      "ms": 13705
+    },
+    {
+      "caption": "Why now: the reason for writing, the value for them and key facts like lease dates.",
+      "ms": 16919
+    },
+    {
+      "caption": "Rewrite with AI: each chip changes the draft in one way.",
+      "ms": 20167
+    },
+    {
+      "caption": "Press Shorter.",
+      "ms": 23352
+    },
+    {
+      "caption": "Now More formal. Each rewrite is saved as a new version.",
+      "ms": 27698
+    },
+    {
+      "caption": "Language and Translate rewrite it in Hinglish or Hindi.",
+      "ms": 31974
+    },
+    {
+      "caption": "Other ways to say it: Show 3 versions writes complete alternatives.",
+      "ms": 35191
+    },
+    {
+      "caption": "Concise, value-led and question-led. 'Use this one' would make it the draft.",
+      "ms": 39314
+    },
+    {
+      "caption": "Versions lists every one, newest first, marked Current.",
+      "ms": 42506
+    },
+    {
+      "caption": "Open the first draft to read it.",
+      "ms": 45667
+    },
+    {
+      "caption": "Prefer it? Use this version — it comes back as a new version, so nothing is lost.",
+      "ms": 49831
+    },
+    {
+      "caption": "The restored text is back in the draft, ready to approve.",
+      "ms": 54217
+    }
+  ],
+  "bytes": 987779
+}

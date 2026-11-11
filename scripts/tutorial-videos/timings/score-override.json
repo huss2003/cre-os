@@ -1,0 +1,62 @@
+{
+  "durationMs": 74069,
+  "steps": [
+    {
+      "caption": "Open Scores.",
+      "ms": 3613
+    },
+    {
+      "caption": "Zentrix Analytics: score and priority High, worked out from the rules.",
+      "ms": 12858
+    },
+    {
+      "caption": "Open it.",
+      "ms": 16412
+    },
+    {
+      "caption": "Scroll to Change priority.",
+      "ms": 20410
+    },
+    {
+      "caption": "The list holds the priority bands of this model, from Very High to Very Low.",
+      "ms": 23674
+    },
+    {
+      "caption": "Pick Very High.",
+      "ms": 26936
+    },
+    {
+      "caption": "Write why. Without a reason it won't save.",
+      "ms": 29360
+    },
+    {
+      "caption": "Save priority. The score number is not changed — only the priority you act on.",
+      "ms": 35665
+    },
+    {
+      "caption": "A Remove button now appears: it switches the override off and the computed priority returns.",
+      "ms": 40603
+    },
+    {
+      "caption": "Use 'Is this score right?' too, so the rules can be tuned if they keep getting it wrong.",
+      "ms": 43959
+    },
+    {
+      "caption": "Back to the Scores list…",
+      "ms": 47324
+    },
+    {
+      "caption": "…the computed priority is struck through and yours is shown next to it.",
+      "ms": 52078
+    },
+    {
+      "caption": "Filtering by priority uses your override, so Zentrix now shows under Very High.",
+      "ms": 55409
+    },
+    {
+      "caption": "Signals have their own override, with a review date, on each signal page.",
+      "ms": 63286
+    }
+  ],
+  "bytes": 669571
+}

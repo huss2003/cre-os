@@ -1,0 +1,46 @@
+{
+  "durationMs": 42331,
+  "steps": [
+    {
+      "caption": "Open Outreach, then the Drafts & messages tab.",
+      "ms": 3606
+    },
+    {
+      "caption": "Tabs split drafts by channel: email, WhatsApp, LinkedIn, invites.",
+      "ms": 9593
+    },
+    {
+      "caption": "Inbox triage sorts imported replies; Sequences shows multi-step outreach plans.",
+      "ms": 12759
+    },
+    {
+      "caption": "Needs action shows drafts still waiting for you.",
+      "ms": 15942
+    },
+    {
+      "caption": "A new draft to Meera Rao. Read the recipient, subject and text.",
+      "ms": 19112
+    },
+    {
+      "caption": "Approve this exact text. If anyone edits it later, the approval is removed.",
+      "ms": 22386
+    },
+    {
+      "caption": "It is now Approved, with a fingerprint of the approved text.",
+      "ms": 26400
+    },
+    {
+      "caption": "Open to send opens it in your own mail app — you press Send there.",
+      "ms": 29588
+    },
+    {
+      "caption": "Edit, Copy or Discard are always there. Editing removes the approval so it must be approved again.",
+      "ms": 32754
+    },
+    {
+      "caption": "Then come back and press Mark sent so follow-ups are tracked.",
+      "ms": 35925
+    }
+  ],
+  "bytes": 536488
+}

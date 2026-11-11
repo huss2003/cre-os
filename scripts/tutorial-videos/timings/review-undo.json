@@ -1,0 +1,38 @@
+{
+  "durationMs": 41932,
+  "steps": [
+    {
+      "caption": "Open Review.",
+      "ms": 3605
+    },
+    {
+      "caption": "Open the History & undo tab.",
+      "ms": 9366
+    },
+    {
+      "caption": "Newest first: each applied change, its fields and where it came from.",
+      "ms": 14915
+    },
+    {
+      "caption": "Tags show how it arrived — e.g. 'AI extracted' — and that it was applied.",
+      "ms": 18486
+    },
+    {
+      "caption": "To undo several, tick them and press Undo selected. Later edits are kept and reported.",
+      "ms": 21858
+    },
+    {
+      "caption": "Here: undo the budget / move-in change from the notes. Press Undo on its card and confirm.",
+      "ms": 25330
+    },
+    {
+      "caption": "The record is back to what it was, and the undo itself is logged.",
+      "ms": 29820
+    },
+    {
+      "caption": "Undo can't unsend messages or reverse promises made outside CRE OS.",
+      "ms": 34894
+    }
+  ],
+  "bytes": 484489
+}

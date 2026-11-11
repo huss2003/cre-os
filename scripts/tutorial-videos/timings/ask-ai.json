@@ -1,0 +1,58 @@
+{
+  "durationMs": 63801,
+  "steps": [
+    {
+      "caption": "Open Ask AI.",
+      "ms": 3610
+    },
+    {
+      "caption": "Ready-made starters: prepare for a meeting, expiring leases, promises to clients…",
+      "ms": 8147
+    },
+    {
+      "caption": "Your past conversations are on the side; search them or start a new one.",
+      "ms": 11494
+    },
+    {
+      "caption": "Memory shows what the assistant remembers; Saved commands can run on a schedule.",
+      "ms": 14796
+    },
+    {
+      "caption": "Type your question.",
+      "ms": 18209
+    },
+    {
+      "caption": "Press Ask.",
+      "ms": 25539
+    },
+    {
+      "caption": "It shows the steps it took. Click to see them.",
+      "ms": 32517
+    },
+    {
+      "caption": "Each step is a lookup in your own records — it can't change anything.",
+      "ms": 37557
+    },
+    {
+      "caption": "Coverage says what it checked — and that it only knows what is in CRE OS.",
+      "ms": 39889
+    },
+    {
+      "caption": "The answer: accounts ranked by score, each with its reasons and a next step.",
+      "ms": 43292
+    },
+    {
+      "caption": "Scroll to read the rest.",
+      "ms": 47043
+    },
+    {
+      "caption": "Ask a follow-up in the same box; the conversation is saved on the side.",
+      "ms": 51274
+    },
+    {
+      "caption": "Click a company to open its record.",
+      "ms": 54816
+    }
+  ],
+  "bytes": 1028225
+}

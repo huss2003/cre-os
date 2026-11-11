@@ -1,0 +1,70 @@
+{
+  "durationMs": 70003,
+  "steps": [
+    {
+      "caption": "Open Search from the sidebar.",
+      "ms": 3605
+    },
+    {
+      "caption": "Search has two modes. 'Search everything' finds any record by name.",
+      "ms": 7602
+    },
+    {
+      "caption": "'Find accounts' finds companies that match a description. Switch to it.",
+      "ms": 12261
+    },
+    {
+      "caption": "Describe what you want, in plain English.",
+      "ms": 16424
+    },
+    {
+      "caption": "Press Find.",
+      "ms": 21811
+    },
+    {
+      "caption": "'Understood' shows how your words became filters: place Kharadi, lease event next year.",
+      "ms": 29294
+    },
+    {
+      "caption": "Edit filters opens every filter, so you can fine-tune by hand.",
+      "ms": 32624
+    },
+    {
+      "caption": "Size: minimum and maximum square feet, on chargeable or carpet basis.",
+      "ms": 36821
+    },
+    {
+      "caption": "Places, building grade and sector.",
+      "ms": 40026
+    },
+    {
+      "caption": "Lease event: expiry, notice or break, within a window of N months.",
+      "ms": 43223
+    },
+    {
+      "caption": "Known contact, recent signals, score bands, and whether a requirement or deal already exists.",
+      "ms": 46392
+    },
+    {
+      "caption": "Coverage: how many companies matched out of all you can see — so you know what was checked.",
+      "ms": 49664
+    },
+    {
+      "caption": "Each match shows why it matched: the lease and its dates…",
+      "ms": 52866
+    },
+    {
+      "caption": "…the contact you know there, and any signal about them.",
+      "ms": 56041
+    },
+    {
+      "caption": "Open the company to act on it.",
+      "ms": 59284
+    },
+    {
+      "caption": "From here, plan outreach, prepare a meeting, or compare buildings for them.",
+      "ms": 63546
+    }
+  ],
+  "bytes": 689994
+}

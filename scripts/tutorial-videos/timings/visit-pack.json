@@ -1,0 +1,66 @@
+{
+  "durationMs": 66449,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3606
+    },
+    {
+      "caption": "Choose Make a pack.",
+      "ms": 7610
+    },
+    {
+      "caption": "Choose the requirement.",
+      "ms": 11505
+    },
+    {
+      "caption": "Put the client's name on the cover.",
+      "ms": 14693
+    },
+    {
+      "caption": "Tick the buildings to show on the visit.",
+      "ms": 18708
+    },
+    {
+      "caption": "Generate the files.",
+      "ms": 24298
+    },
+    {
+      "caption": "Three files: a Word visit pack, the same pack as a printable PDF, and a PowerPoint deck.",
+      "ms": 28593
+    },
+    {
+      "caption": "Download the Word pack — details, key commercials, checklist and a feedback form.",
+      "ms": 31759
+    },
+    {
+      "caption": "Built from shows which saved analysis and version the figures came from.",
+      "ms": 35672
+    },
+    {
+      "caption": "Nothing is sent from here — download the files and share them yourself.",
+      "ms": 38841
+    },
+    {
+      "caption": "Download links expire after 10 minutes — reload the page for fresh ones.",
+      "ms": 41999
+    },
+    {
+      "caption": "Add evidence: attach the quote, brochure or floor plan the pack relied on.",
+      "ms": 45164
+    },
+    {
+      "caption": "All packs: every pack you made is listed, newest first.",
+      "ms": 48340
+    },
+    {
+      "caption": "Make client documents builds a proposal, workbook and decision summary from saved analyses.",
+      "ms": 52188
+    },
+    {
+      "caption": "Choose the requirement, then Show its analyses to pick what goes in.",
+      "ms": 57651
+    }
+  ],
+  "bytes": 922115
+}

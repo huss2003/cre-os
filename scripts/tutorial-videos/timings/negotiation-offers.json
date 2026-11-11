@@ -1,0 +1,74 @@
+{
+  "durationMs": 94327,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3623
+    },
+    {
+      "caption": "Choose Plan negotiation.",
+      "ms": 8627
+    },
+    {
+      "caption": "How to read this page opens a short guide to every box and label on this screen.",
+      "ms": 13217
+    },
+    {
+      "caption": "Blank = unknown, 0 = none. A blank is listed as missing and never counted as zero.",
+      "ms": 17539
+    },
+    {
+      "caption": "Open the Zentrix negotiation — the landlord's first offer is already recorded.",
+      "ms": 20946
+    },
+    {
+      "caption": "Offer 1: present value of the whole term, rent total and the refundable deposit.",
+      "ms": 26007
+    },
+    {
+      "caption": "The landlord came back. Record Offer 2 — it starts pre-filled with Offer 1.",
+      "ms": 29234
+    },
+    {
+      "caption": "Change only what changed: rent ₹98 → ₹92, rent-free 2 → 4 months, deposit 10 → 6 months.",
+      "ms": 32677
+    },
+    {
+      "caption": "Save as Offer 2. Earlier offers stay exactly as recorded.",
+      "ms": 42667
+    },
+    {
+      "caption": "What changed: Offer 2 is ₹1.6 crore cheaper in present value — calculated, not AI.",
+      "ms": 48113
+    },
+    {
+      "caption": "Term by term: improved, unchanged or still unresolved with the landlord.",
+      "ms": 51468
+    },
+    {
+      "caption": "Concession packages: describe up to three asks (e.g. more rent-free) and see what each is worth.",
+      "ms": 55078
+    },
+    {
+      "caption": "Missing inputs: terms still unresolved with the landlord — listed, not assumed.",
+      "ms": 60003
+    },
+    {
+      "caption": "Risks: e.g. a long lock-in or a big deposit, flagged from the numbers.",
+      "ms": 63590
+    },
+    {
+      "caption": "Draft talking points can word your points for you (optional AI wording) — the numbers stay from the calculator.",
+      "ms": 67224
+    },
+    {
+      "caption": "Strategy reads the numbers and lists the open terms and risks. Nothing is sent from here.",
+      "ms": 70670
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 86036
+    }
+  ],
+  "bytes": 1067164
+}

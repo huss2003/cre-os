@@ -1,0 +1,54 @@
+{
+  "durationMs": 61322,
+  "steps": [
+    {
+      "caption": "Open Ask AI, then Saved commands.",
+      "ms": 3609
+    },
+    {
+      "caption": "Ready-made commands: morning briefing, priority accounts, meeting briefs, reports…",
+      "ms": 11533
+    },
+    {
+      "caption": "Add 'Review my priority accounts'.",
+      "ms": 15003
+    },
+    {
+      "caption": "It's now in Your commands. Open it.",
+      "ms": 20017
+    },
+    {
+      "caption": "Edit its name, description, the question it asks, inputs and output format.",
+      "ms": 24477
+    },
+    {
+      "caption": "Saving an edit creates a new version, so earlier runs stay explained.",
+      "ms": 27896
+    },
+    {
+      "caption": "Schedule: 'Not scheduled' — it only runs when you press Run now.",
+      "ms": 31339
+    },
+    {
+      "caption": "Pick a time (IST) and days: Mon–Fri, every day or Mondays.",
+      "ms": 34655
+    },
+    {
+      "caption": "Explicit opt-in: tick 'I authorise…'. It only reads data and prepares drafts — nothing is sent.",
+      "ms": 40601
+    },
+    {
+      "caption": "Turn on schedule.",
+      "ms": 45707
+    },
+    {
+      "caption": "Now it shows when it runs next and when you authorised it. The list marks it 'Scheduled'.",
+      "ms": 51230
+    },
+    {
+      "caption": "Run now any time — the result opens in Ask AI, and History lists each run.",
+      "ms": 54570
+    }
+  ],
+  "bytes": 671247
+}

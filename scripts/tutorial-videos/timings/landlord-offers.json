@@ -1,0 +1,50 @@
+{
+  "durationMs": 52773,
+  "steps": [
+    {
+      "caption": "Open Requirements from the sidebar.",
+      "ms": 3632
+    },
+    {
+      "caption": "Open the Zentrix requirement.",
+      "ms": 7911
+    },
+    {
+      "caption": "The Landlord offers card already holds one offer: Riverside Towers.",
+      "ms": 12199
+    },
+    {
+      "caption": "Record a second offer, from the Kharadi Tech Park LOI.",
+      "ms": 15403
+    },
+    {
+      "caption": "Type the terms as the landlord wrote them. Leave blank anything it does not say.",
+      "ms": 19327
+    },
+    {
+      "caption": "Save offer.",
+      "ms": 28370
+    },
+    {
+      "caption": "Now both offers sit side by side, one line per term.",
+      "ms": 32540
+    },
+    {
+      "caption": "Bold marks the better offer on each line; blanks show as 'unknown', never zero.",
+      "ms": 35801
+    },
+    {
+      "caption": "Costs use the same start date and a 10% discount rate, from tested lease formulas — not AI.",
+      "ms": 39005
+    },
+    {
+      "caption": "Save comparison as an analysis keeps it in the Deal toolkit, with your own discount rate and start date.",
+      "ms": 42245
+    },
+    {
+      "caption": "Revise saves a landlord's updated terms as a new version; the old version is kept.",
+      "ms": 46299
+    }
+  ],
+  "bytes": 834918
+}

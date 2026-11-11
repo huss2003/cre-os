@@ -1,0 +1,82 @@
+{
+  "durationMs": 82556,
+  "steps": [
+    {
+      "caption": "Open Outreach: who to contact today, and why.",
+      "ms": 3637
+    },
+    {
+      "caption": "Tabs: Today, Messages (drafts), Conversations, Relationships, Paused and Results.",
+      "ms": 9055
+    },
+    {
+      "caption": "New conversations to start: people worth contacting, with a quick 'Prepare drafts'.",
+      "ms": 12412
+    },
+    {
+      "caption": "Choose Email, WhatsApp or Call for each suggestion.",
+      "ms": 15640
+    },
+    {
+      "caption": "Follow-ups due: people waiting for your reply or a promised follow-up.",
+      "ms": 18898
+    },
+    {
+      "caption": "Re-check follow-ups looks again for anything newly due.",
+      "ms": 22277
+    },
+    {
+      "caption": "To start from scratch, press New outreach.",
+      "ms": 25472
+    },
+    {
+      "caption": "Choose the person — Ananya Rao at Zentrix Analytics.",
+      "ms": 29485
+    },
+    {
+      "caption": "'What we know' lists the facts the draft is allowed to use — nothing else.",
+      "ms": 36360
+    },
+    {
+      "caption": "Pick the situation — here, Expansion.",
+      "ms": 39609
+    },
+    {
+      "caption": "Press Prepare drafts.",
+      "ms": 42777
+    },
+    {
+      "caption": "The draft appears. 'Why now' shows the reason behind it.",
+      "ms": 46852
+    },
+    {
+      "caption": "Edit the text freely — it is yours.",
+      "ms": 50277
+    },
+    {
+      "caption": "Happy with it? Approve this exact text.",
+      "ms": 53456
+    },
+    {
+      "caption": "Before sending, confirm the recipient and the text.",
+      "ms": 57567
+    },
+    {
+      "caption": "'Check & open' opens your own mail app with this text. You press Send there.",
+      "ms": 63484
+    },
+    {
+      "caption": "After sending, press 'I sent it' so the follow-up is tracked.",
+      "ms": 66787
+    },
+    {
+      "caption": "The draft is listed under Outreach → Messages until it is sent.",
+      "ms": 70003
+    },
+    {
+      "caption": "After 'I sent it', it moves to Conversations and the follow-up shows on Today.",
+      "ms": 76024
+    }
+  ],
+  "bytes": 978397
+}

@@ -1,0 +1,66 @@
+{
+  "durationMs": 81879,
+  "steps": [
+    {
+      "caption": "Open Ask AI, then the Memory tab.",
+      "ms": 3608
+    },
+    {
+      "caption": "Inferred items are never treated as confirmed; items older than 180 days are flagged.",
+      "ms": 9906
+    },
+    {
+      "caption": "Your writing style: learnt only from messages you sent or approved. Rebuild or turn it off.",
+      "ms": 13696
+    },
+    {
+      "caption": "Filter by category (person, company, requirement, relationship) and status.",
+      "ms": 16979
+    },
+    {
+      "caption": "Statuses: Active, Restricted, Outdated (old versions), Forgotten.",
+      "ms": 20254
+    },
+    {
+      "caption": "Each memory: who it's about, where it came from, when captured, verified or not, review date.",
+      "ms": 23763
+    },
+    {
+      "caption": "Chips show confidence and warnings like 'Needs review' for old items.",
+      "ms": 27131
+    },
+    {
+      "caption": "Correct: Ananya's preference changed. Open Correct.",
+      "ms": 30476
+    },
+    {
+      "caption": "Write the new version and who told you.",
+      "ms": 34971
+    },
+    {
+      "caption": "Save correction. The old version is kept as history.",
+      "ms": 46520
+    },
+    {
+      "caption": "'Earlier versions' shows what it used to say.",
+      "ms": 50949
+    },
+    {
+      "caption": "Mark verified: you've checked Zentrix still needs CFO sign-off.",
+      "ms": 55283
+    },
+    {
+      "caption": "Restrict: a sensitive guess about Vikram. Restricted items are kept but used carefully.",
+      "ms": 59529
+    },
+    {
+      "caption": "Forget: the metro request is out of date. Tick 'Erase permanently' and press Forget.",
+      "ms": 64006
+    },
+    {
+      "caption": "Switch the status filter to All to see restricted and forgotten items too.",
+      "ms": 72491
+    }
+  ],
+  "bytes": 1104625
+}

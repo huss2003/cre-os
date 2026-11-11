@@ -1,0 +1,50 @@
+{
+  "durationMs": 53628,
+  "steps": [
+    {
+      "caption": "Open Meetings from the sidebar.",
+      "ms": 3604
+    },
+    {
+      "caption": "Tabs: Today, Upcoming, Needs preparation, Past, Cancelled and Reports. Open Upcoming.",
+      "ms": 8323
+    },
+    {
+      "caption": "Connected calendar: link Google or Outlook and new meetings get a preparation page every hour.",
+      "ms": 12519
+    },
+    {
+      "caption": "No connection? Use Import from your calendar.",
+      "ms": 17079
+    },
+    {
+      "caption": "Choose the .ics file you exported (here, one meeting with Zentrix tomorrow).",
+      "ms": 20568
+    },
+    {
+      "caption": "Press Import. Importing the same file again won't create duplicates.",
+      "ms": 24436
+    },
+    {
+      "caption": "The result says how many meetings were added.",
+      "ms": 29039
+    },
+    {
+      "caption": "It now appears in the Upcoming list, with its type, company and attendees.",
+      "ms": 32360
+    },
+    {
+      "caption": "Open the imported meeting.",
+      "ms": 37089
+    },
+    {
+      "caption": "It has its own preparation page: company and attendee were matched from the invite.",
+      "ms": 42199
+    },
+    {
+      "caption": "Press Prepare brief to get the purpose, people, history and questions.",
+      "ms": 45553
+    }
+  ],
+  "bytes": 789042
+}

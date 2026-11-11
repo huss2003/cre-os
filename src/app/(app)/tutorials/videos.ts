@@ -6,6 +6,8 @@
 export interface TutorialVideo {
   slug: string;
   title: string;
+  /** Topic used to group videos on /tutorials. */
+  category: string;
   seconds: number;
   learn: string;
   tryRoute: string;
@@ -15,118 +17,4054 @@ export interface TutorialVideo {
 
 export const VIDEOS: TutorialVideo[] = [
   {
-    "slug": "tour",
-    "title": "How CRE OS fits together (1-minute tour)",
+    "slug": "ai-on-record",
+    "title": "Ask AI about the record you're looking at",
+    "category": "Ask AI & automation",
+    "seconds": 63,
+    "learn": "Open Ask AI from any company page: the side panel already knows which record you are on, answers from it and shows its sources.",
+    "tryRoute": "/companies",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Companies from the sidebar.",
+        "ms": 3611
+      },
+      {
+        "caption": "Search for the company — here, Zentrix Analytics.",
+        "ms": 8406
+      },
+      {
+        "caption": "Open its company page.",
+        "ms": 12759
+      },
+      {
+        "caption": "Ask AI sits in the top bar on every page (shortcut Ctrl+J).",
+        "ms": 16867
+      },
+      {
+        "caption": "The panel opens on the right. 'Viewing' shows the record it will use: Company · Zentrix Analytics.",
+        "ms": 20890
+      },
+      {
+        "caption": "Suggested questions are tailored to this record — or type your own.",
+        "ms": 24192
+      },
+      {
+        "caption": "Ask about 'this company' — no need to type its name.",
+        "ms": 27418
+      },
+      {
+        "caption": "The answer is built only from your records: profile, leases, contacts.",
+        "ms": 36167
+      },
+      {
+        "caption": "Unknown facts stay 'Unknown' — the assistant never guesses them.",
+        "ms": 39431
+      },
+      {
+        "caption": "Sources show where each part came from and how sure it is (Reported, Confirmed…).",
+        "ms": 42619
+      },
+      {
+        "caption": "'Missing / not verified' lists the gaps, e.g. no identified decision-maker.",
+        "ms": 45807
+      },
+      {
+        "caption": "Turn the answer into a deck, Word doc or PDF, or copy it. Thumbs up/down teach it what helped.",
+        "ms": 49059
+      },
+      {
+        "caption": "'Open full chat' continues the same conversation on the big Ask AI page.",
+        "ms": 52353
+      },
+      {
+        "caption": "Close the panel — you're still on the company page.",
+        "ms": 55605
+      }
+    ]
+  },
+  {
+    "slug": "ai-lease-extract",
+    "title": "Extract lease terms from a PDF and attach them to a lease",
+    "category": "Ask AI & automation",
+    "seconds": 83,
+    "learn": "Attach a lease or LOI to Ask AI: it lists each term with page number and exact quote, then prepares an approval card to update the lease record.",
+    "tryRoute": "/assistant",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Ask AI from the sidebar.",
+        "ms": 3616
+      },
+      {
+        "caption": "Start a new conversation.",
+        "ms": 7828
+      },
+      {
+        "caption": "Press the paper-clip to attach a file: PDF, Word, TXT, CSV or MD, up to 15 MB.",
+        "ms": 12432
+      },
+      {
+        "caption": "The lease PDF is attached (× removes it).",
+        "ms": 16450
+      },
+      {
+        "caption": "Ask it to extract the lease terms.",
+        "ms": 19655
+      },
+      {
+        "caption": "A table of terms: value, page number, the exact quote and a check mark.",
+        "ms": 30247
+      },
+      {
+        "caption": "Area, rent and dates are parsed by code from the quote — not invented by the AI.",
+        "ms": 33738
+      },
+      {
+        "caption": "'verified on page' means the quote really is on that page.",
+        "ms": 37053
+      },
+      {
+        "caption": "Terms not in the document stay 'unknown' — e.g. CAM and fit-out.",
+        "ms": 40309
+      },
+      {
+        "caption": "Now attach the terms to a lease record. Search by tenant name.",
+        "ms": 43660
+      },
+      {
+        "caption": "Pick Zentrix's lease at Kharadi Tech Park.",
+        "ms": 50036
+      },
+      {
+        "caption": "Tick to also store the PDF on the lease.",
+        "ms": 54188
+      },
+      {
+        "caption": "Press Attach to lease record. Nothing is saved yet.",
+        "ms": 57396
+      },
+      {
+        "caption": "An approval card shows every field: what it is now, what it would become, and the page it came from.",
+        "ms": 62124
+      },
+      {
+        "caption": "Here the area changes from 18,000 to 18,500 sq ft (page 1).",
+        "ms": 65607
+      },
+      {
+        "caption": "Approve change. Material lease fields go on to Review for a second check.",
+        "ms": 68888
+      },
+      {
+        "caption": "Done — the proposal now waits in Review.",
+        "ms": 73549
+      }
+    ]
+  },
+  {
+    "slug": "ai-approval",
+    "title": "When AI wants to change something: approve or reject the card",
+    "category": "Ask AI & automation",
+    "seconds": 51,
+    "learn": "The assistant never changes records or sends anything by itself. It shows an approval card with the exact change; you approve or reject.",
+    "tryRoute": "/outreach",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Outreach from the sidebar.",
+        "ms": 3611
+      },
+      {
+        "caption": "Open an outreach draft — here, the email to Ananya Rao.",
+        "ms": 8550
+      },
+      {
+        "caption": "Open Ask AI. It knows you're viewing this outreach draft.",
+        "ms": 15457
+      },
+      {
+        "caption": "Ask it to send the proposal email.",
+        "ms": 19396
+      },
+      {
+        "caption": "It doesn't send. It shows an approval card: 'Nothing has been sent or changed'.",
+        "ms": 27624
+      },
+      {
+        "caption": "'Waiting for you' — the request is paused until you decide.",
+        "ms": 30847
+      },
+      {
+        "caption": "The table shows exactly what would change: recipient, subject and the full text.",
+        "ms": 34040
+      },
+      {
+        "caption": "Approve binds to this exact text and recipient — then it opens your mail app; you press send yourself.",
+        "ms": 37336
+      },
+      {
+        "caption": "Not ready? Press Reject.",
+        "ms": 40616
+      },
+      {
+        "caption": "Rejected — nothing was changed, nothing was sent.",
+        "ms": 44666
+      }
+    ]
+  },
+  {
+    "slug": "ai-memory",
+    "title": "What the assistant remembers — correct, verify, restrict, forget",
+    "category": "Ask AI & automation",
+    "seconds": 82,
+    "learn": "Every remembered fact shows its source, date and confidence. Correct it (old version kept), mark it verified, restrict it or forget it.",
+    "tryRoute": "/assistant/memory",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Ask AI, then the Memory tab.",
+        "ms": 3608
+      },
+      {
+        "caption": "Inferred items are never treated as confirmed; items older than 180 days are flagged.",
+        "ms": 9906
+      },
+      {
+        "caption": "Your writing style: learnt only from messages you sent or approved. Rebuild or turn it off.",
+        "ms": 13696
+      },
+      {
+        "caption": "Filter by category (person, company, requirement, relationship) and status.",
+        "ms": 16979
+      },
+      {
+        "caption": "Statuses: Active, Restricted, Outdated (old versions), Forgotten.",
+        "ms": 20254
+      },
+      {
+        "caption": "Each memory: who it's about, where it came from, when captured, verified or not, review date.",
+        "ms": 23763
+      },
+      {
+        "caption": "Chips show confidence and warnings like 'Needs review' for old items.",
+        "ms": 27131
+      },
+      {
+        "caption": "Correct: Ananya's preference changed. Open Correct.",
+        "ms": 30476
+      },
+      {
+        "caption": "Write the new version and who told you.",
+        "ms": 34971
+      },
+      {
+        "caption": "Save correction. The old version is kept as history.",
+        "ms": 46520
+      },
+      {
+        "caption": "'Earlier versions' shows what it used to say.",
+        "ms": 50949
+      },
+      {
+        "caption": "Mark verified: you've checked Zentrix still needs CFO sign-off.",
+        "ms": 55283
+      },
+      {
+        "caption": "Restrict: a sensitive guess about Vikram. Restricted items are kept but used carefully.",
+        "ms": 59529
+      },
+      {
+        "caption": "Forget: the metro request is out of date. Tick 'Erase permanently' and press Forget.",
+        "ms": 64006
+      },
+      {
+        "caption": "Switch the status filter to All to see restricted and forgotten items too.",
+        "ms": 72491
+      }
+    ]
+  },
+  {
+    "slug": "saved-commands",
+    "title": "Save a command and schedule it",
+    "category": "Ask AI & automation",
+    "seconds": 61,
+    "learn": "Save a request you run often, run it on demand, and switch on a schedule only by ticking the authorisation box.",
+    "tryRoute": "/assistant/commands",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Ask AI, then Saved commands.",
+        "ms": 3609
+      },
+      {
+        "caption": "Ready-made commands: morning briefing, priority accounts, meeting briefs, reports…",
+        "ms": 11533
+      },
+      {
+        "caption": "Add 'Review my priority accounts'.",
+        "ms": 15003
+      },
+      {
+        "caption": "It's now in Your commands. Open it.",
+        "ms": 20017
+      },
+      {
+        "caption": "Edit its name, description, the question it asks, inputs and output format.",
+        "ms": 24477
+      },
+      {
+        "caption": "Saving an edit creates a new version, so earlier runs stay explained.",
+        "ms": 27896
+      },
+      {
+        "caption": "Schedule: 'Not scheduled' — it only runs when you press Run now.",
+        "ms": 31339
+      },
+      {
+        "caption": "Pick a time (IST) and days: Mon–Fri, every day or Mondays.",
+        "ms": 34655
+      },
+      {
+        "caption": "Explicit opt-in: tick 'I authorise…'. It only reads data and prepares drafts — nothing is sent.",
+        "ms": 40601
+      },
+      {
+        "caption": "Turn on schedule.",
+        "ms": 45707
+      },
+      {
+        "caption": "Now it shows when it runs next and when you authorised it. The list marks it 'Scheduled'.",
+        "ms": 51230
+      },
+      {
+        "caption": "Run now any time — the result opens in Ask AI, and History lists each run.",
+        "ms": 54570
+      }
+    ]
+  },
+  {
+    "slug": "morning-brief",
+    "title": "Switch on the 8 am morning brief and build it now",
+    "category": "Ask AI & automation",
+    "seconds": 143,
+    "learn": "Opt in to a weekday morning brief (meetings, follow-ups, signals, lease windows, approvals) and build today's on demand.",
+    "tryRoute": "/home",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Today, then its Overview tab.",
+        "ms": 3608
+      },
+      {
+        "caption": "The Morning brief card. It appears here and as a pinned Ask AI chat — nothing is emailed.",
+        "ms": 10673
+      },
+      {
+        "caption": "Opt in: tick 'Send me a brief every weekday at'.",
+        "ms": 13935
+      },
+      {
+        "caption": "Keep 08:00 IST, or pick another time.",
+        "ms": 18086
+      },
+      {
+        "caption": "Save.",
+        "ms": 21690
+      },
+      {
+        "caption": "Now it says when it arrives: weekdays at 08:00.",
+        "ms": 26502
+      },
+      {
+        "caption": "Don't want to wait? Build today's brief now.",
+        "ms": 30137
+      },
+      {
+        "caption": "The counts: meetings, follow-ups, signals, lease windows, approvals. A failed source is named, never hidden.",
+        "ms": 34757
+      },
+      {
+        "caption": "Open today's brief.",
+        "ms": 130927
+      },
+      {
+        "caption": "It opens as a conversation in Ask AI — ask follow-up questions right below it.",
+        "ms": 136189
+      }
+    ]
+  },
+  {
+    "slug": "notes-to-changes",
+    "title": "Paste or speak notes → tick changes → approve",
+    "category": "Ask AI & automation",
+    "seconds": 85,
+    "learn": "Paste call notes (or speak them). CRE OS lists each record change and task with the words it came from; tick the ones you want and approve.",
+    "tryRoute": "/assistant/notes",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Ask AI, then the Notes tab.",
+        "ms": 3606
+      },
+      {
+        "caption": "Speak notes uses your microphone; here we paste them.",
+        "ms": 14971
+      },
+      {
+        "caption": "Paste what was said on the call.",
+        "ms": 19044
+      },
+      {
+        "caption": "Link it to the requirement it's about (opened from the requirement, the ID is filled in).",
+        "ms": 35308
+      },
+      {
+        "caption": "Press Find updates.",
+        "ms": 45222
+      },
+      {
+        "caption": "'Left unknown' lists what it would not guess.",
+        "ms": 50143
+      },
+      {
+        "caption": "Each change shows old → new value and the exact words it came from.",
+        "ms": 53399
+      },
+      {
+        "caption": "'Needs approval' — critical values like area, budget and dates also go to Review.",
+        "ms": 56656
+      },
+      {
+        "caption": "Untick what's wrong. Here we keep the area at 25,000 for now.",
+        "ms": 60197
+      },
+      {
+        "caption": "Tasks: your promises from the call. Unclear dates are flagged — which Friday?",
+        "ms": 65228
+      },
+      {
+        "caption": "Press Approve selected. Unticked items are discarded; nothing is sent to anyone.",
+        "ms": 68519
+      },
+      {
+        "caption": "Tasks are saved now; record changes wait in Review.",
+        "ms": 73251
+      },
+      {
+        "caption": "Open Review to finish the record changes.",
+        "ms": 76691
+      }
+    ]
+  },
+  {
+    "slug": "ai-usage",
+    "title": "AI usage and the monthly budget",
+    "category": "Ask AI & automation",
+    "seconds": 56,
+    "learn": "See what AI costs today, this month and projected; set a monthly cap in rupees; see cost by question type, feature and person.",
+    "tryRoute": "/assistant/usage",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Ask AI, then the Usage tab.",
+        "ms": 3617
+      },
+      {
+        "caption": "Today, this month, projected month-end. Test mode without an AI key costs ₹0.",
+        "ms": 13245
+      },
+      {
+        "caption": "Budget used: share of the monthly cap. Warnings appear as you approach it; at 100% AI features pause.",
+        "ms": 16542
+      },
+      {
+        "caption": "Last 30 days: spend per day.",
+        "ms": 19999
+      },
+      {
+        "caption": "Set the monthly budget in rupees (0 = no cap).",
+        "ms": 23286
+      },
+      {
+        "caption": "Save budget.",
+        "ms": 28202
+      },
+      {
+        "caption": "Breakdowns: by question type, by route (fast or deep model), by person.",
+        "ms": 32876
+      },
+      {
+        "caption": "By feature: Ask AI, captures, meeting briefs, outreach drafts, search…",
+        "ms": 36398
+      },
+      {
+        "caption": "Tokens this month, and how much the cache saved.",
+        "ms": 39688
+      },
+      {
+        "caption": "Most expensive questions — click one to open that conversation.",
+        "ms": 42999
+      },
+      {
+        "caption": "Put the budget back to ₹3,000.",
+        "ms": 46427
+      }
+    ]
+  },
+  {
+    "slug": "automations",
+    "title": "Automations — what each chain does, on/off, a run's steps",
+    "category": "Ask AI & automation",
+    "seconds": 53,
+    "learn": "Six chains run by themselves every few minutes. Read what each does, switch any off, and open a run to see each step and why.",
+    "tryRoute": "/workflows",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More, then Automations.",
+        "ms": 3619
+      },
+      {
+        "caption": "Signal → action: a new signal matches the company, finds decision-makers, rescores, maybe prepares one draft.",
+        "ms": 11673
+      },
+      {
+        "caption": "Lease → renewal / relocation: a lease near expiry gets a proposed requirement, options and a task.",
+        "ms": 14920
+      },
+      {
+        "caption": "Reply → meeting: a reply asking to meet links the meeting (no time is guessed) and pauses follow-ups.",
+        "ms": 18449
+      },
+      {
+        "caption": "Job change → re-engagement: a contact moves company; history is kept and the new employer rescored.",
+        "ms": 21887
+      },
+      {
+        "caption": "Visit feedback → comparison: site-visit feedback re-runs the saved building comparison.",
+        "ms": 25208
+      },
+      {
+        "caption": "Meeting completed → follow-ups: rescore and show the tasks and draft it created.",
+        "ms": 28627
+      },
+      {
+        "caption": "Each shows On or Off. 'Turn off' stops that chain; 'Turn on' restarts it.",
+        "ms": 31946
+      },
+      {
+        "caption": "Check now runs all chains immediately instead of waiting.",
+        "ms": 35323
+      },
+      {
+        "caption": "Below: runs. This one is for Zentrix's lease — 'Waiting for approval'.",
+        "ms": 38672
+      },
+      {
+        "caption": "Each step is listed with what it did and why.",
+        "ms": 43032
+      },
+      {
+        "caption": "Material steps (like a new requirement) stop and wait for you. 'Approval' opens it.",
+        "ms": 46481
+      }
+    ]
+  },
+  {
+    "slug": "review-queues",
+    "title": "Review — what waits for you, approve, reject, ask for more info",
+    "category": "Review & settings",
+    "seconds": 83,
+    "learn": "Review holds everything waiting for your OK: unverified contacts, captures, record changes, merges, drafts, documents. Approve, reject, edit or request more info.",
+    "tryRoute": "/approvals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Review. The badge counts what's waiting.",
+        "ms": 3621
+      },
+      {
+        "caption": "At the top: quick counts — unverified contact details and outreach drafts.",
+        "ms": 8467
+      },
+      {
+        "caption": "Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.",
+        "ms": 12797
+      },
+      {
+        "caption": "Captures to review: notes and files from Capture. Open one, check it, press Reviewed.",
+        "ms": 16217
+      },
+      {
+        "caption": "Tabs split the rest. Record changes first.",
+        "ms": 19830
+      },
+      {
+        "caption": "Each card: the record, 'Material' tag, now vs proposed, and the evidence quote.",
+        "ms": 24781
+      },
+      {
+        "caption": "'why do we believe this?' opens the source behind the proposal.",
+        "ms": 28127
+      },
+      {
+        "caption": "Buttons: Approve & apply, Approve only (apply later), Ask to clarify, Reject; or Edit proposed values.",
+        "ms": 31842
+      },
+      {
+        "caption": "The lease proposal from the PDF (area 18,000 → 18,500). Something to check first? Request more info.",
+        "ms": 35088
+      },
+      {
+        "caption": "Say what's missing and press Ask — it moves to 'Needs more info' and adds a linked task.",
+        "ms": 41247
+      },
+      {
+        "caption": "The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.",
+        "ms": 48713
+      },
+      {
+        "caption": "Applied — it leaves the queue and appears in History & undo.",
+        "ms": 53702
+      },
+      {
+        "caption": "Identity merges: duplicate companies, people or buildings — never merged silently.",
+        "ms": 57117
+      },
+      {
+        "caption": "External drafts: outreach drafts waiting to be checked and sent by you.",
+        "ms": 61855
+      },
+      {
+        "caption": "Documents: generated documents still in draft.",
+        "ms": 66186
+      },
+      {
+        "caption": "Conflicts: two sources disagree on a value — you choose.",
+        "ms": 71099
+      },
+      {
+        "caption": "Stale records: data too old to trust until rechecked.",
+        "ms": 75514
+      }
+    ]
+  },
+  {
+    "slug": "review-undo",
+    "title": "Undo an applied change from Review history",
+    "category": "Review & settings",
+    "seconds": 42,
+    "learn": "History & undo lists every applied change with its evidence. Undo one, or tick several and undo them together.",
+    "tryRoute": "/approvals?tab=history",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Review.",
+        "ms": 3605
+      },
+      {
+        "caption": "Open the History & undo tab.",
+        "ms": 9366
+      },
+      {
+        "caption": "Newest first: each applied change, its fields and where it came from.",
+        "ms": 14915
+      },
+      {
+        "caption": "Tags show how it arrived — e.g. 'AI extracted' — and that it was applied.",
+        "ms": 18486
+      },
+      {
+        "caption": "To undo several, tick them and press Undo selected. Later edits are kept and reported.",
+        "ms": 21858
+      },
+      {
+        "caption": "Here: undo the budget / move-in change from the notes. Press Undo on its card and confirm.",
+        "ms": 25330
+      },
+      {
+        "caption": "The record is back to what it was, and the undo itself is logged.",
+        "ms": 29820
+      },
+      {
+        "caption": "Undo can't unsend messages or reverse promises made outside CRE OS.",
+        "ms": 34894
+      }
+    ]
+  },
+  {
+    "slug": "capture-files",
+    "title": "Capture any file — quote, business card, photo → proposals",
+    "category": "Review & settings",
+    "seconds": 76,
+    "learn": "Drop quotes, leases, notes, cards, photos or spreadsheets into Capture. CRE OS says what it found, page by page, and turns it into proposals you review.",
+    "tryRoute": "/capture",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Capture.",
+        "ms": 3651
+      },
+      {
+        "caption": "'Add files' takes almost anything, up to 25 MB each.",
+        "ms": 8987
+      },
+      {
+        "caption": "Optional: link it to a record first — company, person, building, requirement or meeting.",
+        "ms": 12321
+      },
+      {
+        "caption": "This quote is for Zentrix's requirement.",
+        "ms": 16939
+      },
+      {
+        "caption": "'What is it?' — leave on Detect, or pick: quotation, lease, LOI, notes, business card, photo, layout…",
+        "ms": 20199
+      },
+      {
+        "caption": "Choose the landlord's quotation PDF.",
+        "ms": 23562
+      },
+      {
+        "caption": "It's recognised as a Quotation. Open it.",
+        "ms": 27185
+      },
+      {
+        "caption": "What CRE OS found: type, confidence, and each value with its page and quote.",
+        "ms": 31771
+      },
+      {
+        "caption": "Without an AI key it uses pattern matching — 'check every value'.",
+        "ms": 35124
+      },
+      {
+        "caption": "Proposals: here, create a quote. Review opens it for your approval.",
+        "ms": 38456
+      },
+      {
+        "caption": "Wrong guess? 'Fix and process again' changes the type or linked records.",
+        "ms": 41888
+      },
+      {
+        "caption": "Back to Capture for a building photo.",
+        "ms": 45587
+      },
+      {
+        "caption": "Upload the photo.",
+        "ms": 49800
+      },
+      {
+        "caption": "A photo needs a building or visit — open it to choose.",
+        "ms": 55137
+      },
+      {
+        "caption": "Pick the building, then Process again. Business cards work the same way: type 'Business card'.",
+        "ms": 60484
+      },
+      {
+        "caption": "Recent files on Capture list every file and whether it needs your input.",
+        "ms": 67156
+      }
+    ]
+  },
+  {
+    "slug": "settings-connections",
+    "title": "Settings & connections — read-only mail and calendar",
+    "category": "Review & settings",
+    "seconds": 50,
+    "learn": "Connect Gmail/Outlook and calendar read-only. CRE OS cannot send email, change your calendar or delete anything; urgent alerts are private and off by default.",
+    "tryRoute": "/settings/connections",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Settings is at the bottom of the sidebar (owners and admins).",
+        "ms": 3654
+      },
+      {
+        "caption": "Owners must set up an authenticator app before admin pages — CRE OS never sends codes by SMS or email.",
+        "ms": 8373
+      },
+      {
+        "caption": "Tabs: General, Members, Partners, Templates, Licensed sources, Data lanes, Retention, Security.",
+        "ms": 11617
+      },
+      {
+        "caption": "Open Connections.",
+        "ms": 14940
+      },
+      {
+        "caption": "Read-only: CRE OS cannot send email, change your calendar or delete anything.",
+        "ms": 18964
+      },
+      {
+        "caption": "Microsoft 365: reads mail and calendar with Mail.Read and Calendars.Read only.",
+        "ms": 22209
+      },
+      {
+        "caption": "'Permissions requested' lists exactly what it asks for.",
+        "ms": 25397
+      },
+      {
+        "caption": "Google (Gmail & Calendar): same read-only rules. Until set up, import threads by hand in Drafts → Inbox triage.",
+        "ms": 29763
+      },
+      {
+        "caption": "'Use mock data' lets you try it without connecting a real account.",
+        "ms": 32995
+      },
+      {
+        "caption": "Urgent alerts: private notes to you only, for verified senders. Off by default.",
+        "ms": 36275
+      },
+      {
+        "caption": "Choose which events alert you, and a do-not-disturb window.",
+        "ms": 39710
+      },
+      {
+        "caption": "Nothing is ever sent to a client automatically — drafts only, you send them yourself.",
+        "ms": 42972
+      }
+    ]
+  },
+  {
+    "slug": "today-plan",
+    "title": "Plan your day from Today",
+    "category": "Outreach & meetings",
+    "seconds": 53,
+    "learn": "Read Today top to bottom: recommended next actions, meetings, priority accounts and follow-ups — then open what to do first.",
+    "tryRoute": "/today",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Today from the sidebar. It is your start page every morning.",
+        "ms": 3609
+      },
+      {
+        "caption": "The date line says whether this is the morning brief or a live preview. 'Generate brief now' prepares it on demand.",
+        "ms": 7830
+      },
+      {
+        "caption": "Getting started tracks the set-up steps still left, with a button for the next one.",
+        "ms": 11031
+      },
+      {
+        "caption": "Recommended next actions: the most urgent things first, each with the reason.",
+        "ms": 14309
+      },
+      {
+        "caption": "Each action has a button that takes you straight to the work.",
+        "ms": 17493
+      },
+      {
+        "caption": "Meetings in the next three days, with their preparation status.",
+        "ms": 20682
+      },
+      {
+        "caption": "Priority accounts: the companies most worth calling, with their score and why.",
+        "ms": 24985
+      },
+      {
+        "caption": "Follow-ups and commitments due: overdue tasks and drafts waiting to be sent.",
+        "ms": 29278
+      },
+      {
+        "caption": "Pending approvals: changes waiting in Review before they touch your records.",
+        "ms": 33509
+      },
+      {
+        "caption": "Lease events: notice deadlines and expiries coming up, so nothing is missed.",
+        "ms": 37748
+      },
+      {
+        "caption": "Back to the top: open the first task to start working on it.",
+        "ms": 41945
+      },
+      {
+        "caption": "It opens in Tasks, where you complete it, snooze it or see what it is linked to.",
+        "ms": 47053
+      }
+    ]
+  },
+  {
+    "slug": "tasks",
+    "title": "Manage tasks",
+    "category": "Outreach & meetings",
+    "seconds": 65,
+    "learn": "Add a task with a due date and priority, then complete it with a note of what was done (or snooze it).",
+    "tryRoute": "/tasks",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Tasks sit under Today. Open the Tasks tab.",
+        "ms": 3615
+      },
+      {
+        "caption": "Filters: Open, Overdue, Snoozed, Stale and Done. Overdue ones are marked in red.",
+        "ms": 8480
+      },
+      {
+        "caption": "Search titles, choose Mine or Everyone, and filter by where the task came from.",
+        "ms": 11833
+      },
+      {
+        "caption": "Each task shows its status, due date, priority and source — 'Blocked' means it waits on another task.",
+        "ms": 15130
+      },
+      {
+        "caption": "Stale holds tasks overdue for too long, so they don't silently disappear.",
+        "ms": 18472
+      },
+      {
+        "caption": "To add your own, scroll to New task at the bottom.",
+        "ms": 21790
+      },
+      {
+        "caption": "Type what needs doing.",
+        "ms": 26407
+      },
+      {
+        "caption": "Pick a due date — here, tomorrow.",
+        "ms": 31672
+      },
+      {
+        "caption": "Set the priority to High, then press Add.",
+        "ms": 34930
+      },
+      {
+        "caption": "The new task is in the list with its due date and priority.",
+        "ms": 40785
+      },
+      {
+        "caption": "When it's done, write what you did — that note is kept as evidence.",
+        "ms": 43983
+      },
+      {
+        "caption": "Press Complete. (Not today? Snooze it for 1, 3, 7 or 14 days instead.)",
+        "ms": 48925
+      },
+      {
+        "caption": "Done tasks move to the Done filter, with your note.",
+        "ms": 53324
+      },
+      {
+        "caption": "Your note is kept as evidence; Reopen brings a task back if needed.",
+        "ms": 58868
+      }
+    ]
+  },
+  {
+    "slug": "outreach-variants",
+    "title": "Rewrite an outreach draft with AI",
+    "category": "Outreach & meetings",
+    "seconds": 62,
+    "learn": "Use the rewrite chips (shorter, more formal, …) or 3 full alternatives; every rewrite is a new version you can go back to.",
+    "tryRoute": "/outreach",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Outreach, then the Messages tab.",
+        "ms": 3606
+      },
+      {
+        "caption": "Open the draft to Arjun Nair at Quokka Grid Infotech.",
+        "ms": 9644
+      },
+      {
+        "caption": "This is the draft. You can edit the text yourself at any time.",
+        "ms": 13705
+      },
+      {
+        "caption": "Why now: the reason for writing, the value for them and key facts like lease dates.",
+        "ms": 16919
+      },
+      {
+        "caption": "Rewrite with AI: each chip changes the draft in one way.",
+        "ms": 20167
+      },
+      {
+        "caption": "Press Shorter.",
+        "ms": 23352
+      },
+      {
+        "caption": "Now More formal. Each rewrite is saved as a new version.",
+        "ms": 27698
+      },
+      {
+        "caption": "Language and Translate rewrite it in Hinglish or Hindi.",
+        "ms": 31974
+      },
+      {
+        "caption": "Other ways to say it: Show 3 versions writes complete alternatives.",
+        "ms": 35191
+      },
+      {
+        "caption": "Concise, value-led and question-led. 'Use this one' would make it the draft.",
+        "ms": 39314
+      },
+      {
+        "caption": "Versions lists every one, newest first, marked Current.",
+        "ms": 42506
+      },
+      {
+        "caption": "Open the first draft to read it.",
+        "ms": 45667
+      },
+      {
+        "caption": "Prefer it? Use this version — it comes back as a new version, so nothing is lost.",
+        "ms": 49831
+      },
+      {
+        "caption": "The restored text is back in the draft, ready to approve.",
+        "ms": 54217
+      }
+    ]
+  },
+  {
+    "slug": "outreach-sent",
+    "title": "Mark a message as sent",
+    "category": "Outreach & meetings",
+    "seconds": 43,
+    "learn": "After you send from your own mail app, press 'I sent it'; CRE OS then plans the follow-ups and stops them if they reply.",
+    "tryRoute": "/outreach",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "An approved email to Priya Nair. The progress bar shows it is Ready.",
+        "ms": 3624
+      },
+      {
+        "caption": "Confirm the recipient and the text.",
+        "ms": 7041
+      },
+      {
+        "caption": "Check & open shows buttons to open your own mail app. Send it from there.",
+        "ms": 13934
+      },
+      {
+        "caption": "Back in CRE OS, press I sent it.",
+        "ms": 18776
+      },
+      {
+        "caption": "The message is now marked Sent.",
+        "ms": 22831
+      },
+      {
+        "caption": "Same conversation: the follow-ups are already planned, with dates.",
+        "ms": 26012
+      },
+      {
+        "caption": "A follow-up is only drafted when you ask, and pauses itself if they reply.",
+        "ms": 29363
+      },
+      {
+        "caption": "Activity records every step — drafted, approved, opened, sent — with times.",
+        "ms": 32557
+      },
+      {
+        "caption": "When they answer, paste it under 'Did they reply?'.",
+        "ms": 36454
+      }
+    ]
+  },
+  {
+    "slug": "outreach-reply",
+    "title": "Record a reply and see what happens next",
+    "category": "Outreach & meetings",
+    "seconds": 34,
+    "learn": "Paste their reply; CRE OS sorts it (interested, meeting, not now, referred…), stops follow-ups and says what to do next.",
+    "tryRoute": "/outreach",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "This email to Riya Gokhale was sent. Now she has replied.",
+        "ms": 3604
+      },
+      {
+        "caption": "Paste her reply, or note what she said on the phone.",
+        "ms": 6837
+      },
+      {
+        "caption": "Press Save reply.",
+        "ms": 13868
+      },
+      {
+        "caption": "It is sorted as a Meeting reply. Others: Interested, Not now, Referred someone else, Declined…",
+        "ms": 18212
+      },
+      {
+        "caption": "What we promised is listed, and Next says what to do now.",
+        "ms": 21398
+      },
+      {
+        "caption": "Planned follow-ups stop, so she won't get a chaser after replying.",
+        "ms": 24562
+      },
+      {
+        "caption": "A referral would add the new person to Review — never straight into your contacts.",
+        "ms": 27731
+      }
+    ]
+  },
+  {
+    "slug": "drafts-messages",
+    "title": "Drafts & messages: approve, then open in your mail app",
+    "category": "Outreach & meetings",
+    "seconds": 42,
+    "learn": "Every outgoing message waits in Drafts & messages. Approve the exact text, open it in your own app, send it there, then mark it sent.",
+    "tryRoute": "/drafts",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Outreach, then the Drafts & messages tab.",
+        "ms": 3606
+      },
+      {
+        "caption": "Tabs split drafts by channel: email, WhatsApp, LinkedIn, invites.",
+        "ms": 9593
+      },
+      {
+        "caption": "Inbox triage sorts imported replies; Sequences shows multi-step outreach plans.",
+        "ms": 12759
+      },
+      {
+        "caption": "Needs action shows drafts still waiting for you.",
+        "ms": 15942
+      },
+      {
+        "caption": "A new draft to Meera Rao. Read the recipient, subject and text.",
+        "ms": 19112
+      },
+      {
+        "caption": "Approve this exact text. If anyone edits it later, the approval is removed.",
+        "ms": 22386
+      },
+      {
+        "caption": "It is now Approved, with a fingerprint of the approved text.",
+        "ms": 26400
+      },
+      {
+        "caption": "Open to send opens it in your own mail app — you press Send there.",
+        "ms": 29588
+      },
+      {
+        "caption": "Edit, Copy or Discard are always there. Editing removes the approval so it must be approved again.",
+        "ms": 32754
+      },
+      {
+        "caption": "Then come back and press Mark sent so follow-ups are tracked.",
+        "ms": 35925
+      }
+    ]
+  },
+  {
+    "slug": "meeting-live",
+    "title": "Take notes in a meeting and apply the outcome",
+    "category": "Outreach & meetings",
+    "seconds": 81,
+    "learn": "Use Meeting mode to note things as they happen, then turn the notes into tasks, a follow-up draft and proposals for Review.",
+    "tryRoute": "/meetings",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Meetings from the sidebar.",
+        "ms": 3606
+      },
+      {
+        "caption": "Today's meetings are listed first. Open this one.",
+        "ms": 8329
+      },
+      {
+        "caption": "The brief: readiness score, purpose, attendees, history and questions to ask.",
+        "ms": 12506
+      },
+      {
+        "caption": "Press Meeting mode when the meeting starts.",
+        "ms": 15711
+      },
+      {
+        "caption": "One screen: who is here, what to ask, talking points.",
+        "ms": 21047
+      },
+      {
+        "caption": "Scroll for the questions to ask and talking points.",
+        "ms": 24423
+      },
+      {
+        "caption": "Type a note as it happens and Save.",
+        "ms": 30355
+      },
+      {
+        "caption": "Mark a promise as an Action item, then Save.",
+        "ms": 39838
+      },
+      {
+        "caption": "After the meeting: Finish turns the notes into updates.",
+        "ms": 47706
+      },
+      {
+        "caption": "Your notes are included. Press Structure my notes.",
+        "ms": 51700
+      },
+      {
+        "caption": "It found the size change and our commitment, each quoted from your notes.",
+        "ms": 55793
+      },
+      {
+        "caption": "Each box decides what happens: history, Review proposals, tasks, contact changes.",
+        "ms": 59044
+      },
+      {
+        "caption": "Choose what to apply — also tick 'Draft a follow-up email'.",
+        "ms": 62237
+      },
+      {
+        "caption": "Press Approve selected.",
+        "ms": 66166
+      },
+      {
+        "caption": "Done: changes went to Review, tasks were created, and a follow-up draft waits in Outreach.",
+        "ms": 70172
+      },
+      {
+        "caption": "Open Review to approve the proposed changes.",
+        "ms": 73364
+      }
+    ]
+  },
+  {
+    "slug": "meeting-no-show",
+    "title": "Record a meeting that didn't happen",
+    "category": "Outreach & meetings",
     "seconds": 47,
-    "learn": "Where things live: Today, Review, your records, Ask AI and the More menu.",
+    "learn": "Write that it didn't happen; CRE OS offers to reschedule or record it as not held, without inventing any outcome.",
+    "tryRoute": "/meetings",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Meetings from the sidebar.",
+        "ms": 3606
+      },
+      {
+        "caption": "Today's meetings are listed first. Open this one.",
+        "ms": 7857
+      },
+      {
+        "caption": "Go to After the meeting.",
+        "ms": 11746
+      },
+      {
+        "caption": "Write what happened, in plain words.",
+        "ms": 18052
+      },
+      {
+        "caption": "Press Structure my notes.",
+        "ms": 22802
+      },
+      {
+        "caption": "CRE OS sees the meeting didn't take place — no tasks or updates are invented.",
+        "ms": 26831
+      },
+      {
+        "caption": "You can pick a new date to reschedule it…",
+        "ms": 30013
+      },
+      {
+        "caption": "…or record it as not held. Keep 'Note it in the contact history' ticked.",
+        "ms": 33200
+      },
+      {
+        "caption": "Press Record as not held.",
+        "ms": 36421
+      },
+      {
+        "caption": "Saved. The contact's history now shows the meeting did not happen.",
+        "ms": 40513
+      }
+    ]
+  },
+  {
+    "slug": "site-visit",
+    "title": "Site visit checklist and building feedback",
+    "category": "Outreach & meetings",
+    "seconds": 56,
+    "learn": "Tick the before / during / after checklist and record the client's feedback for each building visited.",
+    "tryRoute": "/meetings",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Meetings from the sidebar.",
+        "ms": 3605
+      },
+      {
+        "caption": "Today's meetings are listed first. Open this one.",
+        "ms": 7696
+      },
+      {
+        "caption": "Jump to the Site visit checklist.",
+        "ms": 11892
+      },
+      {
+        "caption": "Before, during and after: tick each item as you go.",
+        "ms": 18650
+      },
+      {
+        "caption": "Before (confirm access, send the pack), during (check the space) and after (collect feedback).",
+        "ms": 25120
+      },
+      {
+        "caption": "Property feedback: one form per building visited.",
+        "ms": 28296
+      },
+      {
+        "caption": "Open Kharadi Tech Park.",
+        "ms": 32595
+      },
+      {
+        "caption": "Rate it and set the client's interest.",
+        "ms": 36458
+      },
+      {
+        "caption": "Add what they said. Only tick 'clearly rejected' if the client said no.",
+        "ms": 40767
+      },
+      {
+        "caption": "Save feedback.",
+        "ms": 45506
+      },
+      {
+        "caption": "The building now shows the client's interest and rating.",
+        "ms": 49696
+      }
+    ]
+  },
+  {
+    "slug": "calendar-import",
+    "title": "Import a calendar (.ics)",
+    "category": "Outreach & meetings",
+    "seconds": 54,
+    "learn": "Export an .ics file from Google or Outlook and upload it on Meetings; each meeting gets a preparation page. Re-importing never duplicates.",
+    "tryRoute": "/meetings",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Meetings from the sidebar.",
+        "ms": 3604
+      },
+      {
+        "caption": "Tabs: Today, Upcoming, Needs preparation, Past, Cancelled and Reports. Open Upcoming.",
+        "ms": 8323
+      },
+      {
+        "caption": "Connected calendar: link Google or Outlook and new meetings get a preparation page every hour.",
+        "ms": 12519
+      },
+      {
+        "caption": "No connection? Use Import from your calendar.",
+        "ms": 17079
+      },
+      {
+        "caption": "Choose the .ics file you exported (here, one meeting with Zentrix tomorrow).",
+        "ms": 20568
+      },
+      {
+        "caption": "Press Import. Importing the same file again won't create duplicates.",
+        "ms": 24436
+      },
+      {
+        "caption": "The result says how many meetings were added.",
+        "ms": 29039
+      },
+      {
+        "caption": "It now appears in the Upcoming list, with its type, company and attendees.",
+        "ms": 32360
+      },
+      {
+        "caption": "Open the imported meeting.",
+        "ms": 37089
+      },
+      {
+        "caption": "It has its own preparation page: company and attendee were matched from the invite.",
+        "ms": 42199
+      },
+      {
+        "caption": "Press Prepare brief to get the purpose, people, history and questions.",
+        "ms": 45553
+      }
+    ]
+  },
+  {
+    "slug": "signal-paste",
+    "title": "Turn pasted news into a signal",
+    "category": "Signals, scores & contacts",
+    "seconds": 61,
+    "learn": "Paste an article or a note; CRE OS finds the event in it and adds an unverified signal you can review.",
+    "tryRoute": "/signals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Signals: news and events that may mean a company needs space.",
+        "ms": 3613
+      },
+      {
+        "caption": "Top: how many signals are open and how many need action now. 'Scan now' re-checks your sources.",
+        "ms": 9079
+      },
+      {
+        "caption": "The 12-month strip shows dated events, like lease expiries, month by month.",
+        "ms": 12376
+      },
+      {
+        "caption": "Filters on the left: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.",
+        "ms": 15651
+      },
+      {
+        "caption": "Each card: type, headline, company, source and status. The bars show how strong the evidence is.",
+        "ms": 19000
+      },
+      {
+        "caption": "Open 'Paste news or a note' at the bottom of the list.",
+        "ms": 22206
+      },
+      {
+        "caption": "Name the company it is about.",
+        "ms": 27110
+      },
+      {
+        "caption": "Paste the article text. It is only read for events — instructions inside it are ignored.",
+        "ms": 32463
+      },
+      {
+        "caption": "Press Find signals.",
+        "ms": 41634
+      },
+      {
+        "caption": "The new signal is listed — marked Unverified until you check it.",
+        "ms": 46437
+      },
+      {
+        "caption": "Open it to see the evidence and decide what to do.",
+        "ms": 49922
+      },
+      {
+        "caption": "'What happened' quotes the event; the source is your pasted text.",
+        "ms": 54701
+      }
+    ]
+  },
+  {
+    "slug": "signals-review",
+    "title": "Review a new signal and decide",
+    "category": "Signals, scores & contacts",
+    "seconds": 102,
+    "learn": "Every part of a signal page: the 12 evidence sections, priority and history, and each decision — approve, investigate, dismiss, snooze, task, deal, research, evidence, override.",
+    "tryRoute": "/signals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Signals.",
+        "ms": 3604
+      },
+      {
+        "caption": "Unverified lists signals nobody has checked yet.",
+        "ms": 8428
+      },
+      {
+        "caption": "Open one to review it.",
+        "ms": 13676
+      },
+      {
+        "caption": "Header: type, company, and badges — urgency, evidence strength, Unverified and New.",
+        "ms": 18278
+      },
+      {
+        "caption": "1. What happened — the event, quoted from the source.",
+        "ms": 21684
+      },
+      {
+        "caption": "2. Why it matters — CRE OS's reading of it, labelled as interpretation, not fact.",
+        "ms": 25077
+      },
+      {
+        "caption": "3. Supporting evidence: every source behind the signal.",
+        "ms": 28499
+      },
+      {
+        "caption": "4–9: what you already know — company records, offices, occupancy, leases, contacts, requirements.",
+        "ms": 31816
+      },
+      {
+        "caption": "10. Counter-evidence: 'none found yet' does not mean there is none.",
+        "ms": 35319
+      },
+      {
+        "caption": "11. Missing information and 12. Suggested next step.",
+        "ms": 38809
+      },
+      {
+        "caption": "Priority — why: the reasons behind its urgency. History: every decision made on it.",
+        "ms": 42071
+      },
+      {
+        "caption": "Know something? Add it as evidence, with its source.",
+        "ms": 45441
+      },
+      {
+        "caption": "'Add supporting' backs the signal; 'Add counter' records evidence against it.",
+        "ms": 52630
+      },
+      {
+        "caption": "Wrong company matched? Correct it here.",
+        "ms": 58675
+      },
+      {
+        "caption": "Research this company searches the web for recent news (needs an AI key).",
+        "ms": 61952
+      },
+      {
+        "caption": "Link it to an existing deal, or propose a new deal from it.",
+        "ms": 65251
+      },
+      {
+        "caption": "Override the priority with a reason and a review date — it comes back for review then.",
+        "ms": 68564
+      },
+      {
+        "caption": "Or just create a follow-up task from it.",
+        "ms": 71870
+      },
+      {
+        "caption": "Decide: write a short reason first — it is kept in History.",
+        "ms": 75299
+      },
+      {
+        "caption": "Investigate: keep it open while you check. Assign to me: make it yours. Already known: you knew.",
+        "ms": 81071
+      },
+      {
+        "caption": "Reject: it is wrong. Dismiss: not relevant. Snooze until a date: look again later. Nothing is deleted.",
+        "ms": 84585
+      },
+      {
+        "caption": "Approve + task: it becomes a confirmed lead with a follow-up task.",
+        "ms": 87886
+      },
+      {
+        "caption": "The decision now shows in History, and the task appears under Tasks on Today.",
+        "ms": 93794
+      }
+    ]
+  },
+  {
+    "slug": "research-company",
+    "title": "Research a company (dossier with sources)",
+    "category": "Signals, scores & contacts",
+    "seconds": 98,
+    "learn": "Store evidence with its source and date, then generate a dossier where every section shows its source — and unknowns stay unknown.",
+    "tryRoute": "/research",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Research from the More menu.",
+        "ms": 3608
+      },
+      {
+        "caption": "The banner says web research is off (no AI key) — only pasted news and your own data are used.",
+        "ms": 10716
+      },
+      {
+        "caption": "The counters: companies watched, research due now, and AI spend this month.",
+        "ms": 14009
+      },
+      {
+        "caption": "'Is this a potential client?' scores one company out of 100. Pick Zentrix Analytics.",
+        "ms": 17477
+      },
+      {
+        "caption": "Press Assess company.",
+        "ms": 20901
+      },
+      {
+        "caption": "The result: a score out of 100, scored from your records because AI is not connected.",
+        "ms": 25399
+      },
+      {
+        "caption": "Live research lists each run — what was searched and which sites gave evidence.",
+        "ms": 28865
+      },
+      {
+        "caption": "To keep researching it on a schedule, add it to the watchlist.",
+        "ms": 32101
+      },
+      {
+        "caption": "Press Add to watchlist.",
+        "ms": 39714
+      },
+      {
+        "caption": "Zentrix is now watched. Open it to see its research dossier.",
+        "ms": 43986
+      },
+      {
+        "caption": "The dossier page. Paste evidence first — sections without evidence will say 'unknown'.",
+        "ms": 48381
+      },
+      {
+        "caption": "Paste what the source says.",
+        "ms": 51896
+      },
+      {
+        "caption": "Add the link and publication date, so anyone can check it later.",
+        "ms": 59326
+      },
+      {
+        "caption": "Store evidence.",
+        "ms": 66777
+      },
+      {
+        "caption": "Watchlist tier sets how often it is re-researched: weekly, monthly or quarterly.",
+        "ms": 71035
+      },
+      {
+        "caption": "Detect signals checks the stored evidence for expansion, hiring, funding and similar — as hypotheses.",
+        "ms": 75084
+      },
+      {
+        "caption": "Generate (or refresh) the dossier from everything on file.",
+        "ms": 80595
+      },
+      {
+        "caption": "Each section lists its sources and dates; missing ones say 'unknown'.",
+        "ms": 84837
+      },
+      {
+        "caption": "Evidence on file: every item with its source and date.",
+        "ms": 90980
+      }
+    ]
+  },
+  {
+    "slug": "scores-explained",
+    "title": "Read a company's scores — and why",
+    "category": "Signals, scores & contacts",
+    "seconds": 92,
+    "learn": "The Scores page (counters, tabs, filters) and one score in full: factors, evidence, missing information, risks, AI summary and feedback. Unknown is not a low score.",
+    "tryRoute": "/scoring",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Scores from the More menu: who to focus on first.",
+        "ms": 3611
+      },
+      {
+        "caption": "Counters: companies scored, high-priority companies and leads, matches, contacts ranked…",
+        "ms": 11939
+      },
+      {
+        "caption": "'Waiting to recalculate' and 'Not enough data' show what is still pending.",
+        "ms": 16301
+      },
+      {
+        "caption": "'Score everything now' recalculates all scores at once — normally they update on their own.",
+        "ms": 19884
+      },
+      {
+        "caption": "Tabs: Companies, Leads, Contacts, Requirements, Property matches, Opportunities, Relationships.",
+        "ms": 23177
+      },
+      {
+        "caption": "Filter by priority and confidence, and sort — highest, lowest, recent, most complete.",
+        "ms": 26667
+      },
+      {
+        "caption": "More filters: industry, place, lease expiry, owner, score range, completeness.",
+        "ms": 30081
+      },
+      {
+        "caption": "Each row: rank, recommended action, the score bar, confidence, % known, score and priority.",
+        "ms": 33518
+      },
+      {
+        "caption": "Open Zentrix Analytics.",
+        "ms": 37043
+      },
+      {
+        "caption": "Top: the score, priority, confidence and completeness. 'Open record' goes to the company; 'Recalculate' re-scores now.",
+        "ms": 42423
+      },
+      {
+        "caption": "Recommended next step: what the score suggests you do.",
+        "ms": 45677
+      },
+      {
+        "caption": "AI summary: a plain-English read of the score. It explains, it never changes the score.",
+        "ms": 49394
+      },
+      {
+        "caption": "How the score is built: points per factor, out of its maximum.",
+        "ms": 52712
+      },
+      {
+        "caption": "Open a factor to see the evidence behind it — linked signals and sources with dates.",
+        "ms": 57905
+      },
+      {
+        "caption": "A factor with no data shows 'Unknown' — left out, not scored as zero.",
+        "ms": 63408
+      },
+      {
+        "caption": "Missing information: what would make the score more certain. Key risks: what could undermine it.",
+        "ms": 71305
+      },
+      {
+        "caption": "Change priority: overrule the band with a reason (next video).",
+        "ms": 78804
+      },
+      {
+        "caption": "Is this score right? Send feedback — too high, too low, wrong company… — to tune the rules.",
+        "ms": 82041
+      },
+      {
+        "caption": "The same scores appear on the company page under its Scores tab.",
+        "ms": 85341
+      }
+    ]
+  },
+  {
+    "slug": "score-override",
+    "title": "Override a priority (with a reason)",
+    "category": "Signals, scores & contacts",
+    "seconds": 74,
+    "learn": "Change a company's priority when you know better; the reason is kept, the score is untouched, and the list shows both. Remove the override any time.",
+    "tryRoute": "/scoring",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Scores.",
+        "ms": 3613
+      },
+      {
+        "caption": "Zentrix Analytics: score and priority High, worked out from the rules.",
+        "ms": 12858
+      },
+      {
+        "caption": "Open it.",
+        "ms": 16412
+      },
+      {
+        "caption": "Scroll to Change priority.",
+        "ms": 20410
+      },
+      {
+        "caption": "The list holds the priority bands of this model, from Very High to Very Low.",
+        "ms": 23674
+      },
+      {
+        "caption": "Pick Very High.",
+        "ms": 26936
+      },
+      {
+        "caption": "Write why. Without a reason it won't save.",
+        "ms": 29360
+      },
+      {
+        "caption": "Save priority. The score number is not changed — only the priority you act on.",
+        "ms": 35665
+      },
+      {
+        "caption": "A Remove button now appears: it switches the override off and the computed priority returns.",
+        "ms": 40603
+      },
+      {
+        "caption": "Use 'Is this score right?' too, so the rules can be tuned if they keep getting it wrong.",
+        "ms": 43959
+      },
+      {
+        "caption": "Back to the Scores list…",
+        "ms": 47324
+      },
+      {
+        "caption": "…the computed priority is struck through and yours is shown next to it.",
+        "ms": 52078
+      },
+      {
+        "caption": "Filtering by priority uses your override, so Zentrix now shows under Very High.",
+        "ms": 55409
+      },
+      {
+        "caption": "Signals have their own override, with a review date, on each signal page.",
+        "ms": 63286
+      }
+    ]
+  },
+  {
+    "slug": "scoring-models",
+    "title": "Adjust scoring weights and preview the effect",
+    "category": "Signals, scores & contacts",
+    "seconds": 70,
+    "learn": "Every part of the scoring rules page: the six models, weights, rules for unknown data, priority thresholds, industry weights, focus cities, preview and versions.",
+    "tryRoute": "/scoring/models",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Scores.",
+        "ms": 3613
+      },
+      {
+        "caption": "Press Scoring rules.",
+        "ms": 11397
+      },
+      {
+        "caption": "Six models, one per thing being scored: companies, leads, contacts, requirements, opportunities, relationships.",
+        "ms": 16015
+      },
+      {
+        "caption": "This is Company attractiveness. The version number shows which rules are live.",
+        "ms": 19226
+      },
+      {
+        "caption": "Weights add up to 100; if they don't, they are scaled to 100.",
+        "ms": 22576
+      },
+      {
+        "caption": "Each factor says what it measures — here Company scale: headcount and number of sites.",
+        "ms": 25938
+      },
+      {
+        "caption": "'If unknown': leave it out (default), count it as half, or count it as zero.",
+        "ms": 29233
+      },
+      {
+        "caption": "Say growth matters more this quarter: raise Growth indicators from 20 to 30.",
+        "ms": 32500
+      },
+      {
+        "caption": "Priority thresholds: the lowest score for each band — e.g. 80 and up is Very High.",
+        "ms": 36408
+      },
+      {
+        "caption": "Industry weights: how attractive each sector is, from 0 to 1. GCCs always count as 1.",
+        "ms": 39792
+      },
+      {
+        "caption": "Focus cities: where occupancy counts for the location factor — here Pune.",
+        "ms": 43119
+      },
+      {
+        "caption": "Try on a record before saving — pick Zentrix Analytics.",
+        "ms": 46457
+      },
+      {
+        "caption": "Press Preview.",
+        "ms": 49969
+      },
+      {
+        "caption": "The preview shows the score under the new weights. Nothing is saved yet.",
+        "ms": 55094
+      },
+      {
+        "caption": "To keep it: add a note saying why, then 'Save as new version'. Old versions stay, so past scores can be explained.",
+        "ms": 59182
+      },
+      {
+        "caption": "Versions: switch back to an older one, or switch a model off, any time.",
+        "ms": 62810
+      }
+    ]
+  },
+  {
+    "slug": "find-contacts",
+    "title": "Find decision-makers and verify a contact",
+    "category": "Signals, scores & contacts",
+    "seconds": 67,
+    "learn": "Bring in people (here from your own LinkedIn export), approve the right ones, then mark a contact detail verified.",
+    "tryRoute": "/contacts?tab=research",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Find contacts from the More menu.",
+        "ms": 3605
+      },
+      {
+        "caption": "Find people: three ways to bring in new people.",
+        "ms": 10253
+      },
+      {
+        "caption": "Web search needs an AI key; your own LinkedIn connections export works without one.",
+        "ms": 14230
+      },
+      {
+        "caption": "Choose your Connections.csv and keep 'Only CRE-relevant roles' ticked.",
+        "ms": 17395
+      },
+      {
+        "caption": "Press Import. People go to 'To review' — not into your records yet.",
+        "ms": 20719
+      },
+      {
+        "caption": "Open To review.",
+        "ms": 24648
+      },
+      {
+        "caption": "Rohan Kulkarni, Head of Facilities at Zentrix — a decision-maker. Approve him.",
+        "ms": 28542
+      },
+      {
+        "caption": "Open Your contacts → he is listed with his role.",
+        "ms": 33911
+      },
+      {
+        "caption": "Open his contact page.",
+        "ms": 37743
+      },
+      {
+        "caption": "What we know, field by field: each has its own status — Reported, Inferred or Missing.",
+        "ms": 43850
+      },
+      {
+        "caption": "The score shows how relevant this contact is for office decisions.",
+        "ms": 47072
+      },
+      {
+        "caption": "CRE relevance: assessed from his title as a Decision-maker — confirm it, with a reason.",
+        "ms": 50332
+      },
+      {
+        "caption": "Press Correct role to save the verified role.",
+        "ms": 56266
+      },
+      {
+        "caption": "Has a business email you confirmed? It appears under contact details with 'Mark verified'.",
+        "ms": 60385
+      }
+    ]
+  },
+  {
+    "slug": "warm-intro",
+    "title": "Find a warm introduction path",
+    "category": "Signals, scores & contacts",
+    "seconds": 63,
+    "learn": "The Network tab: record job moves, confirm them, record who knows whom, see introduction paths with consent status, and multi-threading gaps on deals.",
+    "tryRoute": "/network",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Market & reports from the More menu.",
+        "ms": 3613
+      },
+      {
+        "caption": "Choose the Network tab. Nothing here is scraped — you record what you saw.",
+        "ms": 11252
+      },
+      {
+        "caption": "Record a job move: the person, where they moved, and how you saw it.",
+        "ms": 16640
+      },
+      {
+        "caption": "Recent job moves stay 'unverified — not a fact yet' until you confirm them.",
+        "ms": 19920
+      },
+      {
+        "caption": "Mark confirmed, with how you checked, turns the move into a fact.",
+        "ms": 23265
+      },
+      {
+        "caption": "Record a relationship: who knows whom, how, and how strong. Intro consent is set on the person's page.",
+        "ms": 26508
+      },
+      {
+        "caption": "Introduction paths: pick the company — Zentrix Analytics — and press Show paths.",
+        "ms": 30328
+      },
+      {
+        "caption": "Direct: you know Ananya Rao yourself — warm, with the last contact date.",
+        "ms": 38988
+      },
+      {
+        "caption": "Via a person: Ananya worked with Vikram Desai, the CFO — she could introduce you.",
+        "ms": 42598
+      },
+      {
+        "caption": "'Ask first': no intro consent recorded. Green 'intro consent recorded' means she agreed.",
+        "ms": 46100
+      },
+      {
+        "caption": "People who asked not to be contacted are left out of paths automatically.",
+        "ms": 49444
+      },
+      {
+        "caption": "Multi-threading gaps: open deals missing key people, like procurement or tenant legal.",
+        "ms": 52759
+      },
+      {
+        "caption": "Open a deal from here to fix the gap.",
+        "ms": 56175
+      }
+    ]
+  },
+  {
+    "slug": "contact-workspace",
+    "title": "Understand one person",
+    "category": "Signals, scores & contacts",
+    "seconds": 69,
+    "learn": "A person's page: role, employment history, relationships and intro consent, relationship level, interactions, outreach, tasks and contact details.",
+    "tryRoute": "/people",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open People.",
+        "ms": 3610
+      },
+      {
+        "caption": "Find Ananya Rao.",
+        "ms": 8604
+      },
+      {
+        "caption": "Her role and company at the top. 'Why do we believe this?' shows the evidence.",
+        "ms": 17275
+      },
+      {
+        "caption": "Plan outreach starts a draft; Enrichment & verification checks her details; Edit changes them.",
+        "ms": 20544
+      },
+      {
+        "caption": "Employment history: each job with its dates. Past roles are kept, not overwritten.",
+        "ms": 23896
+      },
+      {
+        "caption": "Relationships: who knows her, how (client of), how warm, and the last contact.",
+        "ms": 27180
+      },
+      {
+        "caption": "Add relationship context or connect her to another person — this feeds intro paths.",
+        "ms": 30626
+      },
+      {
+        "caption": "Introduction consent: whether she agreed to introduce you. 'Permission not recorded' means ask first.",
+        "ms": 33975
+      },
+      {
+        "caption": "Interactions: every meeting, call and email with her, newest first.",
+        "ms": 37247
+      },
+      {
+        "caption": "Outreach: drafts and approved messages to her, with their status.",
+        "ms": 41148
+      },
+      {
+        "caption": "Commitments and tasks you promised her — like 'Send 3 options'.",
+        "ms": 44691
+      },
+      {
+        "caption": "Relationship level: CRE OS suggests one from your history — 'Use suggestion' or pick your own.",
+        "ms": 48025
+      },
+      {
+        "caption": "Memories: what the assistant remembers about her, which you can review.",
+        "ms": 51430
+      },
+      {
+        "caption": "Contact details: add only what she shared — never guessed.",
+        "ms": 54753
+      },
+      {
+        "caption": "Archive needs a reason and goes to Review — nothing is deleted outright.",
+        "ms": 62281
+      }
+    ]
+  },
+  {
+    "slug": "market-reports",
+    "title": "Market & reports: a tour of all five tabs",
+    "category": "Signals, scores & contacts",
+    "seconds": 82,
+    "learn": "Five tabs: market figures with their source, network moves and intro paths, the legal desk, content planning and pipeline reports.",
+    "tryRoute": "/market",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Market & reports from the More menu.",
+        "ms": 3613
+      },
+      {
+        "caption": "Market: validated releases only. 'Re-run checks' re-validates the figures.",
+        "ms": 11793
+      },
+      {
+        "caption": "Descriptive only — not a forecast. Stock is never summed and no vacancy is guessed.",
+        "ms": 15298
+      },
+      {
+        "caption": "Each series names its measure, area and unit — here absorption in msf, per year.",
+        "ms": 19227
+      },
+      {
+        "caption": "Below each chart: period, unit and source with its release date. Missing years stay unknown.",
+        "ms": 22797
+      },
+      {
+        "caption": "Network: job moves, who knows whom, introduction paths and deal gaps.",
+        "ms": 28645
+      },
+      {
+        "caption": "Recent job moves are unverified until you confirm them.",
+        "ms": 34570
+      },
+      {
+        "caption": "Legal: for LOIs, term sheets and leases — for the tenant's lawyers, not legal advice.",
+        "ms": 37999
+      },
+      {
+        "caption": "Upload a PDF or Word file; add a later version with the same family key to get a redline.",
+        "ms": 42749
+      },
+      {
+        "caption": "Link it to a lease so Lease radar can use its clauses (notice dates, break options).",
+        "ms": 45972
+      },
+      {
+        "caption": "Content: LinkedIn posts and market notes in your voice. You publish them yourself.",
+        "ms": 49324
+      },
+      {
+        "caption": "'Plan this week' suggests two post ideas and a market-note slot (it also runs every Monday).",
+        "ms": 54686
+      },
+      {
+        "caption": "Drafts are checked against the evidence and confidentiality rules before they can be approved.",
+        "ms": 57919
+      },
+      {
+        "caption": "Reports: approaches, discussions and deals by month — descriptive, not predictions.",
+        "ms": 61416
+      },
+      {
+        "caption": "Targets are your planning assumptions. Drafts and follow-ups never count as approaches.",
+        "ms": 65850
+      },
+      {
+        "caption": "Cohort funnel: what happened to the approaches started each month.",
+        "ms": 69168
+      },
+      {
+        "caption": "Stage conversion: how many deals are at each stage, from research to collected.",
+        "ms": 72438
+      },
+      {
+        "caption": "Time to stage: how many days deals take to reach each step.",
+        "ms": 75653
+      }
+    ]
+  },
+  {
+    "slug": "add-company",
+    "title": "Add a company by hand",
+    "category": "Records & data",
+    "seconds": 75,
+    "learn": "Search first so you don't create a duplicate, add the company with only what you know, then read its page.",
+    "tryRoute": "/companies/new",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Companies under Records in the sidebar.",
+        "ms": 3674
+      },
+      {
+        "caption": "This is every company you can see, A to Z. 'Show archived' brings back hidden ones.",
+        "ms": 9796
+      },
+      {
+        "caption": "Search first: someone may already have added this company.",
+        "ms": 13274
+      },
+      {
+        "caption": "Only 'Sahyadri Arc Realty' matches — a different company, so ours is new.",
+        "ms": 17913
+      },
+      {
+        "caption": "Press Add company.",
+        "ms": 21621
+      },
+      {
+        "caption": "Display name: the name people use day to day.",
+        "ms": 26704
+      },
+      {
+        "caption": "Legal name only if you know it — e.g. from an invoice or MCA record.",
+        "ms": 33915
+      },
+      {
+        "caption": "More details holds website, CIN, GSTIN, sector, HQ country, headcount and GCC flag.",
+        "ms": 40980
+      },
+      {
+        "caption": "Fill only what you know. Here: the sector. Everything blank stays 'unknown'.",
+        "ms": 46608
+      },
+      {
+        "caption": "Classification controls who may see the record; the default is corporate confidential.",
+        "ms": 52140
+      },
+      {
+        "caption": "Press Create company.",
+        "ms": 55697
+      },
+      {
+        "caption": "The company page opens. Its badges show classification and how fresh the facts are.",
+        "ms": 61770
+      },
+      {
+        "caption": "Identity shows the facts you gave; the rest say unknown — nothing is guessed.",
+        "ms": 65213
+      },
+      {
+        "caption": "Below: people, signals, locations and group structure — each folds open when you add to it.",
+        "ms": 68583
+      }
+    ]
+  },
+  {
+    "slug": "add-person",
+    "title": "Add a person and link them to a company",
+    "category": "Records & data",
+    "seconds": 75,
+    "learn": "Add a contact, then record where they work and their role so they show on the company page.",
+    "tryRoute": "/people/new",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open People under Records.",
+        "ms": 3644
+      },
+      {
+        "caption": "Search first, as with companies — then press Add person.",
+        "ms": 9406
+      },
+      {
+        "caption": "Full name is the only required field.",
+        "ms": 14894
+      },
+      {
+        "caption": "Other spellings help CRE OS match notes and imports to this person later.",
+        "ms": 19860
+      },
+      {
+        "caption": "More details: profile link, preferred language and channel, contact limits and notes.",
+        "ms": 23532
+      },
+      {
+        "caption": "Press Create person.",
+        "ms": 27960
+      },
+      {
+        "caption": "The person page. 'No current role on record' — so let's link them to a company.",
+        "ms": 33638
+      },
+      {
+        "caption": "Open Employment timeline, then Add employment.",
+        "ms": 36952
+      },
+      {
+        "caption": "Choose the company they work for.",
+        "ms": 42783
+      },
+      {
+        "caption": "Designation: their role, so you know who decides.",
+        "ms": 46385
+      },
+      {
+        "caption": "Works here now? Yes. Start and end dates are optional.",
+        "ms": 51629
+      },
+      {
+        "caption": "Press Add role.",
+        "ms": 55212
+      },
+      {
+        "caption": "The timeline now shows Head of Workplace at Zentrix Analytics.",
+        "ms": 60672
+      },
+      {
+        "caption": "Relationship level on the right: only you set it — suggestions never claim a good relationship.",
+        "ms": 64407
+      },
+      {
+        "caption": "Further down: relationship context, intro paths, interactions, meetings and outreach.",
+        "ms": 67693
+      }
+    ]
+  },
+  {
+    "slug": "add-building",
+    "title": "Add a building with a space and its availability",
+    "category": "Records & data",
+    "seconds": 104,
+    "learn": "Create the building, add a floor or unit, then record a dated availability snapshot with asking rent and its area basis.",
+    "tryRoute": "/buildings/new",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Buildings under Records, then Add building.",
+        "ms": 3619
+      },
+      {
+        "caption": "Type the building name.",
+        "ms": 13683
+      },
+      {
+        "caption": "Kind: a building, a tower inside a campus, a campus, or a project. Add the campus first, then each tower.",
+        "ms": 18737
+      },
+      {
+        "caption": "More details: parent campus, locality, address, grade, area, floors, completion and map pin.",
+        "ms": 21935
+      },
+      {
+        "caption": "Pick the locality, so searches and shortlists by place find it.",
+        "ms": 26592
+      },
+      {
+        "caption": "Press Create building.",
+        "ms": 30330
+      },
+      {
+        "caption": "The building page. The Building section lists its facts; blanks say unknown.",
+        "ms": 34871
+      },
+      {
+        "caption": "Spaces & availability is empty — nothing is assumed vacant. Add a floor.",
+        "ms": 38302
+      },
+      {
+        "caption": "Floor label is kept as text, like '5' or 'Upper Ground'. Unit is optional.",
+        "ms": 43928
+      },
+      {
+        "caption": "More details: carpet and chargeable area, and seats — add if known.",
+        "ms": 49566
+      },
+      {
+        "caption": "Press Add space.",
+        "ms": 55533
+      },
+      {
+        "caption": "Floor 5 appears with 'No availability evidence' — we haven't said it is free yet.",
+        "ms": 59636
+      },
+      {
+        "caption": "Now record availability: a dated snapshot.",
+        "ms": 62848
+      },
+      {
+        "caption": "Choose the floor and the date you heard it.",
+        "ms": 67323
+      },
+      {
+        "caption": "Status: available, under offer, leased, withdrawn — or unknown.",
+        "ms": 72430
+      },
+      {
+        "caption": "Evidence: 'claimed' if the landlord said so, 'verified' only if you checked it now.",
+        "ms": 76301
+      },
+      {
+        "caption": "More details: available-from, valid-until, and the asking rent.",
+        "ms": 79605
+      },
+      {
+        "caption": "Rent basis says which area the rent is quoted on — carpet, chargeable or per seat.",
+        "ms": 85385
+      },
+      {
+        "caption": "Press Save snapshot.",
+        "ms": 89203
+      },
+      {
+        "caption": "Floor 5: Available (reported), as of today, asking ₹85/sf on chargeable area.",
+        "ms": 93758
+      },
+      {
+        "caption": "Leases, specifications and other names are added the same way, further down.",
+        "ms": 97004
+      }
+    ]
+  },
+  {
+    "slug": "import-spreadsheet",
+    "title": "Import a spreadsheet",
+    "category": "Records & data",
+    "seconds": 72,
+    "learn": "Upload a sheet, tell CRE OS which column is which (once), then see what was added and which rows need fixing.",
+    "tryRoute": "/imports",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More in the sidebar, then Imports.",
+        "ms": 3605
+      },
+      {
+        "caption": "Earlier uploads are listed with their status and row counts. The original file is kept read-only.",
+        "ms": 9492
+      },
+      {
+        "caption": "Choose your spreadsheet — here a small CSV with three buildings.",
+        "ms": 12694
+      },
+      {
+        "caption": "As-of date: when the data in the file was true. Source: where it came from.",
+        "ms": 15893
+      },
+      {
+        "caption": "Press Upload and reconcile.",
+        "ms": 19086
+      },
+      {
+        "caption": "The result in three steps: added, needs your OK, could not be imported.",
+        "ms": 23028
+      },
+      {
+        "caption": "These column names weren't recognised, so the rows wait here — nothing is lost.",
+        "ms": 26214
+      },
+      {
+        "caption": "Open Technical details to map the columns once.",
+        "ms": 29384
+      },
+      {
+        "caption": "What is this sheet? An asset list with a header row.",
+        "ms": 33294
+      },
+      {
+        "caption": "Match each field to a column: Building name ← Property, Locality ← Micro-market…",
+        "ms": 36496
+      },
+      {
+        "caption": "Press Approve mapping and re-process. Next time this layout imports by itself.",
+        "ms": 45250
+      },
+      {
+        "caption": "Done: step 1 shows the buildings and localities now in your records (new, or matched to ones you had).",
+        "ms": 49101
+      },
+      {
+        "caption": "Needs your OK: anything that would change an existing record waits for approval.",
+        "ms": 56314
+      },
+      {
+        "caption": "Rows with a problem list the reason; 'NA' and '0' areas are kept as unknown, never as numbers.",
+        "ms": 59476
+      },
+      {
+        "caption": "Possible duplicates: merge look-alike names or keep them separate.",
+        "ms": 62652
+      },
+      {
+        "caption": "Values that differ from your records are never overwritten — they go to Approvals.",
+        "ms": 65814
+      }
+    ]
+  },
+  {
+    "slug": "new-requirement",
+    "title": "Create a client requirement",
+    "category": "Records & data",
+    "seconds": 85,
+    "learn": "Write down what the client needs — area and its basis, places, budget, move-in date — and leave unknowns blank.",
+    "tryRoute": "/requirements/new",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Requirements under Records.",
+        "ms": 3624
+      },
+      {
+        "caption": "Each requirement has a status: draft, estimated, client confirmed, closed. Filter by it here.",
+        "ms": 8616
+      },
+      {
+        "caption": "Press New requirement.",
+        "ms": 12016
+      },
+      {
+        "caption": "It is saved as an estimate until the client confirms.",
+        "ms": 16830
+      },
+      {
+        "caption": "Give it a short title and pick the company — or type a new company name.",
+        "ms": 20043
+      },
+      {
+        "caption": "Target area and move-in date.",
+        "ms": 26676
+      },
+      {
+        "caption": "More details: area range and whether it is carpet or chargeable area.",
+        "ms": 31625
+      },
+      {
+        "caption": "Also: seats, fit-out standard, decision date, tenure and mandate.",
+        "ms": 40084
+      },
+      {
+        "caption": "Budget only if the client said it. We don't know, so it stays blank — unknown.",
+        "ms": 43385
+      },
+      {
+        "caption": "Press Create requirement.",
+        "ms": 46575
+      },
+      {
+        "caption": "Top cards: how many mandatory facts are known and how many the client confirmed.",
+        "ms": 51304
+      },
+      {
+        "caption": "The requirement contract: each field is Estimated, Confirmed or Unknown.",
+        "ms": 54580
+      },
+      {
+        "caption": "Questions to ask: the gaps, most important first — take this list to your next call.",
+        "ms": 58010
+      },
+      {
+        "caption": "Update a field when the client answers, with the source of the answer.",
+        "ms": 61512
+      },
+      {
+        "caption": "Add where they want to be: Add location preference.",
+        "ms": 64818
+      },
+      {
+        "caption": "Preference: preferred, acceptable, must, or excluded.",
+        "ms": 70359
+      },
+      {
+        "caption": "Press Add location.",
+        "ms": 73673
+      },
+      {
+        "caption": "Baner is now listed. Required features (parking, power…) are added the same way.",
+        "ms": 78126
+      }
+    ]
+  },
+  {
+    "slug": "shortlist",
+    "title": "Run a shortlist for a requirement",
+    "category": "Records & data",
+    "seconds": 55,
+    "learn": "Match buildings to a requirement and read why each one fits or doesn't.",
+    "tryRoute": "/requirements",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Requirements and pick one.",
+        "ms": 3608
+      },
+      {
+        "caption": "Hard constraints decide what gets excluded — e.g. the area range and must-have locations.",
+        "ms": 10421
+      },
+      {
+        "caption": "Scroll to Shortlist. If the client hasn't confirmed, the shortlist is marked provisional.",
+        "ms": 14298
+      },
+      {
+        "caption": "Press Run shortlist.",
+        "ms": 18173
+      },
+      {
+        "caption": "One row per floor or unit, ranked. Eligibility: eligible, needs verification, or ineligible.",
+        "ms": 22850
+      },
+      {
+        "caption": "Fit score: how well it matches. Data completeness: how much of the needed data is known.",
+        "ms": 27067
+      },
+      {
+        "caption": "Flags say what to check: vacancy unverified, stale availability, seat count unknown…",
+        "ms": 30451
+      },
+      {
+        "caption": "Open 'Why it qualifies' to read the matching reasons.",
+        "ms": 33762
+      },
+      {
+        "caption": "Ineligible rows say exactly why — e.g. area outside the range, too few seats.",
+        "ms": 38405
+      },
+      {
+        "caption": "Set each option's status as you go: proposed, shortlisted, visited, rejected, selected.",
+        "ms": 42032
+      },
+      {
+        "caption": "The status is saved on that option; the shortlist count at the top of the page updates.",
+        "ms": 48314
+      }
+    ]
+  },
+  {
+    "slug": "deal-pipeline",
+    "title": "Move a deal through stages",
+    "category": "Records & data",
+    "seconds": 84,
+    "learn": "Move an opportunity to its next stage with a reason, and see what blocks a stage (an unconfirmed requirement, checklist items).",
+    "tryRoute": "/deals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deals under Records: every opportunity, in columns by stage.",
+        "ms": 3607
+      },
+      {
+        "caption": "'Show lost / dormant' brings back closed deals. New opportunity is at the bottom.",
+        "ms": 7649
+      },
+      {
+        "caption": "Open a deal in Research — Marigold Loop.",
+        "ms": 10818
+      },
+      {
+        "caption": "Top cards: expected fee (a forecast), then invoiced, recognised and collected — real money only.",
+        "ms": 14713
+      },
+      {
+        "caption": "The stage bar: green = done, blue = now, grey = still to come.",
+        "ms": 18056
+      },
+      {
+        "caption": "Move to: the next stage is already chosen — Approach attempted.",
+        "ms": 21217
+      },
+      {
+        "caption": "Add a reason. Later stages require one; it is kept in the stage history.",
+        "ms": 26191
+      },
+      {
+        "caption": "Press Move stage.",
+        "ms": 31548
+      },
+      {
+        "caption": "Moved: the deal is now in Approach attempted.",
+        "ms": 35920
+      },
+      {
+        "caption": "Stage history keeps every move with its reason.",
+        "ms": 39135
+      },
+      {
+        "caption": "Labels & outcome: temperature, mandate, next action and expected close; set won/lost here too.",
+        "ms": 42301
+      },
+      {
+        "caption": "Closing checklist: items 'needed before' a stage block it until done (with proof) or waived.",
+        "ms": 45511
+      },
+      {
+        "caption": "Fees: each amount has its own status — a forecast never counts as invoiced or collected.",
+        "ms": 48758
+      },
+      {
+        "caption": "Some moves are blocked. Back to Deals, open Kestrelbay Payments.",
+        "ms": 51945
+      },
+      {
+        "caption": "Try Requirement confirmed, with a reason, and press Move stage.",
+        "ms": 57739
+      },
+      {
+        "caption": "Blocked: the linked requirement must be client-confirmed first. It is still 'estimated'.",
+        "ms": 65714
+      },
+      {
+        "caption": "Open the requirement to confirm its facts with the client first.",
+        "ms": 68896
+      },
+      {
+        "caption": "Client confirmation lists what the client still has to confirm.",
+        "ms": 73172
+      },
+      {
+        "caption": "Changes from captures, imports or the official CRM wait in Review for your OK.",
+        "ms": 76436
+      }
+    ]
+  },
+  {
+    "slug": "lease-radar",
+    "title": "Lease radar: expiries, lock-ins and notice deadlines",
+    "category": "Records & data",
+    "seconds": 48,
+    "learn": "See which leases expire soon, when lock-ins end and by when notice must be given.",
+    "tryRoute": "/leases",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More in the sidebar, then Lease radar.",
+        "ms": 3605
+      },
+      {
+        "caption": "Verified dates come from the lease; 'calculated by radar' dates are formulas, never treated as verified.",
+        "ms": 9338
+      },
+      {
+        "caption": "Buckets: needs review, notice in 90 days, expiring in 0–3, 3–12, 12–24 months…",
+        "ms": 12585
+      },
+      {
+        "caption": "…expired but not confirmed, and dates unknown. Each shows how many leases are in it.",
+        "ms": 15776
+      },
+      {
+        "caption": "Start with notice deadlines in the next 90 days — the most urgent.",
+        "ms": 19090
+      },
+      {
+        "caption": "Each lease: tenant, building, landlord, area, and a call-window status.",
+        "ms": 23101
+      },
+      {
+        "caption": "Expiry, lock-in end and notice-by, each with days left.",
+        "ms": 26273
+      },
+      {
+        "caption": "Under each date: where it came from — contractual, or calculated (formula shown).",
+        "ms": 29453
+      },
+      {
+        "caption": "Reverse plan: working back from the move date — warns when the decision date has passed.",
+        "ms": 32660
+      },
+      {
+        "caption": "See all leases, then search one tenant, building or landlord.",
+        "ms": 35869
+      },
+      {
+        "caption": "Click the tenant to open the company and act on it.",
+        "ms": 41520
+      }
+    ]
+  },
+  {
+    "slug": "search-everything",
+    "title": "Search everything",
+    "category": "Records & data",
+    "seconds": 50,
+    "learn": "One search box for companies, people, buildings, leases, meetings, documents — narrow it with type and filters.",
+    "tryRoute": "/search",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Click Search at the top of the sidebar.",
+        "ms": 3604
+      },
+      {
+        "caption": "Two modes: Search everything (words), and Find accounts (describe companies you want).",
+        "ms": 9000
+      },
+      {
+        "caption": "Type a word — here a company name — and press Search.",
+        "ms": 12228
+      },
+      {
+        "caption": "Results of every type: lease, company, signal, requirement, meetings…",
+        "ms": 18811
+      },
+      {
+        "caption": "Each keeps its status — reported, confirmed or hypothesis are never mixed.",
+        "ms": 22048
+      },
+      {
+        "caption": "You only see what your access allows.",
+        "ms": 25239
+      },
+      {
+        "caption": "Narrow it: choose a type — Lease.",
+        "ms": 28409
+      },
+      {
+        "caption": "More filters: place, from/to dates, status and source.",
+        "ms": 31635
+      },
+      {
+        "caption": "Press Search — only leases in Kharadi remain.",
+        "ms": 37287
+      },
+      {
+        "caption": "Click any result to open it.",
+        "ms": 43359
+      }
+    ]
+  },
+  {
+    "slug": "database-places",
+    "title": "Browse the database and places (micro-markets)",
+    "category": "Records & data",
+    "seconds": 47,
+    "learn": "See how many records you have, what needs review, and the place hierarchy: city › corridor › micro-market › locality.",
+    "tryRoute": "/database",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More, then Database.",
+        "ms": 3605
+      },
+      {
+        "caption": "Counts of every record type: companies, people, buildings, spaces, requirements…",
+        "ms": 9774
+      },
+      {
+        "caption": "…opportunities, leases, interactions, source files and imports in progress. Click one to open its list.",
+        "ms": 12962
+      },
+      {
+        "caption": "Needs review lists import rows waiting for a decision.",
+        "ms": 16170
+      },
+      {
+        "caption": "Recent changes: who changed what — the full audit log is one click away.",
+        "ms": 19376
+      },
+      {
+        "caption": "Now places: open Places in the More menu.",
+        "ms": 22564
+      },
+      {
+        "caption": "Places nest: city › corridor › micro-market › locality.",
+        "ms": 27367
+      },
+      {
+        "caption": "Pune is the city; East corridor holds the SBD East micro-market and its localities.",
+        "ms": 30546
+      },
+      {
+        "caption": "Each place keeps other spellings, so 'KP' or 'Vimannagar' still match.",
+        "ms": 33714
+      },
+      {
+        "caption": "Search a place by any of its names.",
+        "ms": 36889
+      },
+      {
+        "caption": "Add place (at the bottom) creates a new one with its level, parent and other names.",
+        "ms": 40366
+      }
+    ]
+  },
+  {
+    "slug": "toolkit-overview",
+    "title": "The Deal toolkit: which tool answers which client question",
+    "category": "Deal toolkit",
+    "seconds": 65,
+    "learn": "Where each calculator lives and which client question it answers — all figures come from fixed, tested formulas.",
+    "tryRoute": "/toolkit",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3654
+      },
+      {
+        "caption": "Four stages: write the brief, run the numbers, check and approve, make the client document.",
+        "ms": 10516
+      },
+      {
+        "caption": "'What exactly do you need?' — the requirement brief.",
+        "ms": 13847
+      },
+      {
+        "caption": "'What will this lease really cost?' — lease economics, and cost per seat all-in.",
+        "ms": 17192
+      },
+      {
+        "caption": "'Should we stay or move?' and 'Lease or managed office?' — side-by-side comparisons.",
+        "ms": 20503
+      },
+      {
+        "caption": "Landlord offers, negotiation rounds and fit-out quotes each have their own tool.",
+        "ms": 23865
+      },
+      {
+        "caption": "Built-to-suit and investment returns sit under Specialist models.",
+        "ms": 27183
+      },
+      {
+        "caption": "Each card has one clear button; the counter shows how many you have saved with that tool.",
+        "ms": 30398
+      },
+      {
+        "caption": "Fit-out & loan: budget the fit-out, then Financing works out the loan.",
+        "ms": 33598
+      },
+      {
+        "caption": "Make a client document and Site-visit pack turn saved work into Word, PDF and decks.",
+        "ms": 36891
+      },
+      {
+        "caption": "Every number comes from fixed, tested formulas — not from AI — and keeps its inputs.",
+        "ms": 40177
+      },
+      {
+        "caption": "Needs information lists saved work with missing inputs — blanks are never treated as zero.",
+        "ms": 43731
+      },
+      {
+        "caption": "Requirements awaiting analysis: client searches with nothing worked out yet.",
+        "ms": 46965
+      },
+      {
+        "caption": "Recently updated: your latest saved analyses with version and status — click one to open it.",
+        "ms": 50386
+      },
+      {
+        "caption": "A red box warns when a landlord quote has expired or expires within 14 days.",
+        "ms": 53702
+      },
+      {
+        "caption": "Start with a brief is the suggested first step for any new client search.",
+        "ms": 57033
+      }
+    ]
+  },
+  {
+    "slug": "requirement-brief",
+    "title": "Build a requirement brief and download it",
+    "category": "Deal toolkit",
+    "seconds": 71,
+    "learn": "See what is confirmed, estimated or missing for a client search, save a snapshot and download the brief deck.",
+    "tryRoute": "/toolkit/brief",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3611
+      },
+      {
+        "caption": "Choose Open briefs.",
+        "ms": 8353
+      },
+      {
+        "caption": "Pick the client search — Zentrix, 25,000 sf in Kharadi.",
+        "ms": 13069
+      },
+      {
+        "caption": "The score card: how many items are confirmed, estimated or still missing.",
+        "ms": 18089
+      },
+      {
+        "caption": "Ask the client next: the must-have questions still open, most important first.",
+        "ms": 21536
+      },
+      {
+        "caption": "Sections A–G: client, space, location, budget, timeline, approvals and gaps.",
+        "ms": 25220
+      },
+      {
+        "caption": "Each value shows its status. The size range here is an estimate until the client confirms.",
+        "ms": 28868
+      },
+      {
+        "caption": "Fill these in opens the missing items of a section so you can type them straight in.",
+        "ms": 32660
+      },
+      {
+        "caption": "Assumptions & open questions sums up confirmed, estimated, assumed and missing items, plus pending approvals.",
+        "ms": 35945
+      },
+      {
+        "caption": "Brief snapshots lists every saved version; Meeting outcomes shows what was agreed in meetings.",
+        "ms": 39279
+      },
+      {
+        "caption": "Open requirement goes to the client's requirement record behind this brief.",
+        "ms": 42632
+      },
+      {
+        "caption": "Save a snapshot — a fixed version you can approve and use in client documents.",
+        "ms": 45895
+      },
+      {
+        "caption": "Saved. It lists the mandatory items still missing before it can be approved.",
+        "ms": 54495
+      },
+      {
+        "caption": "The step bar: fill the gaps, save a snapshot, approve it, then use it in client documents.",
+        "ms": 58044
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of the brief.",
+        "ms": 61328
+      }
+    ]
+  },
+  {
+    "slug": "lease-economics",
+    "title": "Lease economics: what a lease really costs",
+    "category": "Deal toolkit",
+    "seconds": 95,
+    "learn": "Enter rent, escalation, rent-free, CAM and deposit; read effective rent, total cost over the term and present value.",
+    "tryRoute": "/toolkit/lease",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3609
+      },
+      {
+        "caption": "Choose Cost a lease.",
+        "ms": 8540
+      },
+      {
+        "caption": "How to read this page opens a short guide to every box and label on this screen.",
+        "ms": 13500
+      },
+      {
+        "caption": "Blank = unknown, 0 = none. A blank is listed as missing and never counted as zero.",
+        "ms": 18033
+      },
+      {
+        "caption": "Name it and set a discount rate — used to work out today's value of future rent.",
+        "ms": 21585
+      },
+      {
+        "caption": "Space and term: 25,000 sq ft for 60 months, 3 months rent-free.",
+        "ms": 29929
+      },
+      {
+        "caption": "Rent ₹95 per sq ft per month, going up 5% every 12 months.",
+        "ms": 36020
+      },
+      {
+        "caption": "CAM ₹18 per sq ft and a 6-month deposit. Blank means unknown — never zero.",
+        "ms": 40037
+      },
+      {
+        "caption": "Calculate & save. Fixed formulas do the maths — no AI.",
+        "ms": 45970
+      },
+      {
+        "caption": "Monthly rent and CAM: what is paid each month at the start.",
+        "ms": 51940
+      },
+      {
+        "caption": "Effective rent: the average per sq ft after rent-free and escalation.",
+        "ms": 55244
+      },
+      {
+        "caption": "Total cost over the tenure, and its present value — today's money at your discount rate.",
+        "ms": 58828
+      },
+      {
+        "caption": "The deposit is shown apart: it is not a cost, it comes back at the end.",
+        "ms": 62259
+      },
+      {
+        "caption": "Year by year: rent, CAM and total cost for each lease year.",
+        "ms": 65616
+      },
+      {
+        "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+        "ms": 71972
+      },
+      {
+        "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+        "ms": 75224
+      },
+      {
+        "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+        "ms": 80313
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 83717
+      },
+      {
+        "caption": "Everything you save is also listed here and on the Deal toolkit home under Recently updated.",
+        "ms": 88894
+      }
+    ]
+  },
+  {
+    "slug": "occupancy-cost",
+    "title": "Occupancy cost: monthly, upfront cash and present value",
+    "category": "Deal toolkit",
+    "seconds": 96,
+    "learn": "Add fit-out and moving to the lease terms; see cash at signing (refundable vs not), present value, peak cash and what-ifs.",
+    "tryRoute": "/toolkit/occupancy",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3615
+      },
+      {
+        "caption": "Choose Cost per seat.",
+        "ms": 9162
+      },
+      {
+        "caption": "How to read this page opens a short guide to every box and label on this screen.",
+        "ms": 14261
+      },
+      {
+        "caption": "Blank = unknown, 0 = none. A blank is listed as missing and never counted as zero.",
+        "ms": 19119
+      },
+      {
+        "caption": "Enter the lease terms — the same boxes as lease economics.",
+        "ms": 22695
+      },
+      {
+        "caption": "A one-off at signing: ₹12 lakh legal and stamp duty — a cost you don't get back.",
+        "ms": 30446
+      },
+      {
+        "caption": "Cash at signing: fit-out ₹3 crore and moving ₹25 lakh.",
+        "ms": 37131
+      },
+      {
+        "caption": "Calculate & save — fixed, tested formulas, not AI.",
+        "ms": 44454
+      },
+      {
+        "caption": "Nominal rent is the quoted rate; effective rent spreads rent-free and escalation over the term.",
+        "ms": 50159
+      },
+      {
+        "caption": "Present value: the whole term in today's money. Peak cash: the most you are out of pocket.",
+        "ms": 53667
+      },
+      {
+        "caption": "Cash at signing: the deposit is marked refundable; fit-out, moving and fees are not.",
+        "ms": 57248
+      },
+      {
+        "caption": "Unknown items stay 'unknown' and are left out of the total — never guessed.",
+        "ms": 60801
+      },
+      {
+        "caption": "What-ifs: how much the present value moves if rent, escalation or fit-out change.",
+        "ms": 64203
+      },
+      {
+        "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+        "ms": 70630
+      },
+      {
+        "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+        "ms": 74214
+      },
+      {
+        "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+        "ms": 79264
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 82958
+      },
+      {
+        "caption": "Everything you save is also listed here and on the Deal toolkit home under Recently updated.",
+        "ms": 88839
+      }
+    ]
+  },
+  {
+    "slug": "managed-vs-conventional",
+    "title": "Managed office vs conventional lease",
+    "category": "Deal toolkit",
+    "seconds": 108,
+    "learn": "Compare the same seats over the same months; services in the seat price are not counted twice.",
+    "tryRoute": "/toolkit/managed",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3610
+      },
+      {
+        "caption": "Choose Compare options under Lease vs managed office.",
+        "ms": 9041
+      },
+      {
+        "caption": "How to read this page opens a short guide to every box and label on this screen.",
+        "ms": 13927
+      },
+      {
+        "caption": "Compare 250 seats over 36 months — both options use the same seats and period.",
+        "ms": 22424
+      },
+      {
+        "caption": "Conventional: rent, CAM, fit-out, furniture, deposit and running costs.",
+        "ms": 33912
+      },
+      {
+        "caption": "Managed: ₹14,000 per seat per month, 12-month lock-in.",
+        "ms": 43542
+      },
+      {
+        "caption": "Ticked services are already in the seat price, so they are not added again.",
+        "ms": 49373
+      },
+      {
+        "caption": "Only extras billed on top go under Charged separately — here, parking.",
+        "ms": 52632
+      },
+      {
+        "caption": "Weights: what matters most to the client — cost, flexibility, commitment, speed, control.",
+        "ms": 59534
+      },
+      {
+        "caption": "Compare & save — calculated by fixed formulas, not AI.",
+        "ms": 63792
+      },
+      {
+        "caption": "The answer: cheaper over the period, and better on the client's weighted criteria — with reasons.",
+        "ms": 68214
+      },
+      {
+        "caption": "Totals over 36 months and cost per seat per month, side by side.",
+        "ms": 71515
+      },
+      {
+        "caption": "Side by side: one-off costs, refundable deposit, lock-in and flexibility.",
+        "ms": 74892
+      },
+      {
+        "caption": "Cost over time: running totals month by month — dashed is conventional, solid is managed.",
+        "ms": 78237
+      },
+      {
+        "caption": "Line by line: every cost behind each total; included services show as 'in seat price', not added again.",
+        "ms": 81508
+      },
+      {
+        "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+        "ms": 87810
+      },
+      {
+        "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+        "ms": 91035
+      },
+      {
+        "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+        "ms": 95779
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 99270
+      }
+    ]
+  },
+  {
+    "slug": "renewal-relocation",
+    "title": "Renew or relocate: the total impact",
+    "category": "Deal toolkit",
+    "seconds": 95,
+    "learn": "Compare staying with moving: moving costs, overlap rent, deposits, present value and break-even.",
+    "tryRoute": "/toolkit/renewal",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3631
+      },
+      {
+        "caption": "Choose Stay or move.",
+        "ms": 8269
+      },
+      {
+        "caption": "How to read this page opens a short guide to every box and label on this screen.",
+        "ms": 12669
+      },
+      {
+        "caption": "Compare over 60 months at a 10% discount rate.",
+        "ms": 20042
+      },
+      {
+        "caption": "Stay: the landlord's renewal rent of ₹21.5 lakh a month, plus CAM and a refurbishment.",
+        "ms": 27579
+      },
+      {
+        "caption": "Move: new rent, 3 months rent-free — and 2 months of overlap paying both rents.",
+        "ms": 34506
+      },
+      {
+        "caption": "Moving costs: fit-out, moving, restoring the old office, IT, downtime and deposits.",
+        "ms": 39708
+      },
+      {
+        "caption": "Non-money factors (location, disruption…) are scored 1–5 separately — optional, never mixed into cost.",
+        "ms": 45441
+      },
+      {
+        "caption": "Compare & save — fixed formulas, not AI.",
+        "ms": 48947
+      },
+      {
+        "caption": "The answer: staying is cheaper in today's money. Non-money scores are kept separate.",
+        "ms": 54233
+      },
+      {
+        "caption": "Break-even: the month moving would become cheaper — here, not within 60 months.",
+        "ms": 58035
+      },
+      {
+        "caption": "Present-value difference: positive means moving costs more in today's money.",
+        "ms": 61441
+      },
+      {
+        "caption": "Cost over time: running totals — dashed is stay, solid is move. If they cross, that is break-even.",
+        "ms": 64750
+      },
+      {
+        "caption": "Line by line: every cost behind each total, including the overlap rent.",
+        "ms": 68288
+      },
+      {
+        "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+        "ms": 74820
+      },
+      {
+        "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+        "ms": 78111
+      },
+      {
+        "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+        "ms": 83068
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 86422
+      }
+    ]
+  },
+  {
+    "slug": "fitout-financing",
+    "title": "Fit-out budget, partner quotes and financing",
+    "category": "Deal toolkit",
+    "seconds": 119,
+    "learn": "Budget the fit-out line by line, rank partner quotes like-for-like, then work out the loan EMI.",
+    "tryRoute": "/toolkit/fitout",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3606
+      },
+      {
+        "caption": "Choose Fit-out budget.",
+        "ms": 8241
+      },
+      {
+        "caption": "Name it, with carpet area and seats so it can show cost per sq ft and per seat.",
+        "ms": 12610
+      },
+      {
+        "caption": "Budget lines: quantity × unit price, with tax % on each line (never assumed).",
+        "ms": 18638
+      },
+      {
+        "caption": "Add two partner quotations — price before tax, tax, delivery and warranty.",
+        "ms": 27055
+      },
+      {
+        "caption": "Compare & save — the totals and the ranking are fixed formulas, not AI.",
+        "ms": 35906
+      },
+      {
+        "caption": "The budget total, with tax shown separately, and cost per sq ft and per seat.",
+        "ms": 40710
+      },
+      {
+        "caption": "Estimated, approved and actual are kept apart. 'Unknown' means not entered yet — not zero.",
+        "ms": 44678
+      },
+      {
+        "caption": "Variances show how far approved and actual costs moved from the estimate.",
+        "ms": 48133
+      },
+      {
+        "caption": "Quotes ranked on price, scope, timeline and warranty — the weights are shown.",
+        "ms": 51405
+      },
+      {
+        "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+        "ms": 58393
+      },
+      {
+        "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+        "ms": 61855
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 65185
+      },
+      {
+        "caption": "Now Financing: how to pay for the fit-out.",
+        "ms": 69954
+      },
+      {
+        "caption": "A ₹2 crore loan at 11% over 36 months, after a ₹45 lakh client contribution.",
+        "ms": 76841
+      },
+      {
+        "caption": "Calculate & save.",
+        "ms": 83890
+      },
+      {
+        "caption": "The EMI, total interest and the full repayment schedule — calculated, not estimated by AI.",
+        "ms": 88945
+      },
+      {
+        "caption": "Repayment schedule: each month's interest on the opening balance, and how much goes to the loan.",
+        "ms": 92258
+      },
+      {
+        "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+        "ms": 98514
+      },
+      {
+        "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+        "ms": 101752
+      },
+      {
+        "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+        "ms": 106562
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 109921
+      }
+    ]
+  },
+  {
+    "slug": "negotiation-offers",
+    "title": "Track landlord offers and counter-offers",
+    "category": "Deal toolkit",
+    "seconds": 94,
+    "learn": "Record each landlord offer as it comes; see what changed term by term and what it is worth.",
+    "tryRoute": "/toolkit/negotiation",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3623
+      },
+      {
+        "caption": "Choose Plan negotiation.",
+        "ms": 8627
+      },
+      {
+        "caption": "How to read this page opens a short guide to every box and label on this screen.",
+        "ms": 13217
+      },
+      {
+        "caption": "Blank = unknown, 0 = none. A blank is listed as missing and never counted as zero.",
+        "ms": 17539
+      },
+      {
+        "caption": "Open the Zentrix negotiation — the landlord's first offer is already recorded.",
+        "ms": 20946
+      },
+      {
+        "caption": "Offer 1: present value of the whole term, rent total and the refundable deposit.",
+        "ms": 26007
+      },
+      {
+        "caption": "The landlord came back. Record Offer 2 — it starts pre-filled with Offer 1.",
+        "ms": 29234
+      },
+      {
+        "caption": "Change only what changed: rent ₹98 → ₹92, rent-free 2 → 4 months, deposit 10 → 6 months.",
+        "ms": 32677
+      },
+      {
+        "caption": "Save as Offer 2. Earlier offers stay exactly as recorded.",
+        "ms": 42667
+      },
+      {
+        "caption": "What changed: Offer 2 is ₹1.6 crore cheaper in present value — calculated, not AI.",
+        "ms": 48113
+      },
+      {
+        "caption": "Term by term: improved, unchanged or still unresolved with the landlord.",
+        "ms": 51468
+      },
+      {
+        "caption": "Concession packages: describe up to three asks (e.g. more rent-free) and see what each is worth.",
+        "ms": 55078
+      },
+      {
+        "caption": "Missing inputs: terms still unresolved with the landlord — listed, not assumed.",
+        "ms": 60003
+      },
+      {
+        "caption": "Risks: e.g. a long lock-in or a big deposit, flagged from the numbers.",
+        "ms": 63590
+      },
+      {
+        "caption": "Draft talking points can word your points for you (optional AI wording) — the numbers stay from the calculator.",
+        "ms": 67224
+      },
+      {
+        "caption": "Strategy reads the numbers and lists the open terms and risks. Nothing is sent from here.",
+        "ms": 70670
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 86036
+      }
+    ]
+  },
+  {
+    "slug": "landlord-offers",
+    "title": "Compare landlord offers on a requirement, line by line",
+    "category": "Deal toolkit",
+    "seconds": 53,
+    "learn": "Record each landlord's offer on the client requirement and compare rent, rent-free, deposit and cost line by line.",
+    "tryRoute": "/requirements",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Requirements from the sidebar.",
+        "ms": 3632
+      },
+      {
+        "caption": "Open the Zentrix requirement.",
+        "ms": 7911
+      },
+      {
+        "caption": "The Landlord offers card already holds one offer: Riverside Towers.",
+        "ms": 12199
+      },
+      {
+        "caption": "Record a second offer, from the Kharadi Tech Park LOI.",
+        "ms": 15403
+      },
+      {
+        "caption": "Type the terms as the landlord wrote them. Leave blank anything it does not say.",
+        "ms": 19327
+      },
+      {
+        "caption": "Save offer.",
+        "ms": 28370
+      },
+      {
+        "caption": "Now both offers sit side by side, one line per term.",
+        "ms": 32540
+      },
+      {
+        "caption": "Bold marks the better offer on each line; blanks show as 'unknown', never zero.",
+        "ms": 35801
+      },
+      {
+        "caption": "Costs use the same start date and a 10% discount rate, from tested lease formulas — not AI.",
+        "ms": 39005
+      },
+      {
+        "caption": "Save comparison as an analysis keeps it in the Deal toolkit, with your own discount rate and start date.",
+        "ms": 42245
+      },
+      {
+        "caption": "Revise saves a landlord's updated terms as a new version; the old version is kept.",
+        "ms": 46299
+      }
+    ]
+  },
+  {
+    "slug": "bts-model",
+    "title": "Built-to-suit model",
+    "category": "Deal toolkit",
+    "seconds": 79,
+    "learn": "From land and construction cost and the developer's yield, work out the rent a built-to-suit needs — and compare with leasing.",
+    "tryRoute": "/toolkit/bts",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3604
+      },
+      {
+        "caption": "Choose Built-to-suit under Specialist models.",
+        "ms": 7664
+      },
+      {
+        "caption": "How to read this page opens a short guide to every box and label on this screen.",
+        "ms": 11827
+      },
+      {
+        "caption": "Name it and link it to the Zentrix requirement.",
+        "ms": 18759
+      },
+      {
+        "caption": "Land bought for ₹15 crore; 25,000 sq ft built at ₹4,500 per sq ft over 18 months.",
+        "ms": 23249
+      },
+      {
+        "caption": "The developer wants a 9% yield on cost.",
+        "ms": 28696
+      },
+      {
+        "caption": "A 10-year lease to the client, and a lease elsewhere at ₹95 to compare against.",
+        "ms": 32171
+      },
+      {
+        "caption": "Calculate & save — fixed formulas, not AI.",
+        "ms": 37232
+      },
+      {
+        "caption": "Total project cost: land, construction and soft costs.",
+        "ms": 41177
+      },
+      {
+        "caption": "Required rent: what the client must pay per sq ft per month for the developer to earn 9%.",
+        "ms": 44366
+      },
+      {
+        "caption": "Rent schedule: the rent for each lease year after escalation.",
+        "ms": 47647
+      },
+      {
+        "caption": "BTS vs leasing: lower total and present value for the client — built-to-suit wins here.",
+        "ms": 50844
+      },
+      {
+        "caption": "Assumptions are written out, e.g. interest during construction is not included.",
+        "ms": 54010
+      },
+      {
+        "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+        "ms": 63266
+      },
+      {
+        "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+        "ms": 67485
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 70687
+      }
+    ]
+  },
+  {
+    "slug": "investment-model",
+    "title": "Investment analysis: IRR, NPV and sensitivities",
+    "category": "Deal toolkit",
+    "seconds": 80,
+    "learn": "Price, tenancies, costs and exit give IRR, NPV, yield and equity multiple — with what-if sensitivities.",
+    "tryRoute": "/toolkit/investment",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3607
+      },
+      {
+        "caption": "Choose Investment under Specialist models.",
+        "ms": 7629
+      },
+      {
+        "caption": "How to read this page opens a short guide to every box and label on this screen.",
+        "ms": 11837
+      },
+      {
+        "caption": "Buy for ₹120 crore plus 7% stamp duty; 1 lakh sq ft leasable.",
+        "ms": 19436
+      },
+      {
+        "caption": "Tenancy schedule: two tenants, with expiry, vacant months and re-let rent.",
+        "ms": 25701
+      },
+      {
+        "caption": "Running costs, then hold 7 years and sell at an 8% exit cap rate; discount at 12%.",
+        "ms": 31980
+      },
+      {
+        "caption": "Debt is optional: tick it to add a loan and see levered returns and DSCR.",
+        "ms": 35614
+      },
+      {
+        "caption": "Calculate & save — fixed formulas, not AI.",
+        "ms": 38883
+      },
+      {
+        "caption": "IRR: the yearly return on the money put in. NPV: value in today's money at your 12% rate.",
+        "ms": 43572
+      },
+      {
+        "caption": "Negative NPV means the return is below 12%; equity multiple is cash back ÷ cash in.",
+        "ms": 46781
+      },
+      {
+        "caption": "Cash flows by year: rent, costs, net operating income — and the sale in the final year.",
+        "ms": 49953
+      },
+      {
+        "caption": "Sensitivities: how IRR and NPV move if the exit cap or rent change.",
+        "ms": 53152
+      },
+      {
+        "caption": "Assumptions are written out, e.g. how the exit value is worked out.",
+        "ms": 56353
+      },
+      {
+        "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+        "ms": 65561
+      },
+      {
+        "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+        "ms": 69541
+      },
+      {
+        "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+        "ms": 72802
+      }
+    ]
+  },
+  {
+    "slug": "visit-pack",
+    "title": "Site-visit pack and deliverables (Word, PDF, deck)",
+    "category": "Deal toolkit",
+    "seconds": 66,
+    "learn": "Pick a requirement and buildings; download a Word pack, a printable PDF and an editable deck. Nothing is sent.",
+    "tryRoute": "/toolkit/packs",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Deal toolkit from the sidebar.",
+        "ms": 3606
+      },
+      {
+        "caption": "Choose Make a pack.",
+        "ms": 7610
+      },
+      {
+        "caption": "Choose the requirement.",
+        "ms": 11505
+      },
+      {
+        "caption": "Put the client's name on the cover.",
+        "ms": 14693
+      },
+      {
+        "caption": "Tick the buildings to show on the visit.",
+        "ms": 18708
+      },
+      {
+        "caption": "Generate the files.",
+        "ms": 24298
+      },
+      {
+        "caption": "Three files: a Word visit pack, the same pack as a printable PDF, and a PowerPoint deck.",
+        "ms": 28593
+      },
+      {
+        "caption": "Download the Word pack — details, key commercials, checklist and a feedback form.",
+        "ms": 31759
+      },
+      {
+        "caption": "Built from shows which saved analysis and version the figures came from.",
+        "ms": 35672
+      },
+      {
+        "caption": "Nothing is sent from here — download the files and share them yourself.",
+        "ms": 38841
+      },
+      {
+        "caption": "Download links expire after 10 minutes — reload the page for fresh ones.",
+        "ms": 41999
+      },
+      {
+        "caption": "Add evidence: attach the quote, brochure or floor plan the pack relied on.",
+        "ms": 45164
+      },
+      {
+        "caption": "All packs: every pack you made is listed, newest first.",
+        "ms": 48340
+      },
+      {
+        "caption": "Make client documents builds a proposal, workbook and decision summary from saved analyses.",
+        "ms": 52188
+      },
+      {
+        "caption": "Choose the requirement, then Show its analyses to pick what goes in.",
+        "ms": 57651
+      }
+    ]
+  },
+  {
+    "slug": "tour",
+    "title": "How CRE OS fits together (full tour)",
+    "category": "Start here",
+    "seconds": 154,
+    "learn": "Every sidebar area and the overall flow: information comes in → Review → records → you act.",
     "tryRoute": "/today",
     "featured": true,
     "steps": [
       {
-        "caption": "Today is your start page: the most useful things to do today.",
-        "ms": 3614
+        "caption": "The sidebar on the left is the map of the whole app, grouped into main, Records, Work and More.",
+        "ms": 3606
+      },
+      {
+        "caption": "Today is your start page: everything that needs you today, in one place.",
+        "ms": 6907
       },
       {
         "caption": "Recommended next actions: lease dates and overdue tasks, most urgent first.",
-        "ms": 6956
+        "ms": 11645
       },
       {
-        "caption": "Further down: meetings, new signals and follow-ups that are due.",
-        "ms": 10176
+        "caption": "Meetings in the next three days, each with a link to its preparation brief.",
+        "ms": 14947
       },
       {
-        "caption": "Review holds every change waiting for your OK — nothing changes your records without it.",
-        "ms": 13559
+        "caption": "Priority accounts: the companies most worth your time, with 'See why' for the reasons.",
+        "ms": 18341
       },
       {
-        "caption": "Companies is the list of every account you track.",
-        "ms": 17560
+        "caption": "New signals, follow-ups that are due and approvals waiting for you.",
+        "ms": 21796
       },
       {
-        "caption": "Search for one — here, Zentrix Analytics.",
-        "ms": 21407
+        "caption": "Lease events: expiries, notice deadlines and lock-ins coming up in 12, 6 and 3 months.",
+        "ms": 25452
       },
       {
-        "caption": "Open the company page.",
-        "ms": 25179
+        "caption": "Day plan turns all of this into an ordered plan for today; Re-plan rebuilds it.",
+        "ms": 28772
       },
       {
-        "caption": "Each tab is one part of the story: people, signals, scores, next actions…",
-        "ms": 29115
+        "caption": "Today also has tabs at the top: Overview, Tasks and Calendar.",
+        "ms": 32558
       },
       {
-        "caption": "People shows who works there and how well you know them.",
-        "ms": 32295
+        "caption": "Ask AI answers questions about your own data and shows where each answer came from.",
+        "ms": 36366
       },
       {
-        "caption": "Ask AI answers questions about your data and shows its sources.",
-        "ms": 36183
+        "caption": "Ready-made questions get you started; or type your own in the box.",
+        "ms": 41146
       },
       {
-        "caption": "More holds the less-used screens: scores, lease radar, automations, tutorials.",
-        "ms": 40163
+        "caption": "Step 1 of the flow — information comes in. Capture is where you add notes, voice, photos and files.",
+        "ms": 44689
+      },
+      {
+        "caption": "Speak, Type or Photo: three ways to record what happened after a call or visit.",
+        "ms": 49923
+      },
+      {
+        "caption": "Recent captures lists what you saved and how many changes each one is proposing.",
+        "ms": 53669
+      },
+      {
+        "caption": "Step 2 — Review. Nothing changes your records until you approve it here.",
+        "ms": 57162
+      },
+      {
+        "caption": "Changes from captures, imports and automations wait here, each with its evidence.",
+        "ms": 62573
+      },
+      {
+        "caption": "You can approve, edit, ask to clarify or reject each proposed change.",
+        "ms": 67461
+      },
+      {
+        "caption": "Step 3 — Records. Companies is every account you track.",
+        "ms": 70727
+      },
+      {
+        "caption": "Filter by name, or add a company by hand.",
+        "ms": 76166
+      },
+      {
+        "caption": "People: the contacts at those companies.",
+        "ms": 79690
+      },
+      {
+        "caption": "Buildings: campuses, towers and the space in them.",
+        "ms": 84644
+      },
+      {
+        "caption": "Requirements: what each client is looking for — size, place, dates. Filter by status.",
+        "ms": 89102
+      },
+      {
+        "caption": "Deals: every opportunity as a pipeline, from research to fee collected.",
+        "ms": 93291
+      },
+      {
+        "caption": "Each column is a stage; the Deals tabs also hold Financials, Documents and Fees.",
+        "ms": 97845
+      },
+      {
+        "caption": "Step 4 — Act. Outreach: who to contact today and drafts of what to say.",
+        "ms": 101079
+      },
+      {
+        "caption": "Drafts only — you always send from your own mail or WhatsApp. CRE OS never sends.",
+        "ms": 105349
+      },
+      {
+        "caption": "Meetings: prepare a brief before each meeting and log what happened after.",
+        "ms": 108522
+      },
+      {
+        "caption": "Deal toolkit: compare buildings, cost a lease, stay-or-move and make client packs.",
+        "ms": 113302
+      },
+      {
+        "caption": "Signals: news and events that may mean a company needs space — checked before you trust them.",
+        "ms": 117470
+      },
+      {
+        "caption": "More holds the less-used screens. Open it.",
+        "ms": 121775
+      },
+      {
+        "caption": "Scores rank who to focus on first; Find contacts finds and verifies decision-makers.",
+        "ms": 126157
+      },
+      {
+        "caption": "Research looks into one company; Lease radar lists leases coming up for renewal.",
+        "ms": 129355
+      },
+      {
+        "caption": "Market & reports: market data, network, legal, content and reports.",
+        "ms": 132536
+      },
+      {
+        "caption": "Automations: chains that run on their own, like turning a lease date into a requirement.",
+        "ms": 135886
+      },
+      {
+        "caption": "Imports bring in spreadsheets; Database and Places are for browsing and setup.",
+        "ms": 139457
+      },
+      {
+        "caption": "Tutorials: these videos, any time.",
+        "ms": 142769
+      },
+      {
+        "caption": "The whole loop: things come in → you Review → records update → Today tells you what to act on.",
+        "ms": 146051
       }
     ]
   },
   {
     "slug": "capture",
     "title": "Capture a meeting note and approve it",
-    "seconds": 54,
-    "learn": "Type what happened; CRE OS asks about anything unclear, then adds it to your records when you press Reviewed.",
+    "category": "Records & data",
+    "seconds": 103,
+    "learn": "Every part of Capture (speak, type, photo, files, links), the questions it asks, Reviewed, and where the result appears.",
     "tryRoute": "/capture",
     "featured": false,
     "steps": [
       {
         "caption": "Open Capture after any call, meeting or site visit.",
-        "ms": 3611
+        "ms": 3617
       },
       {
-        "caption": "Choose Type to write or paste a note.",
-        "ms": 7566
+        "caption": "New capture: three ways in. Speak — words appear as you talk.",
+        "ms": 8368
+      },
+      {
+        "caption": "Photo — snap a visiting card or a whiteboard; the text is read from it.",
+        "ms": 11580
+      },
+      {
+        "caption": "Language: English, Hindi / Hinglish or Marathi — pick what you'll speak or write.",
+        "ms": 14803
+      },
+      {
+        "caption": "More options lets you set when it actually happened, if it wasn't just now.",
+        "ms": 18086
+      },
+      {
+        "caption": "Add files: upload documents such as a lease, LOI or floor plan.",
+        "ms": 21303
+      },
+      {
+        "caption": "Link to a record ties the file to a company, person, building or requirement.",
+        "ms": 24497
+      },
+      {
+        "caption": "Recent captures lists earlier notes, with their status and how many changes they propose.",
+        "ms": 27688
+      },
+      {
+        "caption": "Now choose Type to write or paste a note.",
+        "ms": 30927
       },
       {
         "caption": "Write what happened, in plain words.",
-        "ms": 11437
+        "ms": 34782
       },
       {
         "caption": "Save it. Nothing in your records changes yet.",
-        "ms": 18775
+        "ms": 45306
       },
       {
-        "caption": "When something is unclear, CRE OS asks. Which March? Pick 2027.",
-        "ms": 22661
+        "caption": "CRE OS read the note. When something is unclear, it asks instead of guessing.",
+        "ms": 49672
+      },
+      {
+        "caption": "Which March? Pick 2027.",
+        "ms": 52966
       },
       {
         "caption": "Which Friday? Pick the nearest one, then save the answers.",
-        "ms": 26508
+        "ms": 56840
       },
       {
-        "caption": "Check what will be added: a meeting log, requirement details and a task.",
-        "ms": 31949
+        "caption": "This box lists exactly what will be added: a meeting log, requirement details and a task.",
+        "ms": 62976
       },
       {
-        "caption": "Looks right? Press Reviewed — now it is added to your records.",
-        "ms": 35121
+        "caption": "Each line shows the company or person it belongs to — check the names and numbers.",
+        "ms": 66141
       },
       {
-        "caption": "Each change is listed with where it came from, and can be undone.",
-        "ms": 39074
+        "caption": "Looks right? Press Reviewed — now it goes to your records.",
+        "ms": 69351
       },
       {
-        "caption": "Open the company to see the updated requirement.",
-        "ms": 43301
+        "caption": "Facts for approval: important changes are listed with where they came from.",
+        "ms": 73190
       },
       {
-        "caption": "The Requirements tab now shows the 25,000 sq ft need in Kharadi.",
-        "ms": 47256
+        "caption": "Each one can be checked and undone later from Review → History & undo.",
+        "ms": 76358
+      },
+      {
+        "caption": "The capture's status now reads Reviewed.",
+        "ms": 79702
+      },
+      {
+        "caption": "Open the company to see the result.",
+        "ms": 82884
+      },
+      {
+        "caption": "The Requirements tab shows the 25,000 sq ft need in Kharadi.",
+        "ms": 86846
+      },
+      {
+        "caption": "Timeline holds the meeting log from your note.",
+        "ms": 90699
+      },
+      {
+        "caption": "And the follow-up task is waiting in Today → Tasks.",
+        "ms": 94680
+      },
+      {
+        "caption": "Review in the sidebar is where any change still waiting for you shows up.",
+        "ms": 96992
       }
     ]
   },
   {
     "slug": "find-accounts",
     "title": "Find accounts with a lease event",
-    "seconds": 41,
-    "learn": "Describe the companies you want in plain words and see the lease, contact and signal behind each match.",
+    "category": "Records & data",
+    "seconds": 70,
+    "learn": "Describe the companies you want in plain words, edit the filters, read coverage and the evidence behind each match.",
     "tryRoute": "/search?mode=accounts",
     "featured": false,
     "steps": [
@@ -135,136 +4073,263 @@ export const VIDEOS: TutorialVideo[] = [
         "ms": 3605
       },
       {
-        "caption": "Switch to Find accounts.",
-        "ms": 7586
+        "caption": "Search has two modes. 'Search everything' finds any record by name.",
+        "ms": 7602
+      },
+      {
+        "caption": "'Find accounts' finds companies that match a description. Switch to it.",
+        "ms": 12261
       },
       {
         "caption": "Describe what you want, in plain English.",
-        "ms": 12968
+        "ms": 16424
       },
       {
         "caption": "Press Find.",
-        "ms": 18330
+        "ms": 21811
       },
       {
-        "caption": "Your words became filters you can remove: Kharadi, lease event next year.",
-        "ms": 24165
+        "caption": "'Understood' shows how your words became filters: place Kharadi, lease event next year.",
+        "ms": 29294
       },
       {
-        "caption": "Coverage: how many companies matched out of all you can see.",
-        "ms": 27401
+        "caption": "Edit filters opens every filter, so you can fine-tune by hand.",
+        "ms": 32624
       },
       {
-        "caption": "Each match shows why: the lease, its dates, the contact you know and any signal.",
-        "ms": 30561
+        "caption": "Size: minimum and maximum square feet, on chargeable or carpet basis.",
+        "ms": 36821
+      },
+      {
+        "caption": "Places, building grade and sector.",
+        "ms": 40026
+      },
+      {
+        "caption": "Lease event: expiry, notice or break, within a window of N months.",
+        "ms": 43223
+      },
+      {
+        "caption": "Known contact, recent signals, score bands, and whether a requirement or deal already exists.",
+        "ms": 46392
+      },
+      {
+        "caption": "Coverage: how many companies matched out of all you can see — so you know what was checked.",
+        "ms": 49664
+      },
+      {
+        "caption": "Each match shows why it matched: the lease and its dates…",
+        "ms": 52866
+      },
+      {
+        "caption": "…the contact you know there, and any signal about them.",
+        "ms": 56041
       },
       {
         "caption": "Open the company to act on it.",
-        "ms": 33732
+        "ms": 59284
+      },
+      {
+        "caption": "From here, plan outreach, prepare a meeting, or compare buildings for them.",
+        "ms": 63546
       }
     ]
   },
   {
     "slug": "company",
     "title": "Understand one company",
-    "seconds": 38,
-    "learn": "Read a company page: overview, people and relationship level, signals, scores (and why), next actions.",
+    "category": "Records & data",
+    "seconds": 99,
+    "learn": "Read a company page tab by tab: overview, occupancy, people, requirements, signals, scores, timeline, meetings, deals, documents, next actions.",
     "tryRoute": "/companies",
     "featured": false,
     "steps": [
       {
-        "caption": "Open the company from Companies.",
-        "ms": 3606
+        "caption": "Companies lists every account. Filter by name, add one, or show archived ones.",
+        "ms": 3607
       },
       {
-        "caption": "Overview: the basic facts. Unknown stays 'unknown' — nothing is guessed.",
-        "ms": 9306
+        "caption": "Find Zentrix Analytics and open it.",
+        "ms": 6875
+      },
+      {
+        "caption": "'Why do we believe this?' shows the source behind the facts on the page.",
+        "ms": 14046
+      },
+      {
+        "caption": "Edit changes the basic details; 'As of' shows the page as it was on an earlier date.",
+        "ms": 17607
+      },
+      {
+        "caption": "The tabs, each with a count: one part of the story per tab.",
+        "ms": 20889
+      },
+      {
+        "caption": "Overview — Identity: the basic facts. Unknown stays 'unknown' — nothing is guessed.",
+        "ms": 24176
+      },
+      {
+        "caption": "Next actions in short, with the dates that come from the lease.",
+        "ms": 27432
+      },
+      {
+        "caption": "Locations: HQ, offices and sites. Add one, or pull office sites from leases.",
+        "ms": 30619
+      },
+      {
+        "caption": "Evidence trail lists every source; Shared with shows who else can see this company.",
+        "ms": 33854
+      },
+      {
+        "caption": "Archive asks for a reason, and goes through Review like any other change.",
+        "ms": 37209
+      },
+      {
+        "caption": "Occupancy: where they sit today — buildings, leases, area, expiry dates.",
+        "ms": 40499
       },
       {
         "caption": "People: who works there, grouped by role, with how well you know them.",
-        "ms": 12488
+        "ms": 45009
       },
       {
-        "caption": "Each person shows their influence and relationship level — fill these in as you learn.",
-        "ms": 16393
+        "caption": "Each person shows influence and relationship level — fill these in as you learn.",
+        "ms": 49443
+      },
+      {
+        "caption": "Requirements: what they are looking for — size, place, dates.",
+        "ms": 52867
       },
       {
         "caption": "Signals: news that may mean they need space — marked unconfirmed until checked.",
-        "ms": 19586
+        "ms": 57793
       },
       {
-        "caption": "Scores: how worth targeting the company is, and why.",
-        "ms": 23441
+        "caption": "Scores: how worth targeting the company is.",
+        "ms": 62264
       },
       {
         "caption": "Every score lists its reasons and what is still missing.",
-        "ms": 27314
+        "ms": 66676
       },
       {
-        "caption": "Next actions: what to do next, with dates from the lease.",
-        "ms": 30475
+        "caption": "Timeline: every call, note, email and change, newest first.",
+        "ms": 69940
+      },
+      {
+        "caption": "Meetings: past and upcoming meetings with this company.",
+        "ms": 74335
+      },
+      {
+        "caption": "Deals: opportunities in progress. Documents: leases, LOIs and files linked here.",
+        "ms": 79039
+      },
+      {
+        "caption": "Documents: files linked to this company.",
+        "ms": 83770
+      },
+      {
+        "caption": "Next actions: what to do next and when, most urgent first.",
+        "ms": 88117
+      },
+      {
+        "caption": "Open one to plan the work, or turn it into a task.",
+        "ms": 92179
       }
     ]
   },
   {
     "slug": "outreach",
     "title": "Write outreach and send it yourself",
-    "seconds": 50,
-    "learn": "Pick a person and a situation, get a draft, approve it, then send it from your own mail app.",
+    "category": "Outreach & meetings",
+    "seconds": 83,
+    "learn": "The Outreach screen and its tabs, then pick a person and situation, get a draft, approve it and send it from your own app.",
     "tryRoute": "/outreach/new",
     "featured": false,
     "steps": [
       {
         "caption": "Open Outreach: who to contact today, and why.",
-        "ms": 3605
+        "ms": 3637
       },
       {
-        "caption": "Press New outreach.",
-        "ms": 7720
+        "caption": "Tabs: Today, Messages (drafts), Conversations, Relationships, Paused and Results.",
+        "ms": 9055
+      },
+      {
+        "caption": "New conversations to start: people worth contacting, with a quick 'Prepare drafts'.",
+        "ms": 12412
+      },
+      {
+        "caption": "Choose Email, WhatsApp or Call for each suggestion.",
+        "ms": 15640
+      },
+      {
+        "caption": "Follow-ups due: people waiting for your reply or a promised follow-up.",
+        "ms": 18898
+      },
+      {
+        "caption": "Re-check follow-ups looks again for anything newly due.",
+        "ms": 22277
+      },
+      {
+        "caption": "To start from scratch, press New outreach.",
+        "ms": 25472
       },
       {
         "caption": "Choose the person — Ananya Rao at Zentrix Analytics.",
-        "ms": 11582
+        "ms": 29485
       },
       {
-        "caption": "'What we know' lists the facts the draft may use.",
-        "ms": 17402
+        "caption": "'What we know' lists the facts the draft is allowed to use — nothing else.",
+        "ms": 36360
       },
       {
         "caption": "Pick the situation — here, Expansion.",
-        "ms": 20617
+        "ms": 39609
       },
       {
         "caption": "Press Prepare drafts.",
-        "ms": 23794
+        "ms": 42777
       },
       {
-        "caption": "The draft appears. Edit it freely — 'Why now' shows the reason behind it.",
-        "ms": 27720
+        "caption": "The draft appears. 'Why now' shows the reason behind it.",
+        "ms": 46852
+      },
+      {
+        "caption": "Edit the text freely — it is yours.",
+        "ms": 50277
       },
       {
         "caption": "Happy with it? Approve this exact text.",
-        "ms": 30890
+        "ms": 53456
       },
       {
-        "caption": "Send it yourself: confirm the recipient and the text.",
-        "ms": 34799
+        "caption": "Before sending, confirm the recipient and the text.",
+        "ms": 57567
       },
       {
-        "caption": "'Check & open' opens your own mail app with this text. You press Send there — CRE OS never sends.",
-        "ms": 40322
+        "caption": "'Check & open' opens your own mail app with this text. You press Send there.",
+        "ms": 63484
       },
       {
-        "caption": "After sending, press 'I sent it' so follow-ups are tracked.",
-        "ms": 43483
+        "caption": "After sending, press 'I sent it' so the follow-up is tracked.",
+        "ms": 66787
+      },
+      {
+        "caption": "The draft is listed under Outreach → Messages until it is sent.",
+        "ms": 70003
+      },
+      {
+        "caption": "After 'I sent it', it moves to Conversations and the follow-up shows on Today.",
+        "ms": 76024
       }
     ]
   },
   {
     "slug": "meeting",
     "title": "Prepare for a meeting",
-    "seconds": 44,
-    "learn": "Create a meeting with a company and get a preparation brief: purpose, people, history and questions.",
+    "category": "Outreach & meetings",
+    "seconds": 80,
+    "learn": "The Meetings tabs, creating a meeting, and every part of the preparation brief.",
     "tryRoute": "/meetings/new",
     "featured": false,
     "steps": [
@@ -273,179 +4338,312 @@ export const VIDEOS: TutorialVideo[] = [
         "ms": 3604
       },
       {
+        "caption": "Tabs: Today, Upcoming, Needs preparation, Past, Cancelled and Reports.",
+        "ms": 8178
+      },
+      {
+        "caption": "Today's meetings, and follow-ups you still owe from past ones.",
+        "ms": 11382
+      },
+      {
         "caption": "Press New meeting.",
-        "ms": 7677
+        "ms": 14747
       },
       {
         "caption": "Give it a title.",
-        "ms": 11521
+        "ms": 18673
       },
       {
         "caption": "Pick the type, the company and who is attending.",
-        "ms": 16685
+        "ms": 24670
       },
       {
-        "caption": "'Prepare the brief now' is ticked. Create the meeting.",
-        "ms": 23079
+        "caption": "Date, time and place are optional; they put it on your calendar and day plan.",
+        "ms": 31738
       },
       {
-        "caption": "The brief is ready. Readiness shows what is still missing.",
-        "ms": 27042
+        "caption": "'Prepare the brief now' is ticked, so the brief is built straight away.",
+        "ms": 34046
+      },
+      {
+        "caption": "Create the meeting.",
+        "ms": 37260
+      },
+      {
+        "caption": "Readiness shows how complete the brief is and what is still missing.",
+        "ms": 41766
       },
       {
         "caption": "Meeting purpose: why you're meeting and what triggered it.",
-        "ms": 30229
+        "ms": 45100
       },
       {
-        "caption": "Use Contents to jump between sections — company, attendees, questions to ask…",
-        "ms": 33392
+        "caption": "Contents jumps between sections.",
+        "ms": 48578
       },
       {
-        "caption": "For example, the company section.",
-        "ms": 36579
+        "caption": "The company: who they are, where they sit and their lease dates.",
+        "ms": 51872
+      },
+      {
+        "caption": "Scroll on: attendees, history with them, requirement, open items…",
+        "ms": 56228
+      },
+      {
+        "caption": "Questions to ask: what you still need to find out in the meeting.",
+        "ms": 60278
+      },
+      {
+        "caption": "…and risks or sensitive points to keep in mind.",
+        "ms": 63645
+      },
+      {
+        "caption": "Back in Meetings it is listed under Upcoming; it also appears on Today.",
+        "ms": 67197
+      },
+      {
+        "caption": "After the meeting, capture your notes — they are linked back to this meeting.",
+        "ms": 73184
       }
     ]
   },
   {
     "slug": "compare",
     "title": "Compare buildings and download a deck",
-    "seconds": 53,
-    "learn": "Score shortlisted buildings against a client's requirement, read the ranking, download a deck.",
+    "category": "Deal toolkit",
+    "seconds": 100,
+    "learn": "The Deal toolkit home, then score shortlisted buildings against a requirement, read the ranking and download a deck.",
     "tryRoute": "/toolkit/compare/new",
     "featured": false,
     "steps": [
       {
         "caption": "Open Deal toolkit.",
-        "ms": 3605
+        "ms": 3603
+      },
+      {
+        "caption": "Start here: every tool — compare, cost a lease, stay or move, negotiation, packs and more.",
+        "ms": 8133
+      },
+      {
+        "caption": "Needs information: analyses that are waiting on missing inputs — shown, never guessed.",
+        "ms": 11326
+      },
+      {
+        "caption": "Requirements awaiting analysis, and your recently updated work.",
+        "ms": 14637
       },
       {
         "caption": "Choose Compare buildings.",
-        "ms": 7672
+        "ms": 17915
       },
       {
         "caption": "Start a new comparison.",
-        "ms": 11622
+        "ms": 22881
+      },
+      {
+        "caption": "Step 1: the requirement and how buildings are rated.",
+        "ms": 28004
       },
       {
         "caption": "Name it.",
-        "ms": 15603
+        "ms": 31597
       },
       {
         "caption": "Pick the client requirement. Its size and location become the must-have rules.",
-        "ms": 19947
+        "ms": 37150
+      },
+      {
+        "caption": "Rating model sets what matters most; lease term is used for the cost maths.",
+        "ms": 40926
+      },
+      {
+        "caption": "Step 2: buildings from your database, with micro-market and grade.",
+        "ms": 44392
       },
       {
         "caption": "Tick the buildings to compare: two in Kharadi, one in Hinjewadi.",
-        "ms": 23119
+        "ms": 47692
+      },
+      {
+        "caption": "Step 3 (optional): add buildings not yet in the database, with rent, CAM, deposit and where the figures came from.",
+        "ms": 56420
       },
       {
         "caption": "Press Compare buildings.",
-        "ms": 30565
+        "ms": 59829
       },
       {
         "caption": "The recommendation, with the reasons in plain words.",
-        "ms": 34474
+        "ms": 64764
       },
       {
         "caption": "Hinjewadi is 'not eligible': it fails the must-have rule 'in Kharadi'.",
-        "ms": 37657
+        "ms": 68405
+      },
+      {
+        "caption": "The table scores each building on each criterion.",
+        "ms": 71815
       },
       {
         "caption": "Missing inputs are listed, never treated as zero.",
-        "ms": 40831
+        "ms": 75511
+      },
+      {
+        "caption": "Costs are computed by fixed formulas, not by the AI.",
+        "ms": 78776
       },
       {
         "caption": "Download deck makes a PowerPoint you can edit and send.",
-        "ms": 44015
+        "ms": 83769
+      },
+      {
+        "caption": "The comparison is saved in Deal toolkit under Recently updated.",
+        "ms": 89767
       }
     ]
   },
   {
     "slug": "ask-ai",
     "title": "Ask AI anything",
-    "seconds": 31,
-    "learn": "Ask a question in plain words; see the steps it took, the answer, its coverage and open records from it.",
+    "category": "Ask AI & automation",
+    "seconds": 64,
+    "learn": "The Ask AI screen and tabs, asking a question, the steps it took, coverage, the answer and opening records from it.",
     "tryRoute": "/assistant",
     "featured": false,
     "steps": [
       {
         "caption": "Open Ask AI.",
-        "ms": 3605
+        "ms": 3610
+      },
+      {
+        "caption": "Ready-made starters: prepare for a meeting, expiring leases, promises to clients…",
+        "ms": 8147
+      },
+      {
+        "caption": "Your past conversations are on the side; search them or start a new one.",
+        "ms": 11494
+      },
+      {
+        "caption": "Memory shows what the assistant remembers; Saved commands can run on a schedule.",
+        "ms": 14796
       },
       {
         "caption": "Type your question.",
-        "ms": 7729
+        "ms": 18209
       },
       {
         "caption": "Press Ask.",
-        "ms": 13097
+        "ms": 25539
+      },
+      {
+        "caption": "It shows the steps it took. Click to see them.",
+        "ms": 32517
+      },
+      {
+        "caption": "Each step is a lookup in your own records — it can't change anything.",
+        "ms": 37557
       },
       {
         "caption": "Coverage says what it checked — and that it only knows what is in CRE OS.",
-        "ms": 17852
+        "ms": 39889
       },
       {
         "caption": "The answer: accounts ranked by score, each with its reasons and a next step.",
-        "ms": 21041
+        "ms": 43292
       },
       {
-        "caption": "Click a company to open it.",
-        "ms": 24190
+        "caption": "Scroll to read the rest.",
+        "ms": 47043
+      },
+      {
+        "caption": "Ask a follow-up in the same box; the conversation is saved on the side.",
+        "ms": 51274
+      },
+      {
+        "caption": "Click a company to open its record.",
+        "ms": 54816
       }
     ]
   },
   {
     "slug": "automation",
     "title": "Renewal or relocation (automatic)",
-    "seconds": 45,
-    "learn": "Watch the lease automation propose a requirement, wait for your OK, then shortlist, compare and add a task.",
+    "category": "Ask AI & automation",
+    "seconds": 74,
+    "learn": "The Automations screen, then watch the lease automation propose a requirement, wait for your OK, then shortlist, compare and add a task.",
     "tryRoute": "/workflows",
     "featured": false,
     "steps": [
       {
-        "caption": "Automations run by themselves every few minutes.",
-        "ms": 3605
+        "caption": "Automations live under More → Automations. They run by themselves every few minutes.",
+        "ms": 3608
+      },
+      {
+        "caption": "Check now runs them immediately instead of waiting.",
+        "ms": 7045
+      },
+      {
+        "caption": "Each automation can be turned off or on here.",
+        "ms": 10793
       },
       {
         "caption": "This one watches leases: when a notice date or expiry comes close, it starts.",
-        "ms": 6826
+        "ms": 14106
       },
       {
         "caption": "Zentrix's notice deadline is near, so it proposed a requirement — and is waiting for you.",
-        "ms": 10010
+        "ms": 17548
       },
       {
         "caption": "Open the approval.",
-        "ms": 13171
+        "ms": 20942
       },
       {
         "caption": "A new requirement, prefilled from the lease. Unknowns are left blank.",
-        "ms": 17190
+        "ms": 26266
+      },
+      {
+        "caption": "Edit proposed values if something needs changing before you approve.",
+        "ms": 33029
+      },
+      {
+        "caption": "Or ask to clarify, or reject — the automation then stops here.",
+        "ms": 36493
       },
       {
         "caption": "Approve it.",
-        "ms": 21846
+        "ms": 39901
       },
       {
         "caption": "On its next check, the automation carries on by itself.",
-        "ms": 25762
+        "ms": 44795
       },
       {
         "caption": "Back in Automations: every step is listed with what it did.",
-        "ms": 29614
+        "ms": 50590
       },
       {
-        "caption": "It matched alternatives, compared renewal vs moving, and added a task for you.",
-        "ms": 34483
+        "caption": "It matched alternative buildings and compared renewing vs moving.",
+        "ms": 56923
+      },
+      {
+        "caption": "And it added a task for you.",
+        "ms": 60291
       },
       {
         "caption": "Open the task.",
-        "ms": 37659
+        "ms": 63578
+      },
+      {
+        "caption": "The task also appears on Today and in Tasks; the comparison is in Deal toolkit.",
+        "ms": 67609
       }
     ]
   }
 ];
 
-export const videoSrc = (slug: string) => `/tutorials/videos/${slug}.mp4`;
-export const posterSrc = (slug: string) => `/tutorials/videos/${slug}.jpg`;
+/** Videos are served from Supabase Storage (public bucket "tutorials"); set NEXT_PUBLIC_TUTORIAL_VIDEO_BASE to override. */
+export const VIDEO_BASE = (process.env.NEXT_PUBLIC_TUTORIAL_VIDEO_BASE ?? "https://kpavymmwnnpgzednrqbq.supabase.co/storage/v1/object/public/tutorials/videos").replace(/\/$/, "");
+export const videoSrc = (slug: string) => `${VIDEO_BASE}/${slug}.mp4`;
+export const posterSrc = (slug: string) => `${VIDEO_BASE}/${slug}.jpg`;
 export const fmtDuration = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;

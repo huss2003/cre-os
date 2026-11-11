@@ -6,7 +6,9 @@ import { WatchSection } from "./watch";
 
 export const metadata = { title: "Tutorials" };
 
-export default async function TutorialsPage() {
+export default async function TutorialsPage({ searchParams }: { searchParams: Promise<{ topic?: string | string[]; q?: string | string[] }> }) {
+  const sp = await searchParams;
+  const one = (x?: string | string[]) => (Array.isArray(x) ? x[0] : x) ?? "";
   const practice = await practiceStatus();
   return (
     <div className="space-y-6">
@@ -14,7 +16,7 @@ export default async function TutorialsPage() {
         <h1 className="flex items-center text-2xl font-bold tracking-tight">Tutorials<HelpFor k="Tutorials" /></h1>
         <p className="mt-1 text-sm text-ink-soft">Watch a short video of each task, then try it yourself with guidance. Nothing is ever sent to anyone.</p>
       </header>
-      <WatchSection />
+      <WatchSection initialTopic={one(sp.topic)} initialQ={one(sp.q)} />
       <section aria-labelledby="guided-h" className="space-y-4">
       <div>
         <h2 id="guided-h" className="text-lg font-semibold tracking-tight">Try it with guidance</h2>

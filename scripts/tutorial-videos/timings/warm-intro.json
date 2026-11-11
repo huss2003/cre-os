@@ -1,0 +1,58 @@
+{
+  "durationMs": 63384,
+  "steps": [
+    {
+      "caption": "Open Market & reports from the More menu.",
+      "ms": 3613
+    },
+    {
+      "caption": "Choose the Network tab. Nothing here is scraped — you record what you saw.",
+      "ms": 11252
+    },
+    {
+      "caption": "Record a job move: the person, where they moved, and how you saw it.",
+      "ms": 16640
+    },
+    {
+      "caption": "Recent job moves stay 'unverified — not a fact yet' until you confirm them.",
+      "ms": 19920
+    },
+    {
+      "caption": "Mark confirmed, with how you checked, turns the move into a fact.",
+      "ms": 23265
+    },
+    {
+      "caption": "Record a relationship: who knows whom, how, and how strong. Intro consent is set on the person's page.",
+      "ms": 26508
+    },
+    {
+      "caption": "Introduction paths: pick the company — Zentrix Analytics — and press Show paths.",
+      "ms": 30328
+    },
+    {
+      "caption": "Direct: you know Ananya Rao yourself — warm, with the last contact date.",
+      "ms": 38988
+    },
+    {
+      "caption": "Via a person: Ananya worked with Vikram Desai, the CFO — she could introduce you.",
+      "ms": 42598
+    },
+    {
+      "caption": "'Ask first': no intro consent recorded. Green 'intro consent recorded' means she agreed.",
+      "ms": 46100
+    },
+    {
+      "caption": "People who asked not to be contacted are left out of paths automatically.",
+      "ms": 49444
+    },
+    {
+      "caption": "Multi-threading gaps: open deals missing key people, like procurement or tenant legal.",
+      "ms": 52759
+    },
+    {
+      "caption": "Open a deal from here to fix the gap.",
+      "ms": 56175
+    }
+  ],
+  "bytes": 804975
+}

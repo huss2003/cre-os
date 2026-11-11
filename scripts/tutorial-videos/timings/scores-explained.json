@@ -1,0 +1,82 @@
+{
+  "durationMs": 92037,
+  "steps": [
+    {
+      "caption": "Open Scores from the More menu: who to focus on first.",
+      "ms": 3611
+    },
+    {
+      "caption": "Counters: companies scored, high-priority companies and leads, matches, contacts ranked…",
+      "ms": 11939
+    },
+    {
+      "caption": "'Waiting to recalculate' and 'Not enough data' show what is still pending.",
+      "ms": 16301
+    },
+    {
+      "caption": "'Score everything now' recalculates all scores at once — normally they update on their own.",
+      "ms": 19884
+    },
+    {
+      "caption": "Tabs: Companies, Leads, Contacts, Requirements, Property matches, Opportunities, Relationships.",
+      "ms": 23177
+    },
+    {
+      "caption": "Filter by priority and confidence, and sort — highest, lowest, recent, most complete.",
+      "ms": 26667
+    },
+    {
+      "caption": "More filters: industry, place, lease expiry, owner, score range, completeness.",
+      "ms": 30081
+    },
+    {
+      "caption": "Each row: rank, recommended action, the score bar, confidence, % known, score and priority.",
+      "ms": 33518
+    },
+    {
+      "caption": "Open Zentrix Analytics.",
+      "ms": 37043
+    },
+    {
+      "caption": "Top: the score, priority, confidence and completeness. 'Open record' goes to the company; 'Recalculate' re-scores now.",
+      "ms": 42423
+    },
+    {
+      "caption": "Recommended next step: what the score suggests you do.",
+      "ms": 45677
+    },
+    {
+      "caption": "AI summary: a plain-English read of the score. It explains, it never changes the score.",
+      "ms": 49394
+    },
+    {
+      "caption": "How the score is built: points per factor, out of its maximum.",
+      "ms": 52712
+    },
+    {
+      "caption": "Open a factor to see the evidence behind it — linked signals and sources with dates.",
+      "ms": 57905
+    },
+    {
+      "caption": "A factor with no data shows 'Unknown' — left out, not scored as zero.",
+      "ms": 63408
+    },
+    {
+      "caption": "Missing information: what would make the score more certain. Key risks: what could undermine it.",
+      "ms": 71305
+    },
+    {
+      "caption": "Change priority: overrule the band with a reason (next video).",
+      "ms": 78804
+    },
+    {
+      "caption": "Is this score right? Send feedback — too high, too low, wrong company… — to tune the rules.",
+      "ms": 82041
+    },
+    {
+      "caption": "The same scores appear on the company page under its Scores tab.",
+      "ms": 85341
+    }
+  ],
+  "bytes": 863885
+}

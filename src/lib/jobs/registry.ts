@@ -13,9 +13,10 @@ import * as contacts from "@/modules/contacts/jobs";
 import * as outreach from "@/modules/outreach/jobs";
 import * as meetings from "@/modules/meetings/jobs";
 import * as workflows from "@/modules/workflows/jobs";
+import * as tutorials from "@/modules/tutorials/jobs";
 import * as assistant from "@/modules/assistant/jobs";
 
-const modules = [imports, capture, brief, deals, integrations, intelligence, admin, signals, scoring, contacts, outreach, meetings, assistant, workflows];
+const modules = [imports, capture, brief, deals, integrations, intelligence, admin, signals, scoring, contacts, outreach, meetings, assistant, workflows, tutorials];
 
 export const handlers: Record<string, JobHandler> = Object.assign({}, ...modules.map((m) => m.handlers));
 export const schedulers: ((now: Date) => Promise<unknown>)[] = modules.map((m) => (now: Date) => m.schedule(now));

@@ -1,0 +1,74 @@
+{
+  "durationMs": 83494,
+  "steps": [
+    {
+      "caption": "Open Review. The badge counts what's waiting.",
+      "ms": 3621
+    },
+    {
+      "caption": "At the top: quick counts — unverified contact details and outreach drafts.",
+      "ms": 8467
+    },
+    {
+      "caption": "Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.",
+      "ms": 12797
+    },
+    {
+      "caption": "Captures to review: notes and files from Capture. Open one, check it, press Reviewed.",
+      "ms": 16217
+    },
+    {
+      "caption": "Tabs split the rest. Record changes first.",
+      "ms": 19830
+    },
+    {
+      "caption": "Each card: the record, 'Material' tag, now vs proposed, and the evidence quote.",
+      "ms": 24781
+    },
+    {
+      "caption": "'why do we believe this?' opens the source behind the proposal.",
+      "ms": 28127
+    },
+    {
+      "caption": "Buttons: Approve & apply, Approve only (apply later), Ask to clarify, Reject; or Edit proposed values.",
+      "ms": 31842
+    },
+    {
+      "caption": "The lease proposal from the PDF (area 18,000 → 18,500). Something to check first? Request more info.",
+      "ms": 35088
+    },
+    {
+      "caption": "Say what's missing and press Ask — it moves to 'Needs more info' and adds a linked task.",
+      "ms": 41247
+    },
+    {
+      "caption": "The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.",
+      "ms": 48713
+    },
+    {
+      "caption": "Applied — it leaves the queue and appears in History & undo.",
+      "ms": 53702
+    },
+    {
+      "caption": "Identity merges: duplicate companies, people or buildings — never merged silently.",
+      "ms": 57117
+    },
+    {
+      "caption": "External drafts: outreach drafts waiting to be checked and sent by you.",
+      "ms": 61855
+    },
+    {
+      "caption": "Documents: generated documents still in draft.",
+      "ms": 66186
+    },
+    {
+      "caption": "Conflicts: two sources disagree on a value — you choose.",
+      "ms": 71099
+    },
+    {
+      "caption": "Stale records: data too old to trust until rechecked.",
+      "ms": 75514
+    }
+  ],
+  "bytes": 1259459
+}

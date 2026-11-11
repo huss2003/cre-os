@@ -1,0 +1,82 @@
+{
+  "durationMs": 108020,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3610
+    },
+    {
+      "caption": "Choose Compare options under Lease vs managed office.",
+      "ms": 9041
+    },
+    {
+      "caption": "How to read this page opens a short guide to every box and label on this screen.",
+      "ms": 13927
+    },
+    {
+      "caption": "Compare 250 seats over 36 months — both options use the same seats and period.",
+      "ms": 22424
+    },
+    {
+      "caption": "Conventional: rent, CAM, fit-out, furniture, deposit and running costs.",
+      "ms": 33912
+    },
+    {
+      "caption": "Managed: ₹14,000 per seat per month, 12-month lock-in.",
+      "ms": 43542
+    },
+    {
+      "caption": "Ticked services are already in the seat price, so they are not added again.",
+      "ms": 49373
+    },
+    {
+      "caption": "Only extras billed on top go under Charged separately — here, parking.",
+      "ms": 52632
+    },
+    {
+      "caption": "Weights: what matters most to the client — cost, flexibility, commitment, speed, control.",
+      "ms": 59534
+    },
+    {
+      "caption": "Compare & save — calculated by fixed formulas, not AI.",
+      "ms": 63792
+    },
+    {
+      "caption": "The answer: cheaper over the period, and better on the client's weighted criteria — with reasons.",
+      "ms": 68214
+    },
+    {
+      "caption": "Totals over 36 months and cost per seat per month, side by side.",
+      "ms": 71515
+    },
+    {
+      "caption": "Side by side: one-off costs, refundable deposit, lock-in and flexibility.",
+      "ms": 74892
+    },
+    {
+      "caption": "Cost over time: running totals month by month — dashed is conventional, solid is managed.",
+      "ms": 78237
+    },
+    {
+      "caption": "Line by line: every cost behind each total; included services show as 'in seat price', not added again.",
+      "ms": 81508
+    },
+    {
+      "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+      "ms": 87810
+    },
+    {
+      "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+      "ms": 91035
+    },
+    {
+      "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+      "ms": 95779
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 99270
+    }
+  ],
+  "bytes": 1625808
+}

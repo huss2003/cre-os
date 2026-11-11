@@ -7,18 +7,32 @@ const fs = require("fs");
 const path = require("path");
 const { execFileSync } = require("child_process");
 const { launch, login, recordFlow } = require("./harness");
-const { FLOWS, prepare, finish } = require("./flows");
+// Flow modules: flows.js (core) + every flows-<group>.js. Each exports { FLOWS, prepare?, finish? }.
+// Run one group with `--group <name>` (several agents can record different groups at the same time).
+const flowModules = () => fs.readdirSync(__dirname).filter((f) => /^flows(-[a-z0-9-]+)?\.js$/.test(f)).sort()
+  .map((f) => ({ file: f, group: f === "flows.js" ? "core" : f.slice(6, -3), mod: require(path.join(__dirname, f)) }));
 
 const ROOT = path.resolve(__dirname, "../..");
 const OUT = path.join(ROOT, "public/tutorials/videos");
-const TMP = process.env.TUT_TMP || "/tmp/tutorial-videos";
-const TIMINGS = path.join(__dirname, "timings.json");
+const TMP = path.join(process.env.TUT_TMP || "/tmp/tutorial-videos", String(process.pid));
+const TIMINGS_DIR = path.join(__dirname, "timings");          // one JSON per video, so parallel runs never clash
+const LEGACY_TIMINGS = path.join(__dirname, "timings.json");
 const MANIFEST = path.join(ROOT, "src/app/(app)/tutorials/videos.ts");
 const FFMPEG = process.env.FFMPEG || "/usr/local/bin/ffmpeg";
 
 const args = process.argv.slice(2);
 const dry = args.includes("--dry");
-const only = args.filter((a) => !a.startsWith("--"));
+const gi = args.indexOf("--group");
+const groupArg = gi >= 0 ? args[gi + 1] : null;
+const only = args.filter((a, i) => !a.startsWith("--") && !(gi >= 0 && i === gi + 1));
+const manifestOnly = args.includes("--manifest");
+
+function readTimings() {
+  const t = fs.existsSync(LEGACY_TIMINGS) ? JSON.parse(fs.readFileSync(LEGACY_TIMINGS, "utf8")) : {};
+  if (fs.existsSync(TIMINGS_DIR)) for (const f of fs.readdirSync(TIMINGS_DIR)) if (f.endsWith(".json")) t[f.slice(0, -5)] = JSON.parse(fs.readFileSync(path.join(TIMINGS_DIR, f), "utf8"));
+  return t;
+}
+function saveTiming(slug, v) { fs.mkdirSync(TIMINGS_DIR, { recursive: true }); fs.writeFileSync(path.join(TIMINGS_DIR, `${slug}.json`), JSON.stringify(v, null, 2)); }
 
 function convert(webm, slug, trimMs, durationMs) {
   const mp4 = path.join(OUT, `${slug}.mp4`), jpg = path.join(OUT, `${slug}.jpg`);
@@ -26,14 +40,18 @@ function convert(webm, slug, trimMs, durationMs) {
   execFileSync(FFMPEG, ["-y", "-loglevel", "error", "-ss", ss, "-i", webm, "-t", dur, "-an", "-vf", "scale=1280:800,fps=25",
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p", "-movflags", "+faststart", mp4]);
   // Poster: first frame after the title card (~4.2s) shows the real app; fall back to 1s.
-  const at = Math.min(4.2, Math.max(1, durationMs / 1000 - 1)).toFixed(1);
+  const at = Math.max(5, (durationMs / 1000) * 0.4).toFixed(1); // a frame from the task itself, not the start screen
   execFileSync(FFMPEG, ["-y", "-loglevel", "error", "-ss", at, "-i", mp4, "-frames:v", "1", "-q:v", "4", jpg]);
   return { bytes: fs.statSync(mp4).size };
 }
 
-function writeManifest(timings) {
-  const list = FLOWS.filter((f) => timings[f.slug]).map((f) => ({
-    slug: f.slug, title: f.title, seconds: Math.round(timings[f.slug].durationMs / 1000), learn: f.learn,
+const CORE_CATEGORY = { tour: "Start here", capture: "Records & data", "find-accounts": "Records & data", company: "Records & data",
+  outreach: "Outreach & meetings", meeting: "Outreach & meetings", compare: "Deal toolkit", "ask-ai": "Ask AI & automation", automation: "Ask AI & automation" };
+function writeManifest() {
+  const timings = readTimings();
+  const flows = flowModules().flatMap((m) => m.mod.FLOWS);
+  const list = flows.filter((f) => timings[f.slug]).map((f) => ({
+    slug: f.slug, title: f.title, category: f.category ?? CORE_CATEGORY[f.slug] ?? "More", seconds: Math.round(timings[f.slug].durationMs / 1000), learn: f.learn,
     tryRoute: f.tryRoute, featured: !!f.featured, steps: timings[f.slug].steps,
   }));
   const body = `/**
@@ -44,6 +62,8 @@ function writeManifest(timings) {
 export interface TutorialVideo {
   slug: string;
   title: string;
+  /** Topic used to group videos on /tutorials. */
+  category: string;
   seconds: number;
   learn: string;
   tryRoute: string;
@@ -53,39 +73,44 @@ export interface TutorialVideo {
 
 export const VIDEOS: TutorialVideo[] = ${JSON.stringify(list, null, 2)};
 
-export const videoSrc = (slug: string) => \`/tutorials/videos/\${slug}.mp4\`;
-export const posterSrc = (slug: string) => \`/tutorials/videos/\${slug}.jpg\`;
+/** Videos are served from Supabase Storage (public bucket "tutorials"); set NEXT_PUBLIC_TUTORIAL_VIDEO_BASE to override. */
+export const VIDEO_BASE = (process.env.NEXT_PUBLIC_TUTORIAL_VIDEO_BASE ?? "https://kpavymmwnnpgzednrqbq.supabase.co/storage/v1/object/public/tutorials/videos").replace(/\\/$/, "");
+export const videoSrc = (slug: string) => \`\${VIDEO_BASE}/\${slug}.mp4\`;
+export const posterSrc = (slug: string) => \`\${VIDEO_BASE}/\${slug}.jpg\`;
 export const fmtDuration = (s: number) => \`\${Math.floor(s / 60)}:\${String(s % 60).padStart(2, "0")}\`;
 `;
   fs.writeFileSync(MANIFEST, body);
 }
 
 (async () => {
+  if (manifestOnly) { writeManifest(); return; }
   fs.mkdirSync(OUT, { recursive: true }); fs.mkdirSync(TMP, { recursive: true });
-  const timings = fs.existsSync(TIMINGS) ? JSON.parse(fs.readFileSync(TIMINGS, "utf8")) : {};
+  const mods = flowModules().filter((m) => !groupArg || m.group === groupArg);
+  if (!mods.length) throw new Error(`no flow module for group ${groupArg}`);
   const browser = await launch();
   const state = path.join(TMP, "state.json");
   await login(browser, state);
-  await prepare(browser, state);
   const failed = [];
-  for (const flow of FLOWS) {
-    if (only.length && !only.includes(flow.slug)) continue;
-    process.stdout.write(`● ${flow.slug} … `);
-    try {
-      const r = await recordFlow(browser, state, flow, TMP, { noVideo: dry });
-      if (dry) { console.log(`ok (${(r.durationMs / 1000).toFixed(1)}s, ${r.steps.length} steps)`); continue; }
-      const { bytes } = convert(r.webm, flow.slug, r.trimMs, r.durationMs);
-      fs.unlinkSync(r.webm);
-      timings[flow.slug] = { durationMs: r.durationMs, steps: r.steps, bytes };
-      fs.writeFileSync(TIMINGS, JSON.stringify(timings, null, 2));
-      console.log(`${(r.durationMs / 1000).toFixed(1)}s, ${(bytes / 1048576).toFixed(2)} MB`);
-    } catch (e) {
-      failed.push(flow.slug);
-      console.log(`FAILED: ${e.message.split("\n")[0]} (screenshot ${TMP}/${flow.slug}-FAILED.png)`);
+  for (const m of mods) {
+    if (m.mod.prepare) await m.mod.prepare(browser, state);
+    for (const flow of m.mod.FLOWS) {
+      if (only.length && !only.includes(flow.slug)) continue;
+      process.stdout.write(`● ${flow.slug} … `);
+      try {
+        const r = await recordFlow(browser, state, flow, TMP, { noVideo: dry });
+        if (dry) { console.log(`ok (${(r.durationMs / 1000).toFixed(1)}s, ${r.steps.length} steps)`); continue; }
+        const { bytes } = convert(r.webm, flow.slug, r.trimMs, r.durationMs);
+        fs.unlinkSync(r.webm);
+        saveTiming(flow.slug, { durationMs: r.durationMs, steps: r.steps, bytes });
+        console.log(`${(r.durationMs / 1000).toFixed(1)}s, ${(bytes / 1048576).toFixed(2)} MB`);
+      } catch (e) {
+        failed.push(flow.slug);
+        console.log(`FAILED: ${e.message.split("\n")[0]} (screenshot ${TMP}/${flow.slug}-FAILED.png)`);
+      }
     }
+    if (m.mod.finish) m.mod.finish();
   }
   await browser.close();
-  finish();
-  if (!dry) writeManifest(timings);
+  if (!dry) writeManifest();
   if (failed.length) { console.error(`Failed: ${failed.join(", ")}`); process.exit(1); }
 })();

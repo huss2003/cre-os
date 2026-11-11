@@ -1,0 +1,94 @@
+{
+  "durationMs": 118883,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3606
+    },
+    {
+      "caption": "Choose Fit-out budget.",
+      "ms": 8241
+    },
+    {
+      "caption": "Name it, with carpet area and seats so it can show cost per sq ft and per seat.",
+      "ms": 12610
+    },
+    {
+      "caption": "Budget lines: quantity × unit price, with tax % on each line (never assumed).",
+      "ms": 18638
+    },
+    {
+      "caption": "Add two partner quotations — price before tax, tax, delivery and warranty.",
+      "ms": 27055
+    },
+    {
+      "caption": "Compare & save — the totals and the ranking are fixed formulas, not AI.",
+      "ms": 35906
+    },
+    {
+      "caption": "The budget total, with tax shown separately, and cost per sq ft and per seat.",
+      "ms": 40710
+    },
+    {
+      "caption": "Estimated, approved and actual are kept apart. 'Unknown' means not entered yet — not zero.",
+      "ms": 44678
+    },
+    {
+      "caption": "Variances show how far approved and actual costs moved from the estimate.",
+      "ms": 48133
+    },
+    {
+      "caption": "Quotes ranked on price, scope, timeline and warranty — the weights are shown.",
+      "ms": 51405
+    },
+    {
+      "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+      "ms": 58393
+    },
+    {
+      "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+      "ms": 61855
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 65185
+    },
+    {
+      "caption": "Now Financing: how to pay for the fit-out.",
+      "ms": 69954
+    },
+    {
+      "caption": "A ₹2 crore loan at 11% over 36 months, after a ₹45 lakh client contribution.",
+      "ms": 76841
+    },
+    {
+      "caption": "Calculate & save.",
+      "ms": 83890
+    },
+    {
+      "caption": "The EMI, total interest and the full repayment schedule — calculated, not estimated by AI.",
+      "ms": 88945
+    },
+    {
+      "caption": "Repayment schedule: each month's interest on the opening balance, and how much goes to the loan.",
+      "ms": 92258
+    },
+    {
+      "caption": "Quoted = from a landlord or partner document; Estimated = your own assumption. The label follows the number everywhere.",
+      "ms": 98514
+    },
+    {
+      "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+      "ms": 101752
+    },
+    {
+      "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+      "ms": 106562
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 109921
+    }
+  ],
+  "bytes": 1666919
+}

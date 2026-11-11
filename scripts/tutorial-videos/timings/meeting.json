@@ -1,0 +1,78 @@
+{
+  "durationMs": 79699,
+  "steps": [
+    {
+      "caption": "Open Meetings.",
+      "ms": 3604
+    },
+    {
+      "caption": "Tabs: Today, Upcoming, Needs preparation, Past, Cancelled and Reports.",
+      "ms": 8178
+    },
+    {
+      "caption": "Today's meetings, and follow-ups you still owe from past ones.",
+      "ms": 11382
+    },
+    {
+      "caption": "Press New meeting.",
+      "ms": 14747
+    },
+    {
+      "caption": "Give it a title.",
+      "ms": 18673
+    },
+    {
+      "caption": "Pick the type, the company and who is attending.",
+      "ms": 24670
+    },
+    {
+      "caption": "Date, time and place are optional; they put it on your calendar and day plan.",
+      "ms": 31738
+    },
+    {
+      "caption": "'Prepare the brief now' is ticked, so the brief is built straight away.",
+      "ms": 34046
+    },
+    {
+      "caption": "Create the meeting.",
+      "ms": 37260
+    },
+    {
+      "caption": "Readiness shows how complete the brief is and what is still missing.",
+      "ms": 41766
+    },
+    {
+      "caption": "Meeting purpose: why you're meeting and what triggered it.",
+      "ms": 45100
+    },
+    {
+      "caption": "Contents jumps between sections.",
+      "ms": 48578
+    },
+    {
+      "caption": "The company: who they are, where they sit and their lease dates.",
+      "ms": 51872
+    },
+    {
+      "caption": "Scroll on: attendees, history with them, requirement, open items…",
+      "ms": 56228
+    },
+    {
+      "caption": "Questions to ask: what you still need to find out in the meeting.",
+      "ms": 60278
+    },
+    {
+      "caption": "…and risks or sensitive points to keep in mind.",
+      "ms": 63645
+    },
+    {
+      "caption": "Back in Meetings it is listed under Upcoming; it also appears on Today.",
+      "ms": 67197
+    },
+    {
+      "caption": "After the meeting, capture your notes — they are linked back to this meeting.",
+      "ms": 73184
+    }
+  ],
+  "bytes": 1230768
+}

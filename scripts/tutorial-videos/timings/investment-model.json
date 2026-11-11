@@ -1,0 +1,70 @@
+{
+  "durationMs": 80332,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3607
+    },
+    {
+      "caption": "Choose Investment under Specialist models.",
+      "ms": 7629
+    },
+    {
+      "caption": "How to read this page opens a short guide to every box and label on this screen.",
+      "ms": 11837
+    },
+    {
+      "caption": "Buy for ₹120 crore plus 7% stamp duty; 1 lakh sq ft leasable.",
+      "ms": 19436
+    },
+    {
+      "caption": "Tenancy schedule: two tenants, with expiry, vacant months and re-let rent.",
+      "ms": 25701
+    },
+    {
+      "caption": "Running costs, then hold 7 years and sell at an 8% exit cap rate; discount at 12%.",
+      "ms": 31980
+    },
+    {
+      "caption": "Debt is optional: tick it to add a loan and see levered returns and DSCR.",
+      "ms": 35614
+    },
+    {
+      "caption": "Calculate & save — fixed formulas, not AI.",
+      "ms": 38883
+    },
+    {
+      "caption": "IRR: the yearly return on the money put in. NPV: value in today's money at your 12% rate.",
+      "ms": 43572
+    },
+    {
+      "caption": "Negative NPV means the return is below 12%; equity multiple is cash back ÷ cash in.",
+      "ms": 46781
+    },
+    {
+      "caption": "Cash flows by year: rent, costs, net operating income — and the sale in the final year.",
+      "ms": 49953
+    },
+    {
+      "caption": "Sensitivities: how IRR and NPV move if the exit cap or rent change.",
+      "ms": 53152
+    },
+    {
+      "caption": "Assumptions are written out, e.g. how the exit value is worked out.",
+      "ms": 56353
+    },
+    {
+      "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+      "ms": 65561
+    },
+    {
+      "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+      "ms": 69541
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 72802
+    }
+  ],
+  "bytes": 1113939
+}

@@ -1,0 +1,78 @@
+{
+  "durationMs": 84672,
+  "steps": [
+    {
+      "caption": "Open Requirements under Records.",
+      "ms": 3624
+    },
+    {
+      "caption": "Each requirement has a status: draft, estimated, client confirmed, closed. Filter by it here.",
+      "ms": 8616
+    },
+    {
+      "caption": "Press New requirement.",
+      "ms": 12016
+    },
+    {
+      "caption": "It is saved as an estimate until the client confirms.",
+      "ms": 16830
+    },
+    {
+      "caption": "Give it a short title and pick the company — or type a new company name.",
+      "ms": 20043
+    },
+    {
+      "caption": "Target area and move-in date.",
+      "ms": 26676
+    },
+    {
+      "caption": "More details: area range and whether it is carpet or chargeable area.",
+      "ms": 31625
+    },
+    {
+      "caption": "Also: seats, fit-out standard, decision date, tenure and mandate.",
+      "ms": 40084
+    },
+    {
+      "caption": "Budget only if the client said it. We don't know, so it stays blank — unknown.",
+      "ms": 43385
+    },
+    {
+      "caption": "Press Create requirement.",
+      "ms": 46575
+    },
+    {
+      "caption": "Top cards: how many mandatory facts are known and how many the client confirmed.",
+      "ms": 51304
+    },
+    {
+      "caption": "The requirement contract: each field is Estimated, Confirmed or Unknown.",
+      "ms": 54580
+    },
+    {
+      "caption": "Questions to ask: the gaps, most important first — take this list to your next call.",
+      "ms": 58010
+    },
+    {
+      "caption": "Update a field when the client answers, with the source of the answer.",
+      "ms": 61512
+    },
+    {
+      "caption": "Add where they want to be: Add location preference.",
+      "ms": 64818
+    },
+    {
+      "caption": "Preference: preferred, acceptable, must, or excluded.",
+      "ms": 70359
+    },
+    {
+      "caption": "Press Add location.",
+      "ms": 73673
+    },
+    {
+      "caption": "Baner is now listed. Required features (parking, power…) are added the same way.",
+      "ms": 78126
+    }
+  ],
+  "bytes": 806314
+}

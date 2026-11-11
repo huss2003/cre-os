@@ -1,0 +1,50 @@
+{
+  "durationMs": 46800,
+  "steps": [
+    {
+      "caption": "Open More, then Database.",
+      "ms": 3605
+    },
+    {
+      "caption": "Counts of every record type: companies, people, buildings, spaces, requirements…",
+      "ms": 9774
+    },
+    {
+      "caption": "…opportunities, leases, interactions, source files and imports in progress. Click one to open its list.",
+      "ms": 12962
+    },
+    {
+      "caption": "Needs review lists import rows waiting for a decision.",
+      "ms": 16170
+    },
+    {
+      "caption": "Recent changes: who changed what — the full audit log is one click away.",
+      "ms": 19376
+    },
+    {
+      "caption": "Now places: open Places in the More menu.",
+      "ms": 22564
+    },
+    {
+      "caption": "Places nest: city › corridor › micro-market › locality.",
+      "ms": 27367
+    },
+    {
+      "caption": "Pune is the city; East corridor holds the SBD East micro-market and its localities.",
+      "ms": 30546
+    },
+    {
+      "caption": "Each place keeps other spellings, so 'KP' or 'Vimannagar' still match.",
+      "ms": 33714
+    },
+    {
+      "caption": "Search a place by any of its names.",
+      "ms": 36889
+    },
+    {
+      "caption": "Add place (at the bottom) creates a new one with its level, parent and other names.",
+      "ms": 40366
+    }
+  ],
+  "bytes": 534778
+}

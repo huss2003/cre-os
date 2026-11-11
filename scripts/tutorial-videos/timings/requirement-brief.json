@@ -1,0 +1,66 @@
+{
+  "durationMs": 70668,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3611
+    },
+    {
+      "caption": "Choose Open briefs.",
+      "ms": 8353
+    },
+    {
+      "caption": "Pick the client search — Zentrix, 25,000 sf in Kharadi.",
+      "ms": 13069
+    },
+    {
+      "caption": "The score card: how many items are confirmed, estimated or still missing.",
+      "ms": 18089
+    },
+    {
+      "caption": "Ask the client next: the must-have questions still open, most important first.",
+      "ms": 21536
+    },
+    {
+      "caption": "Sections A–G: client, space, location, budget, timeline, approvals and gaps.",
+      "ms": 25220
+    },
+    {
+      "caption": "Each value shows its status. The size range here is an estimate until the client confirms.",
+      "ms": 28868
+    },
+    {
+      "caption": "Fill these in opens the missing items of a section so you can type them straight in.",
+      "ms": 32660
+    },
+    {
+      "caption": "Assumptions & open questions sums up confirmed, estimated, assumed and missing items, plus pending approvals.",
+      "ms": 35945
+    },
+    {
+      "caption": "Brief snapshots lists every saved version; Meeting outcomes shows what was agreed in meetings.",
+      "ms": 39279
+    },
+    {
+      "caption": "Open requirement goes to the client's requirement record behind this brief.",
+      "ms": 42632
+    },
+    {
+      "caption": "Save a snapshot — a fixed version you can approve and use in client documents.",
+      "ms": 45895
+    },
+    {
+      "caption": "Saved. It lists the mandatory items still missing before it can be approved.",
+      "ms": 54495
+    },
+    {
+      "caption": "The step bar: fill the gaps, save a snapshot, approve it, then use it in client documents.",
+      "ms": 58044
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of the brief.",
+      "ms": 61328
+    }
+  ],
+  "bytes": 883813
+}

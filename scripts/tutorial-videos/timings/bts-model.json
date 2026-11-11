@@ -1,0 +1,70 @@
+{
+  "durationMs": 78617,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3604
+    },
+    {
+      "caption": "Choose Built-to-suit under Specialist models.",
+      "ms": 7664
+    },
+    {
+      "caption": "How to read this page opens a short guide to every box and label on this screen.",
+      "ms": 11827
+    },
+    {
+      "caption": "Name it and link it to the Zentrix requirement.",
+      "ms": 18759
+    },
+    {
+      "caption": "Land bought for ₹15 crore; 25,000 sq ft built at ₹4,500 per sq ft over 18 months.",
+      "ms": 23249
+    },
+    {
+      "caption": "The developer wants a 9% yield on cost.",
+      "ms": 28696
+    },
+    {
+      "caption": "A 10-year lease to the client, and a lease elsewhere at ₹95 to compare against.",
+      "ms": 32171
+    },
+    {
+      "caption": "Calculate & save — fixed formulas, not AI.",
+      "ms": 37232
+    },
+    {
+      "caption": "Total project cost: land, construction and soft costs.",
+      "ms": 41177
+    },
+    {
+      "caption": "Required rent: what the client must pay per sq ft per month for the developer to earn 9%.",
+      "ms": 44366
+    },
+    {
+      "caption": "Rent schedule: the rent for each lease year after escalation.",
+      "ms": 47647
+    },
+    {
+      "caption": "BTS vs leasing: lower total and present value for the client — built-to-suit wins here.",
+      "ms": 50844
+    },
+    {
+      "caption": "Assumptions are written out, e.g. interest during construction is not included.",
+      "ms": 54010
+    },
+    {
+      "caption": "How we calculated this: the formula version and every step, so anyone can check the maths.",
+      "ms": 63266
+    },
+    {
+      "caption": "Each save is a version. Change any input and recalculate — earlier versions are kept, never overwritten.",
+      "ms": 67485
+    },
+    {
+      "caption": "Download deck makes an editable PowerPoint of these results for the client.",
+      "ms": 70687
+    }
+  ],
+  "bytes": 1043502
+}

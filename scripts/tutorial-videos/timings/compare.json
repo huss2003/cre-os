@@ -1,0 +1,90 @@
+{
+  "durationMs": 99541,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit.",
+      "ms": 3603
+    },
+    {
+      "caption": "Start here: every tool — compare, cost a lease, stay or move, negotiation, packs and more.",
+      "ms": 8133
+    },
+    {
+      "caption": "Needs information: analyses that are waiting on missing inputs — shown, never guessed.",
+      "ms": 11326
+    },
+    {
+      "caption": "Requirements awaiting analysis, and your recently updated work.",
+      "ms": 14637
+    },
+    {
+      "caption": "Choose Compare buildings.",
+      "ms": 17915
+    },
+    {
+      "caption": "Start a new comparison.",
+      "ms": 22881
+    },
+    {
+      "caption": "Step 1: the requirement and how buildings are rated.",
+      "ms": 28004
+    },
+    {
+      "caption": "Name it.",
+      "ms": 31597
+    },
+    {
+      "caption": "Pick the client requirement. Its size and location become the must-have rules.",
+      "ms": 37150
+    },
+    {
+      "caption": "Rating model sets what matters most; lease term is used for the cost maths.",
+      "ms": 40926
+    },
+    {
+      "caption": "Step 2: buildings from your database, with micro-market and grade.",
+      "ms": 44392
+    },
+    {
+      "caption": "Tick the buildings to compare: two in Kharadi, one in Hinjewadi.",
+      "ms": 47692
+    },
+    {
+      "caption": "Step 3 (optional): add buildings not yet in the database, with rent, CAM, deposit and where the figures came from.",
+      "ms": 56420
+    },
+    {
+      "caption": "Press Compare buildings.",
+      "ms": 59829
+    },
+    {
+      "caption": "The recommendation, with the reasons in plain words.",
+      "ms": 64764
+    },
+    {
+      "caption": "Hinjewadi is 'not eligible': it fails the must-have rule 'in Kharadi'.",
+      "ms": 68405
+    },
+    {
+      "caption": "The table scores each building on each criterion.",
+      "ms": 71815
+    },
+    {
+      "caption": "Missing inputs are listed, never treated as zero.",
+      "ms": 75511
+    },
+    {
+      "caption": "Costs are computed by fixed formulas, not by the AI.",
+      "ms": 78776
+    },
+    {
+      "caption": "Download deck makes a PowerPoint you can edit and send.",
+      "ms": 83769
+    },
+    {
+      "caption": "The comparison is saved in Deal toolkit under Recently updated.",
+      "ms": 89767
+    }
+  ],
+  "bytes": 1580402
+}

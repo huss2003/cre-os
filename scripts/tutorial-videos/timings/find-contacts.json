@@ -1,0 +1,62 @@
+{
+  "durationMs": 67014,
+  "steps": [
+    {
+      "caption": "Open Find contacts from the More menu.",
+      "ms": 3605
+    },
+    {
+      "caption": "Find people: three ways to bring in new people.",
+      "ms": 10253
+    },
+    {
+      "caption": "Web search needs an AI key; your own LinkedIn connections export works without one.",
+      "ms": 14230
+    },
+    {
+      "caption": "Choose your Connections.csv and keep 'Only CRE-relevant roles' ticked.",
+      "ms": 17395
+    },
+    {
+      "caption": "Press Import. People go to 'To review' — not into your records yet.",
+      "ms": 20719
+    },
+    {
+      "caption": "Open To review.",
+      "ms": 24648
+    },
+    {
+      "caption": "Rohan Kulkarni, Head of Facilities at Zentrix — a decision-maker. Approve him.",
+      "ms": 28542
+    },
+    {
+      "caption": "Open Your contacts → he is listed with his role.",
+      "ms": 33911
+    },
+    {
+      "caption": "Open his contact page.",
+      "ms": 37743
+    },
+    {
+      "caption": "What we know, field by field: each has its own status — Reported, Inferred or Missing.",
+      "ms": 43850
+    },
+    {
+      "caption": "The score shows how relevant this contact is for office decisions.",
+      "ms": 47072
+    },
+    {
+      "caption": "CRE relevance: assessed from his title as a Decision-maker — confirm it, with a reason.",
+      "ms": 50332
+    },
+    {
+      "caption": "Press Correct role to save the verified role.",
+      "ms": 56266
+    },
+    {
+      "caption": "Has a business email you confirmed? It appears under contact details with 'Mark verified'.",
+      "ms": 60385
+    }
+  ],
+  "bytes": 760169
+}

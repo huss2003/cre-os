@@ -1,0 +1,98 @@
+{
+  "durationMs": 98646,
+  "steps": [
+    {
+      "caption": "Companies lists every account. Filter by name, add one, or show archived ones.",
+      "ms": 3607
+    },
+    {
+      "caption": "Find Zentrix Analytics and open it.",
+      "ms": 6875
+    },
+    {
+      "caption": "'Why do we believe this?' shows the source behind the facts on the page.",
+      "ms": 14046
+    },
+    {
+      "caption": "Edit changes the basic details; 'As of' shows the page as it was on an earlier date.",
+      "ms": 17607
+    },
+    {
+      "caption": "The tabs, each with a count: one part of the story per tab.",
+      "ms": 20889
+    },
+    {
+      "caption": "Overview — Identity: the basic facts. Unknown stays 'unknown' — nothing is guessed.",
+      "ms": 24176
+    },
+    {
+      "caption": "Next actions in short, with the dates that come from the lease.",
+      "ms": 27432
+    },
+    {
+      "caption": "Locations: HQ, offices and sites. Add one, or pull office sites from leases.",
+      "ms": 30619
+    },
+    {
+      "caption": "Evidence trail lists every source; Shared with shows who else can see this company.",
+      "ms": 33854
+    },
+    {
+      "caption": "Archive asks for a reason, and goes through Review like any other change.",
+      "ms": 37209
+    },
+    {
+      "caption": "Occupancy: where they sit today — buildings, leases, area, expiry dates.",
+      "ms": 40499
+    },
+    {
+      "caption": "People: who works there, grouped by role, with how well you know them.",
+      "ms": 45009
+    },
+    {
+      "caption": "Each person shows influence and relationship level — fill these in as you learn.",
+      "ms": 49443
+    },
+    {
+      "caption": "Requirements: what they are looking for — size, place, dates.",
+      "ms": 52867
+    },
+    {
+      "caption": "Signals: news that may mean they need space — marked unconfirmed until checked.",
+      "ms": 57793
+    },
+    {
+      "caption": "Scores: how worth targeting the company is.",
+      "ms": 62264
+    },
+    {
+      "caption": "Every score lists its reasons and what is still missing.",
+      "ms": 66676
+    },
+    {
+      "caption": "Timeline: every call, note, email and change, newest first.",
+      "ms": 69940
+    },
+    {
+      "caption": "Meetings: past and upcoming meetings with this company.",
+      "ms": 74335
+    },
+    {
+      "caption": "Deals: opportunities in progress. Documents: leases, LOIs and files linked here.",
+      "ms": 79039
+    },
+    {
+      "caption": "Documents: files linked to this company.",
+      "ms": 83770
+    },
+    {
+      "caption": "Next actions: what to do next and when, most urgent first.",
+      "ms": 88117
+    },
+    {
+      "caption": "Open one to plan the work, or turn it into a task.",
+      "ms": 92179
+    }
+  ],
+  "bytes": 1087897
+}

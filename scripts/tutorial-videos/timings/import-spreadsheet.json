@@ -1,0 +1,70 @@
+{
+  "durationMs": 72190,
+  "steps": [
+    {
+      "caption": "Open More in the sidebar, then Imports.",
+      "ms": 3605
+    },
+    {
+      "caption": "Earlier uploads are listed with their status and row counts. The original file is kept read-only.",
+      "ms": 9492
+    },
+    {
+      "caption": "Choose your spreadsheet — here a small CSV with three buildings.",
+      "ms": 12694
+    },
+    {
+      "caption": "As-of date: when the data in the file was true. Source: where it came from.",
+      "ms": 15893
+    },
+    {
+      "caption": "Press Upload and reconcile.",
+      "ms": 19086
+    },
+    {
+      "caption": "The result in three steps: added, needs your OK, could not be imported.",
+      "ms": 23028
+    },
+    {
+      "caption": "These column names weren't recognised, so the rows wait here — nothing is lost.",
+      "ms": 26214
+    },
+    {
+      "caption": "Open Technical details to map the columns once.",
+      "ms": 29384
+    },
+    {
+      "caption": "What is this sheet? An asset list with a header row.",
+      "ms": 33294
+    },
+    {
+      "caption": "Match each field to a column: Building name ← Property, Locality ← Micro-market…",
+      "ms": 36496
+    },
+    {
+      "caption": "Press Approve mapping and re-process. Next time this layout imports by itself.",
+      "ms": 45250
+    },
+    {
+      "caption": "Done: step 1 shows the buildings and localities now in your records (new, or matched to ones you had).",
+      "ms": 49101
+    },
+    {
+      "caption": "Needs your OK: anything that would change an existing record waits for approval.",
+      "ms": 56314
+    },
+    {
+      "caption": "Rows with a problem list the reason; 'NA' and '0' areas are kept as unknown, never as numbers.",
+      "ms": 59476
+    },
+    {
+      "caption": "Possible duplicates: merge look-alike names or keep them separate.",
+      "ms": 62652
+    },
+    {
+      "caption": "Values that differ from your records are never overwritten — they go to Approvals.",
+      "ms": 65814
+    }
+  ],
+  "bytes": 836225
+}

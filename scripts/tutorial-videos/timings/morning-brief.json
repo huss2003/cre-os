@@ -1,0 +1,46 @@
+{
+  "durationMs": 142928,
+  "steps": [
+    {
+      "caption": "Open Today, then its Overview tab.",
+      "ms": 3608
+    },
+    {
+      "caption": "The Morning brief card. It appears here and as a pinned Ask AI chat — nothing is emailed.",
+      "ms": 10673
+    },
+    {
+      "caption": "Opt in: tick 'Send me a brief every weekday at'.",
+      "ms": 13935
+    },
+    {
+      "caption": "Keep 08:00 IST, or pick another time.",
+      "ms": 18086
+    },
+    {
+      "caption": "Save.",
+      "ms": 21690
+    },
+    {
+      "caption": "Now it says when it arrives: weekdays at 08:00.",
+      "ms": 26502
+    },
+    {
+      "caption": "Don't want to wait? Build today's brief now.",
+      "ms": 30137
+    },
+    {
+      "caption": "The counts: meetings, follow-ups, signals, lease windows, approvals. A failed source is named, never hidden.",
+      "ms": 34757
+    },
+    {
+      "caption": "Open today's brief.",
+      "ms": 130927
+    },
+    {
+      "caption": "It opens as a conversation in Ask AI — ask follow-up questions right below it.",
+      "ms": 136189
+    }
+  ],
+  "bytes": 1401701
+}

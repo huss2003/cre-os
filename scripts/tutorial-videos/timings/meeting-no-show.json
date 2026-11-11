@@ -1,0 +1,46 @@
+{
+  "durationMs": 46967,
+  "steps": [
+    {
+      "caption": "Open Meetings from the sidebar.",
+      "ms": 3606
+    },
+    {
+      "caption": "Today's meetings are listed first. Open this one.",
+      "ms": 7857
+    },
+    {
+      "caption": "Go to After the meeting.",
+      "ms": 11746
+    },
+    {
+      "caption": "Write what happened, in plain words.",
+      "ms": 18052
+    },
+    {
+      "caption": "Press Structure my notes.",
+      "ms": 22802
+    },
+    {
+      "caption": "CRE OS sees the meeting didn't take place — no tasks or updates are invented.",
+      "ms": 26831
+    },
+    {
+      "caption": "You can pick a new date to reschedule it…",
+      "ms": 30013
+    },
+    {
+      "caption": "…or record it as not held. Keep 'Note it in the contact history' ticked.",
+      "ms": 33200
+    },
+    {
+      "caption": "Press Record as not held.",
+      "ms": 36421
+    },
+    {
+      "caption": "Saved. The contact's history now shows the meeting did not happen.",
+      "ms": 40513
+    }
+  ],
+  "bytes": 732306
+}

@@ -1,0 +1,70 @@
+{
+  "durationMs": 81218,
+  "steps": [
+    {
+      "caption": "Open Meetings from the sidebar.",
+      "ms": 3606
+    },
+    {
+      "caption": "Today's meetings are listed first. Open this one.",
+      "ms": 8329
+    },
+    {
+      "caption": "The brief: readiness score, purpose, attendees, history and questions to ask.",
+      "ms": 12506
+    },
+    {
+      "caption": "Press Meeting mode when the meeting starts.",
+      "ms": 15711
+    },
+    {
+      "caption": "One screen: who is here, what to ask, talking points.",
+      "ms": 21047
+    },
+    {
+      "caption": "Scroll for the questions to ask and talking points.",
+      "ms": 24423
+    },
+    {
+      "caption": "Type a note as it happens and Save.",
+      "ms": 30355
+    },
+    {
+      "caption": "Mark a promise as an Action item, then Save.",
+      "ms": 39838
+    },
+    {
+      "caption": "After the meeting: Finish turns the notes into updates.",
+      "ms": 47706
+    },
+    {
+      "caption": "Your notes are included. Press Structure my notes.",
+      "ms": 51700
+    },
+    {
+      "caption": "It found the size change and our commitment, each quoted from your notes.",
+      "ms": 55793
+    },
+    {
+      "caption": "Each box decides what happens: history, Review proposals, tasks, contact changes.",
+      "ms": 59044
+    },
+    {
+      "caption": "Choose what to apply — also tick 'Draft a follow-up email'.",
+      "ms": 62237
+    },
+    {
+      "caption": "Press Approve selected.",
+      "ms": 66166
+    },
+    {
+      "caption": "Done: changes went to Review, tasks were created, and a follow-up draft waits in Outreach.",
+      "ms": 70172
+    },
+    {
+      "caption": "Open Review to approve the proposed changes.",
+      "ms": 73364
+    }
+  ],
+  "bytes": 1370582
+}

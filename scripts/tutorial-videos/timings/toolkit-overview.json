@@ -1,0 +1,70 @@
+{
+  "durationMs": 64575,
+  "steps": [
+    {
+      "caption": "Open Deal toolkit from the sidebar.",
+      "ms": 3654
+    },
+    {
+      "caption": "Four stages: write the brief, run the numbers, check and approve, make the client document.",
+      "ms": 10516
+    },
+    {
+      "caption": "'What exactly do you need?' — the requirement brief.",
+      "ms": 13847
+    },
+    {
+      "caption": "'What will this lease really cost?' — lease economics, and cost per seat all-in.",
+      "ms": 17192
+    },
+    {
+      "caption": "'Should we stay or move?' and 'Lease or managed office?' — side-by-side comparisons.",
+      "ms": 20503
+    },
+    {
+      "caption": "Landlord offers, negotiation rounds and fit-out quotes each have their own tool.",
+      "ms": 23865
+    },
+    {
+      "caption": "Built-to-suit and investment returns sit under Specialist models.",
+      "ms": 27183
+    },
+    {
+      "caption": "Each card has one clear button; the counter shows how many you have saved with that tool.",
+      "ms": 30398
+    },
+    {
+      "caption": "Fit-out & loan: budget the fit-out, then Financing works out the loan.",
+      "ms": 33598
+    },
+    {
+      "caption": "Make a client document and Site-visit pack turn saved work into Word, PDF and decks.",
+      "ms": 36891
+    },
+    {
+      "caption": "Every number comes from fixed, tested formulas — not from AI — and keeps its inputs.",
+      "ms": 40177
+    },
+    {
+      "caption": "Needs information lists saved work with missing inputs — blanks are never treated as zero.",
+      "ms": 43731
+    },
+    {
+      "caption": "Requirements awaiting analysis: client searches with nothing worked out yet.",
+      "ms": 46965
+    },
+    {
+      "caption": "Recently updated: your latest saved analyses with version and status — click one to open it.",
+      "ms": 50386
+    },
+    {
+      "caption": "A red box warns when a landlord quote has expired or expires within 14 days.",
+      "ms": 53702
+    },
+    {
+      "caption": "Start with a brief is the suggested first step for any new client search.",
+      "ms": 57033
+    }
+  ],
+  "bytes": 999085
+}

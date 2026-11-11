@@ -1,0 +1,62 @@
+{
+  "durationMs": 75355,
+  "steps": [
+    {
+      "caption": "Open Companies under Records in the sidebar.",
+      "ms": 3674
+    },
+    {
+      "caption": "This is every company you can see, A to Z. 'Show archived' brings back hidden ones.",
+      "ms": 9796
+    },
+    {
+      "caption": "Search first: someone may already have added this company.",
+      "ms": 13274
+    },
+    {
+      "caption": "Only 'Sahyadri Arc Realty' matches — a different company, so ours is new.",
+      "ms": 17913
+    },
+    {
+      "caption": "Press Add company.",
+      "ms": 21621
+    },
+    {
+      "caption": "Display name: the name people use day to day.",
+      "ms": 26704
+    },
+    {
+      "caption": "Legal name only if you know it — e.g. from an invoice or MCA record.",
+      "ms": 33915
+    },
+    {
+      "caption": "More details holds website, CIN, GSTIN, sector, HQ country, headcount and GCC flag.",
+      "ms": 40980
+    },
+    {
+      "caption": "Fill only what you know. Here: the sector. Everything blank stays 'unknown'.",
+      "ms": 46608
+    },
+    {
+      "caption": "Classification controls who may see the record; the default is corporate confidential.",
+      "ms": 52140
+    },
+    {
+      "caption": "Press Create company.",
+      "ms": 55697
+    },
+    {
+      "caption": "The company page opens. Its badges show classification and how fresh the facts are.",
+      "ms": 61770
+    },
+    {
+      "caption": "Identity shows the facts you gave; the rest say unknown — nothing is guessed.",
+      "ms": 65213
+    },
+    {
+      "caption": "Below: people, signals, locations and group structure — each folds open when you add to it.",
+      "ms": 68583
+    }
+  ],
+  "bytes": 791907
+}
