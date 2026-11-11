@@ -13,7 +13,7 @@ const RULES: [Intent, RegExp][] = [
   ["compare_properties", /\bcompar(e|ison)\b|\b(vs\.?|versus)\b/i],
   ["leases_expiring", /\blease[s]?\b.*\b(expir|end|renew)|\bexpir\w*\b.*\blease/i],
   ["rejected_options", /\breject(ed|ions?)?\b|\bturned down\b|\bdeclined\b/i],
-  ["commitments", /\b(commitments?|promised|follow[- ]?ups?|owe)\b/i],
+  ["commitments", /\b(commitments?|promise[sd]?|follow[- ]?ups?|owe)\b/i],
   ["priority_accounts", /\b(priorit\w*|focus on|top accounts?|which accounts?|rank)\b/i],
   ["research", /\b(metro|infrastructure|news|research|web|search online|latest|benefit from|near(by)?|distance)\b/i],
   ["company_summary", /\b(everything|tell me about|summar\w*|overview|profile|who is|what do we know)\b/i],

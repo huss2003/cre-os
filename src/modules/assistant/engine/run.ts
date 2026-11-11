@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured } from "@/lib/ai/gateway";
 import { enqueue } from "@/lib/jobs/queue";
 import type { Block, EntityRef, RunStatus, SourceRef, StreamEvent, ToolContext } from "../types";
-import { getTool, toolsForModel } from "../tools";
+import { getTool, toolsForModel, TOOLS } from "../tools";
+import { selectTools, LOAD_MORE_TOOLS, GROUP_ORDER, TOOL_GROUPS, type ToolGroup } from "../tools/select";
 import { buildContext, renderContext, type ConversationState } from "./context";
 import { routeRequest } from "./router";
 import { AnthropicProvider, chatWithFallback, RATE_LIMIT_PER_MIN, type ChatMessage, type ContentBlock, type ModelProvider, type ToolSpec } from "./provider";
@@ -171,7 +172,9 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     const isMock = provider instanceof MockProvider;
     const tctx: ToolContext = { ctx, runId, conversationId, focus: pkg.focus };
 
-    const system = `${SYSTEM_PROMPT}\n\n## Context\n${renderContext(pkg)}`;
+    // Static instructions are cached (with the tool list); the per-request context goes in a second, uncached block.
+    const system = SYSTEM_PROMPT;
+    const systemContext = `## Context\n${renderContext(pkg)}`;
     const evidence = pkg.attachments.length ? `\n\n<evidence>\n${pkg.attachments.map((a) => `[attachment ${a.name}]\n${a.excerpt}`).join("\n\n")}\n</evidence>` : "";
     const messages: ChatMessage[] = [
       ...pkg.conversation.recent.filter((m) => m.role === "user" || m.role === "assistant")
@@ -188,7 +191,18 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     }
     while (norm.length && norm[0].role !== "user") norm.shift();
 
-    const tools: ToolSpec[] = toolsForModel() as ToolSpec[];
+    // Token saver #2: only the tool groups this request needs (canonical order keeps the cache warm).
+    const available = TOOLS.map((t) => t.id);
+    let selection = selectTools({ intent: route.intent, request, focusType: pkg.focus?.type ?? null, available });
+    const toolSpecs = () => (selection.all ? toolsForModel() : [...toolsForModel(selection.ids), LOAD_MORE_TOOLS]) as ToolSpec[];
+    let tools: ToolSpec[] = toolSpecs();
+    const widen = (group: ToolGroup | null) => {
+      if (selection.all) return false;
+      const groups = group ? [group] : [];
+      selection = selectTools({ intent: route.intent, request, focusType: pkg.focus?.type ?? null, extraGroups: [...selection.groups, ...groups], available });
+      tools = toolSpecs();
+      return true;
+    };
     const blocks: Block[] = [];
     const sources: SourceRef[] = [];
     const missing: string[] = [...pkg.missing];
@@ -203,7 +217,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
 
     for (let turn = 0; turn <= MAX_STEPS; turn++) {
       if (opts.deadlineAt && Date.now() > opts.deadlineAt && !opts.resumeRunId) { deferred = true; break; }
-      const res = await chatWithFallback(provider, { model: route.model, system, messages: norm, tools, webSearch: route.webSearch, maxTokens: route.route === "deep" ? 3000 : 1500, signal: opts.signal },
+      const res = await chatWithFallback(provider, { model: route.model, system, systemContext, messages: norm, tools, webSearch: route.webSearch, maxTokens: route.route === "deep" ? 3000 : 1500, signal: opts.signal },
         { workspaceId: ctx.workspaceId, workflow: `assistant.${route.route}`, requestId: runId });
       modelUsed = isMock ? "mock" : res.model;
       usage = { input: usage.input + res.usage.input, output: usage.output + res.usage.output, usd: usage.usd + res.usage.usd };
@@ -220,8 +234,18 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
       if (turnText) text += turnText + "\n\n";
       const results: ContentBlock[] = [];
       for (const u of uses) {
+        if (u.name === LOAD_MORE_TOOLS.name) {
+          const g = String((u.input as { group?: string })?.group ?? "") as ToolGroup;
+          const ok = GROUP_ORDER.includes(g) && widen(g);
+          results.push({ type: "tool_result", tool_use_id: u.id, content: JSON.stringify({ ok, loaded: ok ? TOOL_GROUPS[g] : [] }) });
+          continue;
+        }
         step++;
         const tool = getTool(u.name);
+        if (tool && !selection.all && !selection.ids.includes(tool.id)) {
+          const g = GROUP_ORDER.find((x) => (TOOL_GROUPS[x] as readonly string[]).includes(tool.id)) ?? null;
+          widen(g);
+        }
         if (!tool || step > MAX_STEPS) {
           results.push({ type: "tool_result", tool_use_id: u.id, content: JSON.stringify({ ok: false, error: tool ? "step_limit" : "unknown_tool" }), is_error: true });
           continue;
