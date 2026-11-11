@@ -5,6 +5,8 @@ import { claim, complete, fail } from "./queue";
 import { handlers, schedulers } from "./registry";
 
 const SUPERVISOR_TIMEOUT_MS = 10_000;
+/** Jobs run per batch. Each job is short (≈1–3 s); 4 keeps DB load modest while clearing backlogs ~4× faster. */
+const JOB_CONCURRENCY = Number(process.env.JOB_CONCURRENCY ?? 4);
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
@@ -37,13 +39,10 @@ export async function tick(opts: { budgetMs?: number; worker?: string; source?: 
     scheduleErrors.push(`heartbeat: ${errText(e)}`);
   }
 
-  for (const s of schedulers) {
-    try {
-      await withTimeout(s(new Date()), 8_000, "scheduler");
-    } catch (e) {
-      scheduleErrors.push(errText(e));
-    }
-  }
+  // Module schedulers only enqueue (dedupe-keyed) work, so they run in parallel: ~8 s worst case instead of 8 s × modules.
+  const now = new Date();
+  const results = await Promise.allSettled(schedulers.map((s) => withTimeout(s(now), 8_000, "scheduler")));
+  for (const r of results) if (r.status === "rejected") scheduleErrors.push(errText(r.reason));
 
   let supervisor: SupervisorSummary | null = null;
   try {
@@ -57,10 +56,11 @@ export async function tick(opts: { budgetMs?: number; worker?: string; source?: 
   try {
     // Leave headroom: a job started late could overrun the 60 s platform limit (the cause of the live timeouts).
     while (Date.now() - started < budget - 15_000) {
-      // One job per claim so the time budget is checked before every job; unclaimed work waits for the next tick.
-      const jobs = await claim(worker, 1);
+      // Small batches run concurrently (SKIP LOCKED claim); the time budget is re-checked before every batch,
+      // and unclaimed work waits for the next tick.
+      const jobs = await claim(worker, JOB_CONCURRENCY);
       if (jobs.length === 0) break;
-      for (const job of jobs) {
+      await Promise.all(jobs.map(async (job) => {
         const h = handlers[job.job_type];
         try {
           if (!h) throw new Error(`no handler for job_type ${job.job_type}`);
@@ -72,7 +72,7 @@ export async function tick(opts: { budgetMs?: number; worker?: string; source?: 
           await fail(job.id, e);
           failed++;
         }
-      }
+      }));
     }
   } catch (e) {
     scheduleErrors.push(`queue: ${errText(e)}`);
