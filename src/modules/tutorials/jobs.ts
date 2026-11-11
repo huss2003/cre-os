@@ -13,7 +13,7 @@ import { VIDEOS } from "@/app/(app)/tutorials/videos";
 const BUCKET = "tutorials";
 const appUrl = () => (process.env.APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "")).replace(/\/$/, "");
 
-export async function syncTutorialVideos(deadlineMs = 40_000) {
+export async function syncTutorialVideos(deadlineMs = 18_000) {
   const started = Date.now();
   const admin = createAdminClient();
   const storage = admin.storage.from(BUCKET);
@@ -41,7 +41,7 @@ export async function syncTutorialVideos(deadlineMs = 40_000) {
 export const handlers: Record<string, JobHandler> = {
   "tutorials.sync": async () => {
     const r = await syncTutorialVideos();
-    if ("more" in r && r.more) await enqueue({ workspaceId: null, type: "tutorials.sync", dedupeKey: `tutorials.sync:more:${Date.now()}` });
+    if ("more" in r && r.more) await enqueue({ workspaceId: null, type: "tutorials.sync", dedupeKey: `tutorials.sync:more:${Date.now()}`, dueAt: new Date(0) }); // continue first thing next tick
     return r;
   },
 };
