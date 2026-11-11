@@ -7,6 +7,10 @@ import { HttpError, hasRole, type AppContext } from "@/lib/auth/context";
 import { ForbiddenTargetError } from "@/lib/services/changes";
 import { getAdapter, ADAPTERS } from "./detect";
 import { enqueueProcess } from "./jobs";
+import { createRun, getRun, listRuns, retryRun, type RunFile } from "./runs";
+import { originalUrl, recordSources, valueHistory } from "./trace";
+import { loadAliases } from "./pipeline";
+import { suggestColumns } from "./adapters/contacts";
 import {
   type ApproveMappingInput, type ImportOptions, type ImportSourceKind, type MatchDecision, ImportError, approveMapping, decideMatch, getReconciliation, processBatch,
   registerImport, resolveException, resolveImportSource, sourceKey,
@@ -205,4 +209,36 @@ export async function batchSteward(ctx: Ctx, batchId: string, sourceObjectId: st
       : Promise.resolve({ data: [] }),
   ]);
   return { conflicts: conf.data ?? [], personProposals: props.data ?? [] };
+}
+
+/* ------------------------------------------------------------------ Input Engine: batch runs, mapping review, traceability */
+
+/** Multi-file upload: every file registered + queued; returns immediately (processing continues in the background). */
+export async function uploadRun(ctx: Ctx, files: RunFile[], options: ImportOptions, idempotencyKey: string | null, label?: string | null) {
+  if (!hasRole(ctx, "editor")) throw new HttpError(403, "requires editor");
+  if (options.classification === "licensed_restricted" && !hasRole(ctx, "owner")) throw new HttpError(403, "only the workspace owner can import licensed/restricted sources");
+  return asHttp(() => createRun(ctx.db, ctx.workspaceId, ctx.userId, files, { idempotencyKey, label, options }));
+}
+export async function importRuns(ctx: Ctx, limit = 20) {
+  return listRuns(ctx.db, ctx.workspaceId, limit);
+}
+export async function importRunDetail(ctx: Ctx, runId: string) {
+  return getRun(ctx.db, ctx.workspaceId, runId);
+}
+export async function retryImportRun(ctx: Ctx, runId: string, itemId?: string | null) {
+  if (!hasRole(ctx, "editor")) throw new HttpError(403, "requires editor");
+  return asHttp(() => retryRun(ctx.db, ctx.workspaceId, runId, { itemId, inline: false }));
+}
+
+/** Per-column suggestions (field, confidence, ambiguity) for a contact/requirement sheet, using the workspace's learned aliases. */
+export async function columnSuggestions(ctx: Ctx, headers: string[]) {
+  return suggestColumns(headers, await loadAliases(ctx.db, ctx.workspaceId));
+}
+
+/** Every spreadsheet row behind a record (file, version, worksheet, cells) + value history + links to the originals. */
+export async function recordTrace(ctx: Ctx, entityId: string) {
+  const [sources, history] = await Promise.all([recordSources(ctx.db, ctx.workspaceId, entityId), valueHistory(ctx.db, ctx.workspaceId, entityId)]);
+  const urls = new Map<string, string | null>();
+  for (const so of new Set(sources.map((s) => s.source_object_id))) urls.set(so, await originalUrl(ctx.db, ctx.workspaceId, so).catch(() => null));
+  return { sources: sources.map((s) => ({ ...s, original_url: urls.get(s.source_object_id) ?? null })), history };
 }

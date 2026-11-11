@@ -26,8 +26,14 @@ export interface RoleSpec {
   allowUnlabeled?: boolean; // keep unlabeled columns as reviewable extras
   headerless?: boolean; // positional role: only usable through an APPROVED adapter_mapping
   positionalDefault?: string[]; // suggested positional map (field keys in column order)
-  /** Custom detection for non-tabular layouts (market matrices, reference templates). Returns header row (1-based) or null. */
-  detect?: (sheet: ParsedSheet) => { headerRow: number; signature: string } | null;
+  /**
+   * Custom detection for non-tabular layouts (market matrices, reference templates) or fuzzy header matching. Returns the
+   * header row (1-based) or null. A detector may also return the column map it resolved and the labelled columns it
+   * could not map. `aliases` are the workspace's learned header aliases ("adapter:role:field" -> normalised headers).
+   */
+  detect?: (sheet: ParsedSheet, aliases?: Record<string, string[]>) => {
+    headerRow: number; signature: string; columnMap?: Record<string, number>; matched?: number; extraColumns?: string[]; issues?: RowIssue[];
+  } | null;
   map: (input: RoleInput, opts: AdapterOptions) => SheetMapResult;
 }
 

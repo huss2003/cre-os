@@ -2,6 +2,7 @@ import "server-only";
 import { enqueue, type JobHandler } from "@/lib/jobs/queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { processBatch } from "./pipeline";
+import { classifyImportError, refreshRun } from "./runs";
 import { runStaleDetector } from "@/modules/changes/steward";
 
 /**
@@ -15,9 +16,15 @@ export const handlers: Record<string, JobHandler> = {
     const batchId = String(job.payload.batch_id ?? "");
     if (!batchId) throw new Error("imports.process requires payload.batch_id");
     const allowFrom = Array.isArray(job.payload.allow_from) ? (job.payload.allow_from as string[]) : ["registered"];
-    const res = await processBatch(createAdminClient(), { workspaceId: job.workspace_id, batchId, allowFrom, asService: true });
-    if (res.status === "failed") throw new Error(res.error ?? "import failed");
-    return { status: res.status, batch_id: batchId, reconciles: res.counts?.reconciles ?? null };
+    const db = createAdminClient();
+    const res = await processBatch(db, { workspaceId: job.workspace_id, batchId, allowFrom, asService: true });
+    // keep the batch run's progress/report current (multi-file uploads, spec §10)
+    const { data: b } = await db.from("import_batch").select("run_id").eq("workspace_id", job.workspace_id).eq("id", batchId).maybeSingle();
+    if (b?.run_id) await refreshRun(db, job.workspace_id, b.run_id).catch(() => undefined);
+    // temporary failures are thrown so the durable queue retries them (allowFrom includes "failed" for run items);
+    // permanent ones (unsupported/corrupt file) are recorded on the batch and not retried
+    if (res.status === "failed" && classifyImportError(res.error) === "temporary") throw new Error(res.error ?? "import failed");
+    return { status: res.status, batch_id: batchId, reconciles: res.counts?.reconciles ?? null, error: res.error ?? null };
   },
   /** Database Steward: flag stale companies/people/buildings/availability, create deduped review tasks. Daily per workspace. */
   "imports.steward_stale": async (job) => {

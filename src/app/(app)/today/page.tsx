@@ -12,6 +12,7 @@ import { computeDailySections } from "@/modules/orchestrator/schedule/daily-plan
 import { loadOrchSettings } from "@/modules/orchestrator/schedule/settings-db";
 import { loadCapacity } from "@/modules/orchestrator/capacity/service";
 import { buildPlannerView, type PlannerItem, type PlannerSection, type PlannerView } from "@/modules/orchestrator/ui/planner";
+import { plannerRecommendations } from "@/modules/intelligence/memory/integrate";
 import { GettingStarted } from "./getting-started";
 import { completePlannerTask } from "./actions-planner";
 
@@ -46,7 +47,7 @@ async function loadView(ctx: AppContext, date: string, today: string): Promise<P
 
   const endOfDay = atLocal(addDays(date, 1), "00:00", tz).toISOString();
   const mine = `assigned_user_id.eq.${uid},and(assigned_user_id.is.null,owner_user_id.eq.${uid})`;
-  const [tasks, changes, drafts, signalTotal, capacity] = await Promise.all([
+  const [tasks, changes, drafts, signalTotal, capacity, intel] = await Promise.all([
     ctx.db.from("task").select("id, title, due_at, row_version").eq("workspace_id", ws).is("archived_at", null).eq("status", "open")
       .or(mine).lt("due_at", endOfDay).order("due_at").limit(TASK_LIMIT + 1),
     ctx.db.from("change_proposal").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null).in("state", ["proposed", "clarify"]).eq("approval_required", true),
@@ -56,6 +57,7 @@ async function loadView(ctx: AppContext, date: string, today: string): Promise<P
         .gte("detected_at", new Date(+now - 36 * 3600e3).toISOString()).not("status", "in", "(rejected,dismissed)").neq("confidence", "insufficient").then((r) => r.error ? null : r.count)
       : Promise.resolve(null),
     loadOrchSettings(ctx.db, ws, uid).then((s) => loadCapacity(lc, s, date, now)).catch(() => null),
+    date === today ? plannerRecommendations({ db: ctx.db, workspaceId: ws, userId: uid }, 4) : Promise.resolve([]),
   ]);
 
   const ai = plan?.ai_status === "ok" ? (plan.ai_summary as { headline?: string } | null) : null;
@@ -64,7 +66,7 @@ async function loadView(ctx: AppContext, date: string, today: string): Promise<P
     sections, headline: ai?.headline ?? null,
     tasks: tasks.error ? null : { items: (tasks.data ?? []).slice(0, TASK_LIMIT) as any[], capped: (tasks.data?.length ?? 0) > TASK_LIMIT },
     approvals: changes.error || drafts.error ? null : { changes: changes.count ?? 0, drafts: drafts.count ?? 0 },
-    capacity: capacity as any, signalTotal, signalCap: 10,
+    capacity: capacity as any, signalTotal, signalCap: 10, extraRecommendations: intel,
     fmtTime: (iso) => fmt(iso, "HH:mm", tz),
   });
 }

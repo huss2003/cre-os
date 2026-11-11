@@ -107,7 +107,7 @@ export class UnsupportedFormatError extends Error {}
 export async function parseFile(bytes: Uint8Array, fileName: string): Promise<ParsedWorkbook> {
   const isZip = bytes.length > 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
   const isOle = bytes.length > 8 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0;
-  if (isOle) throw new UnsupportedFormatError("Legacy binary .xls workbooks are not parsed; save as .xlsx (no macros needed) and re-upload.");
+  if (isOle) throw new UnsupportedFormatError("Old format — save as .docx/.pptx/.xlsx for full extraction. Legacy binary .xls workbooks are not parsed; open it in Excel, save as .xlsx (no macros needed) and upload again.");
   if (isZip) return parseXlsx(bytes);
   if (/\.(csv|txt)$/i.test(fileName) || !bytes.some((b) => b === 0)) {
     const sheetName = fileName.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "") || "csv";

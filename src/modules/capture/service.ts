@@ -1,5 +1,6 @@
 import "server-only";
 import { proposalRefs } from "@/modules/changes/display";
+import { errorMessage } from "@/modules/changes/http";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured, extractImageText, transcribe } from "@/lib/ai/gateway";
 import { enqueue } from "@/lib/jobs/queue";
@@ -14,6 +15,7 @@ import {
   ExtractionSchema, allowedIds, basisForUnit, enforceRules, locator, parseUnitSpec, ruleExtract, withDefaults,
   type Candidate, type CandidateLists, type Extraction, type Fact, type Mention,
 } from "./extract";
+import { detectLanguage, hasDevanagari, romanise } from "./input-engine/hindi";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = Record<string, any>;
 
@@ -57,6 +59,13 @@ export interface StoredExtraction extends Extraction {
     inferred_org?: { org_id: string; label: string; from_mention: number } | null;
     /** Photo text (OCR) — evidence only, never proof of legal or commercial terms. */
     ocr?: { offset: number; length: number; mocked: boolean; model: string } | null;
+    /** Input Engine: question indexes that are informational only (e.g. the year of an informal target) — never block Review. */
+    optional_questions?: number[];
+    /** Devanagari transcript/note as received (the extractor reads the romanised text in capture.transcript). */
+    original_transcript?: string | null;
+    language?: "en" | "hi" | "hinglish";
+    /** Input Engine result (intents, matches, clarifications, receipt) — see input-engine/service.ts */
+    input_engine?: unknown;
   };
 }
 
@@ -73,6 +82,15 @@ export interface NewCapture {
   storagePath?: string | null;
 }
 
+/** Captures are corporate-confidential by default, but a member whose access level doesn't include that class
+ *  (membership default: public + permitted_personal) must still be able to save a note — RLS would otherwise reject
+ *  the insert. Use the most protective class this member may write. */
+export async function defaultCaptureClassification(db: Db, workspaceId: string, userId: string): Promise<string> {
+  const { data } = await db.from("membership").select("allowed_classifications").eq("workspace_id", workspaceId).eq("user_id", userId).maybeSingle();
+  const allowed: string[] = (data?.allowed_classifications as string[] | undefined) ?? [];
+  return ["corporate_confidential", "permitted_personal", "public"].find((c) => allowed.includes(c)) ?? "corporate_confidential";
+}
+
 export async function createCapture(db: Db, workspaceId: string, userId: string, input: NewCapture, idempotencyKey: string | null) {
   if (idempotencyKey) {
     const { data: existing } = await db.from("capture").select("*").eq("workspace_id", workspaceId).eq("idempotency_key", idempotencyKey).maybeSingle();
@@ -86,6 +104,7 @@ export async function createCapture(db: Db, workspaceId: string, userId: string,
   if ((input.kind === "audio" || input.kind === "image") && !hasFile && !input.text?.trim()) {
     throw new ChangeError("invalid_parameter", `${input.kind} capture needs a file`);
   }
+  const classification = input.classification ?? await defaultCaptureClassification(db, workspaceId, userId);
   const id = crypto.randomUUID();
   const paths: string[] = input.storagePath ? [input.storagePath] : [];
   if (input.file) {
@@ -99,7 +118,7 @@ export async function createCapture(db: Db, workspaceId: string, userId: string,
     id, workspace_id: workspaceId, kind: input.kind, raw_text: input.text?.trim() || null, storage_paths: paths,
     source_at: input.sourceAt ?? new Date().toISOString(), language_hint: input.languageHint ?? null,
     consent_reference: input.consentReference ?? null, status: "received", idempotency_key: idempotencyKey,
-    owner_user_id: userId, classification: input.classification ?? "corporate_confidential",
+    owner_user_id: userId, classification,
   }).select().single();
   if (error) {
     if (error.code === "23505" && idempotencyKey) {
@@ -263,6 +282,13 @@ export async function processCapture(admin: Db, workspaceId: string, captureId: 
       }
       await setStatus({ transcript, transcript_confidence: c.kind === "audio" || ocrMeta?.length ? null : 1 });
     }
+    // Hindi (Devanagari) speech or notes: romanised for the rule extractor; the original is kept in meta.original_transcript
+    let original: string | null = c.extraction?.meta.original_transcript ?? null;
+    if (hasDevanagari(transcript)) {
+      original = transcript;
+      transcript = romanise(transcript);
+      await setStatus({ transcript });
+    }
     if (!transcript.trim()) {
       await setStatus({ status: "needs_review", error: "No transcript available (no speech-to-text configured). Add the note text and re-process." });
       return { status: "needs_review", empty: true, open: [], results: null, warnings: ["no transcript"] };
@@ -296,12 +322,13 @@ export async function processCapture(admin: Db, workspaceId: string, captureId: 
       const safe = enforceRules(parsed, transcript, candidates, { sourceAt: c.source_at, timezone: tz });
       // facts read from photo text are context only: tentative, always confirmed by a person
       if (ocrMeta?.length) for (const f of safe.facts) if (f.start >= ocrMeta.offset) f.status = "tentative";
-      stored = { ...safe, meta: { ...prevMeta, mocked: res.mocked, model: res.model, extracted_at: new Date().toISOString(), candidates, ocr: ocrMeta } };
+      stored = { ...safe, meta: { ...prevMeta, mocked: res.mocked, model: res.model, extracted_at: new Date().toISOString(), candidates, ocr: ocrMeta,
+        original_transcript: original, language: original ? "hi" : detectLanguage(transcript) } };
     }
     stored = { ...withDefaults(stored), meta: stored.meta };
     return await materialise(admin, workspaceId, c, stored, transcript, tz, !!opts.commit);
   } catch (e) {
-    await setStatus({ status: "failed", error: String(e instanceof Error ? e.message : e).slice(0, 1000) });
+    await setStatus({ status: "failed", error: errorMessage(e).slice(0, 1000) });
     throw e;
   }
 }
@@ -725,8 +752,10 @@ async function syncPatch(admin: Db, p: AnyRow, patch: PatchOp[], userId: string)
 }
 
 export function openQuestions(stored: StoredExtraction) {
+  const optional = new Set(stored.meta.optional_questions ?? []);
   return stored.ambiguities.map((a, i) => ({ ...a, index: i }))
     .filter((a) => {
+      if (optional.has(a.index) && !(String(a.index) in stored.meta.review.answers)) return false;
       if (a.kind === "entity") {
         if (a.mention_index != null) return !stored.meta.resolved[String(a.mention_index)];
         return !stored.meta.review.requirement_id;
@@ -762,7 +791,7 @@ export async function getReview(db: Db, workspaceId: string, captureId: string) 
     candidates: ext?.meta.candidates ?? [], requirementCandidates: ext?.meta.requirement_candidates ?? [],
     resolved: ext?.meta.resolved ?? {}, review: ext?.meta.review ?? { resolutions: {}, answers: {} },
     factPreview: ext ? factPreview(ext) : [],
-    open: ext ? openQuestions(ext) : [], warnings: ext?.meta.warnings ?? [], mocked: ext?.meta.mocked ?? null,
+    open: ext ? openQuestions(ext) : [], warnings: ext?.meta.warnings ?? [], mocked: ext?.meta.mocked ?? null, language: ext?.meta.language ?? null,
     proposals: (proposals ?? []).map((p) => ({ ...p, refs })), tasks: tasks ?? [], drafts: drafts ?? [], spans: spans ?? [],
   };
 }

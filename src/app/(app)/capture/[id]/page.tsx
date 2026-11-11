@@ -12,6 +12,9 @@ import { ActionForm, Submit } from "@/modules/changes/ui/client";
 import { ProposalCard } from "@/modules/changes/ui/proposal-card";
 import { fieldLabel, formatValue } from "@/modules/changes/display";
 import { reviewAction } from "@/modules/capture/actions";
+import { EnginePanel } from "@/modules/capture/input-engine/ui/engine-panel";
+import { engineData } from "@/modules/capture/input-engine/ui/data";
+import { captureKindLabel, interactionLogWording, languageLabel } from "@/modules/capture/input-engine/ui/labels";
 
 export const metadata = { title: "Review capture" };
 type Props = { params: Promise<{ id: string }> };
@@ -29,10 +32,12 @@ async function Body({ params }: Props) {
   const text = c.transcript ?? c.raw_text ?? "";
   const entityQs = r.open.filter((a) => a.kind === "entity" && a.mention_index != null);
   const otherQs = r.open.filter((a) => !(a.kind === "entity" && a.mention_index != null));
+  const lang = languageLabel(r.language, c.language_hint);
+  const eng = await engineData(ctx.db, ctx.workspaceId, c.id, editor);
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Review capture" subtitle={<span className="flex flex-wrap items-center gap-2"><StatusBadge status={c.status} /><Badge>{c.kind}</Badge>{fmt(c.source_at)}{r.mocked ? <Badge tone="accent" title="OPENAI_API_KEY not set: deterministic rule extractor">rule extractor</Badge> : null}</span>}
+      <PageHeader title="Review capture" subtitle={<span className="flex flex-wrap items-center gap-2"><StatusBadge status={c.status} /><Badge>{captureKindLabel(c.kind)}</Badge>{lang ? <Badge tone="neutral" title="Language of the note">{lang}</Badge> : null}{fmt(c.source_at)}{r.mocked ? <Badge tone="accent" title="OPENAI_API_KEY not set: deterministic rule extractor">rule extractor</Badge> : null}</span>}
         actions={<ButtonLink variant="secondary" href="/capture">New capture</ButtonLink>} />
       {c.status === "failed" ? <StaleBanner>Processing failed: {c.error}. Correct the note below and save to retry.</StaleBanner> : null}
       {c.error && c.status !== "failed" ? <StaleBanner>{c.error}</StaleBanner> : null}
@@ -50,6 +55,8 @@ async function Body({ params }: Props) {
           </details>
         ) : null}
       </Card>
+
+      <EnginePanel engine={eng.engine} observations={eng.observations} corrections={eng.corrections} editor={editor} original={eng.original} linkOptions={eng.links} />
 
       {!ex ? (
         <Card><EmptyState title="Still processing">Extraction runs in the background. Refresh in a moment.</EmptyState></Card>
@@ -96,7 +103,7 @@ async function Body({ params }: Props) {
                   {rid ? (href ? <Link className="text-brand" href={href}>{label}</Link> : <span>{label}</span>) : <Badge tone="warn">unresolved</Badge>}</li>;
               })}</ul>
             )}
-            <p className="mt-2 text-xs text-ink-soft">{c.status === "reviewed" ? "Logged" : "Will be logged"} as a {ex.interaction?.channel ?? "note"}.</p>
+            <p className="mt-2 text-xs text-ink-soft">{interactionLogWording(c.kind, ex.interaction?.channel, c.status === "reviewed")}</p>
             {r.inferredOrg ? <p className="mt-1 text-xs text-ink-soft">No company was named: using <Link className="underline" href={`/companies/${r.inferredOrg.org_id}`}>{r.inferredOrg.label}</Link>, the confirmed person&apos;s only current employer. Proposals still need approval.</p> : null}
             {r.ocr ? <p className="mt-1 text-xs text-ink-soft">{r.ocr.length ? `Photo text read (${r.ocr.mocked ? "mock — no OCR configured" : r.ocr.model}). It is evidence for context only, never proof of legal or commercial terms; facts from it are tentative.` : "No legible text was read from the photo (or OCR is not configured); the caption is the content."}</p> : null}
           </Card>

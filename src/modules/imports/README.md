@@ -93,3 +93,39 @@ schema, admin-only mapping guard, restricted storage, kill switch), volume (`sca
 - Person-proposal key lookups use URL-length-bounded chunks (`keyChunks`) and throw on error (150 keys/request hit HTTP 414; re-imports re-attempted ~860 proposals).
 - Asset floor-size ranges: reversed ("45,000 - 35,000") => `floor_size_range_suspect` review; implausible spread (> 10x, "7,420 - 8") => text kept, min/max unknown.
 - `scripts/real-data-e2e.ts` (+ `real-data-workflows.ts`) re-runs the whole real-data import + downstream workflows in workspace `pune-real-test`.
+
+## Input Engine round (Module 10: spreadsheet engine §3, batch §10, import dashboard §13C) — migration `20261111001910_input_engine_imports.sql`
+Gap analysis (before/after per bullet): `docs/input-engine/SPREADSHEET-GAP.md`.
+- **Generic contact/requirement sheets**: adapter `contacts_requirements_v1` (`adapters/contacts.ts`), listed last in the registry so tenant adapters win ties.
+  It suggests a mapping for each column (`suggestColumns`: synonyms, keywords, learned aliases, confidence, ambiguity), finds the header row,
+  and reports unmapped, ambiguous and incomplete mappings. Unmatched columns are kept as `custom[<header>]`.
+- **Validation** (`validate.ts`, pure): email, Indian phone (E.164), dates (format, precision, dd/mm ambiguity, column consistency), area (unit and basis
+  never assumed), rent (basis/CAM only if stated), suspicious numbers. `report.ts#validationReport` → `import_batch.counts.validation`.
+- **Writes** (`contacts-writer.ts`): companies are keyed by canonical name and reuse a live company with the same canonical name; fuzzy matches go to
+  identity candidates. People are created only with a valid email/phone, and an existing person holding that value is linked. Name-only contacts
+  become person proposals. Differences from existing people become field conflicts or proposals (contact_method, employment). Requirements are
+  always `proposeChange` (create, or update if the earlier one was applied), `status: estimated`. `area_*_sf` is set only when the unit is
+  explicitly sq ft. The spreadsheet expiry stays `constraints.lease_expiry_reported` (`fact_status: reported`, `confirmed: false`).
+  Same values = same idempotency key; a column missing from a new layout is not read as "cleared".
+- **Mapping memory**: `approveMapping` also corrects mapped header-driven sheets (admin). It writes `import_header_alias` (admin-only trigger
+  `imports_alias_guard`), and detection uses those aliases for later files with other layouts. An approved map for the same header signature
+  overrides the built-in map.
+- **Change detection**: `diff.layout` (`report.ts#layoutChanges`: added/removed/moved/remapped columns) + `layout_changed` exception;
+  `diff.removed_policy` (missing rows never delete anything).
+- **Traceability**: `staged_row.mapped_json.cell_refs` (field → `Sheet!C12`) for every adapter. `trace.ts`: `recordSources`, `valueHistory`, `originalUrl`.
+  Page `/imports/source/[entityId]`, API `GET /api/v1/imports/trace/[entityId]`.
+- **Batch runs** (`runs.ts`): `import_run` + `import_run_item`. `createRun` registers spreadsheets and queues `imports.process`. Documents and images go through
+  capture's exported `createCapture` (queues `capture.process`). Unsupported files, including `.xls`, become failed items. Nothing runs inline.
+  `refreshRun` computes per-file status and `runReport` (files received/processed/partial/failed, records identified/created/updated, potential
+  duplicates, conflicts, needs review). `retryRun` re-queues temporary failures only. The `imports.process` job throws (so the queue retries) only on temporary
+  errors (`classifyImportError`) and refreshes its run.
+- **Orchestrator**: after each processed version, `publishEvent("import.completed", subject import_batch, dedupe import.completed:<batch>:<sha>)`
+  with created/linked record ids. The per-record `company.created`/`contact.created` events come from the existing DB triggers.
+- **Exported services** (`service.ts`): `uploadRun`, `importRuns`, `importRunDetail`, `retryImportRun`, `columnSuggestions`, `recordTrace`.
+- **Routes**: `POST|GET /api/v1/imports/runs` (multipart `files`, Idempotency-Key), `GET /api/v1/imports/runs/[id]`, `POST /api/v1/imports/runs/[id]/retry`
+  `{item_id?}`, `GET /api/v1/imports/trace/[entityId]`. Pages: `/imports` (multi-file upload + batch list), `/imports/runs/[id]` (progress, files,
+  completion report, retry), `/imports/[id]` (+ column mapping card/editor, validation report, layout changes, contacts summary), `/imports/source/[entityId]`.
+- **Tests**: `validate.test.ts` (pure: validators, spec mapping example, learned/ambiguous/custom columns, layout diff, run report) and
+  `input-engine.test.ts` (DB: §17 scenarios 10, 11, 12, 13, 14, 15, 21, 23, 24 incl. temporary-failure retry, 28, 29).
+- **Known gaps**: `.xls` needs the `xlsx` (SheetJS) package. Entity pages link to `/imports/source/<id>` via `provenance-links.tsx` (`provenanceLinks` in trace.ts). Mapping approval is
+  admin-only. Capture items in a run only report counts once capture finishes (they show as waiting until then).

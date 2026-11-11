@@ -1,8 +1,6 @@
 import "server-only";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Db } from "@/lib/supabase/server";
 import { approveAndApply } from "@/modules/changes/service";
-
-type Db = SupabaseClient<any, any, any>;
 
 /**
  * Bulk import review (owner request, Nov 2026): one summary per import instead of one card per row.
@@ -45,7 +43,7 @@ export interface ImportSummary {
   problems: { quarantined: number; issues: number };
 }
 
-export async function importSummary(db: Db, ws: string, batch: { id: string; source_object_id: string | null; counts: Record<string, any> | null }): Promise<ImportSummary> {
+export async function importSummary(db: Db, ws: string, batch: { id: string; source_object_id: string | null; counts: Record<string, unknown> | null }): Promise<ImportSummary> {
   const c = batch.counts ?? {};
   const [props, idm, exc] = await Promise.all([
     batch.source_object_id ? pendingForSource(db, ws, batch.source_object_id) : Promise.resolve([] as P[]),

@@ -49,7 +49,10 @@ export const NAV_GROUPS: NavGroup[] = [
     one("leases", "Lease radar", "Leases coming up for renewal", "/leases"),
     { key: "intel", label: "Market & reports", hint: "Market, network, legal, content", href: "/market", tabs: [
       { href: "/market", label: "Market" }, { href: "/network", label: "Network" }, { href: "/legal", label: "Legal" },
-      { href: "/content", label: "Content" }, { href: "/insights", label: "Reports" }] },
+      { href: "/content", label: "Content" }, { href: "/insights", label: "Reports" } ] },
+    { key: "intelligence", label: "Intelligence", hint: "What changed, what to do next, history and memory quality", href: "/intelligence", tabs: [
+      { href: "/intelligence", label: "Overview" }, { href: "/intelligence/recommendations", label: "Recommendations" }, { href: "/intelligence/changes", label: "Changes" },
+      { href: "/intelligence/timeline", label: "Timeline" }, { href: "/intelligence/quality", label: "Quality" }] },
     { key: "automation", label: "Automation", hint: "Background jobs, schedules, plans and notifications", href: "/automation", tabs: [
       { href: "/automation", label: "Automation" }, { href: "/workflows", label: "Chains" }] },
     one("imports", "Imports", "Bring in a spreadsheet", "/imports", { minRole: "editor" }),

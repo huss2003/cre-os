@@ -1,0 +1,90 @@
+{
+  "durationMs": 110355,
+  "steps": [
+    {
+      "caption": "Open Capture and the Anil note under Recent captures.",
+      "ms": 3606
+    },
+    {
+      "caption": "Scroll to Extracted information. Each item has a status: For review, Saved, Confirmed, Corrected or Rejected.",
+      "ms": 9586
+    },
+    {
+      "caption": "Open 'Confirm, edit, reject…' on Preferred location.",
+      "ms": 13776
+    },
+    {
+      "caption": "Kharadi is right — Confirm.",
+      "ms": 18071
+    },
+    {
+      "caption": "It now shows Confirmed.",
+      "ms": 23949
+    },
+    {
+      "caption": "Edit: Anil meant 20,000 sq ft carpet. Open the Area item.",
+      "ms": 27143
+    },
+    {
+      "caption": "Type the value and choose Area basis: Carpet.",
+      "ms": 31471
+    },
+    {
+      "caption": "Save correction. The original words stay; the item is marked Corrected and logged.",
+      "ms": 35890
+    },
+    {
+      "caption": "Link: attach the area to Marigold Loop Technologies.",
+      "ms": 41859
+    },
+    {
+      "caption": "Link to record. It is linked, never merged.",
+      "ms": 46337
+    },
+    {
+      "caption": "Ask: the year of 'by September' is unknown. Open Move-in target.",
+      "ms": 52236
+    },
+    {
+      "caption": "Type the question for the client and press Request clarification — it becomes a task for you.",
+      "ms": 56551
+    },
+    {
+      "caption": "Create: when a person or company is not in CRE OS yet, 'Create (for approval)' proposes a new one.",
+      "ms": 64687
+    },
+    {
+      "caption": "Correction history lists every change you made here.",
+      "ms": 69164
+    },
+    {
+      "caption": "Now the Review queue: Capture → Pending reviews.",
+      "ms": 72421
+    },
+    {
+      "caption": "Only what needs a person, grouped by reason.",
+      "ms": 78126
+    },
+    {
+      "caption": "Categories: uncertain company or contact matches, potential duplicates, conflicting values, missing units or dates, unverified lease details, material changes.",
+      "ms": 81286
+    },
+    {
+      "caption": "Conflicting commercial values: the revised ₹95 quote and the Hinglish 'Unko Kharadi' location are here.",
+      "ms": 84450
+    },
+    {
+      "caption": "Reject: 'Unko Kharadi' is a misreading. Open it.",
+      "ms": 87621
+    },
+    {
+      "caption": "Reject. Nothing on any record changes; the item is just marked Rejected.",
+      "ms": 91491
+    },
+    {
+      "caption": "Material changes requiring approval link to Review, where record changes are approved.",
+      "ms": 97838
+    }
+  ],
+  "bytes": 1517940
+}

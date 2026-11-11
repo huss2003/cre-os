@@ -6,6 +6,8 @@ import { proposeChange } from "@/lib/services/changes";
 import { contactValueHash } from "@/lib/services/drafts";
 import * as R from "./rules";
 import { escapeLike } from "@/lib/util/like";
+import { meetingMemoryForBrief } from "@/modules/intelligence/memory/integrate/hooks";
+import { meetingMemoryMarkdown } from "@/modules/intelligence/memory/ui/meeting";
 import { edate, isPastInstant, localDate } from "@/lib/util/time";
 
 /**
@@ -308,6 +310,8 @@ export async function generateBrief(db: Db, ws: string, userId: string, prepId: 
       history: { first: !x.interactions.length, items: f.history, commitments, objections: objectionsRaised, open_tasks: x.tasks.map((tk) => ({ title: tk.title, due: tk.due_at?.slice(0, 10) ?? null })), outreach: x.outreach.map((o) => ({ channel: o.channel, status: o.status, reason: o.reason, sent: o.sent_at?.slice(0, 10) ?? null, reply: o.response?.summary ?? null })) },
       strategy: g.strategy, avoid: g.avoid, questions: qs, objections: g.objections.length ? g.objections : objBank, outcome: g.outcome, next_steps: g.next_steps,
       properties: x.properties,
+      // Module 13 memory (§7.2): source-linked context from recorded history; null when unavailable (never invented).
+      memory: x.meeting?.id ? await meetingMemoryForBrief(db, ws, userId, x.meeting.id) : null,
     };
     const rd = assessReadiness(x, content);
     const { data: last } = await db.from("meeting_brief_version").select("version").eq("prep_id", prepId).order("version", { ascending: false }).limit(1).maybeSingle();
@@ -710,5 +714,6 @@ export function briefMarkdown(b: Row) {
   L.push("## Possible objections (anticipated, not said)", ...b.objections.map((o: Row) => `- **${o.objection}** — ${o.response} Ask: ${o.follow_up} Prepare: ${o.evidence}`), "");
   if (b.properties?.length) L.push("## Properties", ...b.properties.map((p: Row) => `- **${p.name}** (${p.verified ? "availability verified" : "availability NOT verified"}) — matches: ${p.match.join("; ") || "—"}; gaps: ${p.mismatch.join("; ") || "—"}; verify: ${p.verify.join("; ")}`), "");
   L.push("## Desired outcome", `- Ideal: ${b.outcome.ideal}`, ...b.outcome.acceptable.map((a: string) => `- Acceptable: ${a}`), "", "## Next steps", ...b.next_steps.map((s: string) => `- ${s}`));
+  L.push(...meetingMemoryMarkdown(b.memory));
   return L.filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");
 }

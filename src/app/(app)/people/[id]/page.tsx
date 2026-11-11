@@ -1,4 +1,6 @@
 import { FOCUS_MODE } from "@/lib/nav";
+import { PersonIntelligence } from "@/modules/intelligence/memory/ui/panels";
+import { ProvenanceLinks } from "@/modules/imports/provenance-links";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -44,6 +46,8 @@ async function Body({ params, searchParams }: Props) {
           {current.length ? current.map((e) => <span key={e.id}>{e.title ?? "Role unknown"} @ {e.org_name ?? "hidden organisation"}</span>) : <span>No current role on record{asOf ? ` on ${fmtDate(asOf)}` : ""}</span>}
           {person.archived_at ? <Badge tone="bad">Archived</Badge> : null}<RecordTrust db={ctx.db} workspaceId={ctx.workspaceId} type="person" id={person.id} /></span>}
         actions={<>{!person.do_not_contact ? <ButtonLink href={`/outreach/new?person=${id}`}>Plan outreach</ButtonLink> : null}<ButtonLink variant="secondary" href={`/contacts/${id}`}>Enrichment &amp; verification</ButtonLink>{hasRole(ctx, "editor") && !person.archived_at ? <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink> : null}<AsOfForm asOf={asOf} action={base} /></>} />
+      <ProvenanceLinks db={ctx.db} workspaceId={ctx.workspaceId} entityId={id} />
+      <Suspense fallback={null}><PersonIntelligence ctx={ctx} personId={id} /></Suspense>
 
       <Flash sp={{ notice: typeof sp.notice === "string" ? sp.notice : undefined, error: typeof sp.error === "string" ? sp.error : undefined }} />
       {typeof sp.draft === "string" && !FOCUS_MODE ? <p className="text-sm"><ButtonLink variant="secondary" href="/drafts">Open Drafts</ButtonLink></p> : null}

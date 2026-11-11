@@ -1,0 +1,102 @@
+{
+  "durationMs": 117051,
+  "steps": [
+    {
+      "caption": "Open Capture.",
+      "ms": 3604
+    },
+    {
+      "caption": "Speak turns your words into text as you talk, in the browser. You check the text before saving.",
+      "ms": 7649
+    },
+    {
+      "caption": "Choose the language: English, Hindi / Hinglish or Marathi.",
+      "ms": 11491
+    },
+    {
+      "caption": "Already have a recording? Use Add files. Open 'Link to a record' to set the language and consent.",
+      "ms": 14660
+    },
+    {
+      "caption": "Recording language: Hinglish.",
+      "ms": 19976
+    },
+    {
+      "caption": "Recording consent: who agreed to the recording.",
+      "ms": 23151
+    },
+    {
+      "caption": "Choose the voice note file.",
+      "ms": 27389
+    },
+    {
+      "caption": "It is recognised as a Recording. Open it.",
+      "ms": 31842
+    },
+    {
+      "caption": "In practice mode there is no speech-to-text, so CRE OS asks you to type what was said. The audio is kept.",
+      "ms": 35736
+    },
+    {
+      "caption": "Type the notes. Here the word Kharadi was heard as 'Karadi'.",
+      "ms": 38888
+    },
+    {
+      "caption": "Process again.",
+      "ms": 46583
+    },
+    {
+      "caption": "The transcript is shown. Speakers are not identified, so who said what stays uncertain.",
+      "ms": 56907
+    },
+    {
+      "caption": "Hinglish was understood: 'bees hazaar sq ft' → 20,000 sq ft, 'March tak' → by March.",
+      "ms": 60125
+    },
+    {
+      "caption": "'Friday ko options bhejna hai' became a Friday task.",
+      "ms": 63289
+    },
+    {
+      "caption": "Open the capture review to correct the transcript.",
+      "ms": 66466
+    },
+    {
+      "caption": "Open 'Correct the note / transcript'.",
+      "ms": 71268
+    },
+    {
+      "caption": "Fix the misheard word: Karadi → Kharadi.",
+      "ms": 75254
+    },
+    {
+      "caption": "Save and re-extract. Everything is read again from the corrected text — nothing is duplicated.",
+      "ms": 79032
+    },
+    {
+      "caption": "Correction history keeps what it was and what you changed it to.",
+      "ms": 89628
+    },
+    {
+      "caption": "Now a note in Hindi script. Back to Capture.",
+      "ms": 92883
+    },
+    {
+      "caption": "Type, then write in Hindi (Devanagari).",
+      "ms": 96772
+    },
+    {
+      "caption": "Save capture.",
+      "ms": 103543
+    },
+    {
+      "caption": "The note is read in a romanised copy; the receipt shows the same kind of matches.",
+      "ms": 107459
+    },
+    {
+      "caption": "'Original (Hindi)' keeps the text exactly as you wrote it.",
+      "ms": 110654
+    }
+  ],
+  "bytes": 1579914
+}

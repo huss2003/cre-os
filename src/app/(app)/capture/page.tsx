@@ -9,6 +9,10 @@ import { StatusBadge } from "@/modules/capture/ui/parts";
 import { DropZone } from "@/modules/capture/docs/drop-zone";
 import { linkOptions, listDocuments } from "@/modules/capture/docs/service";
 import { TYPE_LABEL, type DocType } from "@/modules/capture/docs/detect";
+import { dashboardCounts, loadPermissions } from "@/modules/capture/input-engine/service";
+import { PermissionsForm } from "@/modules/capture/input-engine/ui/permissions-form";
+import { RecordingForm } from "@/modules/capture/input-engine/ui/recording-form";
+import { captureKindLabel } from "@/modules/capture/input-engine/ui/labels";
 
 const DOC_STATUS: Record<string, [string, "neutral" | "brand" | "ok" | "warn" | "bad"]> = {
   received: ["Received", "neutral"], processing: ["Reading", "brand"], needs_review: ["In Review", "warn"], needs_input: ["Needs your input", "warn"],
@@ -20,18 +24,40 @@ export const metadata = { title: "Capture" };
 async function Body() {
   const ctx = await requirePageContext();
   const editor = hasRole(ctx, "editor");
-  const [recent, docs, options] = await Promise.all([listCaptures(ctx.db, ctx.workspaceId), listDocuments(ctx.db, ctx.workspaceId), editor ? linkOptions(ctx.db, ctx.workspaceId) : null]);
+  const [recent, docs, options, dash] = await Promise.all([listCaptures(ctx.db, ctx.workspaceId), listDocuments(ctx.db, ctx.workspaceId), editor ? linkOptions(ctx.db, ctx.workspaceId) : null, dashboardCounts(ctx.db, ctx.workspaceId)]);
   return (
     <div className="space-y-4">
       <PageHeader title="Capture" subtitle="Tell CRE OS what happened after a call, meeting or site visit. It files the meeting, creates follow-up tasks and asks before changing any record." />
+      <Card title="Capture dashboard">
+        <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+          <a className="rounded-lg border border-line p-2" href="#new-capture">Type a note</a>
+          <a className="rounded-lg border border-line p-2" href="#new-capture">Record a voice note</a>
+          <a className="rounded-lg border border-line p-2" href="#add-files">Upload image / business card / document</a>
+          <Link className="rounded-lg border border-line p-2" href="/imports">Upload a spreadsheet</Link>
+          <a className="rounded-lg border border-line p-2" href="#recording">Upload a permitted recording</a>
+          <Link className="rounded-lg border border-line p-2" href="/capture/review">Pending reviews {dash.pending ? <Badge tone="warn">{dash.pending}</Badge> : null}</Link>
+          <Link className="rounded-lg border border-line p-2" href="/capture/history">Capture history</Link>
+          <span className="rounded-lg border border-line p-2">Processing: {dash.processing} · failed {dash.failed}</span>
+        </div>
+      </Card>
       {editor ? (
-        <Card title="New capture"><QuickCapture workspaceId={ctx.workspaceId} /></Card>
+        <Card title="New capture"><div id="new-capture" /><QuickCapture workspaceId={ctx.workspaceId} /></Card>
       ) : (
         <Card><p className="text-sm text-ink-soft">Viewers can read captures but not create them. Ask an admin for editor access.</p></Card>
       )}
       {editor && options ? (
-        <Card title="Add files" help="Any file in one place. CRE OS works out what it is and sends it to the right reader. Nothing changes a record until you approve it in Review; the original file is always kept.">
-          <DropZone workspaceId={ctx.workspaceId} options={options} />
+        <Card title="Add files" className="scroll-mt-4" help="Any file in one place. CRE OS works out what it is and sends it to the right reader. Nothing changes a record until you approve it in Review; the original file is always kept.">
+          <div id="add-files" /><DropZone workspaceId={ctx.workspaceId} options={options} />
+        </Card>
+      ) : null}
+      {editor && options ? (
+        <Card title="Permitted meeting recording" help="Only upload recordings everyone agreed to. The audio is kept, the transcript keeps timestamps, and meeting content goes to the meeting's notes.">
+          <div id="recording" /><RecordingForm meetings={options.meeting} />
+        </Card>
+      ) : null}
+      {hasRole(ctx, "admin") ? (
+        <Card title="Automation permissions" help="Material record changes and uncertain matches always wait for review, whatever is ticked here.">
+          <PermissionsForm p={await loadPermissions(ctx.db, ctx.workspaceId)} />
         </Card>
       ) : null}
       {docs.length ? (
@@ -68,13 +94,13 @@ async function Body() {
                 <Link href={`/capture/${c.id}`} className="block space-y-1">
                   <div className="flex flex-wrap items-center gap-2 text-xs text-ink-soft">
                     <StatusBadge status={c.status} />
-                    <Badge>{c.kind}</Badge>
+                    <Badge>{captureKindLabel(c.kind)}</Badge>
                     <span>{fmt(c.source_at)}</span>
                     {c.open ? <Badge tone="warn">{c.open} question{c.open > 1 ? "s" : ""}</Badge> : null}
                     {c.proposals ? <Badge tone="brand">{c.proposals} for approval</Badge> : null}
                     {c.tasks ? <Badge>{c.tasks} task{c.tasks > 1 ? "s" : ""}</Badge> : null}
                   </div>
-                  <p className="line-clamp-2 text-sm">{c.preview || <span className="text-ink-soft">(no text — {c.kind})</span>}</p>
+                  <p className="line-clamp-2 text-sm">{c.preview || <span className="text-ink-soft">(no text — {captureKindLabel(c.kind)})</span>}</p>
                   {c.error ? <p className="text-xs text-bad">{c.error}</p> : null}
                 </Link>
               </li>

@@ -1,70 +1,70 @@
 {
-  "durationMs": 75500,
+  "durationMs": 66793,
   "steps": [
     {
       "caption": "Open Capture.",
-      "ms": 3651
+      "ms": 3604
     },
     {
       "caption": "'Add files' takes almost anything, up to 25 MB each.",
-      "ms": 8987
+      "ms": 7554
     },
     {
       "caption": "Optional: link it to a record first — company, person, building, requirement or meeting.",
-      "ms": 12321
+      "ms": 10766
     },
     {
       "caption": "This quote is for Zentrix's requirement.",
-      "ms": 16939
+      "ms": 14632
     },
     {
       "caption": "'What is it?' — leave on Detect, or pick: quotation, lease, LOI, notes, business card, photo, layout…",
-      "ms": 20199
+      "ms": 17873
     },
     {
       "caption": "Choose the landlord's quotation PDF.",
-      "ms": 23562
+      "ms": 21029
     },
     {
       "caption": "It's recognised as a Quotation. Open it.",
-      "ms": 27185
+      "ms": 24237
     },
     {
       "caption": "What CRE OS found: type, confidence, and each value with its page and quote.",
-      "ms": 31771
+      "ms": 28279
     },
     {
       "caption": "Without an AI key it uses pattern matching — 'check every value'.",
-      "ms": 35124
+      "ms": 31474
     },
     {
       "caption": "Proposals: here, create a quote. Review opens it for your approval.",
-      "ms": 38456
+      "ms": 34660
     },
     {
       "caption": "Wrong guess? 'Fix and process again' changes the type or linked records.",
-      "ms": 41888
+      "ms": 37817
     },
     {
       "caption": "Back to Capture for a building photo.",
-      "ms": 45587
+      "ms": 40994
     },
     {
       "caption": "Upload the photo.",
-      "ms": 49800
+      "ms": 44852
     },
     {
       "caption": "A photo needs a building or visit — open it to choose.",
-      "ms": 55137
+      "ms": 50068
     },
     {
       "caption": "Pick the building, then Process again. Business cards work the same way: type 'Business card'.",
-      "ms": 60484
+      "ms": 54008
     },
     {
       "caption": "Recent files on Capture list every file and whether it needs your input.",
-      "ms": 67156
+      "ms": 58752
     }
   ],
-  "bytes": 721468
+  "bytes": 763463
 }

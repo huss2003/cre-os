@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { CompanyIntelligence } from "@/modules/intelligence/memory/ui/panels";
+import { ProvenanceLinks } from "@/modules/imports/provenance-links";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, ButtonLink, FactBadge, PageHeader, StaleBanner, inr, sf } from "@/components/ui";
@@ -39,6 +41,8 @@ async function Body({ params, searchParams }: Props) {
       <PageHeader title={o.display_name}
         subtitle={<span className="flex flex-wrap items-center gap-1.5"><ClassBadge value={o.classification} />{o.sector ? <Badge>{o.sector}</Badge> : null}{o.is_gcc ? <Badge tone="brand">GCC</Badge> : null}{o.archived_at ? <Badge tone="bad">Archived</Badge> : null}<RecordTrust db={ctx.db} workspaceId={ctx.workspaceId} type="organisation" id={o.id} /></span>}
         actions={<>{hasRole(ctx, "editor") && !o.archived_at ? <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink> : null}<AsOfForm asOf={asOf} action={base} /></>} />
+      <ProvenanceLinks db={ctx.db} workspaceId={ctx.workspaceId} entityId={id} />
+      <Suspense fallback={null}><CompanyIntelligence ctx={ctx} orgId={id} /></Suspense>
 
       {asOf ? <StaleBanner>Showing evidence recorded on or before {fmtDate(asOf)}. Employment and signals are filtered to that date; identity fields show the current record{c.snapshot ? " (an audited snapshot from that date is listed in the trail)" : ""}.</StaleBanner> : null}
       {o.contact_restrictions ? <div className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad"><strong>Contact restriction:</strong> {o.contact_restrictions}</div> : null}

@@ -227,7 +227,23 @@ const NAME = "[A-Z][a-zA-Z'.-]+(?: [A-Z][a-zA-Z'.-]+){0,2}";
 const PLACE = "[A-Z][a-zA-Z]+(?: [A-Z][a-zA-Z]+)?";
 const NOT_NAMES = new Set(["the", "he", "she", "they", "we", "i", "client", "company", "team", "finance", "procurement", "legal", "admin", "it", "hr",
   "ceo", "cfo", "cto", "coo", "maybe", "send", "share", "call", "need", "please", "also", "and", "but", "then", "today", "tomorrow", "kal", "aaj"]);
-const isName = (s: string) => !NOT_NAMES.has(s.toLowerCase()) && monthIndex(s) < 0 && weekdayIndex(s.split(" ")[0]) < 0;
+/** Hindi/Hinglish function words (pronouns, postpositions, particles) that are never part of a name or place:
+ *  sentence-initial capitals make "Unko Kharadi" look like a two-word place. */
+const HI_FUNCTION_WORDS = new Set(["unko", "unako", "inako", "usako", "isako", "unhe", "unhen", "unka", "unki", "unke", "inko", "inhe", "inka", "inki", "inke", "usko", "use", "isko", "ise",
+  "hum", "humko", "hume", "humein", "hamein", "hamko", "humara", "hamara", "mujhe", "mera", "meri", "tum", "aap", "aapko", "woh", "wo", "ye", "yeh", "vo",
+  "mein", "me", "main", "ko", "ka", "ki", "ke", "se", "pe", "par", "tak", "wala", "wale", "wali", "waala", "waale", "waali", "bhi", "toh", "to", "hi", "aur", "ya",
+  "abhi", "phir", "fir", "sirf", "bas", "ji"]);
+/** Drop Hindi function words from both ends of a candidate. Returns the kept text and its offset inside `t` ("" if nothing left). */
+export function stripFunctionWords(t: string): { text: string; offset: number } {
+  const words = [...t.matchAll(/\S+/g)];
+  let a = 0, b = words.length;
+  while (a < b && HI_FUNCTION_WORDS.has(words[a][0].toLowerCase())) a++;
+  while (b > a && HI_FUNCTION_WORDS.has(words[b - 1][0].toLowerCase())) b--;
+  if (a >= b) return { text: "", offset: 0 };
+  const start = words[a].index!, end = words[b - 1].index! + words[b - 1][0].length;
+  return { text: t.slice(start, end), offset: start };
+}
+const isName = (s: string) => !!stripFunctionWords(s).text && !NOT_NAMES.has(s.toLowerCase()) && monthIndex(s) < 0 && weekdayIndex(s.split(" ")[0]) < 0;
 const SELF = new Set(["we", "i", "hum", "main", "mai", "me", "self"]);
 /** Drop leading stop-words ("Then Raj") and trailing weekday/month words ("Raj Monday") from a captured name. */
 function cleanName(raw: string): string {
@@ -293,7 +309,9 @@ export function ruleExtract(input: string, opts: RuleOptions = {}): Extraction {
   const src = localDate(opts.sourceAt ? new Date(opts.sourceAt) : new Date(), opts.timezone);
   const ex: Extraction = { schema_version: "1", interaction: null, mentions: [], facts: [], tasks: [], ambiguities: [], drafts: [],
     promises: [], objections: [], stakeholders: [], details: [] };
-  const addMention = (kind: Mention["kind"], t: string, start: number) => {
+  const addMention = (kind: Mention["kind"], raw: string, rawStart: number) => {
+    const st = stripFunctionWords(raw);
+    const t = st.text || raw, start = rawStart + st.offset;
     const existing = ex.mentions.findIndex((x) => x.kind === kind && x.text.toLowerCase() === t.toLowerCase());
     if (existing >= 0) return existing;
     ex.mentions.push({ kind, text: t, start, end: start + t.length, candidate_ids: [] });
@@ -312,7 +330,7 @@ export function ruleExtract(input: string, opts: RuleOptions = {}): Extraction {
     for (const [re, ch] of CHANNEL_VERBS) {
       if (re.test(s) && !ex.interaction) ex.interaction = { channel: ch, summary: input.trim().slice(0, 1000) };
     }
-    const who = new RegExp(`\\b(?:spoke|spoken|talked|called|met|meeting|call|rang|phoned|visited|whatsapp(?:ed)?)\\s+(?:to\\s+|with\\s+)?(${NAME})(?:\\s+(?:at|from|of)\\s+(${NAME}))?`).exec(s);
+    const who = new RegExp(`\\b(?:${ci("spoke|spoken|talked|called|met|meeting|call|rang|phoned|visited|whatsapp")}(?:ed)?)\\s+(?:${ci("to")}\\s+|${ci("with")}\\s+)?(${NAME})(?:\\s+(?:at|from|of)\\s+(${NAME}))?`).exec(s);
     const hiWho = new RegExp(`(?:^|\\s)(?:(${NAME})\\s+(?:ke|ki|wale|waale|from|at|of)\\s+)?(${NAME})(?:\\s+ji)?\\s+(?:se|ke\\s+sa+th|ko)\\s+(?:baat|meeting|mil[aie]|mulaqat|mulakat|call|phone)`).exec(s);
     if (who && isName(who[1])) {
       personIdx = addMention("person", who[1], at(who.index + who[0].indexOf(who[1])));
@@ -329,7 +347,7 @@ export function ruleExtract(input: string, opts: RuleOptions = {}): Extraction {
     const hasWho = !!(who || hiWho);
 
     // ---- area / seats / budget numbers
-    const numRe = new RegExp(`(?:(₹|rs\\.?|inr)\\s*)?\\b(\\d{1,3}(?:,\\d{2,3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?|${WORD_NUM})(?:[\\s-]+(${WORD_NUM}))?\\s*(${MULT_RE})?\\b\\s*(sq\\.?\\s?ft|sqft|sft|sf|square f(?:ee|oo)t|per sq\\.?\\s?ft|psf|\\/sf|\\/sq\\.?\\s?ft|per seat|\\/seat|per desk|seats?|seater|desks?|rupees|rupaye|rupay)?`, "gi");
+    const numRe = new RegExp(`(?:(₹|rs\\.?|inr)\\s*)?\\b(\\d{1,3}(?:,\\d{2,3})+(?:\\.\\d+)?|\\d+(?:\\.\\d+)?|${WORD_NUM})(?:[\\s-]+(${WORD_NUM}))?\\s*(${MULT_RE})?\\b\\s*(sq\\.?\\s?ft|sqft|sft|sf|square f(?:ee|oo)t|sq\\.?\\s?feet|feet|ft|per sq\\.?\\s?ft|psf|\\/sf|\\/sq\\.?\\s?ft|per seat|\\/seat|per desk|seats?|seater|desks?|rupees|rupaye|rupay)?`, "gi");
     let n: RegExpExecArray | null;
     while ((n = numRe.exec(s))) {
       const [whole, cur, base, second, mult, unit] = n;
@@ -338,6 +356,23 @@ export function ruleExtract(input: string, opts: RuleOptions = {}): Extraction {
       const isWord = isNaN(Number(digits));
       const preceding = s.slice(0, n.index);
       if (/\b(?:by|in|on|before|after)\s*$/i.test(preceding) && !mult && !unit) continue;   // dates like "by 15"
+      // "Budget is 85": a bare number right after budget/rent words is a budget with UNKNOWN unit and pricing basis —
+      // kept raw, never assumed; one question covers unit, basis and CAM (spec §2.1 / §16).
+      if (!isWord && !mult && !unit && !cur && /\b(budget|rent|rental|kiraya|bajat)\b[^\d\n]{0,12}$/i.test(preceding) && Number(digits) < 10_000) {
+        const v = Number(digits);
+        const start = at(n.index), end = at(n.index + whole.trimEnd().length);
+        const fi = ex.facts.push({ entity_type: "requirement", field: "budget_max", proposed_value: v, raw_text: whole.trim(), unit: null,
+          status: "reported", requires_confirmation: true, start, end }) - 1;
+        amb({ kind: "unit", question: `Budget "${whole.trim()}" — does that mean ₹${fmtNum(v)} per sq ft per month? Is CAM extra?`, fact_index: fi, start, end,
+          options: [
+            { label: `Yes — ₹${fmtNum(v)}/sq ft/month, CAM extra`, value: "budget_max|per_sf_month|cam_extra" },
+            { label: `₹${fmtNum(v)}/sq ft/month including CAM`, value: "budget_max|per_sf_month|cam_included" },
+            { label: `₹${fmtNum(v)}/sq ft/month, CAM not discussed`, value: "budget_max|per_sf_month|cam_unknown" },
+            { label: `₹${fmtNum(v)} per seat per month`, value: "budget_max|per_seat_month" },
+            { label: `₹${fmtNum(v)} total per month`, value: "budget_max|total_month" },
+          ] });
+        continue;
+      }
       if (!isWord && !mult && !unit && !cur) continue;                                         // bare numbers carry no field
       if (/^\d{4}$/.test(base) && !mult && !unit && !cur) continue;                            // years
       if (/lock[- ]?in|lease|tenure|term|saal|years?|months?/i.test(s.slice(n.index + whole.length, n.index + whole.length + 12)) && !unit && !cur) continue; // tenure, handled below
@@ -419,14 +454,17 @@ export function ruleExtract(input: string, opts: RuleOptions = {}): Extraction {
     }
 
     // ---- geography preference: "maybe Baner", "prefer Kharadi or Viman Nagar", "Baner ho sakta hai", "shayad Baner"
-    const geo = (g: string, idx: number, tentative: boolean, raw: string) => {
+    const geo = (g0: string, idx0: number, tentative: boolean, raw: string) => {
+      const st = stripFunctionWords(g0);
+      if (!st.text) return;
+      const g = st.text, idx = idx0 + st.offset;
       if (monthIndex(g) >= 0 || weekdayIndex(g.split(" ")[0]) >= 0 || personNames().has(g.toLowerCase())) return;
       const mi = addMention("geography", g, at(idx));
       ex.facts.push({ entity_type: "requirement", field: "preferred_geography", proposed_value: g, raw_text: raw, unit: null,
         status: tentative ? "tentative" : "reported", requires_confirmation: true, start: ex.mentions[mi].start, end: ex.mentions[mi].end });
     };
     const gm = new RegExp(`\\b(maybe|prefer(?:s|red)?|ideally|likes?|looking at|in|shayad|shaayad)\\s+(${PLACE})(?:\\s+(?:or|ya)\\s+(${PLACE}))?`).exec(s);
-    const hgm = new RegExp(`\\b(${PLACE})(?:\\s+(?:ya|or)\\s+(${PLACE}))?\\s+(ho\\s+sakta\\s+hai|ho\\s+sakti\\s+hai|chalega|chal\\s+jayega|prefer|pasand\\s+hai|best\\s+rahega|(?:mein|me|main)\\s+(?:chahiye|dekh|dekhna|dhoondh))`).exec(s);
+    const hgm = new RegExp(`\\b(${PLACE})(?:\\s+(?:ya|or)\\s+(${PLACE}))?\\s+(ho\\s+sakta\\s+hai|ho\\s+sakti\\s+hai|chalega|chal\\s+jayega|prefer|pasand\\s+hai|best\\s+rahega|(?:mein|me|main)\\s+(?:chahiye|dekh|dekhna|dhoondh)|(?:mein|me|main)\\s+[^.]{0,40}?\\bchahiye)`).exec(s);
     const catchmentClause = /\b(employees?|staff|team|people|log)\b.*\b(live|lives|stay|stays|come|comes|commute|commutes|rehte|aate)\b/i.test(s);
     if (catchmentClause) { /* catchments are not location preferences */ }
     else if (gm && monthIndex(gm[2]) < 0 && !hasWho) {

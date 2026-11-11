@@ -1,4 +1,5 @@
 import "server-only";
+import { comparisonRejections } from "@/modules/intelligence/memory/integrate/hooks";
 import type { Db } from "@/lib/supabase/server";
 import { saveAnalysis } from "./store";
 import { DEFAULT_MODEL, RATING_FORMULA, rateProperties, validateModel, type AreaBasis, type RatingFactor, type RatingModel, type RatingProperty, type RatingRequirement, type RatingRule } from "./calc/rating";
@@ -147,7 +148,9 @@ export async function runComparison(db: Db, ws: string, userId: string, input: C
   const rated = rateProperties(model, req, properties, { asOf });
   // Site-visit feedback is shown alongside the rating; it never changes eligibility (no auto-reject).
   const siteVisitFeedback = input.requirementId ? await loadSiteVisitFeedback(db, ws, input.requirementId, props.map((p) => ({ key: p.key, name: p.name }))) : [];
-  const outputs = { ...rated, siteVisitFeedback };
+  // Module 13: previously rejected buildings for this requirement, with recorded reasons (client rejection vs our matching).
+  const previousRejections = input.requirementId ? await comparisonRejections(db, ws, userId, input.requirementId) : null;
+  const outputs = { ...rated, siteVisitFeedback, previousRejections };
   const missing = outputs.recommendation.key ? [] : ["No eligible property to recommend"];
   return saveAnalysis(db, ws, userId, {
     id: input.id, kind: "property_comparison", title: input.title, requirementId: input.requirementId ?? null, assetIds: input.assetIds, quoteRefs,

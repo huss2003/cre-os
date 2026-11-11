@@ -9,6 +9,8 @@ export interface CardPhone { value: string; digits: string; type: PhoneType; lab
 export interface ParsedCard {
   name: string | null; title: string | null; company: string | null;
   emails: string[]; phones: CardPhone[]; website: string | null;
+  /** office address lines (verbatim) — pin code / road / floor / city words; null when not clearly present */
+  address: string | null;
   lines: string[]; unparsed: string[];
 }
 
@@ -17,6 +19,24 @@ const URL = /\b(?:https?:\/\/)?(?:www\.)[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+(?:\/[^
 const PHONE = /(\+?\d[\d\s().\/-]{7,}\d)/g;
 const TITLE_WORDS = /\b(director|manager|head|vp|vice president|president|ceo|cfo|coo|cto|founder|partner|associate|executive|officer|lead|consultant|analyst|adviser|advisor|chairman|md|gm|agm|dgm|avp|svp|evp|principal|specialist|engineer|architect|broker)\b/i;
 const COMPANY_WORDS = /\b(pvt\.?|private|ltd\.?|limited|llp|inc\.?|corp\.?|corporation|llc|group|realty|properties|estates?|developers?|infra|technologies|solutions|services|advisors|advisory|consultants|holdings|& co\.?|gmbh|plc)\b/i;
+
+const ADDRESS = /\b(road|rd\.?|marg|street|st\.?|lane|floor|flr|tower|plot|sector|nagar|park|chowk|wing|building|bldg|pune|mumbai|bengaluru|bangalore|hyderabad|chennai|delhi|gurgaon|gurugram|noida|maharashtra|india|pin)\b/i;
+
+/** Fields a reviewer should check: missing, ambiguous phone type, unreadable lines, email domain unlike the website. */
+export function uncertainCardFields(c: ParsedCard): { field: string; reason: string }[] {
+  const out: { field: string; reason: string }[] = [];
+  if (!c.name) out.push({ field: "name", reason: "no clear name line" });
+  if (!c.title) out.push({ field: "designation", reason: "not found" });
+  if (!c.company) out.push({ field: "company", reason: "not found (email domain is not used to guess it)" });
+  if (!c.emails.length) out.push({ field: "email", reason: "not found" });
+  for (const p of c.phones) if (p.type === "unknown") out.push({ field: `phone ${p.value}`, reason: "unlabelled — could be direct or switchboard" });
+  if (c.website && c.emails.length) {
+    const site = c.website.replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].toLowerCase();
+    if (!c.emails.some((e) => e.split("@")[1] === site)) out.push({ field: "email", reason: `domain differs from website ${site}` });
+  }
+  if (c.unparsed.length) out.push({ field: "other text", reason: `${c.unparsed.length} line(s) not understood: ${c.unparsed.slice(0, 3).join(" | ")}` });
+  return out;
+}
 
 function phoneType(label: string | null, digits: string): PhoneType {
   const l = (label ?? "").toLowerCase();
@@ -65,8 +85,12 @@ export function parseBusinessCard(text: string): ParsedCard {
   // a person's name: 2–4 capitalised words, letters only (plus . and '), not a title/company line
   const nameRow = rest.find(({ l, i }) => !used.has(i) && /^(?:(?:Mr|Ms|Mrs|Dr)\.?\s+)?[A-Z][a-zA-Z.'-]*(?:\s+[A-Z][a-zA-Z.'-]*){1,3}$/.test(l) && !TITLE_WORDS.test(l) && !COMPANY_WORDS.test(l));
   if (nameRow) { name = nameRow.l.replace(/^(Mr|Ms|Mrs|Dr)\.?\s+/, ""); used.add(nameRow.i); }
+  // address: lines with a PIN code or clear address words (kept verbatim, joined)
+  const addrRows = rest.filter(({ l, i }) => !used.has(i) && (ADDRESS.test(l) || /\b\d{3}\s?\d{3}\b/.test(l)));
+  for (const r of addrRows) used.add(r.i);
+  const address = addrRows.length ? addrRows.map((r) => r.l).join(", ") : null;
   // company fallback: email domain is NOT used to invent a company name (unknown stays unknown)
-  return { name, title, company, emails, phones, website, lines, unparsed: lines.filter((_, i) => !used.has(i)) };
+  return { name, title, company, emails, phones, website, address, lines, unparsed: lines.filter((_, i) => !used.has(i)) };
 }
 
 /** contact_method rows to propose for a parsed card (verify_status from the phone type; nothing verified). */

@@ -5,6 +5,7 @@ import { route, parseJson, uuid } from "@/lib/util/http";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getReview, submitReview } from "@/modules/capture/service";
 import { asHttp } from "@/modules/changes/http";
+import { correctTranscript, runInputEngine } from "@/modules/capture/input-engine/service";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,9 @@ export const POST = route<{ id: string }>(async (req: NextRequest, { params }) =
   const ctx = await requireContext("editor");
   const body = await parseJson(req, Body);
   try {
+    if (body.text?.trim()) await correctTranscript(ctx.db, ctx.workspaceId, ctx.userId, uuid.parse(params.id), body.text);
     await submitReview(ctx.db, createAdminClient(), ctx.workspaceId, ctx.userId, uuid.parse(params.id), body);
+    try { await runInputEngine(createAdminClient(), ctx.workspaceId, params.id); } catch { /* best effort */ }
     return await getReview(ctx.db, ctx.workspaceId, params.id);
   } catch (e) { asHttp(e); }
 }, { requireIdempotency: true });

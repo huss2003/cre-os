@@ -1,106 +1,106 @@
 {
-  "durationMs": 103389,
+  "durationMs": 94902,
   "steps": [
     {
       "caption": "Open Capture after any call, meeting or site visit.",
-      "ms": 3617
+      "ms": 3605
     },
     {
       "caption": "New capture: three ways in. Speak — words appear as you talk.",
-      "ms": 8368
+      "ms": 7602
     },
     {
       "caption": "Photo — snap a visiting card or a whiteboard; the text is read from it.",
-      "ms": 11580
+      "ms": 10781
     },
     {
       "caption": "Language: English, Hindi / Hinglish or Marathi — pick what you'll speak or write.",
-      "ms": 14803
+      "ms": 13964
     },
     {
       "caption": "More options lets you set when it actually happened, if it wasn't just now.",
-      "ms": 18086
+      "ms": 17135
     },
     {
       "caption": "Add files: upload documents such as a lease, LOI or floor plan.",
-      "ms": 21303
+      "ms": 20317
     },
     {
       "caption": "Link to a record ties the file to a company, person, building or requirement.",
-      "ms": 24497
+      "ms": 23495
     },
     {
       "caption": "Recent captures lists earlier notes, with their status and how many changes they propose.",
-      "ms": 27688
+      "ms": 26667
     },
     {
       "caption": "Now choose Type to write or paste a note.",
-      "ms": 30927
+      "ms": 29829
     },
     {
       "caption": "Write what happened, in plain words.",
-      "ms": 34782
+      "ms": 33750
     },
     {
       "caption": "Save it. Nothing in your records changes yet.",
-      "ms": 45306
+      "ms": 40926
     },
     {
-      "caption": "CRE OS read the note. When something is unclear, it asks instead of guessing.",
-      "ms": 49672
+      "caption": "CRE OS read the note. The receipt lists what it saved, matched and scheduled.",
+      "ms": 44788
     },
     {
-      "caption": "Which March? Pick 2027.",
-      "ms": 52966
+      "caption": "'By March' is a target, not a contract date: the year stays unknown instead of being guessed.",
+      "ms": 48009
     },
     {
-      "caption": "Which Friday? Pick the nearest one, then save the answers.",
-      "ms": 56840
+      "caption": "'Friday' became a task due this Friday — no question needed.",
+      "ms": 51233
     },
     {
       "caption": "This box lists exactly what will be added: a meeting log, requirement details and a task.",
-      "ms": 62976
+      "ms": 54453
     },
     {
       "caption": "Each line shows the company or person it belongs to — check the names and numbers.",
-      "ms": 66141
+      "ms": 57721
     },
     {
       "caption": "Looks right? Press Reviewed — now it goes to your records.",
-      "ms": 69351
+      "ms": 60919
     },
     {
       "caption": "Facts for approval: important changes are listed with where they came from.",
-      "ms": 73190
+      "ms": 64810
     },
     {
       "caption": "Each one can be checked and undone later from Review → History & undo.",
-      "ms": 76358
+      "ms": 68006
     },
     {
       "caption": "The capture's status now reads Reviewed.",
-      "ms": 79702
+      "ms": 71327
     },
     {
       "caption": "Open the company to see the result.",
-      "ms": 82884
+      "ms": 74533
     },
     {
       "caption": "The Requirements tab shows the 25,000 sq ft need in Kharadi.",
-      "ms": 86846
+      "ms": 78449
     },
     {
       "caption": "Timeline holds the meeting log from your note.",
-      "ms": 90699
+      "ms": 82336
     },
     {
       "caption": "And the follow-up task is waiting in Today → Tasks.",
-      "ms": 94680
+      "ms": 86216
     },
     {
       "caption": "Review in the sidebar is where any change still waiting for you shows up.",
-      "ms": 96992
+      "ms": 88526
     }
   ],
-  "bytes": 1064222
+  "bytes": 1219398
 }

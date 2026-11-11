@@ -119,7 +119,9 @@ export async function notifyDelayed(admin: Db, ws: string, now = new Date()) {
  */
 export async function notifyFailures(admin: Db, ws: string, now = new Date()) {
   const { data } = await admin.from("workflow_run").select("id, definition_key, summary, status, error, next_attempt_at, finished_at").eq("workspace_id", ws).eq("kind", "orchestrated")
-    .in("status", ["failed", "partially_completed"]).gte("started_at", new Date(+now - 24 * 3600_000).toISOString()).limit(50);
+    .in("status", ["failed", "partially_completed"]).or("status.eq.failed,next_attempt_at.is.null").gte("started_at", new Date(+now - 24 * 3600_000).toISOString())
+    // Newest first: an unordered capped read could skip a fresh failure once >limit older ones exist (dedupe makes re-sends no-ops).
+    .order("started_at", { ascending: false }).limit(200);
   let sent = 0;
   for (const r of (data ?? []) as Row[]) {
     if (r.status === "partially_completed" && r.next_attempt_at) continue;

@@ -344,6 +344,18 @@ describe("reconciliation + revision diff", () => {
     expect(diffVersions("p", [a], [b])).toMatchObject({ changed: 1, added: 0, removed: 0 });
   });
 
+  it("moved rows report only real changes: null, undefined and blank are the same value", () => {
+    const prev = { key: "S|k1", sheet: "S", identity_key: "k1", row_hash: "h-at-row-2", fields: { expected_rent: null, area: 5000, notes: "" }, locator: "S!2" };
+    const moved = { key: "S|k1", sheet: "S", identity_key: "k1", row_hash: "h-at-row-9", fields: { area: 5000, notes: null, expected_rent: undefined }, locator: "S!9" };
+    const d = diffVersions("p", [prev], [moved]);
+    expect(d).toMatchObject({ changed: 0, unchanged: 1, added: 0, removed: 0 });
+    expect(d.samples).toEqual([]);
+    const edited = { ...moved, fields: { area: 5200, expected_rent: "" } };
+    const d2 = diffVersions("p", [prev], [edited]);
+    expect(d2.changed).toBe(1);
+    expect(d2.samples[0].fields).toEqual([{ field: "area", before: 5000, after: 5200 }]);
+  });
+
   it("range parser keeps unparseable text instead of inventing numbers", () => {
     expect(range({ v: "On request", t: "s" })).toMatchObject({ min: null, max: null, text: "On request", ok: false });
     expect(range({ v: "25K", t: "s" })).toMatchObject({ min: 25000, max: 25000 });

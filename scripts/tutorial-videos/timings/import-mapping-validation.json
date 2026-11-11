@@ -1,0 +1,82 @@
+{
+  "durationMs": 89931,
+  "steps": [
+    {
+      "caption": "Open More → Imports (Capture's 'Upload a spreadsheet' goes to the same place).",
+      "ms": 3604
+    },
+    {
+      "caption": "Upload: choose files, an as-of date and the source. Formulas and macros are never run.",
+      "ms": 9768
+    },
+    {
+      "caption": "Choose 'Pune contacts.xlsx' — companies, contacts, areas, locations and lease expiries.",
+      "ms": 12917
+    },
+    {
+      "caption": "Upload and reconcile.",
+      "ms": 16077
+    },
+    {
+      "caption": "Version 1, its fingerprint and the detected kind: Contacts & requirements.",
+      "ms": 22032
+    },
+    {
+      "caption": "Three steps: 1 already added (companies you had, new people), 2 needs your OK, 3 could not be imported.",
+      "ms": 25204
+    },
+    {
+      "caption": "Safe rows can be added in one click by an owner or admin. The rest you decide yourself.",
+      "ms": 28374
+    },
+    {
+      "caption": "Column mapping: each column with the field it was matched to, and how sure CRE OS is.",
+      "ms": 36683
+    },
+    {
+      "caption": "'Area Reqd → Required Area 65%' is a guess to confirm. Unmatched columns are kept as custom values.",
+      "ms": 39865
+    },
+    {
+      "caption": "Remarks was mapped to Notes. To keep it as its own column, open 'Correct this mapping'.",
+      "ms": 43045
+    },
+    {
+      "caption": "Column I, Remarks: choose 'Keep as custom'.",
+      "ms": 46952
+    },
+    {
+      "caption": "Approve mapping and re-process. It is remembered for this layout and future files.",
+      "ms": 50148
+    },
+    {
+      "caption": "The mapping card now uses your approved mapping.",
+      "ms": 60712
+    },
+    {
+      "caption": "Validation report: rows checked, blocking findings, findings to review and notes.",
+      "ms": 63940
+    },
+    {
+      "caption": "Open 'Invalid email addresses': cell D3 has a double @ — kept raw, never saved as a contact method.",
+      "ms": 67108
+    },
+    {
+      "caption": "Invalid phone, an area without a unit (not assumed to be sq ft) and a date that could be 4 May or 5 April.",
+      "ms": 70994
+    },
+    {
+      "caption": "Notes: area basis not stated, dates without a day — kept unknown, not invented.",
+      "ms": 75188
+    },
+    {
+      "caption": "Rows with a problem: each finding with its cell and the reason.",
+      "ms": 78380
+    },
+    {
+      "caption": "New people from this file are only proposed — Rahul Khanna has no valid email or phone.",
+      "ms": 82550
+    }
+  ],
+  "bytes": 1293406
+}

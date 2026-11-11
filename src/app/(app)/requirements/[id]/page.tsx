@@ -1,4 +1,6 @@
 import { FOCUS_MODE } from "@/lib/nav";
+import { Suspense } from "react";
+import { RequirementIntelligence } from "@/modules/intelligence/memory/ui/panels";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Button, ButtonLink, Card, EmptyState, Field, Input, MoreFields, PageHeader, Select, StaleBanner, Stat, Table, Td, Textarea, inr } from "@/components/ui";
@@ -61,6 +63,7 @@ export default async function RequirementDetail({ params, searchParams }: { para
         actions={FOCUS_MODE ? (canEdit ? <ButtonLink href={`/requirements/${id}/edit`}>Edit requirement</ButtonLink> : null) : <>{canEdit ? <ButtonLink href={`/requirements/${id}/edit`}>Edit requirement</ButtonLink> : null}<ButtonLink variant="secondary" href={`/documents?requirement=${id}`}>Documents</ButtonLink><ButtonLink variant="secondary" href={`/finance?requirement=${id}`}>Financials</ButtonLink></>} />
       <Flash sp={sp} />
       <ReassessBanner ctx={app} entityType="requirement" entityId={id} />
+      <Suspense fallback={null}><RequirementIntelligence ctx={app} requirementId={id} /></Suspense>
       {d.pendingProposals.length > 0 && <StaleBanner>{d.pendingProposals.length} change proposal(s) to confirmed fields await approval — <Link className="underline" href="/approvals">open approvals</Link>.</StaleBanner>}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

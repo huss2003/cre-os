@@ -14,7 +14,9 @@ import { addUploadedMaterial, UPLOAD_MIME } from "@/modules/meetings/more";
 import type { Role } from "@/lib/auth/context";
 import { createCapture, processCapture } from "../service";
 import { DOC_TYPES, detectDocType, fileFamily, type DocType, type Detection } from "./detect";
-import { cardContactMethods, parseBusinessCard, type ParsedCard } from "./card";
+import { cardContactMethods, parseBusinessCard, uncertainCardFields, type ParsedCard } from "./card";
+import { pptxSlides, legacyOfficeText, legacyNote, SCANNED_PDF_NOTE, isLegacyOfficeName } from "../input-engine/office";
+import { analyseDocument, runInputEngine } from "../input-engine/service";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -91,7 +93,7 @@ export async function intakeDocument(ctx: DocCtx, file: { name: string; mime: st
   const { data, error } = await ctx.db.from("capture_document").insert({
     workspace_id: ws, owner_user_id: ctx.userId, sha256: sha, file_name: file.name.slice(0, 200), mime: file.mime || null, size_bytes: file.bytes.length,
     storage_path: path, links, status: family === "unsupported" ? "unsupported" : "received",
-    error: family === "unsupported" ? "This file type isn't supported. Use PDF, Word (.docx), a photo, a spreadsheet (.xlsx/.csv) or an audio recording." : null,
+    error: family === "unsupported" && isLegacyOfficeName(file.name) ? legacyNote(file.name) : family === "unsupported" ? "This file type isn't supported. Use PDF, Word (.docx), a photo, a spreadsheet (.xlsx/.csv) or an audio recording." : null,
     detection: { user_type: opts.userType ?? null, caption: opts.caption ?? null, language_hint: opts.languageHint ?? null, consent_reference: opts.consentReference ?? null, party_kind: opts.partyKind ?? null },
     idempotency_key: `sha256:${sha}`,
   }).select().single();
@@ -157,6 +159,10 @@ export async function processDocument(ctx: DocCtx, id: string, input: { bytes?: 
     if (family === "pdf" || family === "docx" || family === "text") {
       const ex = await extractAttachmentText(bytes, doc.file_name, doc.mime ?? "");
       pages = ex.pageTexts ?? [ex.text]; text = ex.text;
+    } else if (family === "pptx") {
+      pages = await pptxSlides(bytes); text = pages.join("\n\f\n");             // page reference = slide number
+    } else if (family === "legacy_office") {
+      text = legacyOfficeText(bytes); pages = [text];                             // best effort (old binary .doc/.ppt)
     } else if (family === "image") {
       const ocr = deps.ocr ?? defaultOcr;
       const r = await ocr({ workspaceId: ws, bytes, mime: doc.mime || "image/jpeg", hint: meta.caption ?? "photo from a CRE adviser: business card, building photo or floor plan", mock: typed ?? "" });
@@ -172,7 +178,15 @@ export async function processDocument(ctx: DocCtx, id: string, input: { bytes?: 
     doc = await save(ctx.db, ws, id, { detected_type: det.type, detection, page_count: pages.length || null });
     const links = cleanLinks(doc.links);
     const base: Row = { ...(doc.result ?? {}), typed_text: typed ?? undefined };
+    const scanned = family === "pdf" && !text.trim() && !typed?.trim();
+    const legacy = family === "legacy_office" || isLegacyOfficeName(doc.file_name);
+    base.format_note = legacy ? legacyNote(doc.file_name) : scanned ? SCANNED_PDF_NOTE : undefined;
 
+    // Input Engine: page-referenced commercial observations (never blocks routing; S4 — evidence rows only)
+    try {
+      const ie = await analyseDocument(ctx.db, ws, ctx.userId, { ...doc, detected_type: det.type }, pages, { ocr: family === "image", service: !!ctx.service });
+      base.observations = { count: ie.ids.length, conflicts: ie.conflicts.length, repeats: "repeats" in ie ? ie.repeats : 0, best_effort: family === "legacy_office" || undefined };
+    } catch (e) { base.observations = { error: e instanceof Error ? e.message.slice(0, 200) : "failed" }; }
     const finish = (status: string, result: Row, error: string | null = null) => save(ctx.db, ws, id, { status, result: { ...base, ...result }, error });
     switch (det.type) {
       case "spreadsheet": {
@@ -186,6 +200,8 @@ export async function processDocument(ctx: DocCtx, id: string, input: { bytes?: 
       case "property_photo": case "layout": return finish(...(await routePhoto(ctx, doc, det.type, bytes, links)));
       case "audio": return finish(...(await routeAudio(ctx, doc, bytes, typed, links, deps)));
       default:
+        if (scanned) return finish("needs_input", { pages: pages.length, scanned_pdf: true }, SCANNED_PDF_NOTE);
+        if (legacy && !text.trim()) return finish("needs_input", { pages: pages.length }, `${legacyNote(doc.file_name)} No readable text was found.`);
         return finish("needs_input", { pages: pages.length }, text.trim()
           ? "We couldn't tell what this document is. Choose its type and press Process again."
           : "No readable text was found (scanned PDF or blank photo?). Choose its type, or type the text, and press Process again.");
@@ -232,6 +248,62 @@ export function locate(pages: string[], value: unknown): { page: number; snippet
   return null;
 }
 
+const MONTHS_LONG = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+/** Ways an ISO date (yyyy-mm-dd) is commonly written in Indian documents. */
+function dateVariants(iso: string): string[] {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return [];
+  const [, y, mm, dd] = m; const d = String(Number(dd)), mo = MONTHS_LONG[Number(mm) - 1]; if (!mo) return [];
+  const mon = mo.slice(0, 3), mN = String(Number(mm));
+  return [iso, `${dd}/${mm}/${y}`, `${d}/${mN}/${y}`, `${dd}-${mm}-${y}`, `${d}-${mN}-${y}`, `${dd}.${mm}.${y}`, `${d} ${mo} ${y}`, `${d} ${mon} ${y}`,
+    `${dd} ${mo} ${y}`, `${dd} ${mon} ${y}`, `${d}${["st", "nd", "rd"][((Number(d) + 90) % 100 - 10) % 10 - 1] ?? "th"} ${mo} ${y}`, `${mo} ${d}, ${y}`, `${mon} ${d}, ${y}`, `${d}-${mon}-${y}`, `${dd}-${mon}-${y}`];
+}
+/** Words that introduce a term on the page, beyond its label. */
+const TERM_KEYWORDS: Record<string, string[]> = {
+  quote_date: ["quote date", "quotation date", "date of quotation", "date of quote", "dated", "date"],
+  valid_until: ["valid until", "valid till", "validity", "valid up to", "valid upto"],
+  deposit_months: ["security deposit", "deposit", "sd"],
+  lockin_months: ["lock-in", "lock in", "lockin"], notice_months: ["notice"], tenure_months: ["tenure", "term"],
+  escalation_pct: ["escalation"], escalation_every_months: ["escalation"], rent_free_months: ["rent free", "rent-free", "fit-out period"],
+  cam_per_sf: ["cam", "maintenance"], parking_per_slot: ["parking"], rent: ["rent", "rental"], capex_support: ["capex", "fit-out support", "fitout support"],
+};
+const escRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const lineAt = (p: string, at: number, len: number) => {
+  const start = Math.max(0, p.lastIndexOf("\n", at) + 1); const endNl = p.indexOf("\n", at + len);
+  return p.slice(start, endNl < 0 ? undefined : endNl).trim().split(/\s+/).slice(0, 25).join(" ");
+};
+
+/**
+ * Page + snippet for one extracted quote term — the single locator the quote card and the extracted items share.
+ * Tries the value as written (dates in their usual spellings, numbers as whole numbers in Indian/plain grouping),
+ * then a line that names the term ("Security deposit: 6 months"). Short numbers are never matched inside other
+ * numbers ("6" is not found in "2026").
+ */
+export function locateTerm(pages: string[], key: string, label: string, value: unknown): { page: number; snippet: string } | null {
+  if (value == null || value === "") return null;
+  const kws = [...new Set([label.replace(/\(.*?\)/g, "").trim().toLowerCase(), ...(TERM_KEYWORDS[key] ?? [])])].filter((k) => k.length >= 2);
+  const numStrs = typeof value === "number" ? [...new Set([value.toLocaleString("en-IN"), value.toLocaleString("en-US"), String(value)])] : [];
+  const numRe = numStrs.length ? new RegExp(`(?<![\\d.,])(?:${numStrs.map(escRe).join("|")})(?![\\d]|[.,]\\d)`) : null;
+  const kwRe = (k: string) => new RegExp(`(?<![a-z])${escRe(k)}(?![a-z])`, "i");
+  // 1. value + term name on the same line (most specific)
+  const variants = typeof value === "string" ? [value, ...dateVariants(value)] : [];
+  for (let i = 0; i < pages.length; i++) {
+    const lines = pages[i].split("\n");
+    for (const ln of lines) {
+      if (!kws.some((k) => kwRe(k).test(ln))) continue;
+      if ((numRe && numRe.test(ln)) || variants.some((v) => ln.toLowerCase().includes(v.toLowerCase()))) return { page: i + 1, snippet: ln.trim().split(/\s+/).slice(0, 25).join(" ") };
+    }
+  }
+  // 2. the value alone (dates / text; whole numbers of 2+ digits)
+  for (const v of variants) { const hit = locate(pages, v); if (hit) return hit; }
+  if (numRe && numStrs.some((x) => x.replace(/\D/g, "").length >= 2)) {
+    for (let i = 0; i < pages.length; i++) { const m = numRe.exec(pages[i]); if (m) return { page: i + 1, snippet: lineAt(pages[i], m.index, m[0].length) }; }
+  }
+  // 3. a line naming the term (the value may be written in words, e.g. "six months")
+  for (const k of kws) for (let i = 0; i < pages.length; i++) { const m = kwRe(k).exec(pages[i]); if (m) return { page: i + 1, snippet: lineAt(pages[i], m.index, m[0].length) }; }
+  return null;
+}
+
 const evidenceNote = (doc: Row, extra = "") => `From uploaded file "${doc.file_name}"${extra}`;
 
 // ---- quotation → extractQuoteTerms (toolkit) → quote create proposal
@@ -241,7 +313,7 @@ async function routeQuote(ctx: DocCtx, doc: Row, text: string, pages: string[], 
   const ext = await extractQuoteTerms(ctx.workspaceId, text, partyKind);
   const terms = Object.fromEntries(TERM_FIELDS.map((f) => {
     const v = (ext.terms as Row)[f.key] ?? null;
-    return [f.key, { label: f.label, value: v, source: v == null ? null : locate(pages, typeof v === "number" ? v.toLocaleString("en-IN") : v) ?? locate(pages, v) }];
+    return [f.key, { label: f.label, value: v, source: locateTerm(pages, f.key, f.label, v) }];
   }));
   const result: Row = { terms, extraction_model: ext.model, mocked: ext.mocked };
   if (!links.requirement_id) return ["needs_input", result, "Choose the requirement this quotation is for, then press Process again. Terms below are extracted but nothing is saved yet."];
@@ -267,7 +339,7 @@ async function routeQuote(ctx: DocCtx, doc: Row, text: string, pages: string[], 
 
 // ---- lease / LOI → assistant lease-terms (page-verified snippets) → lease create proposal
 async function routeLease(ctx: DocCtx, doc: Row, kind: "lease" | "loi", pages: string[], links: DocLinks): Promise<Routed> {
-  if (!pages.some((p) => p.trim())) return ["needs_input", {}, "No text could be read from this document (scanned PDF?). Nothing was extracted or guessed."];
+  if (!pages.some((p) => p.trim())) return ["needs_input", {}, `${SCANNED_PDF_NOTE} Nothing was extracted or guessed.`];
   let raw; let model = "heuristic"; let mocked = true;
   try {
     const r = await callStructured({
@@ -304,6 +376,7 @@ async function routeNotes(ctx: DocCtx, doc: Row, text: string, deps: DocDeps, ex
   }, `capture_doc:${doc.id}`);
   if (!duplicate && deps.processCaptures !== false && deps.admin) {
     try { await processCapture(deps.admin, ctx.workspaceId, capture.id); } catch { /* shown on the capture page; job retries */ }
+    try { await runInputEngine(deps.admin, ctx.workspaceId, capture.id); } catch { /* receipt is best effort */ }
   }
   return ["needs_review", { capture_id: capture.id }];
 }
@@ -315,13 +388,20 @@ async function routeCard(ctx: DocCtx, doc: Row, text: string, links: DocLinks): 
   if (!card.name && !card.emails.length && !card.phones.length) return ["needs_input", result, "No name, email or phone could be read from the card. Type the card text and press Process again."];
   const why = (what: string) => `${what} from business card "${doc.file_name}" (OCR text is evidence; check spelling). Card text: ${card.lines.join(" | ")}`.slice(0, 2000);
 
-  // person: linked person wins; otherwise a create proposal (only with a name read from the card)
+  result.uncertain_fields = uncertainCardFields(card);
+  // person: linked person wins; then an exact email/phone match (high confidence); a same-name person is only a
+  // suggestion (medium/low — the user decides; never merged); otherwise a create proposal (only with a name read from the card)
   let personId = links.person_id ?? null;
+  if (!personId) {
+    const m = await matchCardPerson(ctx.db, ws, card);
+    result.person_match = m;
+    if (m.tier === "high") personId = m.person_id;
+  }
   if (!personId && doc.result?.person_proposal_id) {
     const { data: p } = await ctx.db.from("change_proposal").select("state, target_id").eq("workspace_id", ws).eq("id", doc.result.person_proposal_id).maybeSingle();
     if (p?.state === "applied" && p.target_id) personId = p.target_id as string;
   }
-  if (!personId && card.name) {
+  if (!personId && card.name && !(result.person_match?.tier === "medium" || result.person_match?.tier === "low")) {
     const cp = await proposeChange(ctx.db, ws, { targetType: "person", operation: "create", patch: [{ op: "add", path: "/full_name", value: card.name }],
       reason: why(`New person "${card.name}"${card.title ? `, ${card.title}` : ""}`), proposedByKind: "job", ownerUserId: ctx.userId, actorUserId: actor(ctx), idempotencyKey: `capture_doc:${doc.id}:person` });
     ids.push(cp.id); result.person_proposal_id = cp.id;
@@ -355,6 +435,30 @@ async function routeCard(ctx: DocCtx, doc: Row, text: string, links: DocLinks): 
     }
   }
   return ["needs_review", { ...result, proposal_ids: [...new Set([...(doc.result?.proposal_ids ?? []), ...ids])] }];
+}
+
+/** Existing contact for a card: same email/phone = high; same full name = medium (one) / low (several); else none. */
+export async function matchCardPerson(db: Db, ws: string, card: ParsedCard): Promise<{ tier: "high" | "medium" | "low" | "none"; person_id: string | null; candidates: { id: string; label: string }[]; reason: string }> {
+  const values = [...card.emails, ...card.phones.map((p) => p.value)];
+  for (const v of values) {
+    const { data } = await db.from("contact_method").select("person_id").eq("workspace_id", ws).ilike("value", v.replace(/[%_]/g, "")).is("archived_at", null).limit(3);
+    const ids = [...new Set((data ?? []).map((r) => r.person_id as string))];
+    if (ids.length === 1) return { tier: "high", person_id: ids[0], candidates: [{ id: ids[0], label: v }], reason: `same ${v.includes("@") ? "email" : "phone"} (${v})` };
+  }
+  if (card.phones.length) {
+    const tails = card.phones.map((p) => p.digits.slice(-10)).filter((d) => d.length === 10);
+    for (const t of tails) {
+      const { data } = await db.from("contact_method").select("person_id, value").eq("workspace_id", ws).eq("method_type", "phone").ilike("value", `%${t.slice(-5)}%`).is("archived_at", null).limit(20);
+      const ids = [...new Set((data ?? []).filter((r) => String(r.value).replace(/\D/g, "").endsWith(t)).map((r) => r.person_id as string))];
+      if (ids.length === 1) return { tier: "high", person_id: ids[0], candidates: [{ id: ids[0], label: t }], reason: "same phone number" };
+    }
+  }
+  if (!card.name) return { tier: "none", person_id: null, candidates: [], reason: "no name on the card" };
+  const { data: people } = await db.from("person").select("id, full_name").eq("workspace_id", ws).is("archived_at", null).ilike("full_name", card.name.replace(/[%_,()]/g, "")).limit(5);
+  const c = (people ?? []).map((p) => ({ id: p.id as string, label: p.full_name as string }));
+  if (c.length === 1) return { tier: "medium", person_id: null, candidates: c, reason: "same name, no matching email/phone — confirm it's the same person" };
+  if (c.length > 1) return { tier: "low", person_id: null, candidates: c, reason: `${c.length} people with this name` };
+  return { tier: "none", person_id: null, candidates: [], reason: "no existing contact — new contact suggested" };
 }
 
 // ---- property photo / layout → attach to the visit (meeting material) and/or building (this document's link)

@@ -7,8 +7,9 @@ import { tour as outreach } from "./outreach";
 import { tour as meetings } from "./meetings";
 import { tour as toolkit } from "./toolkit";
 import { tour as automation } from "./automation";
+import { tour as input } from "./input-engine";
 
-export const TOURS: Tour[] = [database, signals, scoring, contacts, outreach, meetings, toolkit, automation];
+export const TOURS: Tour[] = [database, signals, scoring, contacts, outreach, meetings, toolkit, automation, input];
 export function tourByKey(key: string | null | undefined): Tour | undefined {
   return TOURS.find((t) => t.key === key);
 }

@@ -20,10 +20,15 @@ import { leaseLargeV1, leaseSmallV1 } from "./adapters/leases";
 import { transactions2022V1, transactions2023V1 } from "./adapters/transactions";
 import { marketMatrixV1 } from "./adapters/market";
 import { comparisonReferenceV1, looksLikeComparison } from "./adapters/reference";
+import { contactsRequirementsV1 } from "./adapters/contacts";
 
+// The generic contacts adapter is last: on equal evidence the tenant-specific adapters win.
 export const ADAPTERS: Adapter[] = [
-  assetListV1, readyAssetV1, leaseLargeV1, leaseSmallV1, transactions2022V1, transactions2023V1, marketMatrixV1, comparisonReferenceV1,
+  assetListV1, readyAssetV1, leaseLargeV1, leaseSmallV1, transactions2022V1, transactions2023V1, marketMatrixV1, comparisonReferenceV1, contactsRequirementsV1,
 ];
+
+/** Learned header aliases: "adapter:role:field" -> normalised header labels approved by an admin. */
+export type HeaderAliases = Record<string, string[]>;
 
 export function getAdapter(id: string): Adapter | undefined {
   return ADAPTERS.find((a) => a.id === id);
@@ -71,6 +76,8 @@ export interface SheetDetection {
   suggestions: MappingSuggestion[];
   rowsConsidered: number;
   layoutRows: number;
+  /** Mapping-quality findings from detection (ambiguous / unmapped / incomplete mappings). */
+  detectIssues?: RowIssue[];
 }
 
 const sha16 = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 16);
@@ -110,16 +117,21 @@ interface RoleMatch {
   matched: number;
   signature: string;
   headers: string[];
+  extra?: string[];
+  issues?: RowIssue[];
 }
 
-function matchHeaderRole(sheet: ParsedSheet, adapter: Adapter, role: RoleSpec): RoleMatch | null {
+function matchHeaderRole(sheet: ParsedSheet, adapter: Adapter, role: RoleSpec, aliases: HeaderAliases = {}): RoleMatch | null {
   if (role.sheetNamePattern && !role.sheetNamePattern.test(sheet.name)) return null;
   if (role.sheetNameExclude && role.sheetNameExclude.test(sheet.name)) return null;
   if (role.detect) {
-    const d = role.detect(sheet);
+    const d = role.detect(sheet, aliases);
     if (!d) return null;
     const hr = sheet.rows.find((r) => r.rowNumber === d.headerRow);
-    return { adapter, role, headerRow: d.headerRow, columnMap: {}, matched: 100, signature: d.signature, headers: hr ? hr.cells.map((c) => String(c.v ?? "")) : [] };
+    return {
+      adapter, role, headerRow: d.headerRow, columnMap: d.columnMap ?? {}, matched: d.matched ?? 100, signature: d.signature,
+      headers: hr ? hr.cells.map((c) => String(c.v ?? "")) : [], extra: d.extraColumns, issues: d.issues,
+    };
   }
   if (!role.fields || role.headerless) return null;
   let best: RoleMatch | null = null;
@@ -128,7 +140,8 @@ function matchHeaderRole(sheet: ParsedSheet, adapter: Adapter, role: RoleSpec): 
     const columnMap: Record<string, number> = {};
     const used = new Set<number>();
     for (const fld of role.fields) {
-      const idx = labels.findIndex((l, i) => !used.has(i) && l !== "" && fld.headers.includes(l));
+      const learned = aliases[`${adapter.id}:${role.role}:${fld.key}`] ?? [];
+      const idx = labels.findIndex((l, i) => !used.has(i) && l !== "" && (fld.headers.includes(l) || learned.includes(l)));
       if (idx >= 0) {
         columnMap[fld.key] = idx;
         used.add(idx);
@@ -213,7 +226,7 @@ function guessHeaderRow(sheet: ParsedSheet): ParsedRow | null {
   return null;
 }
 
-export function detectWorkbook(wb: ParsedWorkbook, mappings: ApprovedMapping[] = []): SheetDetection[] {
+export function detectWorkbook(wb: ParsedWorkbook, mappings: ApprovedMapping[] = [], aliases: HeaderAliases = {}): SheetDetection[] {
   // 2. comparison/reference workbooks are reference-only as a whole (including chart/summary tabs)
   if (wb.sheets.some(looksLikeComparison)) {
     return wb.sheets.map((s) => {
@@ -224,7 +237,7 @@ export function detectWorkbook(wb: ParsedWorkbook, mappings: ApprovedMapping[] =
       };
     });
   }
-  const perSheet = wb.sheets.map((s) => ({ sheet: s, matches: ADAPTERS.flatMap((a) => a.roles.map((r) => matchHeaderRole(s, a, r)).filter((m): m is RoleMatch => !!m)) }));
+  const perSheet = wb.sheets.map((s) => ({ sheet: s, matches: ADAPTERS.flatMap((a) => a.roles.map((r) => matchHeaderRole(s, a, r, aliases)).filter((m): m is RoleMatch => !!m)) }));
   // adapter score across the workbook = sum of best match per sheet (used only to break ties)
   const adapterScore = new Map<string, number>();
   for (const { matches } of perSheet) {
@@ -238,11 +251,23 @@ export function detectWorkbook(wb: ParsedWorkbook, mappings: ApprovedMapping[] =
     if (matches.length) {
       matches.sort((a, b) => b.matched - a.matched || (adapterScore.get(b.adapter.id) ?? 0) - (adapterScore.get(a.adapter.id) ?? 0) || ADAPTERS.indexOf(a.adapter) - ADAPTERS.indexOf(b.adapter));
       const m = matches[0];
+      // a user-approved correction for exactly this layout overrides the built-in / suggested column map
+      const override = mappings.filter((mp) => mp.schema_signature === m.signature && mp.adapter === m.adapter.id && mp.sheet_role === m.role.role && !mp.positional)
+        .sort((a, b) => b.version - a.version)[0];
+      if (override) {
+        const mapped = new Set(Object.values(override.column_map));
+        const extra = m.headers.map((h, i) => ({ h, i })).filter(({ h, i }) => h.trim() !== "" && !mapped.has(i)).map(({ h, i }) => `${colLetter(i)}: ${h}`);
+        return withRows({
+          ...d, status: "mapped", adapter: m.adapter.id, adapterVersion: m.adapter.version, role: m.role.role, headerRow: override.header_row || m.headerRow,
+          signature: m.signature, mappingSource: "approved_mapping", mappingId: override.id, mappingVersion: override.version, columnMap: override.column_map,
+          headers: m.headers, extraColumns: extra,
+        }, sheet);
+      }
       const mapped = new Set(Object.values(m.columnMap));
-      const extra = m.role.detect ? [] : m.headers.map((h, i) => ({ h, i })).filter(({ h, i }) => h.trim() !== "" && !mapped.has(i)).map(({ h, i }) => `${colLetter(i)}: ${h}`);
+      const extra = m.role.detect ? (m.extra ?? []) : m.headers.map((h, i) => ({ h, i })).filter(({ h, i }) => h.trim() !== "" && !mapped.has(i)).map(({ h, i }) => `${colLetter(i)}: ${h}`);
       return withRows({
         ...d, status: "mapped", adapter: m.adapter.id, adapterVersion: m.adapter.version, role: m.role.role, headerRow: m.headerRow, signature: m.signature,
-        mappingSource: "builtin", columnMap: m.columnMap, headers: m.headers, extraColumns: extra,
+        mappingSource: "builtin", columnMap: m.columnMap, headers: m.headers, extraColumns: extra, detectIssues: m.issues,
         unlabeledColumns: m.role.allowUnlabeled ? unlabeledColumns(sheet, m.headerRow, m.columnMap) : [],
       }, sheet);
     }
@@ -310,7 +335,8 @@ export function mapWorkbook(wb: ParsedWorkbook, detections: SheetDetection[], op
     if (det.mappingSource === "approved_mapping") {
       for (const o of result.outcomes) o.flags = [...(o.flags ?? []), det.headerRow === 0 ? "positional_map" : "approved_mapping"];
     }
-    if (det.extraColumns.length) {
+    if (det.detectIssues?.length) result.issues.push(...det.detectIssues);
+    else if (det.extraColumns.length) {
       result.issues.push(issue("schema_extra_columns", `Columns not used by ${det.adapter}/${det.role} are kept raw only: ${det.extraColumns.join(", ")}`, "info", { columns: det.extraColumns }));
     }
     return { detection: det, result };

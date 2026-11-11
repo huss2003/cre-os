@@ -149,6 +149,9 @@ describe("04 inbox triage: threads, links, commitments", () => {
 
 describe("04 push sync: Graph change notifications and Gmail Pub/Sub push", () => {
   let acc: ConnectorAccountRow;
+  // unique per run: the shared DB keeps rows from earlier runs (other workspaces), and push routing is global
+  const SUB = `sub-${tag("s")}`;
+  const PUSH_LOCAL = `colleague.push.${tag("g")}`.toLowerCase();
   const fakeEnqueue = () => {
     const calls: Parameters<EnqueueFn>[0][] = [];
     const keys = new Map<string, string>();
@@ -168,15 +171,15 @@ describe("04 push sync: Graph change notifications and Gmail Pub/Sub push", () =
     const seen: { url: string; body: Record<string, unknown> }[] = [];
     const fetchImpl = async (url: string, init?: RequestInit) => {
       seen.push({ url, body: JSON.parse(String(init?.body ?? "{}")) });
-      return new Response(JSON.stringify({ id: "sub-123", expirationDateTime: new Date(Date.now() + 72 * 3_600_000).toISOString() }), { status: 201 });
+      return new Response(JSON.stringify({ id: SUB, expirationDateTime: new Date(Date.now() + 72 * 3_600_000).toISOString() }), { status: 201 });
     };
     const r = await ensureGraphSubscription(admin, acc, "inbox", { fetchImpl });
-    expect(r).toMatchObject({ action: "created", id: "sub-123" });
+    expect(r).toMatchObject({ action: "created", id: SUB });
     expect(seen[0].url).toBe("https://graph.microsoft.com/v1.0/subscriptions");
     expect(seen[0].body).toMatchObject({ changeType: "created", resource: "me/mailFolders('inbox')/messages" });
     const secret = String(seen[0].body.clientState);
     const { data: sub } = await admin.from("push_subscription").select("external_id, client_state_hash, status").eq("connector_account_id", acc.id).eq("resource", "inbox").single();
-    expect(sub).toMatchObject({ external_id: "sub-123", status: "active", client_state_hash: sha256(secret) });
+    expect(sub).toMatchObject({ external_id: SUB, status: "active", client_state_hash: sha256(secret) });
     expect(JSON.stringify(sub)).not.toContain(secret);
     // still fresh => no call
     expect((await ensureGraphSubscription(admin, acc, "inbox", { fetchImpl: async () => { throw new Error("must not call"); } })).action).toBe("none");
@@ -191,7 +194,7 @@ describe("04 push sync: Graph change notifications and Gmail Pub/Sub push", () =
 
   it("duplicate notifications do not duplicate anything; a wrong clientState is rejected", async () => {
     const secret = (globalThis as { __secret?: string }).__secret!;
-    const body = { value: [{ subscriptionId: "sub-123", clientState: secret, changeType: "created", resource: "Users/x/Messages/AAA", resourceData: { id: "AAA" } }] };
+    const body = { value: [{ subscriptionId: SUB, clientState: secret, changeType: "created", resource: "Users/x/Messages/AAA", resourceData: { id: "AAA" } }] };
     const q = fakeEnqueue();
     const r1 = await handleGraphNotifications(admin, body, { enqueueFn: q.fn });
     const r2 = await handleGraphNotifications(admin, body, { enqueueFn: q.fn });
@@ -214,9 +217,9 @@ describe("04 push sync: Graph change notifications and Gmail Pub/Sub push", () =
   });
 
   it("Gmail push: bad token 403, unconfigured 503, duplicate Pub/Sub delivery is acknowledged without a second job", async () => {
-    const { data: g } = await admin.from("connector_account").upsert({ workspace_id: ws, user_id: C, provider: "google", status: "connected", scopes: [], account_email: "Colleague.Push@Example.com" },
+    const { data: g } = await admin.from("connector_account").upsert({ workspace_id: ws, user_id: C, provider: "google", status: "connected", scopes: [], account_email: `Colleague.Push.${PUSH_LOCAL.slice("colleague.push.".length).toUpperCase()}@Example.com` },
       { onConflict: "workspace_id,user_id,provider" }).select("*").single();
-    const body = { message: { data: Buffer.from(JSON.stringify({ emailAddress: "colleague.push@example.com", historyId: 9876 })).toString("base64"), messageId: tag("pubsub") }, subscription: "projects/x/subscriptions/y" };
+    const body = { message: { data: Buffer.from(JSON.stringify({ emailAddress: `${PUSH_LOCAL}@example.com`, historyId: 9876 })).toString("base64"), messageId: tag("pubsub") }, subscription: "projects/x/subscriptions/y" };
     const q = fakeEnqueue();
     delete process.env.GMAIL_PUSH_VERIFICATION_TOKEN;
     expect((await handleGmailPush(admin, "anything", body, { enqueueFn: q.fn })).status).toBe(503);

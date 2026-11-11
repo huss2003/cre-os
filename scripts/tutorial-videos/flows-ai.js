@@ -399,7 +399,7 @@ const FLOWS = [
       await t.step("'What is it?' — leave on Detect, or pick: quotation, lease, LOI, notes, business card, photo, layout…", () => t.point(main(p).locator("select[name=doc_type]").last()));
       await t.step("Choose the landlord's quotation PDF.", async () => {
         await t.point(main(p).getByRole("button", { name: "Choose files" }));
-        await main(p).locator("input[type=file]").first().setInputFiles(`${FILES}/riverside-quote.pdf`);
+        await main(p).locator("input[type=file][multiple]").first().setInputFiles(`${FILES}/riverside-quote.pdf`);
       });
       await t.step("It's recognised as a Quotation. Open it.", async () => { await main(p).getByRole("link", { name: "Open" }).first().waitFor({ timeout: 60000 }); await t.moveAndClick(main(p).getByRole("link", { name: "Open" }).first()); });
       await t.step("What CRE OS found: type, confidence, and each value with its page and quote.", async () => { await p.waitForURL(/capture\/documents/); await t.point(main(p).getByText("What CRE OS found")); });
@@ -407,7 +407,7 @@ const FLOWS = [
       await t.step("Proposals: here, create a quote. Review opens it for your approval.", () => t.point(main(p).getByText(/Proposals \(/)));
       await t.step("Wrong guess? 'Fix and process again' changes the type or linked records.", () => t.point(main(p).getByText("Fix and process again")));
       await t.step("Back to Capture for a building photo.", () => t.moveAndClick(navLink(p, "Capture")));
-      await t.step("Upload the photo.", async () => { await sleep(2000); await t.point(main(p).getByRole("button", { name: "Choose files" })); await main(p).locator("input[type=file]").last().setInputFiles(`${FILES}/riverside-photo.png`); });
+      await t.step("Upload the photo.", async () => { await sleep(2000); await t.point(main(p).getByRole("button", { name: "Choose files" })); await main(p).locator("input[type=file][multiple]").first().setInputFiles(`${FILES}/riverside-photo.png`); });
       await t.step("A photo needs a building or visit — open it to choose.", async () => { await main(p).getByRole("link", { name: "Open" }).first().waitFor({ timeout: 60000 }); await t.moveAndClick(main(p).getByRole("link", { name: "Open" }).first()); });
       await t.step("Pick the building, then Process again. Business cards work the same way: type 'Business card'.", async () => {
         await p.waitForURL(/capture\/documents/); const s = main(p).locator("select[name=asset_id]").last(); await t.point(s);

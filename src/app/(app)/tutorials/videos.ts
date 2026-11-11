@@ -701,74 +701,74 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "capture-files",
     "title": "Capture any file — quote, business card, photo → proposals",
     "category": "Review & settings",
-    "seconds": 76,
+    "seconds": 67,
     "learn": "Drop quotes, leases, notes, cards, photos or spreadsheets into Capture. CRE OS says what it found, page by page, and turns it into proposals you review.",
     "tryRoute": "/capture",
     "featured": false,
     "steps": [
       {
         "caption": "Open Capture.",
-        "ms": 3651
+        "ms": 3604
       },
       {
         "caption": "'Add files' takes almost anything, up to 25 MB each.",
-        "ms": 8987
+        "ms": 7554
       },
       {
         "caption": "Optional: link it to a record first — company, person, building, requirement or meeting.",
-        "ms": 12321
+        "ms": 10766
       },
       {
         "caption": "This quote is for Zentrix's requirement.",
-        "ms": 16939
+        "ms": 14632
       },
       {
         "caption": "'What is it?' — leave on Detect, or pick: quotation, lease, LOI, notes, business card, photo, layout…",
-        "ms": 20199
+        "ms": 17873
       },
       {
         "caption": "Choose the landlord's quotation PDF.",
-        "ms": 23562
+        "ms": 21029
       },
       {
         "caption": "It's recognised as a Quotation. Open it.",
-        "ms": 27185
+        "ms": 24237
       },
       {
         "caption": "What CRE OS found: type, confidence, and each value with its page and quote.",
-        "ms": 31771
+        "ms": 28279
       },
       {
         "caption": "Without an AI key it uses pattern matching — 'check every value'.",
-        "ms": 35124
+        "ms": 31474
       },
       {
         "caption": "Proposals: here, create a quote. Review opens it for your approval.",
-        "ms": 38456
+        "ms": 34660
       },
       {
         "caption": "Wrong guess? 'Fix and process again' changes the type or linked records.",
-        "ms": 41888
+        "ms": 37817
       },
       {
         "caption": "Back to Capture for a building photo.",
-        "ms": 45587
+        "ms": 40994
       },
       {
         "caption": "Upload the photo.",
-        "ms": 49800
+        "ms": 44852
       },
       {
         "caption": "A photo needs a building or visit — open it to choose.",
-        "ms": 55137
+        "ms": 50068
       },
       {
         "caption": "Pick the building, then Process again. Business cards work the same way: type 'Business card'.",
-        "ms": 60484
+        "ms": 54008
       },
       {
         "caption": "Recent files on Capture list every file and whether it needs your input.",
-        "ms": 67156
+        "ms": 58752
       }
     ]
   },
@@ -1863,6 +1863,789 @@ export const VIDEOS: TutorialVideo[] = [
       {
         "caption": "Press Prepare brief to get the purpose, people, history and questions.",
         "ms": 45553
+      }
+    ]
+  },
+  {
+    "slug": "capture-quick-note",
+    "title": "Capture a quick note (the Anil example)",
+    "category": "Records & data",
+    "seconds": 105,
+    "learn": "Type one line after a call. CRE OS shows a receipt of what it understood, asks ONE question about the unclear budget, sets the Friday follow-up task and changes no record until you press Reviewed.",
+    "tryRoute": "/capture",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Capture in the sidebar. This is where everything you hear, read or receive comes in.",
+        "ms": 3605
+      },
+      {
+        "caption": "The Capture dashboard: type a note, record a voice note, upload a card or document, upload a spreadsheet, pending reviews and history.",
+        "ms": 7674
+      },
+      {
+        "caption": "Choose Type — write or paste a note.",
+        "ms": 10842
+      },
+      {
+        "caption": "Write what happened in plain words, like a message to yourself.",
+        "ms": 14728
+      },
+      {
+        "caption": "More options lets you set when it happened and the language. Defaults are fine.",
+        "ms": 21435
+      },
+      {
+        "caption": "Press Save capture.",
+        "ms": 25318
+      },
+      {
+        "caption": "The review page. 'rule extractor' means practice mode: rules, not AI, read the note.",
+        "ms": 29622
+      },
+      {
+        "caption": "The Receipt says, in plain words, what CRE OS did with your note.",
+        "ms": 32790
+      },
+      {
+        "caption": "Saved: the note itself, with the items it understood.",
+        "ms": 36024
+      },
+      {
+        "caption": "Matched: 'Anil' is probably Anil Deshmukh — a medium-confidence match, so it waits for you to confirm.",
+        "ms": 39190
+      },
+      {
+        "caption": "Kharadi fits several buildings, so they are only suggestions — nothing is linked.",
+        "ms": 42391
+      },
+      {
+        "caption": "Questioned: 'Budget is 85' has no unit, so CRE OS asks one question instead of guessing.",
+        "ms": 45577
+      },
+      {
+        "caption": "Scheduled: 'Send options Friday' became a task due this Friday.",
+        "ms": 48805
+      },
+      {
+        "caption": "What the note is about: a new property requirement, a meeting note and a follow-up task.",
+        "ms": 52030
+      },
+      {
+        "caption": "Extracted information: each item with the exact words it came from.",
+        "ms": 55232
+      },
+      {
+        "caption": "Area: '20,000 feet' → 20,000 sq ft, an estimate. Carpet or chargeable is unknown, and stays unknown.",
+        "ms": 58414
+      },
+      {
+        "caption": "Budget: 85, but unit, pricing basis and CAM are unknown — not assumed.",
+        "ms": 61670
+      },
+      {
+        "caption": "'By September' is an informal target; the year is left unknown.",
+        "ms": 64843
+      },
+      {
+        "caption": "Here is the one question: does 85 mean ₹85 per sq ft per month, and is CAM extra?",
+        "ms": 68022
+      },
+      {
+        "caption": "Pick the answer you heard: ₹85 per sq ft per month, CAM extra.",
+        "ms": 71229
+      },
+      {
+        "caption": "Save answers.",
+        "ms": 75122
+      },
+      {
+        "caption": "Who and where: Anil → Anil Deshmukh. No company was named, so his only current employer is used — and flagged.",
+        "ms": 81463
+      },
+      {
+        "caption": "This list is everything that will be added when you press Reviewed. Nothing is saved to records yet.",
+        "ms": 84694
+      },
+      {
+        "caption": "Press Reviewed — add to records.",
+        "ms": 87911
+      },
+      {
+        "caption": "Requirement facts become proposals for approval — CRE OS never changes a requirement by itself.",
+        "ms": 94741
+      },
+      {
+        "caption": "The task 'Send options to Anil' is due Friday. It is also on your Tasks page.",
+        "ms": 97956
+      }
+    ]
+  },
+  {
+    "slug": "capture-voice-languages",
+    "title": "Voice notes in English, Hindi or Hinglish",
+    "category": "Records & data",
+    "seconds": 117,
+    "learn": "Speak or upload a voice note (English, Hindi or Hinglish), check the transcript, fix a misheard word and re-extract. Corrections are kept in the history; Hindi notes keep the original script.",
+    "tryRoute": "/capture",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Capture.",
+        "ms": 3604
+      },
+      {
+        "caption": "Speak turns your words into text as you talk, in the browser. You check the text before saving.",
+        "ms": 7649
+      },
+      {
+        "caption": "Choose the language: English, Hindi / Hinglish or Marathi.",
+        "ms": 11491
+      },
+      {
+        "caption": "Already have a recording? Use Add files. Open 'Link to a record' to set the language and consent.",
+        "ms": 14660
+      },
+      {
+        "caption": "Recording language: Hinglish.",
+        "ms": 19976
+      },
+      {
+        "caption": "Recording consent: who agreed to the recording.",
+        "ms": 23151
+      },
+      {
+        "caption": "Choose the voice note file.",
+        "ms": 27389
+      },
+      {
+        "caption": "It is recognised as a Recording. Open it.",
+        "ms": 31842
+      },
+      {
+        "caption": "In practice mode there is no speech-to-text, so CRE OS asks you to type what was said. The audio is kept.",
+        "ms": 35736
+      },
+      {
+        "caption": "Type the notes. Here the word Kharadi was heard as 'Karadi'.",
+        "ms": 38888
+      },
+      {
+        "caption": "Process again.",
+        "ms": 46583
+      },
+      {
+        "caption": "The transcript is shown. Speakers are not identified, so who said what stays uncertain.",
+        "ms": 56907
+      },
+      {
+        "caption": "Hinglish was understood: 'bees hazaar sq ft' → 20,000 sq ft, 'March tak' → by March.",
+        "ms": 60125
+      },
+      {
+        "caption": "'Friday ko options bhejna hai' became a Friday task.",
+        "ms": 63289
+      },
+      {
+        "caption": "Open the capture review to correct the transcript.",
+        "ms": 66466
+      },
+      {
+        "caption": "Open 'Correct the note / transcript'.",
+        "ms": 71268
+      },
+      {
+        "caption": "Fix the misheard word: Karadi → Kharadi.",
+        "ms": 75254
+      },
+      {
+        "caption": "Save and re-extract. Everything is read again from the corrected text — nothing is duplicated.",
+        "ms": 79032
+      },
+      {
+        "caption": "Correction history keeps what it was and what you changed it to.",
+        "ms": 89628
+      },
+      {
+        "caption": "Now a note in Hindi script. Back to Capture.",
+        "ms": 92883
+      },
+      {
+        "caption": "Type, then write in Hindi (Devanagari).",
+        "ms": 96772
+      },
+      {
+        "caption": "Save capture.",
+        "ms": 103543
+      },
+      {
+        "caption": "The note is read in a romanised copy; the receipt shows the same kind of matches.",
+        "ms": 107459
+      },
+      {
+        "caption": "'Original (Hindi)' keeps the text exactly as you wrote it.",
+        "ms": 110654
+      }
+    ]
+  },
+  {
+    "slug": "capture-business-card",
+    "title": "Scan a business card",
+    "category": "Records & data",
+    "seconds": 97,
+    "learn": "Upload a card photo. CRE OS lists name, title, company, emails, phones (typed mobile/direct/switchboard), website and address, flags uncertain fields, and either matches an existing contact or proposes a new one for approval.",
+    "tryRoute": "/capture",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Capture and scroll to Add files.",
+        "ms": 3605
+      },
+      {
+        "caption": "Open 'Link to a record' and set 'What is it?' to Business card (or leave Detect).",
+        "ms": 8879
+      },
+      {
+        "caption": "Choose the photo of Meera Joshi's card.",
+        "ms": 13945
+      },
+      {
+        "caption": "Open it.",
+        "ms": 18397
+      },
+      {
+        "caption": "Practice mode cannot read photos ('photo text not read'), so no name, email or phone was found yet.",
+        "ms": 22386
+      },
+      {
+        "caption": "Type the card text into 'Text (if the file couldn't be read)'. With AI set up this is read for you.",
+        "ms": 25547
+      },
+      {
+        "caption": "Process again.",
+        "ms": 30492
+      },
+      {
+        "caption": "The fields: name, title, company, email, phones, website and address — copied exactly as on the card.",
+        "ms": 40761
+      },
+      {
+        "caption": "Phones are typed: mobile from 'M:'. The 'Ph:' number could be direct or switchboard, so it is marked unknown.",
+        "ms": 43978
+      },
+      {
+        "caption": "Check these: uncertain fields — the unlabelled phone, and an email domain that differs from the website.",
+        "ms": 47148
+      },
+      {
+        "caption": "No existing contact matches, so a new contact is suggested.",
+        "ms": 50311
+      },
+      {
+        "caption": "Proposals: a new person and a new company — they wait for your approval in Review.",
+        "ms": 53478
+      },
+      {
+        "caption": "After you approve the person, press Process again to propose the emails and phones.",
+        "ms": 56633
+      },
+      {
+        "caption": "Now a card for someone you already know: Anil Deshmukh. Back to Capture.",
+        "ms": 59800
+      },
+      {
+        "caption": "Business card again, and choose Anil's card.",
+        "ms": 64963
+      },
+      {
+        "caption": "Type the card text and Process again.",
+        "ms": 71841
+      },
+      {
+        "caption": "High-confidence match: the same email already belongs to Anil Deshmukh, so no new person is created.",
+        "ms": 84036
+      },
+      {
+        "caption": "Only the new mobile number is proposed for his record. Same name alone would be a suggestion, never a merge.",
+        "ms": 87244
+      },
+      {
+        "caption": "The company on the card looks like Marigold Loop Technologies — pick it in the link picker if it is the same.",
+        "ms": 90394
+      }
+    ]
+  },
+  {
+    "slug": "capture-quote-document",
+    "title": "Upload a quote, brochure or lease document",
+    "category": "Records & data",
+    "seconds": 80,
+    "learn": "Upload a quotation, brochure, LOI or lease. Each term comes with its page and the exact words; areas and CAM are never converted or assumed. A revised quote with a new price becomes version 2 — the earlier value is kept.",
+    "tryRoute": "/capture",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Capture and scroll to Add files.",
+        "ms": 3604
+      },
+      {
+        "caption": "PDF and Word quotations, brochures, LOIs, leases, notes, cards, photos and voice notes are all accepted here.",
+        "ms": 8854
+      },
+      {
+        "caption": "Open 'Link to a record' and pick the requirement this quote is for: Marigold Loop, 20,000 sf in Kharadi.",
+        "ms": 12025
+      },
+      {
+        "caption": "'Quotation from' says who sent it — landlord, managed-office operator or fit-out partner.",
+        "ms": 17145
+      },
+      {
+        "caption": "Choose the March quotation PDF.",
+        "ms": 20301
+      },
+      {
+        "caption": "Recognised as a Quotation. Open it.",
+        "ms": 24788
+      },
+      {
+        "caption": "The type was worked out from the file and its keywords. 'Pattern matching — check every value' means practice mode.",
+        "ms": 28660
+      },
+      {
+        "caption": "Original file opens the PDF exactly as uploaded — it is always kept.",
+        "ms": 31822
+      },
+      {
+        "caption": "Rent: 'Rs. 85 per sq ft per month' → ₹85 per sq ft per month, CAM extra — found on page 1.",
+        "ms": 34985
+      },
+      {
+        "caption": "Chargeable area 20,000 sq ft stays chargeable — carpet, chargeable and super built-up are never converted.",
+        "ms": 38156
+      },
+      {
+        "caption": "Lock-in, deposit and escalation come from page 2. Every value keeps its page and wording.",
+        "ms": 41320
+      },
+      {
+        "caption": "Proposals: create a quote on the requirement — approve it in Review.",
+        "ms": 45487
+      },
+      {
+        "caption": "Now the landlord sends a revised quote. Back to Capture.",
+        "ms": 49673
+      },
+      {
+        "caption": "Same requirement, and choose the revised quotation.",
+        "ms": 54790
+      },
+      {
+        "caption": "Open it.",
+        "ms": 61175
+      },
+      {
+        "caption": "Rent is now ₹95. 'Differs from the saved value' — this is version 2.",
+        "ms": 65077
+      },
+      {
+        "caption": "The ₹85 from the first quote is kept, not overwritten. The change waits in the Review queue.",
+        "ms": 68273
+      },
+      {
+        "caption": "Recent files on Capture list both quotes, their type and whether they wait for you.",
+        "ms": 71435
+      }
+    ]
+  },
+  {
+    "slug": "capture-review-items",
+    "title": "Review what was extracted",
+    "category": "Records & data",
+    "seconds": 110,
+    "learn": "Each extracted item can be confirmed, edited, rejected, linked to a record, turned into a new record (for approval) or sent back as a question. The Review queue groups what needs a person by reason.",
+    "tryRoute": "/capture/review",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Capture and the Anil note under Recent captures.",
+        "ms": 3606
+      },
+      {
+        "caption": "Scroll to Extracted information. Each item has a status: For review, Saved, Confirmed, Corrected or Rejected.",
+        "ms": 9586
+      },
+      {
+        "caption": "Open 'Confirm, edit, reject…' on Preferred location.",
+        "ms": 13776
+      },
+      {
+        "caption": "Kharadi is right — Confirm.",
+        "ms": 18071
+      },
+      {
+        "caption": "It now shows Confirmed.",
+        "ms": 23949
+      },
+      {
+        "caption": "Edit: Anil meant 20,000 sq ft carpet. Open the Area item.",
+        "ms": 27143
+      },
+      {
+        "caption": "Type the value and choose Area basis: Carpet.",
+        "ms": 31471
+      },
+      {
+        "caption": "Save correction. The original words stay; the item is marked Corrected and logged.",
+        "ms": 35890
+      },
+      {
+        "caption": "Link: attach the area to Marigold Loop Technologies.",
+        "ms": 41859
+      },
+      {
+        "caption": "Link to record. It is linked, never merged.",
+        "ms": 46337
+      },
+      {
+        "caption": "Ask: the year of 'by September' is unknown. Open Move-in target.",
+        "ms": 52236
+      },
+      {
+        "caption": "Type the question for the client and press Request clarification — it becomes a task for you.",
+        "ms": 56551
+      },
+      {
+        "caption": "Create: when a person or company is not in CRE OS yet, 'Create (for approval)' proposes a new one.",
+        "ms": 64687
+      },
+      {
+        "caption": "Correction history lists every change you made here.",
+        "ms": 69164
+      },
+      {
+        "caption": "Now the Review queue: Capture → Pending reviews.",
+        "ms": 72421
+      },
+      {
+        "caption": "Only what needs a person, grouped by reason.",
+        "ms": 78126
+      },
+      {
+        "caption": "Categories: uncertain company or contact matches, potential duplicates, conflicting values, missing units or dates, unverified lease details, material changes.",
+        "ms": 81286
+      },
+      {
+        "caption": "Conflicting commercial values: the revised ₹95 quote and the Hinglish 'Unko Kharadi' location are here.",
+        "ms": 84450
+      },
+      {
+        "caption": "Reject: 'Unko Kharadi' is a misreading. Open it.",
+        "ms": 87621
+      },
+      {
+        "caption": "Reject. Nothing on any record changes; the item is just marked Rejected.",
+        "ms": 91491
+      },
+      {
+        "caption": "Material changes requiring approval link to Review, where record changes are approved.",
+        "ms": 97838
+      }
+    ]
+  },
+  {
+    "slug": "import-mapping-validation",
+    "title": "Import a spreadsheet: column mapping and validation",
+    "category": "Records & data",
+    "seconds": 90,
+    "learn": "Upload an .xlsx or .csv. CRE OS suggests what each column means (with confidence), lets an admin correct the mapping once, and reports invalid emails, phones, ambiguous dates and areas without units — nothing is guessed.",
+    "tryRoute": "/imports",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Imports (Capture's 'Upload a spreadsheet' goes to the same place).",
+        "ms": 3604
+      },
+      {
+        "caption": "Upload: choose files, an as-of date and the source. Formulas and macros are never run.",
+        "ms": 9768
+      },
+      {
+        "caption": "Choose 'Pune contacts.xlsx' — companies, contacts, areas, locations and lease expiries.",
+        "ms": 12917
+      },
+      {
+        "caption": "Upload and reconcile.",
+        "ms": 16077
+      },
+      {
+        "caption": "Version 1, its fingerprint and the detected kind: Contacts & requirements.",
+        "ms": 22032
+      },
+      {
+        "caption": "Three steps: 1 already added (companies you had, new people), 2 needs your OK, 3 could not be imported.",
+        "ms": 25204
+      },
+      {
+        "caption": "Safe rows can be added in one click by an owner or admin. The rest you decide yourself.",
+        "ms": 28374
+      },
+      {
+        "caption": "Column mapping: each column with the field it was matched to, and how sure CRE OS is.",
+        "ms": 36683
+      },
+      {
+        "caption": "'Area Reqd → Required Area 65%' is a guess to confirm. Unmatched columns are kept as custom values.",
+        "ms": 39865
+      },
+      {
+        "caption": "Remarks was mapped to Notes. To keep it as its own column, open 'Correct this mapping'.",
+        "ms": 43045
+      },
+      {
+        "caption": "Column I, Remarks: choose 'Keep as custom'.",
+        "ms": 46952
+      },
+      {
+        "caption": "Approve mapping and re-process. It is remembered for this layout and future files.",
+        "ms": 50148
+      },
+      {
+        "caption": "The mapping card now uses your approved mapping.",
+        "ms": 60712
+      },
+      {
+        "caption": "Validation report: rows checked, blocking findings, findings to review and notes.",
+        "ms": 63940
+      },
+      {
+        "caption": "Open 'Invalid email addresses': cell D3 has a double @ — kept raw, never saved as a contact method.",
+        "ms": 67108
+      },
+      {
+        "caption": "Invalid phone, an area without a unit (not assumed to be sq ft) and a date that could be 4 May or 5 April.",
+        "ms": 70994
+      },
+      {
+        "caption": "Notes: area basis not stated, dates without a day — kept unknown, not invented.",
+        "ms": 75188
+      },
+      {
+        "caption": "Rows with a problem: each finding with its cell and the reason.",
+        "ms": 78380
+      },
+      {
+        "caption": "New people from this file are only proposed — Rahul Khanna has no valid email or phone.",
+        "ms": 82550
+      }
+    ]
+  },
+  {
+    "slug": "import-reupload",
+    "title": "Re-upload an updated spreadsheet",
+    "category": "Records & data",
+    "seconds": 70,
+    "learn": "Upload a newer file with the same name: it becomes version 2. CRE OS lists changed, added and removed rows and moved columns; rows missing from the new file are never deleted, and every value links back to its source cell.",
+    "tryRoute": "/imports",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Imports.",
+        "ms": 3603
+      },
+      {
+        "caption": "Choose the updated 'Pune contacts.xlsx' — same name, new content.",
+        "ms": 9467
+      },
+      {
+        "caption": "Upload and reconcile.",
+        "ms": 12639
+      },
+      {
+        "caption": "It is version 2 of the same source. Uploading the identical file again would change nothing.",
+        "ms": 18624
+      },
+      {
+        "caption": "Changes summary: companies and people you already had are linked, not duplicated.",
+        "ms": 21808
+      },
+      {
+        "caption": "Column layout changed: a Budget column was added, and Mobile and Email swapped places.",
+        "ms": 24968
+      },
+      {
+        "caption": "Columns are matched by header, not position, so the swap breaks nothing.",
+        "ms": 29149
+      },
+      {
+        "caption": "Rows missing from the new version are reported only — no record is deleted or archived.",
+        "ms": 32319
+      },
+      {
+        "caption": "Open Technical details for the row-by-row comparison.",
+        "ms": 35485
+      },
+      {
+        "caption": "Changes vs previous version: changed, added and removed rows, field by field.",
+        "ms": 39355
+      },
+      {
+        "caption": "Kavita Nair's area went from 15,000 to 18,000 sq ft. The earlier observation is kept.",
+        "ms": 43534
+      },
+      {
+        "caption": "Values that differ from your records are never overwritten — they are proposed for approval.",
+        "ms": 46718
+      },
+      {
+        "caption": "All imports lists both versions with their fingerprints.",
+        "ms": 50897
+      },
+      {
+        "caption": "Source cell links: open a company from the file — Pebblewick Software.",
+        "ms": 56002
+      },
+      {
+        "caption": "'Source (spreadsheet rows)' shows the file, version, sheet and cell behind each value.",
+        "ms": 61712
+      }
+    ]
+  },
+  {
+    "slug": "import-batch-files",
+    "title": "Upload many files at once",
+    "category": "Records & data",
+    "seconds": 84,
+    "learn": "Pick several files — spreadsheets, PDFs, Word, CSV. They are processed one by one in the background with a progress bar; the completion report counts files and records, and temporary failures can be retried.",
+    "tryRoute": "/imports",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open More → Imports.",
+        "ms": 3604
+      },
+      {
+        "caption": "Choose five files at once: a brochure PDF, site-visit notes in Word, two contact lists and an old 2019 .xls tracker.",
+        "ms": 9639
+      },
+      {
+        "caption": "Upload and reconcile.",
+        "ms": 12829
+      },
+      {
+        "caption": "The batch page. Files are processed in the background — you can keep working; this page updates by itself.",
+        "ms": 18677
+      },
+      {
+        "caption": "The old .xls failed straight away: old format. Save it as .xlsx and add it again — the original is kept.",
+        "ms": 21902
+      },
+      {
+        "caption": "Progress: files are read one by one…",
+        "ms": 25056
+      },
+      {
+        "caption": "Documents go to capture for extraction; spreadsheets to the import engine.",
+        "ms": 35371
+      },
+      {
+        "caption": "Completion report: files received, processed, partly processed, failed; records identified, created and linked; duplicates, conflicts and items to review.",
+        "ms": 46693
+      },
+      {
+        "caption": "'Partly processed' means a document has items waiting for your review — open its extraction review.",
+        "ms": 49832
+      },
+      {
+        "caption": "Baner availability.xlsx failed for a temporary reason (a timeout), so it can be retried.",
+        "ms": 53006
+      },
+      {
+        "caption": "One failed file never undoes another file's results.",
+        "ms": 56170
+      },
+      {
+        "caption": "Press 'Retry 1 failed file'. Only failed files are tried again.",
+        "ms": 59339
+      },
+      {
+        "caption": "After the retry it is processed; reload to see the new status.",
+        "ms": 64691
+      },
+      {
+        "caption": "'Open import report' shows that file's own mapping, validation and rows.",
+        "ms": 73005
+      },
+      {
+        "caption": "All imports keeps every batch with its report.",
+        "ms": 76170
+      }
+    ]
+  },
+  {
+    "slug": "find-value-source",
+    "title": "Find where a value came from",
+    "category": "Records & data",
+    "seconds": 65,
+    "learn": "Company, person and building pages link to their evidence: 'Source' shows the spreadsheet file, version, sheet and cell of each value; 'From capture' opens the note or document it was read from. Capture history lists everything captured.",
+    "tryRoute": "/capture/history",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Companies and a company that came from a spreadsheet: Pebblewick Software.",
+        "ms": 3730
+      },
+      {
+        "caption": "Under the name: 'Source (n spreadsheet rows)'. People and buildings have the same link.",
+        "ms": 10612
+      },
+      {
+        "caption": "Open it.",
+        "ms": 13764
+      },
+      {
+        "caption": "One card per spreadsheet row behind this record: file name, version and the sheet!row.",
+        "ms": 17692
+      },
+      {
+        "caption": "Each field with its exact cell (for example Contacts!F2) and the value as it was in the file.",
+        "ms": 20846
+      },
+      {
+        "caption": "Open original downloads that version of the file; 'import report' opens the import.",
+        "ms": 23998
+      },
+      {
+        "caption": "Value history: imported values that disagreed with the record. Imports never overwrite a saved value.",
+        "ms": 27162
+      },
+      {
+        "caption": "Now a company with captured evidence: Marigold Loop Technologies.",
+        "ms": 31329
+      },
+      {
+        "caption": "'From capture' counts the extracted items linked to this company.",
+        "ms": 36247
+      },
+      {
+        "caption": "Open it: the note it came from, with the receipt, the original words and your corrections.",
+        "ms": 39413
+      },
+      {
+        "caption": "Each extracted item says its source: the note or file, page, when it was observed and how it was verified.",
+        "ms": 44994
+      },
+      {
+        "caption": "Capture history lists everything ever captured: Capture → Capture history.",
+        "ms": 49183
+      },
+      {
+        "caption": "Each entry: type, status, date, how many items were extracted, your corrections and linked records.",
+        "ms": 55091
+      },
+      {
+        "caption": "Click any entry to open the original note or file and its extracted items.",
+        "ms": 58279
       }
     ]
   },
@@ -4425,110 +5208,110 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "capture",
     "title": "Capture a meeting note and approve it",
     "category": "Records & data",
-    "seconds": 103,
+    "seconds": 95,
     "learn": "Every part of Capture (speak, type, photo, files, links), the questions it asks, Reviewed, and where the result appears.",
     "tryRoute": "/capture",
     "featured": false,
     "steps": [
       {
         "caption": "Open Capture after any call, meeting or site visit.",
-        "ms": 3617
+        "ms": 3605
       },
       {
         "caption": "New capture: three ways in. Speak — words appear as you talk.",
-        "ms": 8368
+        "ms": 7602
       },
       {
         "caption": "Photo — snap a visiting card or a whiteboard; the text is read from it.",
-        "ms": 11580
+        "ms": 10781
       },
       {
         "caption": "Language: English, Hindi / Hinglish or Marathi — pick what you'll speak or write.",
-        "ms": 14803
+        "ms": 13964
       },
       {
         "caption": "More options lets you set when it actually happened, if it wasn't just now.",
-        "ms": 18086
+        "ms": 17135
       },
       {
         "caption": "Add files: upload documents such as a lease, LOI or floor plan.",
-        "ms": 21303
+        "ms": 20317
       },
       {
         "caption": "Link to a record ties the file to a company, person, building or requirement.",
-        "ms": 24497
+        "ms": 23495
       },
       {
         "caption": "Recent captures lists earlier notes, with their status and how many changes they propose.",
-        "ms": 27688
+        "ms": 26667
       },
       {
         "caption": "Now choose Type to write or paste a note.",
-        "ms": 30927
+        "ms": 29829
       },
       {
         "caption": "Write what happened, in plain words.",
-        "ms": 34782
+        "ms": 33750
       },
       {
         "caption": "Save it. Nothing in your records changes yet.",
-        "ms": 45306
+        "ms": 40926
       },
       {
-        "caption": "CRE OS read the note. When something is unclear, it asks instead of guessing.",
-        "ms": 49672
+        "caption": "CRE OS read the note. The receipt lists what it saved, matched and scheduled.",
+        "ms": 44788
       },
       {
-        "caption": "Which March? Pick 2027.",
-        "ms": 52966
+        "caption": "'By March' is a target, not a contract date: the year stays unknown instead of being guessed.",
+        "ms": 48009
       },
       {
-        "caption": "Which Friday? Pick the nearest one, then save the answers.",
-        "ms": 56840
+        "caption": "'Friday' became a task due this Friday — no question needed.",
+        "ms": 51233
       },
       {
         "caption": "This box lists exactly what will be added: a meeting log, requirement details and a task.",
-        "ms": 62976
+        "ms": 54453
       },
       {
         "caption": "Each line shows the company or person it belongs to — check the names and numbers.",
-        "ms": 66141
+        "ms": 57721
       },
       {
         "caption": "Looks right? Press Reviewed — now it goes to your records.",
-        "ms": 69351
+        "ms": 60919
       },
       {
         "caption": "Facts for approval: important changes are listed with where they came from.",
-        "ms": 73190
+        "ms": 64810
       },
       {
         "caption": "Each one can be checked and undone later from Review → History & undo.",
-        "ms": 76358
+        "ms": 68006
       },
       {
         "caption": "The capture's status now reads Reviewed.",
-        "ms": 79702
+        "ms": 71327
       },
       {
         "caption": "Open the company to see the result.",
-        "ms": 82884
+        "ms": 74533
       },
       {
         "caption": "The Requirements tab shows the 25,000 sq ft need in Kharadi.",
-        "ms": 86846
+        "ms": 78449
       },
       {
         "caption": "Timeline holds the meeting log from your note.",
-        "ms": 90699
+        "ms": 82336
       },
       {
         "caption": "And the follow-up task is waiting in Today → Tasks.",
-        "ms": 94680
+        "ms": 86216
       },
       {
         "caption": "Review in the sidebar is where any change still waiting for you shows up.",
-        "ms": 96992
+        "ms": 88526
       }
     ]
   },

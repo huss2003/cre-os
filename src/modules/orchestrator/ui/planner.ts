@@ -29,6 +29,8 @@ export interface PlannerInput {
   /** exact live count of new signals (the stored section keeps only the top 10) */
   signalTotal?: number | null;
   signalCap?: number;
+  /** Extra "Recommended next actions" from other sources (e.g. Module 13 intelligence), appended after the plan's own (deduped by ref). */
+  extraRecommendations?: { title: string; why: string; href: string; ref: string }[] | null;
   fmtTime: (iso: string) => string;
 }
 
@@ -58,6 +60,14 @@ function mk(key: string, title: string, s: { state: string; items: any[]; note: 
 function hm(min: number): string {
   const h = Math.floor(min / 60), m = min % 60;
   return h && m ? `${h} h ${m} min` : h ? `${h} h` : `${m} min`;
+}
+
+/** Source hook: merge extra recommendations into the stored/live section (never duplicates a ref). */
+function withExtra(s: { state: "ok" | "unavailable"; items: any[]; note: string | null } | null, extra?: PlannerInput["extraRecommendations"]) {
+  if (!extra?.length) return s;
+  const base = s?.state === "ok" ? s.items : [];
+  const seen = new Set(base.map((x: any) => x.ref));
+  return { state: "ok" as const, items: [...base, ...extra.filter((x) => !seen.has(x.ref))], note: s?.note ?? null };
 }
 
 export function buildPlannerView(i: PlannerInput): PlannerView {
@@ -92,7 +102,7 @@ export function buildPlannerView(i: PlannerInput): PlannerView {
       items: i.approvals && approvalsTotal ? [{ key: "approvals", title: [i.approvals.changes ? plural(i.approvals.changes, "record change") : null, i.approvals.drafts ? plural(i.approvals.drafts, "draft") : null].filter(Boolean).join(" and ") + " to review", href: "/approvals" }] : [],
       empty: "Nothing waiting for review.", unavailable: i.approvals ? null : "Approvals could not be loaded", link: { href: "/approvals", label: "Review" },
     },
-    mk("next", "Recommended next actions", sec(i, "recommended_actions"), (r) => ({ key: r.ref, title: r.title, href: r.href, meta: r.why }), "Nothing pressing — a good day to call priority accounts.", { cap: 7 }),
+    mk("next", "Recommended next actions", withExtra(sec(i, "recommended_actions"), i.extraRecommendations), (r) => ({ key: r.ref, title: r.title, href: r.href, meta: r.why }), "Nothing pressing — a good day to call priority accounts.", { cap: 7 }),
   ];
 
   const parts = [

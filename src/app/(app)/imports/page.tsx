@@ -3,7 +3,9 @@ import { Suspense } from "react";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { requirePageContext } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
-import { adapterLabel, listBatches, listSources } from "@/modules/imports/service";
+import { adapterLabel, importRuns, listBatches, listSources } from "@/modules/imports/service";
+import { RunsList } from "@/modules/imports/engine-ui";
+import type { RunReport } from "@/modules/imports/report";
 import { type Counts, Loading, ReconcileLine, StatusBadge, n } from "@/modules/imports/ui";
 import { UploadForm } from "./upload-form";
 
@@ -11,7 +13,7 @@ export const metadata = { title: "Imports" };
 
 async function Body() {
   const ctx = await requirePageContext("editor");
-  const [batches, sources] = await Promise.all([listBatches(ctx), listSources(ctx)]);
+  const [batches, sources, runs] = await Promise.all([listBatches(ctx), listSources(ctx), importRuns(ctx, 10)]);
   const waiting = sources.reduce((a, s) => a + s.waiting, 0);
   return (
     <>
@@ -23,9 +25,10 @@ async function Body() {
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="order-2 space-y-3 lg:order-1">
+          <RunsList runs={runs as { id: string; label: string | null; status: string; file_count: number; report: RunReport | null; created_at: string }[]} />
           {batches.length === 0 ? (
             <EmptyState title="No imports yet">
-              Upload the asset list, lease-expiry workbooks, transaction trackers or market CSVs. Each file is recognised by its column
+              Upload contact or requirement lists, the asset list, lease-expiry workbooks, transaction trackers or market CSVs — one file or many at once. Each file is recognised by its column
               headers (not its name); anything unfamiliar is held for a quick mapping review instead of being guessed. Uploading the same
               file twice changes nothing.
             </EmptyState>

@@ -1,4 +1,5 @@
 import "server-only";
+import { outreachRepetitionWarnings } from "@/modules/intelligence/memory/integrate/hooks";
 import { learnFromDraftEdit } from "@/modules/assistant/engine/learn";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
@@ -134,6 +135,8 @@ export async function duplicateCheck(db: Db, ws: string, personId: string, userI
   const { data: drafts } = await db.from("draft").select("id, state, channel, owner_user_id").eq("workspace_id", ws).eq("recipient_person_id", personId).in("state", ["drafted", "approved", "opened_for_send"]).is("archived_at", null).limit(10);
   const known = new Set(((items ?? []) as Row[]).map((i) => i.id));
   if ((drafts ?? []).length && !known.size) w.push({ kind: "other_draft", text: `${drafts!.length} other draft message(s) to this person exist in Drafts.` });
+  // Module 13: completed interactions with the person's company (other contacts) — avoid repetitive outreach.
+  for (const r of await outreachRepetitionWarnings(db, ws, personId)) w.push({ kind: r.kind, text: r.text, date: r.date });
   if (thread || recentInteraction) w.push({ kind: "suggest_followup", suggestion: "follow_up_existing", itemId: thread?.id ?? null,
     text: thread ? "Instead of a new introduction, reply or follow up in the existing conversation (open it to draft a follow-up)." : "You spoke recently — consider a follow-up that references that conversation instead of a new introduction." });
   return w;

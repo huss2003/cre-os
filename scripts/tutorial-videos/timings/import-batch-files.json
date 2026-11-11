@@ -1,0 +1,66 @@
+{
+  "durationMs": 84361,
+  "steps": [
+    {
+      "caption": "Open More → Imports.",
+      "ms": 3604
+    },
+    {
+      "caption": "Choose five files at once: a brochure PDF, site-visit notes in Word, two contact lists and an old 2019 .xls tracker.",
+      "ms": 9639
+    },
+    {
+      "caption": "Upload and reconcile.",
+      "ms": 12829
+    },
+    {
+      "caption": "The batch page. Files are processed in the background — you can keep working; this page updates by itself.",
+      "ms": 18677
+    },
+    {
+      "caption": "The old .xls failed straight away: old format. Save it as .xlsx and add it again — the original is kept.",
+      "ms": 21902
+    },
+    {
+      "caption": "Progress: files are read one by one…",
+      "ms": 25056
+    },
+    {
+      "caption": "Documents go to capture for extraction; spreadsheets to the import engine.",
+      "ms": 35371
+    },
+    {
+      "caption": "Completion report: files received, processed, partly processed, failed; records identified, created and linked; duplicates, conflicts and items to review.",
+      "ms": 46693
+    },
+    {
+      "caption": "'Partly processed' means a document has items waiting for your review — open its extraction review.",
+      "ms": 49832
+    },
+    {
+      "caption": "Baner availability.xlsx failed for a temporary reason (a timeout), so it can be retried.",
+      "ms": 53006
+    },
+    {
+      "caption": "One failed file never undoes another file's results.",
+      "ms": 56170
+    },
+    {
+      "caption": "Press 'Retry 1 failed file'. Only failed files are tried again.",
+      "ms": 59339
+    },
+    {
+      "caption": "After the retry it is processed; reload to see the new status.",
+      "ms": 64691
+    },
+    {
+      "caption": "'Open import report' shows that file's own mapping, validation and rows.",
+      "ms": 73005
+    },
+    {
+      "caption": "All imports keeps every batch with its report.",
+      "ms": 76170
+    }
+  ],
+  "bytes": 860583
+}

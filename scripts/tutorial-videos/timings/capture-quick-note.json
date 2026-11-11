@@ -1,0 +1,110 @@
+{
+  "durationMs": 105379,
+  "steps": [
+    {
+      "caption": "Open Capture in the sidebar. This is where everything you hear, read or receive comes in.",
+      "ms": 3605
+    },
+    {
+      "caption": "The Capture dashboard: type a note, record a voice note, upload a card or document, upload a spreadsheet, pending reviews and history.",
+      "ms": 7674
+    },
+    {
+      "caption": "Choose Type — write or paste a note.",
+      "ms": 10842
+    },
+    {
+      "caption": "Write what happened in plain words, like a message to yourself.",
+      "ms": 14728
+    },
+    {
+      "caption": "More options lets you set when it happened and the language. Defaults are fine.",
+      "ms": 21435
+    },
+    {
+      "caption": "Press Save capture.",
+      "ms": 25318
+    },
+    {
+      "caption": "The review page. 'rule extractor' means practice mode: rules, not AI, read the note.",
+      "ms": 29622
+    },
+    {
+      "caption": "The Receipt says, in plain words, what CRE OS did with your note.",
+      "ms": 32790
+    },
+    {
+      "caption": "Saved: the note itself, with the items it understood.",
+      "ms": 36024
+    },
+    {
+      "caption": "Matched: 'Anil' is probably Anil Deshmukh — a medium-confidence match, so it waits for you to confirm.",
+      "ms": 39190
+    },
+    {
+      "caption": "Kharadi fits several buildings, so they are only suggestions — nothing is linked.",
+      "ms": 42391
+    },
+    {
+      "caption": "Questioned: 'Budget is 85' has no unit, so CRE OS asks one question instead of guessing.",
+      "ms": 45577
+    },
+    {
+      "caption": "Scheduled: 'Send options Friday' became a task due this Friday.",
+      "ms": 48805
+    },
+    {
+      "caption": "What the note is about: a new property requirement, a meeting note and a follow-up task.",
+      "ms": 52030
+    },
+    {
+      "caption": "Extracted information: each item with the exact words it came from.",
+      "ms": 55232
+    },
+    {
+      "caption": "Area: '20,000 feet' → 20,000 sq ft, an estimate. Carpet or chargeable is unknown, and stays unknown.",
+      "ms": 58414
+    },
+    {
+      "caption": "Budget: 85, but unit, pricing basis and CAM are unknown — not assumed.",
+      "ms": 61670
+    },
+    {
+      "caption": "'By September' is an informal target; the year is left unknown.",
+      "ms": 64843
+    },
+    {
+      "caption": "Here is the one question: does 85 mean ₹85 per sq ft per month, and is CAM extra?",
+      "ms": 68022
+    },
+    {
+      "caption": "Pick the answer you heard: ₹85 per sq ft per month, CAM extra.",
+      "ms": 71229
+    },
+    {
+      "caption": "Save answers.",
+      "ms": 75122
+    },
+    {
+      "caption": "Who and where: Anil → Anil Deshmukh. No company was named, so his only current employer is used — and flagged.",
+      "ms": 81463
+    },
+    {
+      "caption": "This list is everything that will be added when you press Reviewed. Nothing is saved to records yet.",
+      "ms": 84694
+    },
+    {
+      "caption": "Press Reviewed — add to records.",
+      "ms": 87911
+    },
+    {
+      "caption": "Requirement facts become proposals for approval — CRE OS never changes a requirement by itself.",
+      "ms": 94741
+    },
+    {
+      "caption": "The task 'Send options to Anil' is due Friday. It is also on your Tasks page.",
+      "ms": 97956
+    }
+  ],
+  "bytes": 1341122
+}

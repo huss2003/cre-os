@@ -1,0 +1,62 @@
+{
+  "durationMs": 64659,
+  "steps": [
+    {
+      "caption": "Open Companies and a company that came from a spreadsheet: Pebblewick Software.",
+      "ms": 3730
+    },
+    {
+      "caption": "Under the name: 'Source (n spreadsheet rows)'. People and buildings have the same link.",
+      "ms": 10612
+    },
+    {
+      "caption": "Open it.",
+      "ms": 13764
+    },
+    {
+      "caption": "One card per spreadsheet row behind this record: file name, version and the sheet!row.",
+      "ms": 17692
+    },
+    {
+      "caption": "Each field with its exact cell (for example Contacts!F2) and the value as it was in the file.",
+      "ms": 20846
+    },
+    {
+      "caption": "Open original downloads that version of the file; 'import report' opens the import.",
+      "ms": 23998
+    },
+    {
+      "caption": "Value history: imported values that disagreed with the record. Imports never overwrite a saved value.",
+      "ms": 27162
+    },
+    {
+      "caption": "Now a company with captured evidence: Marigold Loop Technologies.",
+      "ms": 31329
+    },
+    {
+      "caption": "'From capture' counts the extracted items linked to this company.",
+      "ms": 36247
+    },
+    {
+      "caption": "Open it: the note it came from, with the receipt, the original words and your corrections.",
+      "ms": 39413
+    },
+    {
+      "caption": "Each extracted item says its source: the note or file, page, when it was observed and how it was verified.",
+      "ms": 44994
+    },
+    {
+      "caption": "Capture history lists everything ever captured: Capture → Capture history.",
+      "ms": 49183
+    },
+    {
+      "caption": "Each entry: type, status, date, how many items were extracted, your corrections and linked records.",
+      "ms": 55091
+    },
+    {
+      "caption": "Click any entry to open the original note or file and its extracted items.",
+      "ms": 58279
+    }
+  ],
+  "bytes": 1126793
+}

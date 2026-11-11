@@ -33,7 +33,8 @@ export function QuickCapture({ workspaceId }: { workspaceId: string }) {
 
   const [state, action, pending] = useActionState(async (prev: ActionState, fd: FormData): Promise<ActionState> => {
     fd.set("text", text);
-    fd.set("kind", mode === "photo" ? "image" : "text");
+    // Speak = dictated text: stored as an "audio" capture without a file so it shows as a voice note (no STT re-run).
+    fd.set("kind", mode === "photo" ? "image" : mode === "speak" ? "audio" : "text");
     let file = fd.get("file");
     fd.delete("file");
     if (mode !== "photo" && !text.trim()) return { error: mode === "speak" ? "Nothing heard yet. Tap the microphone and speak." : "Write what happened first." };

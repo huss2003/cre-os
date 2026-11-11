@@ -7,6 +7,7 @@
  * Idempotent: signals are keyed by dedupe_key, evidence by (signal, dedupe_key), tasks by task.idempotency_key.
  */
 import type { Db } from "@/lib/supabase/server";
+import { knownBeforeSignal } from "@/modules/intelligence/memory/integrate/hooks";
 import { proposeChange } from "@/lib/services/changes";
 import { detectSignals, hypothesisSummary } from "@/modules/intelligence/research/signals";
 import {
@@ -122,6 +123,11 @@ export async function upsertSignal(db: Db, ws: string, d: Draft, s: Settings, to
       const again = await db.from("signal").select("id").eq("workspace_id", ws).eq("dedupe_key", d.key).single();
       id = again.data!.id;
     } else { id = data.id; created = true; }
+    // Module 13: the same kind of development was already recorded for this company — keep it as context, not "new".
+    if (created) {
+      const prior = await knownBeforeSignal(db, ws, { orgId: d.orgId, kind: d.kind, dedupeKey: d.key });
+      if (prior) d = { ...d, evidence: [...d.evidence, { role: "context", key: `known-before:${prior.id}`, sourceName: "Earlier signal in CRE OS", excerpt: `Previously recorded on ${String(prior.detectedAt).slice(0, 10)}: ${prior.title}`, note: "Previously known development — check what is actually new." }] };
+    }
   }
   for (const e of d.evidence) {
     await db.from("signal_evidence").upsert({

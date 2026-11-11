@@ -156,6 +156,9 @@ export interface VersionDiff {
   samples: { kind: "added" | "removed" | "changed"; key: string; locator: string; previous_locator?: string; fields?: { field: string; before: unknown; after: unknown }[] }[];
 }
 
+/** null, undefined and blank strings all mean "no value" when comparing versions. */
+const blankToNull = (v: unknown) => (v === undefined || v === null || (typeof v === "string" && v.trim() === "") ? null : v);
+
 /** Row/field diff between two versions of the same source, keyed by sheet + identity key (falls back to row hash). */
 export function diffVersions(previousBatchId: string, prev: DiffRow[], cur: DiffRow[], sampleLimit = 50): VersionDiff {
   const P = new Map(prev.map((r) => [r.key, r]));
@@ -163,13 +166,15 @@ export function diffVersions(previousBatchId: string, prev: DiffRow[], cur: Diff
   const d: VersionDiff = { previous_batch_id: previousBatchId, added: 0, removed: 0, changed: 0, unchanged: 0, samples: [] };
   const push = (s: VersionDiff["samples"][number]) => { if (d.samples.length < sampleLimit) d.samples.push(s); };
   const changed = (k: string, p: DiffRow, c: DiffRow) => {
-    d.changed++;
     const fields: { field: string; before: unknown; after: unknown }[] = [];
     const keys = new Set([...Object.keys(p.fields ?? {}), ...Object.keys(c.fields ?? {})]);
     for (const f of keys) {
-      const a = (p.fields ?? {})[f], b = (c.fields ?? {})[f];
-      if (JSON.stringify(a) !== JSON.stringify(b)) fields.push({ field: f, before: a ?? null, after: b ?? null });
+      const a = blankToNull((p.fields ?? {})[f]), b = blankToNull((c.fields ?? {})[f]);
+      if (JSON.stringify(a) !== JSON.stringify(b)) fields.push({ field: f, before: a, after: b });
     }
+    // a row that only moved (different position/hash, same values) is not a change: no "null → null" noise
+    if (!fields.length) { d.unchanged++; return; }
+    d.changed++;
     push({ kind: "changed", key: k, locator: c.locator, previous_locator: p.locator, fields });
   };
   const addedRows: DiffRow[] = [];

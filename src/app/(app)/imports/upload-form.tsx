@@ -15,11 +15,33 @@ export function UploadForm({ sources = [] }: { sources?: SourceOption[] }) {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
-    const file = form.get("file");
-    if (!(file instanceof File) || file.size === 0) {
+    const files = form.getAll("file").filter((f): f is File => f instanceof File && f.size > 0);
+    if (!files.length) {
       setMsg("Choose a spreadsheet first.");
       return;
     }
+    // several files, or any document/image => one background batch (the page stays usable; progress on the batch page)
+    if (files.length > 1 || !/\.(xlsx|csv|txt)$/i.test(files[0].name)) {
+      setBusy(true);
+      setMsg(`Uploading ${files.length} file${files.length > 1 ? "s" : ""}…`);
+      try {
+        const batch = new FormData();
+        for (const f of files) batch.append("files", f);
+        for (const k of ["as_of", "period_year", "classification", "source_id"]) { const v = form.get(k); if (typeof v === "string" && v) batch.append(k, v); }
+        const res = await fetch("/api/v1/imports/runs", { method: "POST", body: batch, headers: { "Idempotency-Key": crypto.randomUUID() } });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) { setMsg(body.error ?? `Upload failed (${res.status})`); return; }
+        router.push(`/imports/runs/${body.run_id}`);
+        router.refresh();
+      } catch {
+        setMsg("Network error — try again; files already received are not duplicated.");
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    const file = files[0];
+    form.set("file", file);
     setBusy(true);
     setMsg("Uploading and reconciling…");
     try {
@@ -42,8 +64,8 @@ export function UploadForm({ sources = [] }: { sources?: SourceOption[] }) {
 
   return (
     <form onSubmit={onSubmit} className="max-w-md space-y-4">
-      <Field label="Spreadsheet" hint=".xlsx or .csv, up to 25 MB. Macros, formulas and external links are never executed.">
-        <Input type="file" name="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required />
+      <Field label="Files" hint=".xlsx or .csv (up to 25 MB each). Pick several files — spreadsheets, PDFs, Word or images — to process them together in the background. Macros, formulas and external links are never executed.">
+        <Input type="file" name="file" multiple accept=".xlsx,.csv,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.pdf,.doc,.docx,image/*" required />
       </Field>
       <Field label="As-of date" hint="Needed to keep rents in snapshots">
         <Input type="date" name="as_of" />

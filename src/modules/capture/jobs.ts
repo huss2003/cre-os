@@ -2,6 +2,7 @@ import type { JobHandler } from "@/lib/jobs/queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { processCapture } from "./service";
 import { processDocument } from "./docs/service";
+import { runInputEngine } from "./input-engine/service";
 
 /** Job handlers owned by the "capture" module. Key = job_type (prefix with "capture."). */
 export const handlers: Record<string, JobHandler> = {
@@ -14,7 +15,9 @@ export const handlers: Record<string, JobHandler> = {
     if (!data) return { skipped: "capture not found" };
     // the API may already have processed it inline; only a forced run re-extracts
     if (!job.payload.force && ["needs_review", "reviewed"].includes(data.status as string)) return { skipped: data.status };
-    return processCapture(admin, job.workspace_id, captureId, { reextract: !!job.payload.force });
+    const r = await processCapture(admin, job.workspace_id, captureId, { reextract: !!job.payload.force });
+    try { await runInputEngine(admin, job.workspace_id, captureId); } catch { /* receipt is best effort */ }
+    return r;
   },
   /**
    * payload { documentId }. Retry path for the drop zone (the upload already ran it inline). Runs as the uploader

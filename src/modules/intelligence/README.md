@@ -141,3 +141,58 @@ not computed here (the deals finance engine must fill `npv_equivalent`); signal 
 ## Real-data fix — comparables locality (`market/comps-locality.test.ts`)
 `marketComparables` used only the linked building's locality; tracker deals link to a building only on an exact key, so
 2 of 40 Kharadi deals were comparables. Falls back to the source row's `extras.locality_raw` (`txLocality`).
+
+## Module 13 memory — changes, consolidation, recommendations, quality, integrations (`memory/{changes,consolidate,recommend,quality,integrate}`)
+Builds on the entity/relationship/requirement/context memory (`docs/intelligence-layer/CONTRACT.md`). Public API:
+`@/modules/intelligence/memory/integrate` (server-only barrel).
+
+Migration `20261111002010_intelligence_changes.sql` (re-runnable, RLS via `make_business_table`, audited, no definer functions):
+`memory_change` (§6.2 previous/latest/difference/date/source/verification/affected records+opportunities/modules/impact,
+unique `dedupe_key`), `memory_recommendation` (§9, unique `dedupe_key`, user marks done/dismissed),
+`memory_lifecycle` (§13 append-only manual status corrections; audit trigger keeps history).
+
+- **§5.2 requirement evolution** `getRequirementEvolution(ctx, reqId)` — from immutable `requirement_version` snapshots +
+  `change_proposal`: original kept, each step's what/when/source; the old value is "obsolete" only when the new value is
+  client-confirmed, otherwise "superseded, not confirmed yet".
+- **§6 change detection** `detectChanges(ctx, scope)` (pure detectors in `changes/detect.ts`): employer change, promotion /
+  designation change, office move, expansion/reduction (leases), rent/CAM/inventory (availability snapshots), lease expiry
+  ≤180 d, requirement area/budget/location/timeline/seats, decision-maker change (approver/sponsor removed or left the
+  company), opportunity inactive ≥60 d, rejected building with newer availability/quote. New *material* changes →
+  recommendation, `intelligence.change_detected` event (dedupe `memchange:<id>`), `reassessment_mark` review on affected
+  opportunities. Idempotent. Employer moves flag — never move — the old company's opportunities.
+  `analyseDecisionMakerChange` = §6.3 (previous/new DM, history with each, contacts, active opportunities, buying-group
+  recommendation, caveat that the new person's preferences/authority are not assumed). `listChanges`, `whatChanged`, `setChangeState`.
+- **§8 consolidation** `consolidateEntity(ctx, {orgId|personId|requirementId})` over `capture_observation` (reuses
+  `independent`/`repeat_of`/`source_hash`: repeats count once), interaction objections, active assistant memories;
+  recurring = ≥2 independent sources; preferences always `isConfirmedRequirement: false`; conflicts for commercial/fact fields.
+  `consolidateMeetings(ctx, scope, {ai})` pools commitments/objections across meeting notes + `meeting_note`, keeps originals;
+  optional summary through the gateway (mock in tests) labelled `aiGenerated`.
+- **§9 recommendations** `listRecommendations(ctx, filter)` = persisted (change-driven) + live rules (requirement not
+  reviewed 60 d, no follow-up after a meeting, repeated rejection theme e.g. parking, outdated quotation, thin contact on a
+  late-stage deal, new signal on an inactive deal). Each: what/why/supporting/sources/confidence/next action. Never executed.
+  `plannerRecommendations` feeds Today → "Recommended next actions" (planner hook `extraRecommendations`).
+- **§12 quality** `qualityReport(ctx)` — 11 checks with exact counts (outdated, missing, contradictory, unsupported
+  assumptions, incomplete histories, unverified requirements, stale quotes, outdated employment, no source, duplicate
+  observations, requiring review); a failing check shows "unavailable", never 0. Page **`/intelligence/quality`** (scan for
+  changes, acknowledge/dismiss changes, done/dismiss recommendations, status correction).
+- **§13 lifecycle** `lifecycleStatus`, `applyCorrections`, `correctMemoryStatus` (note required), `listCorrections`.
+- **§11 integrations**: orchestrator consumer `memory` (`integrate/consumers.ts`, registered via `intelligence/jobs.ts` import)
+  on requirement_changed, employment_changed, role_updated, quote_received, availability_changed, lease.created/changed,
+  meeting.completed, signal_detected → `detectChanges` for the subject. Module 7: `generateBrief` stores `content.memory`
+  (`meetingMemoryForBrief` → `getMeetingContext` + changes + recommendations). Module 5: `duplicateCheck` adds company-level
+  repetition warnings. Module 2: a new signal whose company already had the same kind gets a "previously known" context
+  evidence row. Module 8: `runComparison` outputs `previousRejections` (client rejection vs our matching, recurring themes).
+  Module 12: tools `get_company_context`, `get_person_context`, `get_requirement_history`, `what_changed`,
+  `get_recommendations`, `find_similar_requirements` (`assistant/tools/intelligence.ts`, group `intelligence`); intents
+  `requirement_change`, `similar_requirements`, `what_changed` + memory tools in `history`, `decision_makers`,
+  `meeting_prep` ("know before meeting"), `rejected_options` mock plans.
+- Tests: `memory/changes.test.ts` (pure) and `memory/memory-changes.db.test.ts` (§17 scenarios 7–13, 16, 18, 19, 23, 24).
+- Known gaps: no UI panel rendering of changes/recommendations on entity pages yet (exported for the panel owner);
+  `meeting_brief` UI does not yet render `content.memory`; rejection themes are an English keyword map; office-move
+  detection uses leases only (not `org_location`); the full `scope.all` scan is bounded (60 requirements, 100 people,
+  150 opportunities) per run.
+
+## UI additions (Nov 2026)
+- Entity panels (company, person, building, requirement, deal) now also show: labelled "AI summary" (`summariseContext`, hidden on error / no facts), Important changes (`memory_change`: previous → latest, date, source, verification, impact), Recommendations (what/why/evidence/sources/confidence/next action; Done/Dismiss for persisted ones via `memory/ui/actions.ts`).
+- Meeting page `/meetings/[id]` renders `brief.memory` ("From your records", `memory/ui/meeting.tsx`) and includes it in the Markdown export. `meetingMemoryForBrief` now adds attendee/requirement/development/question/point links.
+- Pages: `/intelligence` (landing), `/intelligence/recommendations` (filters: type, confidence, record), `/intelligence/changes` (filters: change, record, state, material). Nav: "Intelligence" section under More with tabs Overview/Recommendations/Changes/Timeline/Quality.

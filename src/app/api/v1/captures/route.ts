@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireContext, HttpError } from "@/lib/auth/context";
 import { route, parseJson } from "@/lib/util/http";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createCapture, listCaptures, processCapture, type NewCapture } from "@/modules/capture/service";
+import { createCapture, listCaptures, type NewCapture } from "@/modules/capture/service";
+import { processAndAnalyse } from "@/modules/capture/input-engine/service";
 import { asHttp } from "@/modules/changes/http";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +46,7 @@ export const POST = route(async (req: NextRequest, { idempotencyKey }) => {
     const { capture, duplicate } = await createCapture(ctx.db, ctx.workspaceId, ctx.userId, input, idempotencyKey);
     let processed: unknown = null;
     if (!duplicate) {
-      try { processed = await processCapture(createAdminClient(), ctx.workspaceId, capture.id); }
-      catch (e) { processed = { status: "failed", error: e instanceof Error ? e.message : String(e) }; }
+      processed = await processAndAnalyse(createAdminClient(), ctx.workspaceId, capture.id);
     }
     return { capture: { id: capture.id, status: capture.status }, duplicate, processed, review: `/api/v1/captures/${capture.id}/review` };
   } catch (e) { asHttp(e); }

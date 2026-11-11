@@ -1,0 +1,78 @@
+{
+  "durationMs": 79713,
+  "steps": [
+    {
+      "caption": "Open Capture and scroll to Add files.",
+      "ms": 3604
+    },
+    {
+      "caption": "PDF and Word quotations, brochures, LOIs, leases, notes, cards, photos and voice notes are all accepted here.",
+      "ms": 8854
+    },
+    {
+      "caption": "Open 'Link to a record' and pick the requirement this quote is for: Marigold Loop, 20,000 sf in Kharadi.",
+      "ms": 12025
+    },
+    {
+      "caption": "'Quotation from' says who sent it — landlord, managed-office operator or fit-out partner.",
+      "ms": 17145
+    },
+    {
+      "caption": "Choose the March quotation PDF.",
+      "ms": 20301
+    },
+    {
+      "caption": "Recognised as a Quotation. Open it.",
+      "ms": 24788
+    },
+    {
+      "caption": "The type was worked out from the file and its keywords. 'Pattern matching — check every value' means practice mode.",
+      "ms": 28660
+    },
+    {
+      "caption": "Original file opens the PDF exactly as uploaded — it is always kept.",
+      "ms": 31822
+    },
+    {
+      "caption": "Rent: 'Rs. 85 per sq ft per month' → ₹85 per sq ft per month, CAM extra — found on page 1.",
+      "ms": 34985
+    },
+    {
+      "caption": "Chargeable area 20,000 sq ft stays chargeable — carpet, chargeable and super built-up are never converted.",
+      "ms": 38156
+    },
+    {
+      "caption": "Lock-in, deposit and escalation come from page 2. Every value keeps its page and wording.",
+      "ms": 41320
+    },
+    {
+      "caption": "Proposals: create a quote on the requirement — approve it in Review.",
+      "ms": 45487
+    },
+    {
+      "caption": "Now the landlord sends a revised quote. Back to Capture.",
+      "ms": 49673
+    },
+    {
+      "caption": "Same requirement, and choose the revised quotation.",
+      "ms": 54790
+    },
+    {
+      "caption": "Open it.",
+      "ms": 61175
+    },
+    {
+      "caption": "Rent is now ₹95. 'Differs from the saved value' — this is version 2.",
+      "ms": 65077
+    },
+    {
+      "caption": "The ₹85 from the first quote is kept, not overwritten. The change waits in the Review queue.",
+      "ms": 68273
+    },
+    {
+      "caption": "Recent files on Capture list both quotes, their type and whether they wait for you.",
+      "ms": 71435
+    }
+  ],
+  "bytes": 1095673
+}

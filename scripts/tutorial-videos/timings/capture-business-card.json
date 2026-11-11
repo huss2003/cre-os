@@ -1,0 +1,82 @@
+{
+  "durationMs": 96765,
+  "steps": [
+    {
+      "caption": "Open Capture and scroll to Add files.",
+      "ms": 3605
+    },
+    {
+      "caption": "Open 'Link to a record' and set 'What is it?' to Business card (or leave Detect).",
+      "ms": 8879
+    },
+    {
+      "caption": "Choose the photo of Meera Joshi's card.",
+      "ms": 13945
+    },
+    {
+      "caption": "Open it.",
+      "ms": 18397
+    },
+    {
+      "caption": "Practice mode cannot read photos ('photo text not read'), so no name, email or phone was found yet.",
+      "ms": 22386
+    },
+    {
+      "caption": "Type the card text into 'Text (if the file couldn't be read)'. With AI set up this is read for you.",
+      "ms": 25547
+    },
+    {
+      "caption": "Process again.",
+      "ms": 30492
+    },
+    {
+      "caption": "The fields: name, title, company, email, phones, website and address — copied exactly as on the card.",
+      "ms": 40761
+    },
+    {
+      "caption": "Phones are typed: mobile from 'M:'. The 'Ph:' number could be direct or switchboard, so it is marked unknown.",
+      "ms": 43978
+    },
+    {
+      "caption": "Check these: uncertain fields — the unlabelled phone, and an email domain that differs from the website.",
+      "ms": 47148
+    },
+    {
+      "caption": "No existing contact matches, so a new contact is suggested.",
+      "ms": 50311
+    },
+    {
+      "caption": "Proposals: a new person and a new company — they wait for your approval in Review.",
+      "ms": 53478
+    },
+    {
+      "caption": "After you approve the person, press Process again to propose the emails and phones.",
+      "ms": 56633
+    },
+    {
+      "caption": "Now a card for someone you already know: Anil Deshmukh. Back to Capture.",
+      "ms": 59800
+    },
+    {
+      "caption": "Business card again, and choose Anil's card.",
+      "ms": 64963
+    },
+    {
+      "caption": "Type the card text and Process again.",
+      "ms": 71841
+    },
+    {
+      "caption": "High-confidence match: the same email already belongs to Anil Deshmukh, so no new person is created.",
+      "ms": 84036
+    },
+    {
+      "caption": "Only the new mobile number is proposed for his record. Same name alone would be a suggestion, never a merge.",
+      "ms": 87244
+    },
+    {
+      "caption": "The company on the card looks like Marigold Loop Technologies — pick it in the link picker if it is the same.",
+      "ms": 90394
+    }
+  ],
+  "bytes": 1121016
+}

@@ -5,7 +5,7 @@ import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { getNote, listNotes, type NoteProposal, type NoteRow } from "@/modules/assistant/notes/service";
 import { analyseNotesAction, approveNotesAction, discardNoteAction } from "@/modules/assistant/briefs/actions";
 import { NotesInput } from "@/modules/assistant/ui/notes-input";
-import { NotesLinks } from "@/modules/assistant/ui/notes-links";
+import { NotesLinksToggle } from "@/modules/assistant/ui/notes-links";
 import { lookupById } from "@/modules/assistant/notes/lookup";
 import { fmt } from "@/lib/util/time";
 
@@ -107,10 +107,7 @@ export default async function NotesPage({ searchParams }: { searchParams: Promis
       ) : editor ? (
         <ActionForm action={analyseNotesAction} className="space-y-4 rounded-2xl border border-line bg-surface p-4">
           <NotesInput />
-          <details className="text-sm" open={!!(pMeeting || prefCompany || pReq)}>
-            <summary className="min-h-11 cursor-pointer py-2 text-ink-soft">Link to a meeting, company or requirement (optional)</summary>
-            <div className="mt-3"><NotesLinks meeting={pMeeting} company={prefCompany} requirement={pReq} /></div>
-          </details>
+          <NotesLinksToggle meeting={pMeeting} company={prefCompany} requirement={pReq} />
           <Submit>Find updates</Submit>
         </ActionForm>
       ) : <EmptyState title="Read-only access">Ask a workspace editor to process notes.</EmptyState>}

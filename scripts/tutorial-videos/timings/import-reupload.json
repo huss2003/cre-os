@@ -1,0 +1,66 @@
+{
+  "durationMs": 70407,
+  "steps": [
+    {
+      "caption": "Open More → Imports.",
+      "ms": 3603
+    },
+    {
+      "caption": "Choose the updated 'Pune contacts.xlsx' — same name, new content.",
+      "ms": 9467
+    },
+    {
+      "caption": "Upload and reconcile.",
+      "ms": 12639
+    },
+    {
+      "caption": "It is version 2 of the same source. Uploading the identical file again would change nothing.",
+      "ms": 18624
+    },
+    {
+      "caption": "Changes summary: companies and people you already had are linked, not duplicated.",
+      "ms": 21808
+    },
+    {
+      "caption": "Column layout changed: a Budget column was added, and Mobile and Email swapped places.",
+      "ms": 24968
+    },
+    {
+      "caption": "Columns are matched by header, not position, so the swap breaks nothing.",
+      "ms": 29149
+    },
+    {
+      "caption": "Rows missing from the new version are reported only — no record is deleted or archived.",
+      "ms": 32319
+    },
+    {
+      "caption": "Open Technical details for the row-by-row comparison.",
+      "ms": 35485
+    },
+    {
+      "caption": "Changes vs previous version: changed, added and removed rows, field by field.",
+      "ms": 39355
+    },
+    {
+      "caption": "Kavita Nair's area went from 15,000 to 18,000 sq ft. The earlier observation is kept.",
+      "ms": 43534
+    },
+    {
+      "caption": "Values that differ from your records are never overwritten — they are proposed for approval.",
+      "ms": 46718
+    },
+    {
+      "caption": "All imports lists both versions with their fingerprints.",
+      "ms": 50897
+    },
+    {
+      "caption": "Source cell links: open a company from the file — Pebblewick Software.",
+      "ms": 56002
+    },
+    {
+      "caption": "'Source (spreadsheet rows)' shows the file, version, sheet and cell behind each value.",
+      "ms": 61712
+    }
+  ],
+  "bytes": 1240529
+}

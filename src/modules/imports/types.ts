@@ -132,7 +132,29 @@ export interface ReferenceRecord {
   fields: Record<string, unknown>;
 }
 
-export type MappedRecord = AssetObservationRecord | LeaseRecord | TransactionRecord | MarketRowRecord | ReferenceRecord;
+/** Generic contact / requirement sheet row (spec §3.2 example). Raw values kept; unit/basis/dates never assumed. */
+export interface ContactRecord {
+  kind: "contact_row";
+  identity_key: string; // email:… | phone:… | name:…|org:… | org:…
+  company: string | null;
+  company_key: string | null; // canonical organisation name
+  contact_name: string | null;
+  designation: string | null;
+  emails: string[];
+  phones: string[];
+  area: { raw: string | null; min: number | null; max: number | null; unit: string | null; basis: string | null } | null;
+  location: string | null;
+  rent: { raw: string | null; min: number | null; max: number | null; basis: string | null } | null;
+  lease_expiry: { raw: string | null; value: string | null; precision: string; ambiguous: boolean; alternative: string | null; fact_status: "reported" } | null;
+  current_building: string | null;
+  notes: string | null;
+  custom: Record<string, unknown>;
+  /** field key -> worksheet cell reference ("Contacts!B5") */
+  cell_refs: Record<string, string>;
+  fields: Record<string, unknown>;
+}
+
+export type MappedRecord = AssetObservationRecord | LeaseRecord | TransactionRecord | MarketRowRecord | ReferenceRecord | ContactRecord;
 
 export interface RowOutcome {
   sheet: string;

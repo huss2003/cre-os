@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { PropertyIntelligence } from "@/modules/intelligence/memory/ui/panels";
+import { ProvenanceLinks } from "@/modules/imports/provenance-links";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, ButtonLink, FactBadge, PageHeader, StaleBanner, sf } from "@/components/ui";
@@ -42,6 +44,8 @@ async function Body({ params, searchParams }: Props) {
           {b.parent ? <span>part of <Link className="text-brand" href={`/buildings/${b.parent.id}`}>{b.parent.name}</Link></span> : null}
           {a.archived_at ? <Badge tone="bad">Archived</Badge> : null}<RecordTrust db={ctx.db} workspaceId={ctx.workspaceId} type="asset" id={a.id} /></span>}
         actions={<>{hasRole(ctx, "editor") && !a.archived_at ? <ButtonLink variant="secondary" href={`${base}/edit`}>Edit</ButtonLink> : null}<AsOfForm asOf={asOf} action={base} /></>} />
+      <ProvenanceLinks db={ctx.db} workspaceId={ctx.workspaceId} entityId={id} />
+      <Suspense fallback={null}><PropertyIntelligence ctx={ctx} assetId={id} /></Suspense>
 
       {asOf ? <StaleBanner>Showing availability snapshots and leases recorded on or before {fmtDate(asOf)}.</StaleBanner> : null}
 

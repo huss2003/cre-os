@@ -46,6 +46,8 @@ const PLANS: Record<Intent, Need[]> = {
     ...PROFILE.slice(1),
   ],
   meeting_prep: [
+    { ids: ["get_person_context"], needs: ["person"], when: /\bknow before\b/i },
+    { ids: ["get_company_context"], needs: ["company"], unless: ["person"], when: /\bknow before\b/i },
     { ids: ["generate_meeting_brief"], needs: ["meeting"] },
     { ids: ["get_upcoming_meetings"], unless: ["meeting"] },
     { ids: ["get_company_profile"], needs: ["company"] },
@@ -58,6 +60,8 @@ const PLANS: Record<Intent, Need[]> = {
   ],
   leases_expiring: [{ ids: ["find_leases_expiring"] }],
   rejected_options: [
+    { ids: ["get_requirement_history"], needs: ["requirement"] },
+    { ids: ["get_requirement_history"], needs: ["company"], unless: ["requirement"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
     { ids: ["get_requirement_details"], needs: ["requirement"] },
     { ids: ["search_requirements"], needs: ["company"], unless: ["requirement"] },
     { ids: ["get_meeting_history"], needs: ["company"] },
@@ -83,8 +87,22 @@ const PLANS: Record<Intent, Need[]> = {
     { ids: ["get_research_signals"], needs: ["company"] },
     { ids: ["get_scores"], needs: ["company"], input: companyScore },
   ],
-  decision_makers: [{ ids: ["find_decision_makers"], needs: ["company"] }],
+  decision_makers: [{ ids: ["get_company_context"], needs: ["company"], when: /\b(actual|real|final|current|new)\b.*\bdecision.?maker|\bwho (is|are) the decision.?makers?\b/i }, { ids: ["find_decision_makers"], needs: ["company"] }],
+  requirement_change: [
+    { ids: ["get_requirement_history"], needs: ["requirement"] },
+    { ids: ["get_requirement_history"], needs: ["company"], unless: ["requirement"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
+  ],
+  similar_requirements: [
+    { ids: ["find_similar_requirements"], needs: ["requirement"] },
+    { ids: ["find_similar_requirements"], needs: ["company"], unless: ["requirement"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
+  ],
+  what_changed: [
+    { ids: ["what_changed"], needs: ["primary"], input: (s) => (s.primary && ({ company: "company", person: "person", requirement: "requirement", asset: "asset", opportunity: "opportunity" } as Record<string, string>)[s.primary.type] ? { entityType: ({ company: "company", person: "person", requirement: "requirement", asset: "asset", opportunity: "opportunity" } as Record<string, string>)[s.primary.type], entityId: s.primary.id } : null) },
+    { ids: ["get_recommendations"], input: (s) => (s.company ? { companyId: s.company.id } : s.person ? { personId: s.person.id } : s.requirement ? { requirementId: s.requirement.id } : {}) },
+  ],
   history: [
+    { ids: ["get_company_context"], needs: ["company"], unless: ["person"], when: /\b(last|latest|recent)\b.*\bdiscuss\w*|\bdiscuss\w*\b.*\blast\b/i },
+    { ids: ["get_person_context"], needs: ["person"], when: /\bspoken to\b|\b(last|latest)\b.*\bdiscuss/i },
     { ids: ["get_meeting_history"], needs: ["person"], input: (s) => (s.person ? { personId: s.person.id } : null) },
     { ids: ["get_meeting_history"], needs: ["company"], unless: ["person"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
   ],
@@ -301,6 +319,7 @@ const HEADINGS: Record<Intent, string> = {
   memory_correction: "Memory updated", research: "Research", general: "Answer",
   research_why: "Why this account is an opportunity", decision_makers: "People to speak to", history: "What was said",
   outreach_draft: "Follow-up draft", requirement_correction: "Requirement correction", automation: "Background work",
+  requirement_change: "Requirement history", similar_requirements: "Similar requirements", what_changed: "What changed",
 };
 
 export const MOCK_CHUNK = 24;

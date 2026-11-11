@@ -9,6 +9,8 @@ import { getDocument, linkOptions, mmss, type Segment } from "@/modules/capture/
 import { reprocessDocAction } from "@/modules/capture/docs/actions";
 import { DOC_TYPES, ROUTE, TYPE_LABEL, type DocType } from "@/modules/capture/docs/detect";
 import { StateBadge } from "@/modules/capture/ui/parts";
+import { observationsFor } from "@/modules/capture/input-engine/service";
+import { ObservationList } from "@/modules/capture/input-engine/ui/observations";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
 
@@ -27,6 +29,7 @@ async function Body({ params }: Props) {
   const got = await getDocument(ctx.db, ctx.workspaceId, id);
   if (!got) notFound();
   const { doc, proposals, transcript, originalUrl } = got;
+  const observations = await observationsFor(ctx.db, ctx.workspaceId, { documentId: id });
   const r = (doc.result ?? {}) as Row;
   const det = (doc.detection ?? {}) as Row;
   const editor = hasRole(ctx, "editor");
@@ -38,6 +41,7 @@ async function Body({ params }: Props) {
       <PageHeader title={doc.file_name} subtitle={<span>{TYPE_LABEL[type] ?? type} → {ROUTE[type] ?? "—"} · {fmt(doc.created_at)}</span>}
         actions={originalUrl ? <a href={originalUrl} className="text-sm text-brand underline" target="_blank" rel="noreferrer">Original file</a> : null} />
       {doc.status === "failed" || doc.status === "unsupported" ? <StaleBanner>{doc.error ?? "Processing failed."} The original file is kept.</StaleBanner> : null}
+      {r.format_note && r.format_note !== doc.error ? <StaleBanner>{r.format_note}</StaleBanner> : null}
       {doc.status === "needs_input" ? <Card><p className="text-sm">{doc.error}</p></Card> : null}
 
       <Card title="What CRE OS found">
@@ -57,9 +61,20 @@ async function Body({ params }: Props) {
             <dt className="text-ink-soft">Emails</dt><dd>{r.card.emails?.join(", ") || "—"}</dd>
             <dt className="text-ink-soft">Phones</dt><dd>{(r.card.phones ?? []).map((p: Row) => `${p.value} (${p.type})`).join(", ") || "—"}</dd>
             <dt className="text-ink-soft">Website</dt><dd>{r.card.website ?? "—"}</dd>
+            <dt className="text-ink-soft">Address</dt><dd>{r.card.address ?? "—"}</dd>
           </dl>
         ) : null}
         {r.contact_methods_pending ? <p className="mt-2 text-xs text-ink-soft">{r.contact_methods_pending}</p> : null}
+        {r.person_match ? (
+          <p className="mt-2 text-xs">
+            <Badge tone={r.person_match.tier === "high" ? "ok" : r.person_match.tier === "none" ? "neutral" : "warn"}>{r.person_match.tier === "none" ? "no existing contact" : `${r.person_match.tier} confidence match`}</Badge>{" "}
+            {r.person_match.reason}{(r.person_match.candidates as Row[] | undefined)?.length ? <> — {(r.person_match.candidates as Row[]).map((c) => <Link key={c.id} className="text-brand underline" href={`/people/${c.id}`}>{c.label} </Link>)}</> : null}
+            {r.person_match.tier === "medium" || r.person_match.tier === "low" ? " If it is the same person, pick them in the link picker and press Process again; nothing is merged automatically." : null}
+          </p>
+        ) : null}
+        {(r.uncertain_fields as Row[] | undefined)?.length ? (
+          <ul className="mt-2 list-disc pl-5 text-xs text-warn">{(r.uncertain_fields as Row[]).map((u, i) => <li key={i}>Check {u.field}: {u.reason}</li>)}</ul>
+        ) : null}
         {r.company_matches?.length ? <p className="mt-2 text-xs">Possible existing company: {(r.company_matches as Row[]).map((c) => <Link key={c.id} className="text-brand underline" href={`/companies/${c.id}`}>{c.display_name ?? c.legal_name}</Link>)} — pick it in the link picker and press Process again if it is the same.</p> : null}
 
         {r.terms ? (
@@ -79,6 +94,10 @@ async function Body({ params }: Props) {
         {r.capture_id ? <p className="mt-3 text-sm"><Link className="text-brand underline" href={`/capture/${r.capture_id}`}>Open the capture review</Link> — confirm people, answer questions; record changes go to Review.</p> : null}
         {r.import_batch_id ? <p className="mt-3 text-sm"><Link className="text-brand underline" href={`/imports/${r.import_batch_id}`}>Open the import summary</Link> ({r.import_status}).</p> : null}
         {r.attachments ? <p className="mt-3 text-sm">Attached{r.attachments.asset_id ? <> to <Link className="text-brand underline" href={`/buildings/${r.attachments.asset_id}`}>the building</Link></> : null}{r.attachments.meeting_material_id ? " and to the visit's materials" : ""}. {r.note}</p> : null}
+      </Card>
+
+      <Card title={`Extracted information (${observations.length})`} help="Every value keeps its original wording and page. Carpet, chargeable and super built-up areas are never converted; rent is never assumed to include CAM.">
+        <ObservationList items={observations} editor={hasRole(ctx, "editor")} />
       </Card>
 
       {transcript ? (

@@ -16,3 +16,20 @@ export function NotesLinks({ meeting, company, requirement }: { meeting?: Picker
     </div>
   );
 }
+
+/** Collapsible "Link to…" section. Owns its open state so a click on the summary always opens it
+ *  (a server-rendered `open={false}` could be re-applied by React and snap it shut). */
+export function NotesLinksToggle({ meeting, company, requirement }: { meeting?: PickerItem | null; company?: PickerItem | null; requirement?: PickerItem | null }) {
+  const [open, setOpen] = useState(!!(meeting || company || requirement));
+  return (
+    <div className="text-sm">
+      <button type="button" aria-expanded={open} aria-controls="notes-links-panel" onClick={() => setOpen((o) => !o)}
+        className="flex min-h-11 w-full cursor-pointer items-center gap-2 py-2 text-left text-ink-soft">
+        <span aria-hidden>{open ? "▾" : "▸"}</span>Link to a meeting, company or requirement (optional)
+      </button>
+      <div id="notes-links-panel" hidden={!open} className="mt-3">
+        <NotesLinks meeting={meeting} company={company} requirement={requirement} />
+      </div>
+    </div>
+  );
+}

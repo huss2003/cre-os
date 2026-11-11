@@ -1,0 +1,999 @@
+MODULE 10: INPUT ENGINE
+
+Master AI Development and Implementation Prompt
+
+Turning Everyday Information into Usable CRE Memory
+
+1. PROJECT OBJECTIVE
+
+Develop Module 10 – Input Engine for the CRE AI Operating System.
+
+The Input Engine is responsible for capturing, processing, understanding, extracting, validating and organising information received from different sources and formats.
+
+The objective is to make adding information to the CRE system effortless.
+
+Users should be able to provide information through voice notes, typed notes, images, screenshots, business cards, documents, spreadsheets, permitted recordings and other supported formats.
+
+The system must automatically understand the information, identify relevant CRE entities, match them against existing database records and propose the appropriate updates.
+
+The Input Engine must convert unstructured information into structured and actionable business memory.
+
+It must integrate with the existing modules, particularly:
+
+- Module 1 – Database
+- Module 2 – Signal Engine
+- Module 3 – Scoring Engine
+- Module 4 – Contact Enrichment
+- Module 5 – Outreach Engine
+- Module 7 – Meeting Intelligence
+- Module 8 – Deal Toolkit
+- Module 9 – Orchestrator
+- Module 12 – Supercharged Assistant
+
+Do not develop this as an isolated document-processing application. It must function as the central information intake layer of the CRE AI Operating System.
+
+---
+
+2. MULTI-FORMAT INFORMATION CAPTURE
+
+The system must allow users to submit information through multiple input methods.
+
+2.1 Text Input
+
+Features:
+
+- Capture manually typed notes.
+- Accept informal and unstructured business notes.
+- Understand incomplete sentences and shorthand.
+- Understand common CRE terminology.
+- Identify companies, people, buildings, locations and requirements.
+- Extract dates, rent figures, areas and commercial terms.
+- Identify commitments, objections and follow-up instructions.
+- Convert relevant information into structured records.
+- Preserve the original note.
+
+Example input:
+
+"Spoke to Anil. They need around 20,000 feet in Kharadi by September. Budget is 85. Send options Friday."
+
+The system should identify:
+
+- Contact: Anil.
+- Potential requirement: approximately 20,000 SF.
+- Location: Kharadi.
+- Target date: September.
+- Budget: 85, unit and pricing basis unknown.
+- Action: Send property options.
+- Due date: Friday.
+
+It must ask for clarification about the pricing basis before treating 85 as a confirmed commercial value.
+
+2.2 Voice Notes
+
+Features:
+
+- Allow users to record voice notes.
+- Support uploaded audio recordings.
+- Convert audio into text.
+- Understand natural speech.
+- Support English, Hindi and Hinglish.
+- Recognise common CRE abbreviations and terminology.
+- Identify names, locations, dates, amounts and commitments.
+- Extract actionable information.
+- Preserve the original audio file.
+- Store the transcription alongside the original recording.
+- Allow users to review and correct transcription errors.
+
+2.3 Image and Screenshot Input
+
+Features:
+
+- Upload photographs and screenshots.
+- Extract text using OCR.
+- Understand business-related images.
+- Identify company names and contact details.
+- Extract property information from brochures and advertisements.
+- Extract rent quotations and commercial terms.
+- Recognise property layouts and relevant labels.
+- Extract visible dates, prices, areas and specifications.
+- Identify potentially relevant information in screenshots of conversations.
+- Allow extracted information to be reviewed before important database updates.
+
+2.4 Business Card Capture
+
+Features:
+
+- Upload business card images.
+- Extract the person's name.
+- Extract designation.
+- Extract company name.
+- Extract email address.
+- Extract telephone number.
+- Extract website.
+- Extract office address.
+- Identify the likely company and contact record.
+- Match against existing contacts.
+- Suggest a new contact if no reliable match exists.
+- Flag uncertain fields for review.
+- Preserve the original business card image.
+
+2.5 Document Upload
+
+Support the following document formats:
+
+- PDF
+- DOC
+- DOCX
+- PPT
+- PPTX
+- Images
+- Scanned documents
+
+Features:
+
+- Extract document text.
+- Process scanned documents using OCR.
+- Identify document type.
+- Extract relevant CRE information.
+- Identify company and property references.
+- Extract lease terms.
+- Extract commercial quotations.
+- Extract property specifications.
+- Identify dates, amounts, areas and contractual details.
+- Identify requirements and commitments.
+- Preserve the original document.
+- Maintain references to the original document and relevant page numbers.
+
+2.6 Permitted Meeting Recordings
+
+Features:
+
+- Accept permitted meeting recordings.
+- Transcribe recordings.
+- Identify speakers where technically possible.
+- Extract meeting-related information.
+- Identify decisions and commitments.
+- Extract objections and requirements.
+- Identify follow-up activities.
+- Preserve timestamps and transcript references.
+- Send meeting-related information to Module 7 – Meeting Intelligence.
+
+Recording and processing must follow applicable consent and privacy requirements.
+
+---
+
+3. SPREADSHEET IMPORT ENGINE
+
+The system must support importing structured business information from spreadsheets.
+
+Supported formats:
+
+- Excel (.xlsx and .xls)
+- CSV
+
+Features:
+
+3.1 Spreadsheet Upload
+
+- Upload spreadsheets.
+- Read multiple worksheets.
+- Identify column headers.
+- Detect data types.
+- Identify blank and incomplete rows.
+- Detect duplicate records.
+- Identify potentially invalid values.
+- Preserve the original uploaded spreadsheet.
+
+3.2 Automatic Column Mapping
+
+The system should automatically identify and map spreadsheet columns to the correct database fields.
+
+Example:
+
+Spreadsheet Column| Suggested Database Field
+Company| Company Name
+Contact Person| Contact Name
+Mobile| Phone Number
+Office Space| Required Area
+Location| Preferred Location
+Rent| Expected Rent
+Expiry| Lease Expiry Date
+
+Features:
+
+- Suggest column mappings automatically.
+- Allow users to review mappings.
+- Allow users to correct mappings.
+- Support custom column names.
+- Remember previously approved mapping patterns.
+- Detect changed spreadsheet layouts.
+- Identify columns that cannot be mapped.
+- Report incomplete or ambiguous mappings.
+
+3.3 Spreadsheet Validation
+
+Features:
+
+- Validate email formats.
+- Validate telephone numbers.
+- Identify inconsistent date formats.
+- Identify invalid area values.
+- Identify missing company names.
+- Identify duplicate contacts.
+- Identify duplicate companies.
+- Detect suspicious numerical values.
+- Identify conflicting information against existing records.
+- Generate an import validation report.
+
+3.4 Spreadsheet Change Detection
+
+When users upload an updated version of an existing spreadsheet:
+
+- Identify previously imported records.
+- Match existing records against new rows.
+- Detect newly added records.
+- Detect modified values.
+- Detect removed records.
+- Identify changed column layouts.
+- Generate a change summary.
+- Propose appropriate database updates.
+- Preserve historical values.
+- Do not silently delete existing records because a row is missing from a new spreadsheet.
+
+---
+
+4. AI-POWERED INFORMATION EXTRACTION
+
+The Input Engine must use AI to understand unstructured information and convert it into structured CRE data.
+
+4.1 Entity Recognition
+
+Recognise the following entities:
+
+- Companies.
+- People.
+- Buildings.
+- Business parks.
+- Locations.
+- Office spaces.
+- Property requirements.
+- Lease agreements.
+- Landlords.
+- Developers.
+- Asset managers.
+- Property managers.
+- Rent quotations.
+- Commercial offers.
+- Areas.
+- Rental values.
+- CAM charges.
+- Security deposits.
+- Lock-in periods.
+- Lease expiry dates.
+- Notice periods.
+- Escalation clauses.
+- Fit-out requirements.
+- Meeting commitments.
+- Follow-up activities.
+- Objections.
+- Business opportunities.
+
+4.2 Commercial Information Extraction
+
+Extract relevant commercial information, including:
+
+- Carpet area.
+- Chargeable area.
+- Super built-up area.
+- Rent per square foot.
+- Monthly rent.
+- Annual rent.
+- CAM charges.
+- Security deposit.
+- Rent-free period.
+- Lock-in period.
+- Lease duration.
+- Rent escalation.
+- Notice period.
+- Fit-out costs.
+- Brokerage.
+- Parking charges.
+- Other commercial conditions.
+
+Every extracted commercial value must retain its original wording and source.
+
+Do not assume missing units, pricing periods or commercial inclusions.
+
+4.3 Date and Commitment Recognition
+
+Identify:
+
+- Meeting dates.
+- Lease expiry dates.
+- Possession dates.
+- Requirement deadlines.
+- Follow-up dates.
+- Quotation validity dates.
+- Payment deadlines.
+- Agreed commitments.
+- Task deadlines.
+
+Distinguish between a confirmed contractual date, an estimated date and an informal target.
+
+4.4 Intent Classification
+
+Classify captured information into appropriate categories:
+
+- New company information.
+- New contact information.
+- Contact update.
+- Property information.
+- New property requirement.
+- Lease information.
+- Commercial quotation.
+- Meeting note.
+- Business signal.
+- Client objection.
+- Commercial commitment.
+- Follow-up task.
+- Personal working preference.
+- Hypothesis or research observation.
+- General reference information.
+
+---
+
+5. INTELLIGENT ENTITY MATCHING
+
+The Input Engine must match extracted information against existing database records before creating new records.
+
+5.1 Company Matching
+
+Features:
+
+- Match company names.
+- Recognise different spellings.
+- Recognise abbreviations.
+- Identify alternate company names.
+- Identify subsidiary and parent company references.
+- Consider location and other identifying information.
+- Detect potential duplicate companies.
+- Suggest the most likely existing company record.
+
+5.2 Contact Matching
+
+Features:
+
+- Match people using names.
+- Match using email addresses.
+- Match using phone numbers.
+- Consider current and previous employers.
+- Consider designations.
+- Identify spelling variations.
+- Detect potential duplicate contacts.
+- Preserve the contact's historical employment information.
+
+A contact changing employers must not automatically cause the contact's previous company opportunities to be transferred to the new company.
+
+5.3 Property Matching
+
+Features:
+
+- Match building names.
+- Recognise alternate building names.
+- Match business park names.
+- Identify addresses and locations.
+- Detect duplicate property records.
+- Suggest existing properties when a likely match is found.
+
+5.4 Confidence-Based Matching
+
+The system must classify matching results as:
+
+- High confidence.
+- Medium confidence.
+- Low confidence.
+- No reliable match.
+
+High-confidence matches may be proposed for automatic association under configured rules.
+
+Medium- and low-confidence matches must be presented for user review.
+
+The system must not merge uncertain company, contact, property or opportunity records without approval.
+
+---
+
+6. DUPLICATE DETECTION
+
+The Input Engine must detect duplicate information across uploads and existing records.
+
+Features:
+
+- Identify duplicate file uploads.
+- Identify repeated observations.
+- Detect duplicate business cards.
+- Detect duplicate company information.
+- Detect duplicate contact information.
+- Detect repeated property quotations.
+- Identify repeated meeting notes.
+- Detect duplicate spreadsheet imports.
+- Identify substantially identical information received from different sources.
+- Preserve source history.
+- Avoid creating unnecessary database records.
+
+Repeated information must not automatically be treated as independent evidence.
+
+The system should identify whether a new observation confirms existing information or simply repeats the same source.
+
+---
+
+7. DATA VALIDATION AND CONFLICT DETECTION
+
+The Input Engine must validate information before creating or updating important database records.
+
+Features:
+
+- Identify missing information.
+- Identify ambiguous information.
+- Identify conflicting values.
+- Identify questionable numerical values.
+- Identify inconsistent dates.
+- Identify uncertain commercial terms.
+- Compare extracted values against existing records.
+- Highlight differences.
+- Suggest possible resolutions.
+- Ask the user only for necessary clarification.
+
+Example
+
+Existing database record:
+
+Monthly rent: ₹85/SF.
+
+New uploaded quotation:
+
+Rent: ₹95/SF.
+
+The system must:
+
+- Identify the difference.
+- Preserve the previous value.
+- Store the new quotation as a separate observation or offer version.
+- Identify the source and date.
+- Highlight the commercial change.
+- Trigger the relevant review process.
+- Avoid silently overwriting the previous information.
+
+---
+
+8. INFORMATION CLASSIFICATION AND RECORD CREATION
+
+The system must distinguish between different types of information.
+
+8.1 Confirmed Facts
+
+Information directly supported by a reliable source or explicitly confirmed by the user.
+
+8.2 Estimates
+
+Approximate information that has not been confirmed.
+
+8.3 Assumptions
+
+Information inferred by the system but not directly established.
+
+8.4 Hypotheses
+
+Potential business interpretations that require further validation.
+
+8.5 Commitments
+
+Actions or obligations explicitly agreed to by a person or organisation.
+
+8.6 Tasks
+
+Activities that need to be completed.
+
+8.7 Preferences
+
+User or client preferences that may influence future recommendations.
+
+Every important extracted item should include:
+
+- Original source.
+- Source type.
+- Observation date.
+- Extraction date.
+- Verification status.
+- Confidence level where applicable.
+- Linked company, contact, property or requirement.
+- Original source reference.
+
+---
+
+9. HUMAN REVIEW AND APPROVAL
+
+The Input Engine must balance automation with accuracy.
+
+Features:
+
+- Automatically process low-risk information.
+- Automatically save eligible internal observations under configured rules.
+- Present uncertain entity matches for review.
+- Request approval before merging uncertain records.
+- Request review before making material commercial updates.
+- Allow users to correct extracted information.
+- Allow users to reject proposed updates.
+- Allow users to confirm suggested records.
+- Preserve the original extracted information.
+- Maintain a history of user corrections.
+
+The system must not ask users to confirm every minor extraction.
+
+It should only request clarification when the uncertainty could materially affect the accuracy of the database or a business decision.
+
+---
+
+10. LARGE FILE AND BATCH PROCESSING
+
+The Input Engine must support processing large uploads without blocking the main application.
+
+Features:
+
+- Upload large files.
+- Process files asynchronously.
+- Process multiple files in one batch.
+- Extract information in the background.
+- Track processing progress.
+- Display processing status.
+- Allow users to continue using the application.
+- Identify failed files.
+- Retry temporary processing failures.
+- Preserve successfully processed results when another file fails.
+- Generate a final processing report.
+
+The completion report must show:
+
+- Files received.
+- Files successfully processed.
+- Files partially processed.
+- Failed files.
+- Records identified.
+- Records created.
+- Existing records updated.
+- Potential duplicates.
+- Conflicting information.
+- Items requiring user review.
+
+---
+
+11. SOURCE AND DOCUMENT TRACEABILITY
+
+Every extracted piece of important information must be traceable to its original source.
+
+Features:
+
+- Preserve original files.
+- Preserve original images.
+- Preserve original audio recordings.
+- Preserve original notes.
+- Store document page references.
+- Store spreadsheet worksheet and cell references.
+- Store transcript timestamps.
+- Link extracted values to their original sources.
+- Allow users to open the original source from a database record.
+- Maintain extraction and correction history.
+
+If information is extracted from a PDF, the user should be able to identify which page contained the information.
+
+If information is extracted from a spreadsheet, the user should be able to identify the worksheet and source cell.
+
+---
+
+12. INTEGRATION WITH OTHER MODULES
+
+The Input Engine must work as part of the complete CRE AI Operating System.
+
+Module 1 – Database
+
+- Create structured information.
+- Update eligible existing records.
+- Match existing entities.
+- Preserve historical information.
+- Maintain source references and audit history.
+
+Module 2 – Signal Engine
+
+- Send relevant new business observations.
+- Provide information that may indicate expansion, restructuring or property requirements.
+- Trigger signal reassessment when appropriate.
+
+Module 3 – Scoring Engine
+
+- Provide newly captured information that affects lead priority.
+- Trigger reassessment when material account or requirement information changes.
+
+Module 4 – Contact Enrichment
+
+- Send new contact information for matching and enrichment.
+- Support business card capture.
+- Identify missing contact information.
+- Avoid duplicate contact creation.
+
+Module 5 – Outreach Engine
+
+- Capture outreach-related notes.
+- Identify replies and client objections.
+- Extract follow-up instructions.
+- Create proposed follow-up tasks.
+
+Module 7 – Meeting Intelligence
+
+- Send meeting recordings and notes for processing.
+- Provide extracted commitments and observations.
+- Preserve transcript and source references.
+
+Module 8 – Deal Toolkit
+
+- Send property quotations.
+- Extract lease terms.
+- Extract commercial offers.
+- Provide updated property and requirement information.
+- Trigger relevant commercial reassessments.
+
+Module 9 – Orchestrator
+
+- Notify the Orchestrator when relevant records are created or updated.
+- Trigger dependent workflows.
+- Schedule required follow-up activities.
+- Report processing failures and delays.
+
+Module 12 – Supercharged Assistant
+
+- Make captured information available through natural-language queries.
+- Allow the assistant to retrieve source-linked information.
+- Support questions about recently uploaded documents and captured notes.
+
+---
+
+13. MAIN USER INTERFACE
+
+The Input Engine should be accessible through the existing Capture entry point.
+
+A. Capture Dashboard
+
+Features:
+
+- Type a note.
+- Record a voice note.
+- Upload an image.
+- Upload a business card.
+- Upload a document.
+- Upload a spreadsheet.
+- Upload a permitted recording.
+- View recent captures.
+- View pending reviews.
+- View processing status.
+
+B. Extraction Review Screen
+
+Display:
+
+- Original uploaded content.
+- Extracted information.
+- Identified entities.
+- Suggested database matches.
+- Confidence levels.
+- Missing information.
+- Conflicting information.
+- Proposed database changes.
+- Suggested tasks.
+- Source references.
+
+Allow users to:
+
+- Confirm.
+- Edit.
+- Reject.
+- Associate with an existing record.
+- Create a new record.
+- Request clarification.
+
+C. Import Dashboard
+
+Display:
+
+- Upload history.
+- Import progress.
+- Processing status.
+- Spreadsheet mapping.
+- Validation results.
+- Duplicate records.
+- Conflicting information.
+- Import completion report.
+
+D. Review Queue
+
+Display information that requires human attention.
+
+Categories:
+
+- Uncertain company matches.
+- Uncertain contact matches.
+- Potential duplicate records.
+- Conflicting commercial values.
+- Missing units or dates.
+- Unverified lease details.
+- Material database changes requiring approval.
+
+E. Capture History
+
+Display:
+
+- Original input.
+- Input type.
+- Upload date.
+- Processing status.
+- Extracted records.
+- User corrections.
+- Linked entities.
+- Processing errors.
+
+---
+
+14. TECHNICAL AND ARCHITECTURAL REQUIREMENTS
+
+Before implementation:
+
+1. Inspect the existing application architecture.
+2. Inspect the existing database schema.
+3. Identify existing file storage.
+4. Identify existing AI model integrations.
+5. Identify existing OCR and transcription capabilities.
+6. Identify existing authentication and permission systems.
+7. Reuse existing services wherever possible.
+8. Do not rebuild existing modules unnecessarily.
+9. Do not introduce a separate database for the Input Engine.
+10. Integrate through existing APIs and shared backend services.
+
+The architecture should support:
+
+- File upload and storage.
+- Asynchronous processing.
+- OCR and document extraction.
+- Audio transcription.
+- AI-based entity extraction.
+- Structured validation.
+- Entity resolution.
+- Duplicate detection.
+- Human review.
+- Database updates.
+- Source traceability.
+- Background retries.
+- Processing logs.
+- Usage monitoring.
+
+Use structured extraction schemas and backend validation rather than allowing AI-generated output to directly modify important database records.
+
+The backend must enforce permissions, validation rules and approval requirements.
+
+Processing should be idempotent so that retrying an upload or job does not create duplicate records.
+
+---
+
+15. IMPORTANT BUSINESS RULES
+
+The following rules are mandatory:
+
+1. Preserve raw information even when extraction fails.
+
+2. Do not silently convert carpet area into chargeable area.
+
+3. Do not assume that a rent value includes CAM.
+
+4. Do not assume missing commercial values are zero.
+
+5. Do not convert an uncertain spreadsheet date into a confirmed contractual date.
+
+6. Do not silently overwrite historical values.
+
+7. Do not merge uncertain company, contact or property records.
+
+8. Do not treat estimates as confirmed facts.
+
+9. Do not treat AI interpretations as direct statements from clients.
+
+10. Do not treat repeated information from the same underlying source as independent evidence.
+
+11. Ask only necessary clarification questions.
+
+12. Preserve original files, notes, images and recordings.
+
+13. Require review for material commercial changes under configured approval rules.
+
+14. Automatically process low-risk information only within explicitly configured permissions.
+
+15. Provide a plain-language receipt explaining what was saved, changed, questioned or scheduled.
+
+---
+
+16. EXAMPLE END-TO-END SCENARIO
+
+User submits:
+
+"Spoke to Anil. They need around 20,000 feet in Kharadi by September. Budget is 85. Send options Friday."
+
+The Input Engine should perform the following:
+
+STEP 1: CAPTURE
+Save the original note.
+
+STEP 2: EXTRACTION
+Identify:
+
+- Contact: Anil.
+- Potential area requirement: approximately 20,000 SF.
+- Preferred location: Kharadi.
+- Target timeline: September.
+- Budget: 85, pricing basis unknown.
+- Follow-up: Send property options.
+- Follow-up deadline: Friday.
+
+STEP 3: ENTITY MATCHING
+Search the existing database for:
+
+- Anil.
+- His associated company.
+- Existing company requirements.
+- Related opportunities.
+
+STEP 4: VALIDATION
+Identify that the budget value lacks a confirmed unit and pricing basis.
+
+STEP 5: PROPOSED UPDATES
+Prepare:
+
+- A potential requirement update.
+- A proposed follow-up task.
+- Links to the relevant company and contact, if confidently matched.
+
+STEP 6: CLARIFICATION
+Ask whether the budget of 85 means ₹85 per square foot per month and whether CAM is additional.
+
+STEP 7: DATABASE UPDATE
+Save confirmed and approved information with source references and verification status.
+
+STEP 8: ORCHESTRATION
+Notify Module 9 about relevant updates and proposed follow-up scheduling.
+
+STEP 9: USER RECEIPT
+Display:
+
+- Note saved.
+- Contact matched or awaiting confirmation.
+- Requirement proposed.
+- Budget clarification pending.
+- Friday follow-up task created or awaiting required confirmation.
+
+---
+
+17. TESTING AND ACCEPTANCE CRITERIA
+
+The Input Engine must be tested against the following scenarios:
+
+1. Plain-text note extraction.
+2. Hindi voice note transcription.
+3. Hinglish voice note transcription.
+4. Business card extraction.
+5. Screenshot OCR.
+6. Property brochure extraction.
+7. Lease quotation extraction.
+8. PDF processing.
+9. Word document processing.
+10. Excel import.
+11. CSV import.
+12. Automatic column mapping.
+13. Changed spreadsheet layout.
+14. Duplicate company detection.
+15. Duplicate contact detection.
+16. Contact employer change.
+17. Ambiguous entity matching.
+18. Conflicting rent values.
+19. Missing area units.
+20. Uncertain contractual dates.
+21. Duplicate file upload.
+22. Repeated information from the same source.
+23. Large batch upload.
+24. Partial processing failure.
+25. Temporary AI service failure.
+26. User correction of extracted information.
+27. Rejected database update.
+28. Source traceability.
+29. Historical value preservation.
+30. Integration with Modules 1, 2, 3, 4, 5, 7, 8, 9 and 12.
+
+Each test must verify:
+
+- Correct extraction.
+- Correct classification.
+- Correct entity matching.
+- Appropriate confidence handling.
+- Database integrity.
+- Source traceability.
+- Duplicate prevention.
+- Approval enforcement.
+- Correct downstream workflow triggering.
+
+---
+
+18. IMPLEMENTATION PRIORITY
+
+Build the Input Engine in the following order:
+
+PHASE 1 – CORE CAPTURE
+
+- Text capture.
+- Image upload.
+- Document upload.
+- Voice note upload.
+- Original file preservation.
+
+PHASE 2 – EXTRACTION
+
+- OCR.
+- Document text extraction.
+- Voice transcription.
+- AI entity extraction.
+- Structured CRE data extraction.
+
+PHASE 3 – VALIDATION
+
+- Entity matching.
+- Duplicate detection.
+- Confidence classification.
+- Conflict detection.
+- Source traceability.
+
+PHASE 4 – DATABASE INTEGRATION
+
+- Structured record creation.
+- Existing record updates.
+- Historical value preservation.
+- Approval and review workflows.
+
+PHASE 5 – SPREADSHEET ENGINE
+
+- Excel and CSV imports.
+- Automatic column mapping.
+- Validation.
+- Change detection.
+- Import reports.
+
+PHASE 6 – MODULE INTEGRATION
+
+- Connect Modules 1, 2, 3, 4, 5, 7, 8, 9 and 12.
+- Implement event notifications.
+- Trigger relevant downstream workflows.
+
+PHASE 7 – ADVANCED PROCESSING
+
+- Batch processing.
+- Background retries.
+- Processing dashboard.
+- Usage monitoring.
+- Advanced multilingual extraction.
+
+---
+
+19. FINAL EXPECTATION
+
+The Input Engine should make information capture almost effortless.
+
+The user should not need to manually organise every note, read every uploaded document, enter every business card or manually transfer every quotation into the database.
+
+The system should understand incoming information, identify what matters, connect it to the correct business records, preserve its source, identify uncertainty and turn it into usable business memory.
+
+The final objective is simple:
+
+CAPTURE INFORMATION ONCE. UNDERSTAND IT. VALIDATE IT. CONNECT IT. MAKE IT ACTIONABLE.
+
+The Input Engine must become the primary entry point through which everyday CRE business information enters and improves the entire AI Operating System.

@@ -116,12 +116,9 @@ const FLOWS = [
         "Met Ananya Rao at Zentrix Analytics. They need about 25,000 sq ft in Kharadi by March. Send 3 options on Friday.", 28));
       await t.step("Save it. Nothing in your records changes yet.", () => t.moveAndClick(main(p).getByRole("button", { name: "Save capture" })));
       await p.waitForURL(/\/capture\/[0-9a-f-]+/, { timeout: 30000 });
-      await soft(t, "CRE OS read the note. When something is unclear, it asks instead of guessing.", TX(p, /March 2027/));
-      await t.step("Which March? Pick 2027.", () => t.moveAndClick(main(p).getByText("March 2027", { exact: true })));
-      await t.step("Which Friday? Pick the nearest one, then save the answers.", async () => {
-        const fri = main(p).locator("input[name='answer:1']").first();
-        await t.moveAndClick(fri.locator("xpath=..")); await t.moveAndClick(main(p).getByRole("button", { name: "Save answers" }));
-      });
+      await soft(t, "CRE OS read the note. The receipt lists what it saved, matched and scheduled.", TX(p, /Note saved/));
+      await soft(t, "'By March' is a target, not a contract date: the year stays unknown instead of being guessed.", TX(p, /by March/));
+      await soft(t, "'Friday' became a task due this Friday — no question needed.", TX(p, /created, due/));
       await soft(t, "This box lists exactly what will be added: a meeting log, requirement details and a task.", TX(p, "What will be added when you press Reviewed"));
       await soft(t, "Each line shows the company or person it belongs to — check the names and numbers.", TX(p, /25,000/));
       await t.step("Looks right? Press Reviewed — now it goes to your records.", () => t.moveAndClick(main(p).getByRole("button", { name: /Reviewed/ })));

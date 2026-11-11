@@ -9,6 +9,8 @@ import { dueForResearch, generateDossier, detectRecentSignals } from "./research
 import { refreshStrategyForEvent } from "./strategy/service";
 import { notify } from "@/modules/brief/db";
 import { runPatrol } from "./research/patrol-service";
+// Module 13 memory: orchestrator event consumers (reassess memory on new evidence) register on import.
+import "./memory/integrate/consumers";
 
 /**
  * Intelligence jobs (service role; every query filters workspace_id explicitly):

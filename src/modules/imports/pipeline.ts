@@ -23,6 +23,11 @@ import { canonicalBuilding, canonicalOrg, exactKey } from "./normalize";
 import { liveGeographyIndex, pickGeography } from "@/lib/services/geography";
 import { buildingBlock, findCandidates, orgBlock, scoreBuilding, scoreOrganisation } from "./identity";
 import { LEASE_ENGINE_VERSION } from "./lease-events";
+import { writeContacts } from "./contacts-writer";
+import { type SheetLayout, layoutChanges, layoutIssue, validationReport } from "./report";
+import { colLetter, normHeader } from "./normalize";
+import { publishEvent } from "@/modules/orchestrator/events/publish";
+import type { HeaderAliases } from "./detect";
 import {
   type AdapterOptions, type AssetObservationRecord, type ControlCheck, type IdentityThresholds, type LeaseRecord, type MarketRowRecord,
   type ParsedRow, type RowIssue, type SizeRules, type TransactionRecord, DEFAULT_SIZE_RULES, DEFAULT_THRESHOLDS,
@@ -49,13 +54,13 @@ export function detId(ws: string, type: string, key: string): string {
 
 export const sha256Hex = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 
-function chunk<T>(arr: T[], n: number): T[][] {
+export function chunk<T>(arr: T[], n: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
   return out;
 }
 
-async function selectIn<T = Record<string, unknown>>(db: Db, ws: string, table: string, col: string, values: string[], columns: string): Promise<T[]> {
+export async function selectIn<T = Record<string, unknown>>(db: Db, ws: string, table: string, col: string, values: string[], columns: string): Promise<T[]> {
   const out: T[] = [];
   for (const part of chunk([...new Set(values)], 150)) {
     if (!part.length) continue;
@@ -66,7 +71,7 @@ async function selectIn<T = Record<string, unknown>>(db: Db, ws: string, table: 
   return out;
 }
 
-async function insertIgnore(db: Db, table: string, rows: Record<string, unknown>[]) {
+export async function insertIgnore(db: Db, table: string, rows: Record<string, unknown>[]) {
   for (const part of chunk(rows, 400)) {
     if (!part.length) continue;
     const { error } = await db.from(table).upsert(part, { onConflict: "id", ignoreDuplicates: true });
@@ -82,7 +87,7 @@ async function upsertMerge(db: Db, table: string, rows: Record<string, unknown>[
   }
 }
 
-async function selectAll<T>(db: Db, ws: string, table: string, columns: string, filter: { eq?: Record<string, string>; isNull?: string[] } = {}): Promise<T[]> {
+export async function selectAll<T>(db: Db, ws: string, table: string, columns: string, filter: { eq?: Record<string, string>; isNull?: string[] } = {}): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; ; from += 1000) {
     let q = db.from(table).select(columns).eq("workspace_id", ws);
@@ -99,13 +104,13 @@ async function selectAll<T>(db: Db, ws: string, table: string, columns: string, 
 /* ------------------------------------------------------------------ steward: conflicts, person candidates */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyRow = Record<string, any>;
+export type AnyRow = Record<string, any>;
 
-interface ConflictDraft {
-  entity_type: "asset" | "lease" | "lease_event"; entity_id: string; label: string; field: string;
+export interface ConflictDraft {
+  entity_type: string; entity_id: string; label: string; field: string;
   master_value: unknown; source_value: unknown; row_version: number; r: StagedRowDraft;
 }
-interface RepDraft { name: string; org_id: string; org_name: string; r: StagedRowDraft }
+export interface RepDraft { name: string; org_id: string; org_name: string; r: StagedRowDraft }
 
 /** Equality across numeric/text/date representations (PostgREST returns numerics as numbers or strings). */
 export function sameValue(a: unknown, b: unknown): boolean {
@@ -165,7 +170,7 @@ async function existingProposalKeys(db: Db, ws: string, keys: string[]): Promise
   return out;
 }
 
-async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
+export async function pool<T>(items: T[], n: number, fn: (t: T) => Promise<void>) {
   let i = 0;
   await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => { while (i < items.length) await fn(items[i++]); }));
 }
@@ -392,7 +397,7 @@ export async function registerImport(
 
 /* ------------------------------------------------------------------ 2. process */
 
-interface Ctx {
+export interface Ctx {
   db: Db;
   ws: string;
   batchId: string;
@@ -405,16 +410,16 @@ interface Ctx {
   actor: string | null;
 }
 
-type Target = { type: string; id: string; role: "master" | "observation"; created: boolean; via?: string };
+export type Target = { type: string; id: string; role: "master" | "observation"; created: boolean; via?: string };
 
-function stamp(ctx: Ctx, row: Record<string, unknown>) {
+export function stamp(ctx: Ctx, row: Record<string, unknown>) {
   return { workspace_id: ctx.ws, owner_user_id: ctx.owner, classification: ctx.classification, ...row };
 }
 
 interface KeyRes { id: string; created: boolean }
 
 /** Resolve natural keys to master ids (creating key rows for new ones). Follows applied merges for archived masters. */
-async function resolveKeys(ctx: Ctx, entityType: string, keys: string[]): Promise<Map<string, KeyRes>> {
+export async function resolveKeys(ctx: Ctx, entityType: string, keys: string[]): Promise<Map<string, KeyRes>> {
   const uniq = [...new Set(keys)];
   const keyIds = new Map(uniq.map((k) => [k, detId(ctx.ws, `key:${entityType}`, k)]));
   const existing = await selectIn<{ id: string; entity_id: string; first_source_object_id: string | null }>(
@@ -497,7 +502,7 @@ async function followMerges(ctx: Ctx, table: string, res: Map<string, KeyRes>, k
   }
 }
 
-async function existingIds(ctx: Ctx, table: string, ids: string[]): Promise<Set<string>> {
+export async function existingIds(ctx: Ctx, table: string, ids: string[]): Promise<Set<string>> {
   return new Set((await selectIn<{ id: string }>(ctx.db, ctx.ws, table, "id", ids, "id")).map((r) => r.id));
 }
 
@@ -829,6 +834,23 @@ async function writeRecords(ctx: Ctx, staged: StagedRowDraft[]): Promise<{ targe
   return { targets, stats: { masters, observations, rows_linked_to_existing_master: linked, match_candidates: candidates }, issues: extraIssues, conflicts, reps };
 }
 
+/** Learned header aliases (remembered approved mapping patterns), keyed "adapter:role:field". */
+export async function loadAliases(db: Db, ws: string): Promise<HeaderAliases> {
+  const { data, error } = await db.from("import_header_alias").select("adapter, sheet_role, field_key, header_norm").eq("workspace_id", ws).is("archived_at", null);
+  if (error) throw error;
+  const out: HeaderAliases = {};
+  for (const a of data ?? []) (out[`${a.adapter}:${a.sheet_role}:${a.field_key}`] ??= []).push(a.header_norm);
+  return out;
+}
+
+/** Worksheet + cell reference per mapped field ("Sheet!C12"), from the column map used for that sheet. */
+function cellRefs(det: SheetDetection | undefined, sheet: string, rowNumber: number): Record<string, string> {
+  if (!det || det.status !== "mapped") return {};
+  const out: Record<string, string> = {};
+  for (const [k, c] of Object.entries(det.columnMap ?? {})) out[k] = `${sheet}!${colLetter(c)}${rowNumber}`;
+  return out;
+}
+
 async function loadMappings(db: Db, ws: string): Promise<ApprovedMapping[]> {
   const { data, error } = await db.from("adapter_mapping").select("id, adapter, sheet_role, schema_signature, header_row, positional, column_map, version")
     .eq("workspace_id", ws).eq("approved", true).is("archived_at", null);
@@ -909,7 +931,7 @@ export async function processBatch(
     const settings = await loadImportSettings(db, ws);
     const options = (batch.options ?? {}) as { as_of?: string | null; period_year?: number | null; classification?: string };
     const opts: AdapterOptions = { as_of: options.as_of ?? null, period_year: options.period_year ?? null, file_name: batch.file_name, size_rules: settings.sizeRules };
-    const detections = detectWorkbook(wb, await loadMappings(db, ws));
+    const detections = detectWorkbook(wb, await loadMappings(db, ws), await loadAliases(db, ws));
     const mapped = mapWorkbook(wb, detections, opts);
     const rowsBySheet = new Map(wb.sheets.map((s) => [s.name, new Map<number, ParsedRow>(s.rows.map((r) => [r.rowNumber, r]))]));
     const staged = buildStaged(mapped, rowsBySheet);
@@ -922,16 +944,43 @@ export async function processBatch(
       actor: args.asService ? (batch.created_by ?? batch.owner_user_id ?? null) : null,
     };
     const { targets, stats, conflicts, reps } = await writeRecords(ctx, staged);
+    // generic contact / requirement sheets (Input Engine §3)
+    const cw = await writeContacts(ctx, staged, (loc, t) => (targets.get(loc) ?? targets.set(loc, []).get(loc)!).push(t));
+    for (const [k, v] of Object.entries(cw.masters)) {
+      const m = (stats.masters[k] ??= { new: 0, existing_linked: 0 });
+      m.new += v.new; m.existing_linked += v.existing_linked;
+    }
+    stats.match_candidates += cw.summary.company_candidates;
+    stats.rows_linked_to_existing_master = [...targets.values()].filter((l) => l.some((t) => t.role === "master" && !t.created)).length;
+    conflicts.push(...cw.conflicts);
+    reps.push(...cw.reps);
+    const detBySheet = new Map(detections.map((d) => [d.sheet, d]));
 
     // staged rows (every considered row, with locator, raw cells + formula text, mapping and targets)
     await upsertMerge(db, "staged_row", staged.map((r) => stamp(ctx, {
       id: detId(ws, "staged_row", `${batch.id}|${r.sheet}|${r.row_number}`), batch_id: batch.id, source_object_id: ctx.src,
       sheet: r.sheet, row_number: r.row_number, locator: r.locator, raw_json: r.raw_json, row_hash: r.row_hash, status: r.status, reason: r.reason,
-      flags: r.flags, mapped_json: r.record ? { ...r.record, adapter: r.adapter, role: r.role } : null, targets: targets.get(r.locator) ?? [],
+      flags: r.flags,
+      mapped_json: r.record
+        ? { ...r.record, adapter: r.adapter, role: r.role, cell_refs: (r.record as { cell_refs?: Record<string, string> }).cell_refs ?? cellRefs(detBySheet.get(r.sheet), r.sheet, r.row_number) }
+        : null,
+      targets: targets.get(r.locator) ?? [],
     })));
 
     // steward: field conflicts (+ proposals for material ones) and proposed person masters, with evidence ids
     const steward = await raiseStewardItems(ctx, conflicts, reps);
+
+    // changed column layouts vs the previous version of the same file (§3.2 / §3.4)
+    let layout: ReturnType<typeof layoutChanges> = [];
+    if (batch.previous_batch_id) {
+      const { data: pb } = await db.from("import_batch").select("sheets").eq("workspace_id", ws).eq("id", batch.previous_batch_id).maybeSingle();
+      const prevSheets = ((pb?.sheets ?? []) as SheetLayout[]).filter((x) => x.status !== "empty");
+      layout = layoutChanges(prevSheets, detections.filter((d) => d.status !== "empty").map((d) => ({ sheet: d.sheet, headers: d.headers, column_map: d.columnMap, status: d.status })));
+      for (const ch of layout) {
+        const m = mapped.find((x) => x.detection.sheet === ch.sheet);
+        if (m) m.result.issues.push(layoutIssue(ch));
+      }
+    }
 
     // exception queue: row issues + sheet issues + failed controls
     const exc: Record<string, unknown>[] = [];
@@ -975,7 +1024,10 @@ export async function processBatch(
       })));
     }
 
-    const counts = { ...reconcile(staged, detections, controls, stats, openCount ?? 0), steward };
+    const { created_ids, linked_ids, ...contactSummary } = cw.summary;
+    const validation = validationReport(staged, mapped.flatMap((m) => m.result.issues.map((i) => ({ sheet: m.detection.sheet, issue: i }))));
+    if (diff) Object.assign(diff, { layout, removed_policy: "Rows missing from the new version are reported only; no record is deleted or archived." });
+    const counts = { ...reconcile(staged, detections, controls, stats, openCount ?? 0), steward: { ...steward, warnings: [...steward.warnings, ...cw.warnings].slice(0, 20) }, contacts: contactSummary, validation };
     const mappedSheets = detections.filter((d) => d.status === "mapped");
     const unknown = detections.filter((d) => d.status === "unknown");
     const status: ProcessResult["status"] =
@@ -987,6 +1039,14 @@ export async function processBatch(
       mapping_version: [...new Set(mappedSheets.map((d) => (d.mappingSource === "approved_mapping" ? `mapping:${d.mappingId}@${d.mappingVersion}` : `builtin:${d.adapter}@${d.adapterVersion}`)))].join(",") || null,
       sheets: detections.map(sheetSummary), counts, diff, finished_at: new Date().toISOString(), error: null,
     }).eq("workspace_id", ws).eq("id", batch.id);
+    // orchestrator: one event per processed version (record-level created events come from the DB triggers)
+    try {
+      await publishEvent(db, ws, {
+        type: "import.completed", subjectType: "import_batch", subjectId: batch.id, dedupeKey: `import.completed:${batch.id}:${so.sha256}`,
+        payload: { status, file_name: batch.file_name, version: so.version, created: created_ids, updated: linked_ids, accepted: counts.accepted,
+          duplicates: counts.duplicates, conflicts: steward.conflicts, exceptions: counts.exceptions, run_id: batch.run_id ?? null },
+      });
+    } catch { /* event delivery is best-effort; the import itself succeeded */ }
     return { status, batchId: batch.id, counts };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1026,8 +1086,13 @@ export async function approveMapping(db: Db, ws: string, userId: string, input: 
   if (!batch) throw new ImportError(404, "batch not found");
   const sheet = (batch.sheets as ReturnType<typeof sheetSummary>[]).find((s) => s.sheet === input.sheet);
   if (!sheet) throw new ImportError(400, "sheet not found in batch");
-  if (sheet.status !== "unknown") throw new ImportError(409, "sheet is already mapped");
-  const cols = Object.entries(input.columnMap).filter(([k, v]) => role.fields!.some((f) => f.key === k) && Number.isInteger(v) && v >= 0);
+  // unknown sheets get a first mapping; header-driven mapped sheets may be CORRECTED (reviewed suggestion => approved map)
+  if (sheet.status !== "unknown" && !(sheet.status === "mapped" && sheet.header_row > 0 && sheet.adapter === input.adapter && sheet.role === input.role)) {
+    throw new ImportError(409, "sheet is already mapped");
+  }
+  const allowCustom = input.adapter === "contacts_requirements_v1";
+  const fieldOk = (k: string) => role.fields!.some((f) => f.key === k || (allowCustom && k.startsWith(`${f.key}#`))) || (allowCustom && /^custom:[\w .\-/()&]{1,60}$/.test(k));
+  const cols = Object.entries(input.columnMap).filter(([k, v]) => fieldOk(k) && Number.isInteger(v) && v >= 0);
   const columnMap = Object.fromEntries(cols);
   const missing = role.fields.filter((f) => f.required && columnMap[f.key] === undefined).map((f) => f.label);
   if (missing.length) throw new ImportError(400, `required fields not mapped: ${missing.join(", ")}`);
@@ -1044,6 +1109,18 @@ export async function approveMapping(db: Db, ws: string, userId: string, input: 
     note: input.note ?? (positional ? "Approved positional map: first row is data" : null),
   }).select("*").single();
   if (error) throw error;
+  // remember the approved header -> field pattern for future layouts of this workspace (renamed / reordered columns)
+  if (!positional) {
+    const aliases = Object.entries(columnMap).filter(([k]) => !k.startsWith("custom:")).map(([k, c]) => ({ field: k.split("#")[0], raw: String((sheet.headers ?? [])[c as number] ?? "") }))
+      .filter((a) => a.raw.trim()).map((a) => ({
+        workspace_id: ws, owner_user_id: userId, adapter: input.adapter, sheet_role: input.role, field_key: a.field, header_norm: normHeader(a.raw), header_raw: a.raw, mapping_id: data.id,
+      }));
+    const uniq = [...new Map(aliases.map((a) => [a.header_norm, a])).values()];
+    if (uniq.length) {
+      const { error: ae } = await db.from("import_header_alias").upsert(uniq, { onConflict: "workspace_id,adapter,sheet_role,header_norm" });
+      if (ae) throw ae;
+    }
+  }
   return data;
 }
 

@@ -115,3 +115,58 @@ No module-specific environment variables. `OPENAI_API_KEY` empty means the rule 
 - Gaps: `gateway.transcribe` returns text only (no verbose_json) ⇒ no timestamps with the real key until the gateway exposes segments;
   no diarisation; contact methods for a NEW person are proposed after the person proposal is applied (press Process again);
   photos in mock mode have no OCR (user types card text); building photo is linked via capture_document only (no building gallery UI).
+
+## Round 4 — Module 10 Input Engine (migration `20261111001900_input_engine_capture.sql`)
+Gap analysis: `docs/input-engine/GAP.md` (148 spec items: before 48 DONE / 67 PARTIAL / 33 MISSING → after 138 DONE / 10 PARTIAL / 0 MISSING).
+Spreadsheet engine (§3), batch reports (§10) and the import dashboard (§13C) stay with the imports module.
+
+- **Tables** (both `make_business_table`): `capture_observation` — one row per extracted item with `intent` (§4.4), `fact_class`
+  (confirmed|estimate|assumption|hypothesis|commitment|task|preference), `raw_text` (verbatim), `value_json` (null = unknown), `unit`,
+  `pricing_basis`, `area_basis` (carpet|chargeable|super_built_up|unknown — never converted), `cam_treatment` (included|extra|unknown — never
+  assumed), `date_class` (confirmed|estimated|informal), `missing[]`, subject + `links` + `match_confidence` (high|medium|low|none),
+  `source_type`, `source_ref` {locator, start, end, page, timestamp, file_name, document_id}, `source_hash`/`content_hash`, `observed_at`,
+  `extracted_at`, `verification`, `independent`/`repeat_of`/`corroborates` (rule 10), `version`/`conflict_with` (rule 6), `review_category`
+  (§13D), `status` (auto_saved|pending_review|confirmed|rejected|corrected), `proposal_id`, `task_id`. Unique `(workspace_id, obs_key)`.
+  `capture_correction` — append-only (UPDATE/DELETE revoked) history of value / transcript / association / status changes.
+- **Pure** (`input-engine/`): `commercial.ts` (`extractCommercialTerms`, `classifyDates`, `pageAt`), `analysis.ts` (`classifyIntents`,
+  `matchTier`/`matchAll`, `factClass`, `analyse`, `budgetQuestion`, `applyPermissions`, `buildReceipt`, hashes), `hindi.ts`
+  (`romanise`, `detectLanguage`), `office.ts` (`pptxSlides`, `legacyOfficeText`).
+- **Service** (`input-engine/service.ts`): `runInputEngine(admin, ws, captureId)` (after `processCapture`), `processAndAnalyse` (both;
+  used by the action, `POST /api/v1/captures`, the job and drop-zone notes), `analyseDocument` (called from `processDocument` for every
+  file: page/slide-referenced observations), `correctObservation`, `confirmObservation`, `rejectObservation` (also rejects the linked
+  proposal when the user may), `associateObservation`, `createRecordFromObservation` (proposal), `requestClarification` (task),
+  `correctTranscript`, `reviewQueue`, `captureHistory`, `dashboardCounts`, `observationsFor`, `correctionsFor`, `searchCaptures`,
+  `loadPermissions`/`savePermissions`. `recording.ts`: `intakeRecording` (consent required → audio doc → Module 7).
+- **Anil example**: "feet" is an area unit; "Budget is 85" is a budget fact with unknown unit/basis and ONE question
+  "Budget "85" — does that mean ₹85 per sq ft per month? Is CAM extra?" (options carry `|cam_extra|cam_included|cam_unknown`);
+  "by September" stays an informal target (its year question is optional: `meta.optional_questions`, skipped by `openQuestions`);
+  "Friday" is auto-set to the next Friday (workspace tz, IST) when tasks may be auto-created; receipt lines saved / matched / proposed /
+  questioned / scheduled. A requirement **create proposal** (key `capture:<id>:requirement`, same as the review path) is made only when the
+  company is high-confidence (named + matched, or the single current employer of a high-confidence person).
+- **Conflicts**: a different value for the same subject+field ⇒ new observation (version+1, `conflict_with`), earlier row untouched; a
+  requirement column that differs (area/budget) ⇒ approval-gated proposal `input:<obs_key>:conflict`; event `commercial.offer_revised`.
+- **Permissions** (workspace_setting `input_engine.permissions`, admin-only; defaults): `auto_save_internal_observations` true,
+  `auto_create_tasks` true, `auto_associate_high_confidence` false. Material values and uncertain matches always wait for review.
+- **Hindi**: Devanagari transcripts/notes are romanised for the rules; original kept in `extraction.meta.original_transcript`,
+  `meta.language` en|hi|hinglish.
+- **Business cards**: address + `uncertainCardFields`; `matchCardPerson` (same email/phone = high → no new person; same name = medium/low →
+  suggestion only; none → new contact proposal).
+- **Files**: PPTX (slides = pages) and legacy DOC/PPT (best effort) are new families in `detect.fileFamily`.
+- **Events** (orchestrator `publishEvent`, deduped): `capture.processed`, `capture.task_scheduled`, `capture.failed`,
+  `commercial.requirement_proposed`, `commercial.offer_revised`, `capture.quotation_extracted`, `contact.info_added`,
+  `outreach.reply_received`, `meeting.notes_uploaded`. Business signals also go to `signals.ingestText` (company resolved).
+  Objections become "Address objection" tasks (`capture:<id>:objection:<k>`).
+- **Assistant**: tool `search_captures` (`src/modules/assistant/tools/captures.ts`, groups documents + briefs).
+- **Routes**: pages `/capture` (dashboard: links incl. spreadsheet → `/imports`, permitted recording form, pending/processing counts,
+  automation permissions for admins), `/capture/[id]` (receipt, intents, matches with confidence, extracted items with confirm / edit /
+  reject / link / create / clarify, Hindi original, correction history), `/capture/documents/[id]` (observations with page refs, card match
+  + uncertain fields), `/capture/review` (§13D queue), `/capture/history` (§13E). API: `POST /api/v1/captures/observations/[id]`
+  `{action: confirm|reject|correct|associate|create|clarify}`, `GET /api/v1/captures/[id]/observations`, `GET /api/v1/captures/review-queue`,
+  `GET /api/v1/captures/history`, `GET /api/v1/captures/search?q=&days=`, `POST /api/v1/captures/recordings` (multipart, `consent: true`),
+  `GET/POST /api/v1/captures/settings`. Mutating routes require an Idempotency-Key.
+- **Tests**: `npx vitest run src/modules/capture/input-engine` — `input-engine.test.ts` (pure) and `input-engine.db.test.ts`
+  (§17 scenarios 1–9, 14–22, 25–30; fixtures PDF/DOCX/PPTX generated in-test, card images via injected OCR).
+- **Matching (round 3)**: `input-engine/matching.ts` — `matchBuildings` (building/park suggestions in notes, never auto-linked),
+  `tieBreakOrg` (parent/subsidiary relation or HQ city breaks same-name company ties, medium at most), `questionable` (outlier bands).
+- **Known gaps**: see GAP.md "Remaining PARTIAL" (no OCR of scanned PDFs — page renderer `@napi-rs/canvas` not installed;
+  no diarisation; layout drawings not interpreted). Legacy .doc/.ppt are best effort with an "Old format" note.

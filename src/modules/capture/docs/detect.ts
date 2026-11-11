@@ -5,7 +5,7 @@
  */
 export const DOC_TYPES = ["quotation", "lease", "loi", "meeting_notes", "business_card", "property_photo", "layout", "spreadsheet", "audio", "unknown"] as const;
 export type DocType = (typeof DOC_TYPES)[number];
-export type FileFamily = "pdf" | "docx" | "image" | "spreadsheet" | "audio" | "text" | "unsupported";
+export type FileFamily = "pdf" | "docx" | "pptx" | "legacy_office" | "image" | "spreadsheet" | "audio" | "text" | "unsupported";
 
 export interface Detection { type: DocType; family: FileFamily; confidence: number; method: "rules" | "model" | "user"; signals: string[]; ambiguous: boolean; candidates: DocType[] }
 
@@ -16,6 +16,8 @@ export function fileFamily(name: string, mime: string, head?: Uint8Array): FileF
   if (head && head.length >= 4 && head[0] === 0x25 && head[1] === 0x50 && head[2] === 0x44 && head[3] === 0x46) return "pdf";
   if (ext === "pdf" || m === "application/pdf") return "pdf";
   if (ext === "docx" || m.includes("wordprocessingml")) return "docx";
+  if (ext === "pptx" || m.includes("presentationml")) return "pptx";
+  if (["doc", "ppt"].includes(ext) || m === "application/msword" || m === "application/vnd.ms-powerpoint") return "legacy_office";
   if (["xlsx", "csv", "tsv"].includes(ext) || m.includes("spreadsheetml") || m === "text/csv") return "spreadsheet";
   if (m.startsWith("image/") || ["png", "jpg", "jpeg", "webp", "gif", "heic", "heif"].includes(ext)) return "image";
   if (m.startsWith("audio/") || ["mp3", "m4a", "wav", "webm", "ogg", "oga", "aac", "mp4", "mpga", "mpeg", "flac"].includes(ext)) return "audio";

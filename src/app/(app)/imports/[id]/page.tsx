@@ -11,6 +11,11 @@ import { MappingForm } from "./mapping-form";
 import { importSummary } from "@/modules/imports/summary";
 import { ApplySafeButton } from "@/modules/imports/apply-safe-button";
 import { DuplicatesPanel, type Dup } from "@/modules/imports/duplicates-panel";
+import { columnSuggestions } from "@/modules/imports/service";
+import { type ContactsSummary, ContactsSummaryLine, LayoutChangesCard, ValidationReportCard } from "@/modules/imports/engine-ui";
+import { ColumnMappingEditor, type EditorColumn } from "@/modules/imports/column-mapping-editor";
+import { CONTACT_FIELDS, CONTACTS_ADAPTER } from "@/modules/imports/adapters/contacts";
+import type { LayoutChange, ValidationReport } from "@/modules/imports/report";
 
 export const metadata = { title: "Import batch" };
 
@@ -20,7 +25,7 @@ type SP = Promise<Record<string, string | string[] | undefined>>;
 interface SheetInfo {
   sheet: string; status: string; adapter: string | null; role: string | null; header_row: number; signature: string; mapping_source: string | null;
   headers: string[]; suggestions: { adapter: string; role: string; label: string; positional: boolean; columnMap: Record<string, number> }[];
-  extra_columns: string[]; rows_considered: number; layout_rows: number;
+  extra_columns: string[]; rows_considered: number; layout_rows: number; column_map?: Record<string, number>;
 }
 
 const TYPE_PLAIN: Record<string, string> = { organisation: "Companies", person: "People", asset: "Buildings", geography: "Locations", lease: "Lease updates", employment: "Job links (person ↔ company)" };
@@ -44,6 +49,16 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
   const diff = batch.diff as null | { changed: number; added: number; removed: number; unchanged: number; samples: { kind: string; key: string; locator: string; previous_locator?: string; fields?: { field: string; before: unknown; after: unknown }[] }[] };
   const pending = candidates.filter((x: { decision: string }) => x.decision === "pending");
   const error = typeof sp.error === "string" ? sp.error : null;
+  const extra = batch.counts as { validation?: ValidationReport; contacts?: ContactsSummary } | null;
+  const layout = (batch.diff as { layout?: LayoutChange[]; removed_policy?: string } | null) ?? null;
+  const contactSheets = sheets.filter((s) => s.status === "mapped" && s.adapter === CONTACTS_ADAPTER);
+  const mappingViews = await Promise.all(contactSheets.map(async (s) => {
+    const sugg = await columnSuggestions(ctx, s.headers ?? []);
+    const byCol = new Map(Object.entries(s.column_map ?? {}).map(([k, c]) => [c, k]));
+    const columns: EditorColumn[] = sugg.map((x) => ({ column: x.column, letter: x.letter, header: x.header, field: byCol.get(x.column) ?? null,
+      confidence: byCol.has(x.column) ? (x.field === byCol.get(x.column) ? x.confidence : 1) : 0, ambiguous: x.ambiguous, alternatives: x.alternatives }));
+    return { sheet: s, columns };
+  }));
 
   return (
     <>
@@ -131,7 +146,36 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
         );
       })()}
 
-      <details className="mb-4"><summary className="cursor-pointer text-sm font-medium text-ink-soft">Technical details (reconciliation, sheets, mapping)</summary><div className="mt-3">
+      <ContactsSummaryLine c={extra?.contacts} />
+      {mappingViews.map(({ sheet: s, columns }) => (
+        <Card key={s.sheet} title={`Column mapping — ${s.sheet}`} className="mt-4">
+          <p className="mb-2 text-sm text-ink-soft">
+            {s.mapping_source === "approved_mapping" ? "Using your approved mapping for this layout." : "Suggested automatically from the column headers (and mappings you approved before)."}
+            {" "}Columns that match no field are kept as custom values under their own names.
+          </p>
+          <ul className="mb-3 grid gap-1 text-sm sm:grid-cols-2">
+            {columns.filter((c) => c.header.trim()).map((c) => {
+              const f = c.field ? CONTACT_FIELDS.find((x) => x.key === c.field!.split("#")[0]) : null;
+              return (
+                <li key={c.column} className="flex items-center justify-between gap-2 rounded-lg bg-canvas px-3 py-1.5">
+                  <span className="min-w-0 truncate"><span className="text-ink-soft">{c.letter}</span> {c.header}</span>
+                  <span className={`shrink-0 text-xs ${!f ? "text-ink-soft" : c.ambiguous ? "text-warn" : ""}`}>{f ? `→ ${f.label}${c.confidence < 1 ? ` ${Math.round(c.confidence * 100)}%` : ""}${c.ambiguous ? " ?" : ""}` : "custom"}</span>
+                </li>
+              );
+            })}
+          </ul>
+          {isAdmin ? (
+            <details><summary className="cursor-pointer text-sm text-brand">Correct this mapping</summary><div className="mt-3">
+              <ColumnMappingEditor batchId={batch.id} sheet={s.sheet} headerRow={s.header_row} columns={columns}
+                fields={CONTACT_FIELDS.map((f) => ({ key: f.key, label: f.label, multi: f.multi }))} action={approveMappingAction} />
+            </div></details>
+          ) : <p className="text-xs text-ink-soft">An admin can correct this mapping; corrections are remembered for future files.</p>}
+        </Card>
+      ))}
+      <ValidationReportCard v={extra?.validation} />
+      <LayoutChangesCard layout={layout?.layout} policy={layout?.removed_policy} />
+
+      <details className="mb-4 mt-4"><summary className="cursor-pointer text-sm font-medium text-ink-soft">Technical details (reconciliation, sheets, mapping)</summary><div className="mt-3">
       <section className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Rows considered" value={n(c.rows_considered)} hint={`${n(c.layout_rows)} header/title rows not counted`} />
         <Stat label="Accepted" value={n(c.accepted)} hint={`${n(c.duplicates)} duplicate observations`} />

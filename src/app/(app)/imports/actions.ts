@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { HttpError, requireContext } from "@/lib/auth/context";
-import { approveMappingAndReprocess, approveSource, closeException, createSource, decideCandidate, reprocess, revokeSource } from "@/modules/imports/service";
+import { approveMappingAndReprocess, approveSource, closeException, createSource, decideCandidate, reprocess, retryImportRun, revokeSource } from "@/modules/imports/service";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const id = (form: FormData, key: string) => {
@@ -85,4 +85,18 @@ export async function sourceDecisionAction(form: FormData) {
     const ctx = await requireContext("admin");
     return form.get("decision") === "revoke" ? revokeSource(ctx, sid) : approveSource(ctx, sid);
   });
+}
+
+/* ------------------------------------------------------------------ batch runs (spec §10) */
+export async function retryRunAction(form: FormData) {
+  const runId = id(form, "run_id");
+  const itemRaw = String(form.get("item_id") ?? "");
+  let error: string | null = null;
+  try {
+    await retryImportRun(await requireContext("editor"), runId, UUID.test(itemRaw) ? itemRaw : null);
+  } catch (e) {
+    error = e instanceof HttpError ? e.message : e instanceof Error ? e.message : "retry failed";
+  }
+  revalidatePath(`/imports/runs/${runId}`);
+  redirect(`/imports/runs/${runId}${error ? `?error=${encodeURIComponent(error)}` : ""}`);
 }

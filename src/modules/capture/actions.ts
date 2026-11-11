@@ -6,7 +6,8 @@ import { requireContext } from "@/lib/auth/context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { actionError } from "@/modules/changes/http";
 import type { ActionState } from "@/modules/changes/ui/client";
-import { createCapture, processCapture, submitReview, type CaptureKind } from "./service";
+import { createCapture, submitReview, type CaptureKind } from "./service";
+import { correctTranscript, runInputEngine, processAndAnalyse } from "./input-engine/service";
 
 const KINDS: CaptureKind[] = ["text", "audio", "image", "mixed"];
 
@@ -27,8 +28,7 @@ export async function captureAction(_prev: ActionState, form: FormData): Promise
       storagePath: String(form.get("storage_path") ?? "") || null,
     }, String(form.get("idem") ?? "") || null);
     if (!duplicate) {
-      try { await processCapture(createAdminClient(), ctx.workspaceId, capture.id); }
-      catch { /* status 'failed' is shown on the review screen; the queued job retries */ }
+      await processAndAnalyse(createAdminClient(), ctx.workspaceId, capture.id);   // failure is shown on the review screen; the queued job retries
     }
     target = `/capture/${capture.id}`;
   } catch (e) { return { error: actionError(e) }; }
@@ -48,9 +48,11 @@ export async function reviewAction(_prev: ActionState, form: FormData): Promise<
       if (k.startsWith("answer:")) answers[k.slice(7)] = /^-?\d+(\.\d+)?$/.test(v) ? Number(v) : v;
     }
     const text = String(form.get("text") ?? "");
+    if (text.trim()) await correctTranscript(ctx.db, ctx.workspaceId, ctx.userId, id, text);   // correction history
     const r = (await submitReview(ctx.db, createAdminClient(), ctx.workspaceId, ctx.userId, id, {
       resolutions, answers, text: text || null, done: form.get("done") === "1",
     })) as { applied?: number; failed?: string[] };
+    try { await runInputEngine(createAdminClient(), ctx.workspaceId, id); } catch { /* receipt refresh is best effort */ }
     refresh();
     if (form.get("done") === "1") {
       const extra = r.failed?.length ? ` ${r.failed.length} change(s) could not be applied and are waiting in Approvals.` : "";

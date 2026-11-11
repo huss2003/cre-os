@@ -10,6 +10,7 @@ import * as A from "@/modules/meetings/actions";
 import { materialLinks, FEEDBACK_FIELDS } from "@/modules/meetings/more";
 import { openClarifications } from "@/modules/meetings/service";
 import { MaterialUploader } from "@/modules/meetings/ui/upload";
+import { MeetingMemory } from "@/modules/intelligence/memory/ui/meeting";
 import { Tag, Dot, Avatar, AvatarStack, Gauge, Section, Kicker, Chip, Disclosure, Chevron, OUTCOME_LABEL, inp, linkBtn } from "@/modules/meetings/ui/dossier";
 
 export const metadata = { title: "Meeting brief" };
@@ -48,7 +49,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const sections: [string, string][] = b ? ([
     ["purpose", "Purpose"], ["company", "Company"], ["attendees", "Attendees"],
     ...(b.opportunity ? [["opportunity", "Opportunity"]] : []),
-    ["history", "Previous discussions"], ["strategy", "Strategy"], ["questions", "Questions"], ["objections", "Objections"],
+    ["history", "Previous discussions"], ["memory", "From your records"], ["strategy", "Strategy"], ["questions", "Questions"], ["objections", "Objections"],
     ...(b.properties?.length ? [["properties", "Properties"]] : []),
     ["outcome", "Desired outcome"],
   ] as [string, string][]) : [];
@@ -180,6 +181,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 {b.history.objections.length ? <div className="mt-6"><Kicker>Objections they raised</Kicker><ul className="mt-2 space-y-1.5">{(b.history.objections as Row[]).map((c, i) => <li key={i} className="flex gap-2.5"><Dot tone="warn" /><span>{c.text} <span className="text-sm text-ink-soft">({c.date})</span></span></li>)}</ul></div> : null}
                 {b.history.open_tasks.length ? <p className="mt-6 text-sm"><span className="font-medium">Open tasks:</span> {(b.history.open_tasks as Row[]).map((tk) => tk.title).join(" · ")}</p> : null}
                 {b.history.outreach.length ? <p className="mt-2 text-sm"><span className="font-medium">Outreach:</span> {(b.history.outreach as Row[]).map((o) => `${o.channel} ${o.status}${o.reply ? ` — "${o.reply.slice(0, 80)}"` : ""}`).join(" · ")}</p> : null}
+              </Section>
+
+              <Section id="memory" n={num("memory")} title="From your records" note="Source-linked history. Unknown means nothing is recorded — not that it didn't happen.">
+                <MeetingMemory memory={b.memory as Row | null} />
               </Section>
 
               <Section id="strategy" n={num("strategy")} title="Meeting strategy">
