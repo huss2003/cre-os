@@ -8,7 +8,7 @@ import {
   FIELD_LABEL, ModelTermsSchema, displayNormalised, finaliseTerms, heuristicTerms, leasePatchFromTerms, pagesForPrompt,
   type ExtractedTerm,
 } from "../documents/lease-terms";
-import { HREF, db, defineTool, denied, errMsg, failed, isUuid, logDenied, ref, ws, type Row } from "./shared";
+import { HREF, db, defineTool, denied, errMsg, failed, ilikeSafe, isUuid, logDenied, ref, ws, type Row } from "./shared";
 
 /**
  * Ask-about-this-document: lease / LOI / term-sheet / offer term extraction from an attached PDF/DOCX with page-verified
@@ -82,10 +82,24 @@ const extractLeaseTerms = defineTool({
         unknown: terms.filter((x) => !x.verified).map((x) => x.field), leaseColumns: leasePatchFromTerms(terms).map((p) => p.column) },
       missing: [...unknown.map((u) => `${u}: not found in the document`), ...dropped.map((d) => `${d}: model snippet not found on the page — dropped`)],
       sources: [{ label: `Attachment: ${a.file_name}`, status: "reported" }],
-      blocks: [termsTable(terms, `Terms in ${a.file_name}`)],
+      blocks: [termsTable(terms, `Terms in ${a.file_name}`),
+        { kind: "lease_attach", extractionId: saved.id, file: a.file_name, suggestions: await suggestLeases(t, terms) }],
     };
   },
 });
+
+/** Up to 5 leases whose tenant/building name appears in the extracted parties/premises text (plus the page's focus lease). */
+async function suggestLeases(t: ToolContext, terms: { field: string; snippet?: string | null; raw?: unknown }[]): Promise<{ id: string; label: string }[]> {
+  const text = terms.filter((x) => x.field === "parties" || x.field === "premises").map((x) => `${x.snippet ?? ""} ${typeof x.raw === "string" ? x.raw : ""}`).join(" ");
+  const words = [...new Set(text.match(/\b[A-Z][A-Za-z&.-]{3,}\b/g) ?? [])].filter((w) => !/^(Lessor|Lessee|Landlord|Tenant|Between|Limited|Private|Floor|Tower|Building|Premises|This|The)$/.test(w)).slice(0, 4);
+  const out: { id: string; label: string }[] = [];
+  if (t.focus?.type === "lease") out.push({ id: t.focus.id, label: t.focus.label });
+  for (const w of words) {
+    const { data } = await db(t).from("lease").select("id, tenant_name_raw, contractual_expiry").eq("workspace_id", ws(t)).is("archived_at", null).ilike("tenant_name_raw", `%${ilikeSafe(w)}%`).limit(3);
+    for (const l of (data ?? []) as Row[]) if (!out.some((o) => o.id === l.id)) out.push({ id: String(l.id), label: `${l.tenant_name_raw ?? "Lease"}${l.contractual_expiry ? ` · expires ${l.contractual_expiry}` : ""}` });
+  }
+  return out.slice(0, 5);
+}
 
 async function loadExtraction(t: ToolContext, tool: string, id: string): Promise<Row | null> {
   if (!isUuid(id)) { await logDenied(t, tool, { entity: "assistant_lease_extraction", id }); return null; }
@@ -99,6 +113,11 @@ async function loadLease(t: ToolContext, tool: string, id: string): Promise<Row 
   if (!data) await logDenied(t, tool, { entity: "lease", id });
   return data ?? null;
 }
+const COLUMN_LABEL: Record<string, string> = {
+  area_sf: "Area (sq ft)", area_basis: "Area basis", rent_per_sf: "Rent per sq ft", rent_basis: "Rent basis",
+  start_date: "Start date", contractual_expiry: "Expiry date", tenure_months_raw: "Term (months)", lockin_months_raw: "Lock-in (months)",
+  tenant_name_raw: "Tenant",
+};
 class NotVisible extends Error { constructor() { super("not_found_or_no_access"); } }
 
 const sameVal = (a: unknown, b: unknown) => {
@@ -112,7 +131,7 @@ export function leaseDiff(lease: Row, terms: ExtractedTerm[], only?: string[]) {
   const patch = leasePatchFromTerms(terms).filter((p) => !only?.length || only.includes(p.column));
   const changes = patch.filter((p) => !sameVal(lease[p.column], p.value));
   const unsaved = terms.filter((x) => x.verified && !patch.some((p) => p.field === x.field)).map((x) => FIELD_LABEL[x.field]);
-  return { changes, unsaved, diff: changes.map((p) => { const term = terms.find((x) => x.field === p.field)!; return { field: `${p.column} (p.${term.page}: “${term.snippet}”)`, before: lease[p.column] ?? null, after: p.value }; }) };
+  return { changes, unsaved, diff: changes.map((p) => { const term = terms.find((x) => x.field === p.field)!; return { field: `${COLUMN_LABEL[p.column] ?? p.column} (page ${term.page}: “${term.snippet}”)`, before: lease[p.column] ?? null, after: p.value }; }) };
 }
 
 const saveLeaseTerms = defineTool({

@@ -91,6 +91,64 @@ export function Sources({ items }: { items: SourceRef[] }) {
 const isNum = (v: unknown) => typeof v === "number" || (typeof v === "string" && /^[-₹$]?\s?[\d,]+(\.\d+)?\s?(%|sf|L|Cr)?$/.test(v.trim()));
 const show = (v: unknown) => (v === null || v === undefined || v === "" ? "Unknown" : typeof v === "object" ? JSON.stringify(v) : String(v));
 
+/** Pick a lease, then get an Approve/Reject card (nothing is written until approved). */
+function LeaseAttach({ b }: { b: Extract<Block, { kind: "lease_attach" }> }) {
+  const [q, setQ] = useState("");
+  const [found, setFound] = useState<{ id: string; label: string }[] | null>(null);
+  const [leaseId, setLeaseId] = useState(b.suggestions[0]?.id ?? "");
+  const [attachDoc, setAttachDoc] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [result, setResult] = useState<Block[] | null>(null);
+  const options = [...b.suggestions, ...(found ?? []).filter((f) => !b.suggestions.some((s) => s.id === f.id))];
+  const search = async () => {
+    setErr(null);
+    try { const r = await api.leases(q.trim()); setFound(r.items); if (!leaseId && r.items[0]) setLeaseId(r.items[0].id); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Search failed"); }
+  };
+  const attach = async () => {
+    if (!leaseId) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.attachLeaseTerms(b.extractionId, leaseId, attachDoc);
+      if (r.blocks?.length) setResult(r.blocks); else setErr(r.error ?? "Nothing to attach — no lease field would change.");
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not prepare the change"); }
+    finally { setBusy(false); }
+  };
+  if (result) return <div className="space-y-3"><BlockList blocks={result} /></div>;
+  return (
+    <section className="rounded-xl border border-line bg-surface p-4" aria-label="Attach extracted terms to a lease record">
+      <h3 className="text-sm font-semibold">Attach these terms to a lease record</h3>
+      <p className="mt-1 text-sm text-ink-soft">Pick the lease. You&apos;ll see every field that would change before anything is saved.</p>
+      {options.length ? (
+        <fieldset className="mt-3 space-y-1.5">
+          <legend className="sr-only">Lease</legend>
+          {options.map((o) => (
+            <label key={o.id} className={clsx("flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 text-sm", leaseId === o.id ? "border-brand bg-brand-soft/40" : "border-line hover:border-brand/40")}>
+              <input type="radio" name={`lease-${b.extractionId}`} checked={leaseId === o.id} onChange={() => setLeaseId(o.id)} className="accent-brand" />
+              <span className="min-w-0 truncate">{o.label}</span>
+            </label>
+          ))}
+        </fieldset>
+      ) : found ? <p className="mt-3 text-sm text-ink-soft">No matching leases. Try the tenant&apos;s name.</p> : null}
+      <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); void search(); }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={options.length ? "Find another lease by tenant name" : "Find the lease by tenant name"} aria-label="Find a lease by tenant name"
+          className="min-h-11 min-w-0 flex-1 rounded-lg border border-line bg-canvas px-3 text-sm focus:border-brand focus:outline-none" />
+        <button type="submit" className="min-h-11 rounded-lg border border-line px-3 text-sm font-medium hover:border-brand/40">Search</button>
+      </form>
+      <label className="mt-3 flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={attachDoc} onChange={(e) => setAttachDoc(e.target.checked)} className="accent-brand" />
+        Also store “{b.file}” on the lease
+      </label>
+      <button type="button" disabled={!leaseId || busy} onClick={attach}
+        className="mt-3 inline-flex min-h-11 items-center rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:bg-brand-strong disabled:opacity-50">
+        {busy ? "Preparing…" : "Attach to lease record"}
+      </button>
+      {err ? <p role="alert" className="mt-2 text-sm text-bad">{err}</p> : null}
+    </section>
+  );
+}
+
 function ApprovalCard({ b }: { b: Extract<Block, { kind: "approval" }> }) {
   const [status, setStatus] = useState(b.status);
   const [busy, setBusy] = useState(false);
@@ -220,6 +278,7 @@ export function BlockView({ b }: { b: Block }) {
       </Frame>
     ) : null;
     case "approval": return <ApprovalCard b={b} />;
+    case "lease_attach": return <LeaseAttach b={b} />;
     case "draft": return (
       <Frame title={`Draft ${b.channel}`}>
         {b.subject ? <p className="text-sm font-medium">{b.subject}</p> : null}
@@ -303,6 +362,7 @@ export function blocksToMarkdown(blocks: Block[]): string {
       case "tasks": return b.items.map((t) => `- [${t.done ? "x" : " "}] ${t.title}${t.due ? ` (due ${t.due})` : ""}`).join("\n");
       case "sources": return "Sources:\n" + b.items.map((s) => `- ${s.label}${s.observedAt ? ` (${s.observedAt})` : ""}${s.href ? ` ${s.href}` : ""} [${s.status ?? "unknown"}]`).join("\n");
       case "missing": return "Missing / not verified:\n" + b.items.map((x) => `- ${x}`).join("\n");
+      case "lease_attach": return "";
       case "approval": return `Approval needed: ${b.title} (${b.status})\n${b.explanation}`;
       case "draft": return `Draft ${b.channel}${b.subject ? `: ${b.subject}` : ""}\n${b.preview}`;
       case "status": return `Done: ${b.done.join("; ") || "—"}\nPending: ${b.pending.join("; ") || "—"}\nBlocked: ${b.blocked.join("; ") || "—"}`;

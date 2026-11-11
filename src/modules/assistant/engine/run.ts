@@ -217,7 +217,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
 
     // Token saver #2: only the tool groups this request needs (canonical order keeps the cache warm).
     const available = TOOLS.map((t) => t.id);
-    let selection = selectTools({ intent: route.intent, request, focusType: pkg.focus?.type ?? null, available });
+    let selection = selectTools({ intent: route.intent, request, focusType: pkg.focus?.type ?? null, available, extraGroups: pkg.attachments.length ? ["documents"] : [] });  // attached files always get the document tools
     const toolSpecs = () => (selection.all ? toolsForModel() : [...toolsForModel(selection.ids), LOAD_MORE_TOOLS]) as ToolSpec[];
     let tools: ToolSpec[] = toolSpecs();
     const widen = (group: ToolGroup | null) => {

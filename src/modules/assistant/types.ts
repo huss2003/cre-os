@@ -36,6 +36,8 @@ export type Block =
   | { kind: "draft"; draftHref: string; channel: string; subject?: string | null; preview: string }
   | { kind: "status"; done: string[]; pending: string[]; blocked: string[] }
   | { kind: "download"; label: string; href: string }
+  /** "Attach extracted lease terms" panel shown under an extract_lease_terms result. */
+  | { kind: "lease_attach"; extractionId: string; file: string; suggestions: { id: string; label: string }[] }
   | { kind: "map"; title?: string; points: MapPoint[]; lines?: { label: string; coords: [number, number][] }[]; rings?: { centerId: string; radiiKm: number[] }[]; note: string };
 
 /** A map marker. Coordinates come from stored records only — never geocoded or guessed by a model. */

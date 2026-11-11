@@ -189,6 +189,11 @@ export class MockProvider implements ModelProvider {
   private plan(): ContentBlock[] {
     const s = slotsFrom(this.pkg);
     const calls: ToolUse[] = [];
+    // Attached lease/LOI + "extract/terms" → read the document's terms (the real model chooses this itself).
+    const att = this.pkg.attachments[0];
+    if (att && /\b(extract|terms?|lease|loi|term sheet|offer letter|clauses?)\b/i.test(this.pkg.request) && findTool(["extract_lease_terms"])) {
+      return [this.call("extract_lease_terms", { attachmentId: att.id })];
+    }
     const empty = (n: keyof Slots) => { const v = s[n]; return Array.isArray(v) ? !v.length : !v; };
     for (const need of PLANS[this.intent]) {
       if (need.needs?.some(empty) || need.unless?.some((n) => !empty(n))) continue;

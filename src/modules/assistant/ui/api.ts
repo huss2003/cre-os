@@ -22,6 +22,9 @@ export const api = {
   get: (id: string) => fetch(`${BASE}/conversations/${id}`).then((r) => json<{ conversation: ConversationItem; messages: StoredMessage[] }>(r)),
   patch: (id: string, body: { title?: string; pinned?: boolean }) => post(`${BASE}/conversations/${id}`, body, "PATCH").then((r) => json<unknown>(r)),
   archive: (id: string) => fetch(`${BASE}/conversations/${id}`, { method: "DELETE", headers: { "idempotency-key": key() } }).then((r) => json<unknown>(r)),
+  leases: (q = "") => fetch(`${BASE}/leases${q ? `?q=${encodeURIComponent(q)}` : ""}`).then((r) => json<{ items: { id: string; label: string }[] }>(r)),
+  attachLeaseTerms: (extractionId: string, leaseId: string, attachDocument: boolean) =>
+    post(`${BASE}/lease-extractions/${extractionId}/attach`, { leaseId, attachDocument }).then((r) => json<{ status: string; blocks?: Block[]; error?: string }>(r)),
   decide: (id: string, decision: "approve" | "reject") => post(`${BASE}/approvals/${id}`, { decision }).then((r) => json<{ status: string; blocks?: Block[] }>(r)),
   feedback: (messageId: string, rating: "up" | "down", comment?: string) => post(`${BASE}/feedback`, { messageId, rating: rating === "up" ? 1 : -1, comment }).then((r) => json<unknown>(r)),
   upload: (file: File, conversationId?: string | null) => {

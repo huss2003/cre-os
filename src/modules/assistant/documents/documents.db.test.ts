@@ -73,11 +73,11 @@ describe("extract_lease_terms (mock mode)", () => {
 describe("save_lease_terms", () => {
   it("plan() shows the diff against the lease record without writing", async () => {
     const p = await tool("save_lease_terms").plan!({ extractionId, leaseId } as never, t);
-    const fields = p.diff.map((x) => x.field.split(" ")[0]);
-    expect(fields).toContain("area_sf");
-    expect(fields).not.toContain("lockin_months_raw");            // unchanged (36 = 36)
-    expect(p.diff.find((x) => x.field.startsWith("area_sf"))).toMatchObject({ after: "12500" });
-    expect(Number(p.diff.find((x) => x.field.startsWith("area_sf"))!.before)).toBe(12000);
+    const fields = p.diff.map((x) => x.field.split(" (page")[0]);
+    expect(fields).toContain("Area (sq ft)");
+    expect(fields).not.toContain("Lock-in (months)");             // unchanged (36 = 36)
+    expect(p.diff.find((x) => x.field.startsWith("Area (sq ft)"))).toMatchObject({ after: "12500" });
+    expect(Number(p.diff.find((x) => x.field.startsWith("Area (sq ft)"))!.before)).toBe(12000);
     expect(p.explanation).toContain("Parking");                    // no lease column → listed, not written
     const { data: l } = await adminClient().from("lease").select("area_sf, row_version").eq("id", leaseId).single();
     expect(Number(l!.area_sf)).toBe(12000);
