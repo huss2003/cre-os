@@ -42,3 +42,11 @@ The manifest keeps each step's start time, so the step list under the player see
 
 One short plain-English sentence per step, describing only what is on screen (AI runs in mock mode locally).
 Keep each video 20–60 s: about 6–11 steps.
+
+## Publishing (Supabase Storage)
+Videos are served from the public Supabase Storage bucket `tutorials` (`videos/<slug>.mp4|.jpg`, see `VIDEO_BASE` in
+`src/app/(app)/tutorials/videos.ts`). `public/tutorials/videos/` is git-ignored. To publish new or re-recorded videos:
+1. Temporarily force-add the new files (`git add -f public/tutorials/videos/<slug>.*`) and deploy.
+2. The `tutorials.sync` job (hourly) copies files that are **missing** from the bucket. For a re-recorded slug, delete the old
+   object in Supabase Storage first (the job never overwrites).
+3. Once the bucket has them, remove the files from git again.

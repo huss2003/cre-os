@@ -43,3 +43,6 @@ next-env.d.ts
 !.env.example
 .agent-state.json
 .agent-status-history.json
+
+# Tutorial videos are served from Supabase Storage (bucket "tutorials"); recordings land here locally only.
+public/tutorials/videos/
