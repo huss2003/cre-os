@@ -2,6 +2,7 @@ import { TOURS } from "@/components/tour/tours";
 import { HelpFor } from "@/components/ui";
 import { StartTourButton, PracticePanel } from "./start-button";
 import { practiceStatus } from "./practice";
+import { WatchSection } from "./watch";
 
 export const metadata = { title: "Tutorials" };
 
@@ -11,8 +12,14 @@ export default async function TutorialsPage() {
     <div className="space-y-6">
       <header>
         <h1 className="flex items-center text-2xl font-bold tracking-tight">Tutorials<HelpFor k="Tutorials" /></h1>
-        <p className="mt-1 text-sm text-ink-soft">Hands-on practice: each tutorial gives you real tasks on clearly-labelled practice records and moves on when you do them. Nothing is ever sent to anyone.</p>
+        <p className="mt-1 text-sm text-ink-soft">Watch a short video of each task, then try it yourself with guidance. Nothing is ever sent to anyone.</p>
       </header>
+      <WatchSection />
+      <section aria-labelledby="guided-h" className="space-y-4">
+      <div>
+        <h2 id="guided-h" className="text-lg font-semibold tracking-tight">Try it with guidance</h2>
+        <p className="mt-0.5 text-sm text-ink-soft">Hands-on practice: each tutorial gives you real tasks on clearly-labelled practice records and moves on when you do them.</p>
+      </div>
       <PracticePanel status={practice} />
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {TOURS.map((t) => {
@@ -33,6 +40,7 @@ export default async function TutorialsPage() {
           );
         })}
       </ul>
+      </section>
     </div>
   );
 }
