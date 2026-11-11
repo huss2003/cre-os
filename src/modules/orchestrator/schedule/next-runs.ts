@@ -19,7 +19,7 @@ export function recurringScheduleItems(s: OrchSettings, now: Date): RecurringIte
   };
   const dailyOk = (d: string) => s.workdays.includes(isoWeekday(d)) || !!s.brief?.weekendBrief;
   return [
-    { key: "daily_plan", name: "Daily plan", href: "/automation?view=daily", when: `${s.brief?.weekendBrief ? "Every day" : "Workdays"} at ${s.dailyPlanTime}`, nextRunAt: next(dailyOk, s.dailyPlanTime) },
+    { key: "daily_plan", name: "Daily plan", href: "/today", when: `${s.brief?.weekendBrief ? "Every day" : "Workdays"} at ${s.dailyPlanTime}`, nextRunAt: next(dailyOk, s.dailyPlanTime) },
     { key: "weekly_review", name: "Weekly review", href: "/automation?view=weekly", when: `${DAYS[s.weeklyReview.weekday] ?? "Weekly"} at ${s.weeklyReview.time}`, nextRunAt: next((d) => isoWeekday(d) === s.weeklyReview.weekday, s.weeklyReview.time) },
   ];
 }

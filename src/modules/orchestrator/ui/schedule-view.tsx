@@ -93,7 +93,7 @@ export async function ScheduleView({ view }: { view: "daily" | "weekly" | "budge
       </Card>}
 
       {view === "daily" && (<>
-        <Card title={`Plan for ${today}`} actions={<ActionForm action={planNowAction}><Submit variant="secondary">Build now</Submit></ActionForm>}>
+        <Card title={`Plan for ${today}`} actions={<div className="flex items-center gap-2"><Link href="/today" className="text-sm text-brand">Open planner</Link><ActionForm action={planNowAction}><Submit variant="secondary">Build now</Submit></ActionForm></div>}>
           {!plan ? <EmptyState title="No plan yet today">It is built automatically at {s.dailyPlanTime} from your meetings, tasks, calendar records and the daily brief. Use “Build now” to create it earlier.</EmptyState> : (<>
             {plan.ai_status === "delayed" && <StaleBanner>AI summary delayed (provider unavailable) — this basic plan uses your records only; the summary is retried automatically.</StaleBanner>}
             {plan.ai_summary?.headline && <p className="mb-3 font-medium">{plan.ai_summary.headline}</p>}

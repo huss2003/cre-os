@@ -48,15 +48,12 @@ describe("morning brief — db", () => {
     expect(JSON.stringify(b.blocks)).toMatch(/Not checked — leases/);
   });
 
-  it("delivers once per user per day as a pinned conversation", async () => {
+  it("delivers once per user per day without creating an Ask AI conversation", async () => {
     const r1 = await deliverMorningBrief(c, NOW);
     expect(r1.duplicate).toBe(false);
+    expect(r1.conversationId).toBeNull();
     const r2 = await deliverMorningBrief(c, NOW);
-    expect(r2.duplicate).toBe(true); expect(r2.conversationId).toBe(r1.conversationId);
-    const { data: conv } = await admin.from("assistant_conversation").select("title, pinned").eq("id", r1.conversationId!).single();
-    expect(conv!.pinned).toBe(true); expect(conv!.title).toMatch(/^Morning brief — /);
-    const { data: msgs } = await admin.from("assistant_message").select("blocks").eq("conversation_id", r1.conversationId!);
-    expect(msgs).toHaveLength(1);
+    expect(r2.duplicate).toBe(true); expect(r2.briefId).toBe(r1.briefId);
   });
 
   it("schedules only opted-in users, with a per-user-per-day dedupe key", async () => {

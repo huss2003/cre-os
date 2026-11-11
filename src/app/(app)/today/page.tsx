@@ -1,356 +1,190 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { requirePageContext, hasRole } from "@/lib/auth/context";
-import { GettingStarted } from "./getting-started";
-import { Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Select, StaleBanner, Stat, inr } from "@/components/ui";
-import { fmt } from "@/lib/util/time";
-import { buildBrief, type BriefContent, type TargetView } from "@/modules/brief/builder";
-import { gatherBriefInputs, latestBrief, type StoredBrief } from "@/modules/brief/brief-service";
+import { requirePageContext, hasRole, type AppContext } from "@/lib/auth/context";
+import { Card, StaleBanner } from "@/components/ui";
+import { atLocal, fmt } from "@/lib/util/time";
+import { buildBrief } from "@/modules/brief/builder";
+import { gatherBriefInputs, latestBrief } from "@/modules/brief/brief-service";
 import { loadCtxFor, todayFor } from "@/modules/brief/context";
 import { loadSettings } from "@/modules/brief/db";
-import { meetingVersionKey } from "@/modules/brief/scheduler";
-import { TIER_LABEL, type Tier } from "@/modules/brief/scoring";
-import type { SynthesisOutcome } from "@/modules/brief/synthesis";
-import { listTasks } from "@/modules/brief/tasks-service";
-import { addTargetTaskAction, completeTaskFromToday, generateBriefAction, snoozeTargetAction, snoozeTaskFromToday } from "./actions";
-import { DayPlanCard, RelationshipCard } from "./day-plan";
-import { computeDailyPlan, latestPlan } from "@/modules/brief/plan";
-import { computeRelationshipSuggestions } from "@/modules/brief/caretaker-data";
-import { loadRadar } from "@/modules/brief/radar-data";
-import { loadToday } from "@/modules/brief/today";
-import { TodaySections } from "./today-sections";
-import { AutomationAttentionCard } from "@/modules/orchestrator/ui/components";
-
-
-const ALERT_LABEL: Record<string, string> = { urgent_alert: "Urgent", brief_alert: "Brief alert", promise_overdue: "Overdue promise", lease_event_alert: "Lease event", deadline_48h: "Due ≤ 48 h" };
-
-const tierTone: Record<string, "ok" | "warn" | "neutral" | "bad"> = { act_this_week: "ok", validate_nurture: "warn", enrich_or_park: "neutral", suppressed: "bad" };
+import { addDays } from "@/modules/brief/dates";
+import { computeDailySections } from "@/modules/orchestrator/schedule/daily-plan";
+import { loadOrchSettings } from "@/modules/orchestrator/schedule/settings-db";
+import { loadCapacity } from "@/modules/orchestrator/capacity/service";
+import { buildPlannerView, type PlannerItem, type PlannerSection, type PlannerView } from "@/modules/orchestrator/ui/planner";
+import { GettingStarted } from "./getting-started";
+import { completePlannerTask } from "./actions-planner";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
+const TASK_LIMIT = 50;
 
 export default function Page({ searchParams }: { searchParams: SP }) {
-  return <Suspense fallback={<div className="p-6 text-sm text-ink-soft">Loading…</div>}><Body searchParams={searchParams} /></Suspense>;
+  return <Suspense fallback={<div className="p-6 text-sm text-ink-soft">Loading your day…</div>}><Body searchParams={searchParams} /></Suspense>;
 }
 
-async function Body({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+async function loadView(ctx: AppContext, date: string, today: string): Promise<PlannerView> {
+  const tz = ctx.timezone || "Asia/Kolkata";
+  const lc = loadCtxFor(ctx);
+  const now = new Date();
+  const ws = ctx.workspaceId, uid = ctx.userId;
+
+  const { data: plan } = await ctx.db.from("orch_plan").select("sections, ai_status, ai_summary, generated_at")
+    .eq("workspace_id", ws).eq("user_id", uid).eq("kind", "daily").eq("period_key", date).maybeSingle();
+
+  let sections = (plan?.sections as Record<string, any> | null) ?? null;
+  if (!sections) {
+    // No 08:00 plan for this day yet: build the same sections live (nothing is stored, no AI).
+    const settings = await loadSettings(ctx.db, ws, uid);
+    let brief: any = await latestBrief(ctx.db, ws, uid, date, "daily").catch(() => null);
+    let briefError: string | null = null;
+    if (!brief) {
+      try { brief = { id: "live", content: buildBrief(await gatherBriefInputs(lc, settings, date, now, { persistPlan: false })) }; }
+      catch (e) { briefError = e instanceof Error ? e.message : "Brief data unavailable"; }
+    }
+    sections = await computeDailySections(lc, date, now, brief, briefError) as Record<string, any>;
+  }
+
+  const endOfDay = atLocal(addDays(date, 1), "00:00", tz).toISOString();
+  const mine = `assigned_user_id.eq.${uid},and(assigned_user_id.is.null,owner_user_id.eq.${uid})`;
+  const [tasks, changes, drafts, signalTotal, capacity] = await Promise.all([
+    ctx.db.from("task").select("id, title, due_at, row_version").eq("workspace_id", ws).is("archived_at", null).eq("status", "open")
+      .or(mine).lt("due_at", endOfDay).order("due_at").limit(TASK_LIMIT + 1),
+    ctx.db.from("change_proposal").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null).in("state", ["proposed", "clarify"]).eq("approval_required", true),
+    ctx.db.from("draft").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null).eq("state", "drafted").eq("owner_user_id", uid),
+    date === today
+      ? ctx.db.from("signal").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null)
+        .gte("detected_at", new Date(+now - 36 * 3600e3).toISOString()).not("status", "in", "(rejected,dismissed)").neq("confidence", "insufficient").then((r) => r.error ? null : r.count)
+      : Promise.resolve(null),
+    loadOrchSettings(ctx.db, ws, uid).then((s) => loadCapacity(lc, s, date, now)).catch(() => null),
+  ]);
+
+  const ai = plan?.ai_status === "ok" ? (plan.ai_summary as { headline?: string } | null) : null;
+  return buildPlannerView({
+    date, tz, source: plan ? "plan" : "live", generatedAt: (plan?.generated_at as string | undefined) ?? null,
+    sections, headline: ai?.headline ?? null,
+    tasks: tasks.error ? null : { items: (tasks.data ?? []).slice(0, TASK_LIMIT) as any[], capped: (tasks.data?.length ?? 0) > TASK_LIMIT },
+    approvals: changes.error || drafts.error ? null : { changes: changes.count ?? 0, drafts: drafts.count ?? 0 },
+    capacity: capacity as any, signalTotal, signalCap: 10,
+    fmtTime: (iso) => fmt(iso, "HH:mm", tz),
+  });
+}
+
+async function Body({ searchParams }: { searchParams: SP }) {
   const sp = await searchParams;
   const ctx = await requirePageContext();
   const tz = ctx.timezone || "Asia/Kolkata";
-  const date = todayFor(ctx);
-  const settings = await loadSettings(ctx.db, ctx.workspaceId, ctx.userId);
-  const lc = loadCtxFor(ctx);
+  const today = todayFor(ctx);
+  const date = typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
   const canEdit = hasRole(ctx, "editor");
-
-  const stored = await latestBrief(ctx.db, ctx.workspaceId, ctx.userId, date, "daily");
-  // No stored brief yet: show a live deterministic preview (not saved, no AI) so the page is useful immediately.
-  const content: BriefContent = stored?.content ?? buildBrief(await gatherBriefInputs(lc, settings, date, new Date(), { persistPlan: false }));
-  const synthesis = (stored?.content as { synthesis?: SynthesisOutcome } | undefined)?.synthesis ?? null;
-
-  const [today, overdueLive, preMeeting, urgent, storedPlan, radar] = await Promise.all([
-    loadToday({ db: ctx.db, workspaceId: ctx.workspaceId, userId: ctx.userId, timezone: tz }),
-    listTasks(ctx.db, ctx.workspaceId, ctx.userId, { state: "overdue", scope: "mine" }, { staleAfterDays: settings.staleTaskAfterDays, limit: 50 }),
-    loadPreMeetingBriefs(ctx, date),
-    loadUrgent(ctx),
-    latestPlan(lc, date),
-    loadRadar(ctx.db, ctx.workspaceId, date, settings),
-  ]);
-  // latest (event-driven) plan; none yet → live deterministic preview, not stored
-  const plan = storedPlan?.agenda ? storedPlan : { ...(await computeDailyPlan(lc, settings, date)), generatedAt: null as string | null };
-  const { data: planMeta } = storedPlan?.id ? await ctx.db.from("daily_plan").select("trigger_reason").eq("workspace_id", ctx.workspaceId).eq("id", storedPlan.id).maybeSingle() : { data: null };
-  const rel = await computeRelationshipSuggestions(ctx.db, ctx.workspaceId, date, radar.items, { userId: ctx.userId });
-
-  const nothing = !content.targets.length && !content.actions.length && !content.meetings.clusters.length && !content.deadlines.items.length && !overdueLive.length && content.pipeline.open === 0;
-  const meetingCount = content.meetings.clusters.reduce((n, c) => n + c.meetings.length, 0);
+  const v = await loadView(ctx, date, today);
+  const byKey = Object.fromEntries(v.sections.map((s) => [s.key, s]));
+  const dayHref = (d: string) => (d === today ? "/today" : `/today?date=${d}`);
+  const label = fmt(atLocal(date, "12:00", tz), "EEEE, d MMMM", tz);
+  const rel = date === today ? "Today" : date === addDays(today, 1) ? "Tomorrow" : date === addDays(today, -1) ? "Yesterday" : fmt(atLocal(date, "12:00", tz), "yyyy", tz);
 
   return (
-    <div className="space-y-4">
-      <PageHeader
-        title="Today"
-        subtitle={<>
-          {fmt(new Date(), "EEE dd MMM yyyy", tz)} ·{" "}
-          {stored ? <>brief v{stored.version} generated {fmt(stored.generated_at, "HH:mm", tz)}{stored.delivered_at ? ` · delivered ${fmt(stored.delivered_at, "HH:mm", tz)}` : " · not yet delivered"}</> : <>live preview — the brief is prepared automatically before {settings.briefTime}</>}
-        </>}
-        actions={canEdit ? <form action={generateBriefAction}><Button type="submit" variant="secondary">{stored ? "Refresh brief" : "Generate brief now"}</Button></form> : null}
-      />
+    <div className="mx-auto max-w-5xl space-y-4">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">{rel}</p>
+          <h1 className="text-xl font-semibold tracking-tight">{label}</h1>
+          {v.summary ? <p className="mt-1 text-sm text-ink-soft">{v.summary}</p> : null}
+          {v.headline ? <p className="mt-1 text-sm">{v.headline}</p> : null}
+        </div>
+        <nav aria-label="Change day" className="flex items-center gap-1">
+          <Link href={dayHref(addDays(date, -1))} aria-label="Previous day" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-line bg-surface text-sm hover:bg-canvas sm:min-h-8 sm:min-w-8">‹</Link>
+          {date !== today ? <Link href="/today" className="inline-flex min-h-11 items-center rounded-md border border-line bg-surface px-3 text-sm hover:bg-canvas sm:min-h-8">Today</Link> : null}
+          <Link href={dayHref(addDays(date, 1))} aria-label="Next day" className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-line bg-surface text-sm hover:bg-canvas sm:min-h-8 sm:min-w-8">›</Link>
+        </nav>
+      </header>
 
-      <Suspense fallback={null}><GettingStarted ctx={ctx} /></Suspense>
+      {typeof sp.ok === "string" ? <div role="status" className="rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{sp.ok}</div> : null}
+      {typeof sp.error === "string" ? <div role="alert" className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{sp.error}</div> : null}
+      {date === today ? <Suspense fallback={null}><GettingStarted ctx={ctx} /></Suspense> : null}
 
-      {typeof sp.ok === "string" ? <div className="rounded-lg border border-ok/30 bg-ok/10 px-3 py-2 text-sm text-ok">{sp.ok}</div> : null}
-      {typeof sp.error === "string" ? <div className="rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-sm text-bad">{sp.error}</div> : null}
-
-      {content.sources.filter((s) => s.state === "failed" || s.state === "stale").map((s) => <StaleBanner key={s.key}>{s.note}</StaleBanner>)}
-
-      <Suspense fallback={null}><AutomationAttentionCard ctx={ctx} /></Suspense>
-      {stored?.synthesis_status === "fallback_no_ai" ? <StaleBanner>{synthesis?.notice ?? "AI synthesis missing — deterministic brief shown in full."}</StaleBanner> : null}
-      {content.modeNote ? <div className="rounded-lg border border-line bg-canvas px-3 py-2 text-sm text-ink-soft">{content.modeNote}</div> : null}
-
-      <TodaySections view={today} />
-
-      {urgent.data?.length ? (
-        <Card title="Urgent (private alerts)">
-          <ul className="space-y-2 text-sm">
-            {urgent.data.map((u: any) => (
-              <li key={u.id} className="flex flex-wrap items-center gap-2">
-                <Badge tone={u.kind === "urgent_alert" || u.kind === "promise_overdue" ? "bad" : "warn"}>{ALERT_LABEL[u.kind] ?? "Alert"}</Badge>
-                {u.payload?.href ? <Link href={u.payload.href} className="hover:underline">{u.payload?.title ?? u.payload?.reason ?? u.kind}</Link> : <span>{u.payload?.title ?? u.payload?.reason ?? u.kind}</span>}
-                <span className="text-xs text-ink-soft">{fmt(u.created_at, "dd MMM HH:mm", tz)}</span>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      ) : null}
-
-      {synthesis?.status === "ok" && synthesis.synthesis ? (
-        <Card title={<>Summary <Badge tone="accent">{synthesis.mocked ? "AI (mock)" : "AI"}</Badge></>}>
-          <p className="text-sm">{synthesis.synthesis.headline}</p>
-        </Card>
-      ) : null}
-
-      {nothing ? (
-        <EmptyState title="Nothing to plan yet" action={canEdit ? <ButtonLink href="/imports">Import data</ButtonLink> : undefined}>
-          The brief fills itself from your lease schedule, companies, tasks and calendar. Import a lease or company list, add a
-          requirement, or capture a call — scores and the 08:00 brief are recalculated every morning at 07:00.
-        </EmptyState>
-      ) : null}
-
-      <Card title="Top 3 actions">
-        {content.actions.length ? (
-          <ol className="space-y-2 text-sm">
-            {content.actions.map((a, i) => (
-              <li key={a.ref} className="flex gap-2">
-                <span className="font-semibold text-brand">{i + 1}.</span>
-                <div className="min-w-0"><Link href={a.href} className="font-medium hover:underline">{a.title}</Link><div className="text-xs text-ink-soft">{a.why}</div></div>
-              </li>
-            ))}
-          </ol>
-        ) : <p className="text-sm text-ink-soft">No high-impact actions computed. Add leases, requirements or tasks to give the adviser something to rank.</p>}
-      </Card>
-
-      <DayPlanCard agenda={plan.agenda} generatedAt={plan.generatedAt} reason={(planMeta as { trigger_reason?: string } | null)?.trigger_reason ?? null} tz={tz} canEdit={canEdit} />
-
-      <RelationshipCard items={rel.suggestions} withheld={rel.withheld.length} canEdit={canEdit} />
-
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="New companies approached" value={`${content.approaches.thisMonth} / ${content.approaches.minimum}`} hint={`Pace target ${content.approaches.pace}; ${content.approaches.perDayMinimum}/workday needed over ${content.approaches.workdaysLeft} workdays`} />
-        <Stat label="Pending approvals" value={<Link href="/approvals" className="hover:underline">{content.approvals.changes + content.approvals.drafts}</Link>} hint={`${content.approvals.changes} changes · ${content.approvals.drafts} drafts`} />
-        <Stat label="Pipeline (credited)" value={inr(content.pipeline.expectedFee, { compact: true })} hint={`${content.pipeline.open} open · ${content.pipeline.closingThisQuarter} closing this quarter · ${content.pipeline.missingNextAction} without next action`} />
-      </div>
-
-      <Card title={`Targets (${content.targets.length})`} actions={content.capacity ? <span className="text-xs text-ink-soft">{content.capacity.callMinutesAvailable} call min · max {content.capacity.maxTargets}</span> : null}>
-        {"scoreSource" in plan && plan.scoreSource === "lead_score_legacy" ? <p className="mb-2 text-xs text-warn">Legacy lead_score used — the current lead model has not scored this workspace yet.</p> : null}
-        {content.targets.length ? (
-          <ul className="space-y-3">{content.targets.map((t) => <TargetCard key={t.orgId} t={t} canEdit={canEdit} />)}</ul>
-        ) : (
-          <p className="text-sm text-ink-soft">
-            {content.mode === "light" ? "Light review day — no client-contact targets." : "No scored targets yet. Scores are computed at 07:00 from leases, requirements, signals and relationships; the plan is built at 07:20."}
-          </p>
-        )}
-        {content.capacity?.reasons.length ? <p className="mt-3 text-xs text-ink-soft">Capacity: {content.capacity.reasons.join("; ")}</p> : null}
-        {content.displaced.length ? (
-          <details className="mt-3 text-sm"><summary className="cursor-pointer text-ink-soft">Below today&apos;s cut line ({content.displaced.length})</summary>
-            <ul className="mt-2 space-y-1">{content.displaced.map((d) => <li key={d.orgId}>{d.name} — {d.total} pts, {d.ratio}/min · <span className="text-ink-soft">{d.reason}</span></li>)}</ul>
-          </details>
-        ) : null}
-      </Card>
-
-      <Card title={`Overdue (${overdueLive.length})`} actions={<Link href="/tasks?state=overdue" className="text-sm text-brand">All tasks</Link>}>
-        {overdueLive.length ? (
-          <ul className="divide-y divide-line">
-            {overdueLive.slice(0, 8).map((t) => (
-              <li key={t.id} className="py-2 text-sm">
-                <div className="font-medium">{t.title}</div>
-                <div className="text-xs text-ink-soft">Due {fmt(t.dueAt, "dd MMM HH:mm", tz)} · priority {t.priority}</div>
-                {canEdit ? (
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                    <form action={completeTaskFromToday} className="flex flex-1 gap-2">
-                      <input type="hidden" name="id" value={t.id} /><input type="hidden" name="version" value={t.rowVersion} />
-                      <Input name="evidence" aria-label="Evidence of completion" placeholder="What was done (evidence)" required minLength={3} />
-                      <Button type="submit">Done</Button>
-                    </form>
-                    <form action={snoozeTaskFromToday} className="flex gap-2">
-                      <input type="hidden" name="id" value={t.id} /><input type="hidden" name="version" value={t.rowVersion} />
-                      <Select name="days" aria-label="Snooze for" defaultValue="1" className="w-24"><option value="1">1 day</option><option value="3">3 days</option><option value="7">7 days</option></Select>
-                      <Button type="submit" variant="secondary">Snooze</Button>
-                    </form>
-                  </div>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : <p className="text-sm text-ink-soft">Nothing overdue.{content.overdue.staleCount ? ` ${content.overdue.staleCount} stale task(s) are listed under Tasks → Stale.` : ""}</p>}
-      </Card>
-
-      <Card title={`Meetings (${meetingCount})`} actions={<Link href="/calendar" className="text-sm text-brand">Calendar</Link>}>
-        {content.meetings.note ? <p className={`mb-2 text-xs ${content.meetings.state === "ok" ? "text-ink-soft" : "text-warn"}`}>{content.meetings.note}</p> : null}
-        {content.meetings.conflicts.map((c) => <p key={c} className="mb-2 text-xs text-bad">Conflict: {c}</p>)}
-        {content.meetings.clusters.length ? content.meetings.clusters.map((cl) => (
-          <div key={cl.label} className="mb-3">
-            <div className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{cl.label}</div>
-            <ul className="mt-1 space-y-1 text-sm">
-              {cl.meetings.map((m) => {
-                const pm = preMeeting.get(m.id);
-                return (
-                  <li key={m.id} className="flex flex-wrap items-center gap-2">
-                    <span className="tabular-nums">{fmt(m.startAt, "HH:mm", tz)}–{fmt(m.endAt, "HH:mm", tz)}</span>
-                    <span>{m.title ?? "Meeting"}</span>
-                    <Badge>{m.kind.replace("_", " ")}</Badge>
-                    {pm ? <Link className="text-xs text-brand" href={`/today?meeting=${m.id}#pre-meeting`}>Pre-meeting brief</Link> : null}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="min-w-0 space-y-4 lg:col-span-2">
+          <SectionCard s={v.schedule} />
+          <Card title={<>Priority tasks &amp; follow-ups <Count text={v.tasks.countText} /></>} help={null} actions={<Link href="/tasks" className="text-sm text-brand">All tasks</Link>}>
+            {v.tasks.unavailable ? <StaleBanner>{v.tasks.unavailable}</StaleBanner> : v.tasks.items.length ? (
+              <ul className="-my-1 divide-y divide-line">
+                {v.tasks.items.map((t) => (
+                  <li key={t.id} className="flex items-start gap-3 py-2">
+                    {canEdit ? (
+                      <form action={completePlannerTask} className="pt-0.5">
+                        <input type="hidden" name="id" value={t.id} /><input type="hidden" name="version" value={t.version} /><input type="hidden" name="date" value={date} />
+                        <button type="submit" aria-label={`Mark "${t.title}" done`} title="Mark done" className="flex h-6 w-6 items-center justify-center rounded border border-line bg-surface hover:border-brand hover:bg-brand/10">
+                          <span className="sr-only">Done</span>
+                        </button>
+                      </form>
+                    ) : null}
+                    <div className="min-w-0 flex-1">
+                      <Link href={t.href} className="block break-words text-sm font-medium hover:underline">{t.title}</Link>
+                      <p className={`text-xs ${t.overdue ? "text-bad" : "text-ink-soft"}`}>{t.due ? (t.overdue ? `Overdue · was due ${fmt(t.due, "d MMM", tz)}` : `Due ${fmt(t.due, "HH:mm", tz) === "00:00" ? "today" : fmt(t.due, "HH:mm", tz)}`) : "No due date"}</p>
+                    </div>
                   </li>
-                );
-              })}
-            </ul>
-          </div>
-        )) : <p className="text-sm text-ink-soft">{content.meetings.state === "ok" ? "No meetings today." : "No meetings recorded — calendar not verified."}</p>}
-      </Card>
-
-      {typeof sp.meeting === "string" && preMeeting.get(sp.meeting) ? <PreMeetingCard b={preMeeting.get(sp.meeting)!} tz={tz} /> : null}
-
-      <Card title="Expiry, notice, escalation & options (next 90 days)" actions={<Link href="/leases" className="text-sm text-brand">Lease radar</Link>}>
-        {content.deadlines.items.length ? (
-          <ul className="space-y-2 text-sm">
-            {content.deadlines.items.slice(0, 10).map((d) => (
-              <li key={`${d.leaseId}-${d.kind}-${d.date}`} className="flex flex-wrap items-center gap-2">
-                <Badge tone={d.kind === "notice" ? "bad" : d.kind === "escalation" || d.kind === "option" ? "accent" : "warn"}>{d.kind === "escalation" ? "rent escalation" : d.kind}</Badge>
-                <span className="tabular-nums">{d.date}</span><span className="text-ink-soft">({d.days} d)</span>
-                <span className="font-medium">{d.tenant}</span>{d.asset ? <span className="text-ink-soft">@ {d.asset}</span> : null}
-                <Badge tone={d.verified ? "ok" : "neutral"}>{d.basisLabel}</Badge>
-              </li>
-            ))}
-          </ul>
-        ) : <p className="text-sm text-ink-soft">No expiry, break or notice dates in the next 90 days.</p>}
-        {content.deadlines.expiredNeedingConfirmation ? <p className="mt-2 text-xs text-warn">{content.deadlines.expiredNeedingConfirmation} expired lease(s) need status confirmation (not hot leads).</p> : null}
-      </Card>
-
-      <Card title="Hot replies">
-        {content.replies.note ? <p className={`mb-2 text-sm ${content.replies.state === "ok" ? "text-ink-soft" : "text-warn"}`}>{content.replies.note}</p> : null}
-        {content.replies.items.length ? (
-          <ul className="space-y-2 text-sm">
-            {content.replies.items.map((r) => (
-              <li key={r.id}>
-                <span className="font-medium">{r.orgId ? <Link href={`/companies/${r.orgId}`} className="hover:underline">{r.orgName}</Link> : r.orgName ?? "Unmatched sender"}</span>{" "}
-                — {r.subject ?? "(no subject)"} <span className="text-xs text-ink-soft">{fmt(r.occurredAt, "dd MMM HH:mm", tz)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : content.replies.state === "ok" ? <p className="text-sm text-ink-soft">No new meaningful replies since the last brief.</p> : null}
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Intelligence">
-          {content.intel ? (
-            <div className="text-sm">
-              <div className="font-medium">{content.intel.orgName} — {content.intel.claimType.replace(/_/g, " ")}</div>
-              {content.intel.excerpt ? <p className="mt-1 text-ink-soft">“{content.intel.excerpt.slice(0, 240)}”</p> : null}
-              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-                <Badge tone="warn">{content.intel.evidenceTier?.replace(/_/g, " ") ?? "unrated"}</Badge>
-                <span>{content.intel.date ?? "undated"}</span>
-                <a href={content.intel.sourceUrl} target="_blank" rel="noopener noreferrer nofollow" className="break-all text-brand hover:underline">Source</a>
+                ))}
+              </ul>
+            ) : <p className="text-sm text-ink-soft">No tasks due. Add one from a company, deal or the Tasks page.</p>}
+          </Card>
+          <SectionCard s={byKey.overdue} />
+          <SectionCard s={byKey.prep} />
+          <SectionCard s={byKey.next} numbered />
+        </div>
+        <div className="min-w-0 space-y-4">
+          <Card title="Capacity" help={null}>
+            {v.capacity ? (
+              <div className="space-y-2 text-sm">
+                <p>{v.capacity.line}</p>
+                {v.capacity.warnings.length ? (
+                  <ul className="space-y-1">{v.capacity.warnings.slice(0, 4).map((w, i) => <li key={i} className="rounded-md border border-warn/30 bg-warn/5 px-2 py-1 text-xs">{w}</li>)}{v.capacity.warnings.length > 4 ? <li className="text-xs text-ink-soft">+{v.capacity.warnings.length - 4} more clashes — see <Link href="/automation?view=daily" className="text-brand hover:underline">capacity details</Link></li> : null}</ul>
+                ) : <p className="text-xs text-ink-soft">No clashes — the day fits.</p>}
               </div>
-            </div>
-          ) : <p className="text-sm text-ink-soft">No sourced signal in the last 3 weeks. Research results appear here with their source link.</p>}
-        </Card>
-        <Card title="Sources">
-          <ul className="space-y-1 text-sm">
-            {content.sources.map((s) => (
-              <li key={s.key} className="flex flex-wrap items-center gap-2">
-                <Badge tone={s.state === "ok" ? "ok" : s.state === "not_connected" ? "neutral" : "warn"}>{s.state.replace("_", " ")}</Badge>
-                <span>{s.label}</span>
-                <span className="text-xs text-ink-soft">{s.lastSuccessAt ? `last success ${fmt(s.lastSuccessAt, "dd MMM HH:mm", tz)}` : s.state === "not_connected" ? "" : "never synced"}</span>
-              </li>
-            ))}
-          </ul>
-          {content.sources.some((s) => s.state === "not_connected") ? <p className="mt-2 text-xs text-ink-soft">Connect mail/calendar under <Link href="/settings/connections" className="text-brand">Settings → Connections</Link>.</p> : null}
-        </Card>
+            ) : <p className="text-sm text-ink-soft">Free time could not be worked out for this day.</p>}
+          </Card>
+          <SectionCard s={byKey.approvals} />
+          <SectionCard s={byKey.signals} />
+          <SectionCard s={byKey.leases} />
+          <SectionCard s={byKey.deals} />
+          <SectionCard s={byKey.accounts} />
+        </div>
       </div>
 
-      <details className="text-sm"><summary className="cursor-pointer text-ink-soft">Plain-text brief (works without AI)</summary>
-        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap rounded-lg border border-line bg-surface p-3 text-xs">{content.fallbackText}</pre>
-      </details>
+      <p className="text-xs text-ink-soft">
+        {v.source === "plan" && v.generatedAt ? `Plan prepared at ${fmt(v.generatedAt, "HH:mm", tz)}.` : "Showing live data — the daily plan is prepared each morning."}{" "}
+        <Link href="/today/details" className="text-brand hover:underline">Full brief details</Link>
+      </p>
     </div>
   );
 }
 
-function TargetCard({ t, canEdit }: { t: TargetView; canEdit: boolean }) {
+function Count({ text }: { text: string }) {
+  return <span className="ml-1.5 rounded-full bg-canvas px-1.5 text-xs font-medium tabular-nums text-ink-soft">{text}</span>;
+}
+
+const DOT: Record<NonNullable<PlannerItem["tone"]>, string> = { bad: "bg-bad", warn: "bg-warn", ok: "bg-ok", neutral: "bg-line" };
+
+function SectionCard({ s, numbered }: { s: PlannerSection; numbered?: boolean }) {
   return (
-    <li id={`target-${t.orgId}`} className="rounded-lg border border-line p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="font-semibold">{t.rank}. {t.name}</span>
-        <Badge tone={tierTone[t.tier] ?? "neutral"}>{TIER_LABEL[t.tier as Tier] ?? t.tier}</Badge>
-        <Badge tone="brand">{t.total}/100</Badge>
-        {t.slot === "exploration" ? <Badge tone="accent">exploration</Badge> : t.slot === "deadline" ? <Badge tone="bad">deadline</Badge> : null}
-        <Badge>{t.warmth}</Badge>
-      </div>
-      <p className="mt-1 text-xs text-ink-soft">{t.why}</p>
-      <details className="mt-2 text-sm">
-        <summary className="cursor-pointer text-brand">Score breakdown · evidence: {t.evidenceConfidence.replace(/_/g, " ")}</summary>
-        <ul className="mt-2 space-y-1">
-          {t.components.map((c) => (
-            <li key={c.key}>
-              <span className="font-medium">{c.label}</span> {c.points}/{c.max} <span className="text-ink-soft">· {c.band}</span>
-              {c.evidence.length ? <ul className="ml-4 list-disc text-xs text-ink-soft">{c.evidence.map((e, i) => <li key={i} className="break-words">{e}</li>)}</ul> : null}
+    <Card title={<>{s.title} <Count text={s.countText} /></>} help={null} actions={s.link ? <Link href={s.link.href} className="text-sm text-brand">{s.link.label}</Link> : null}>
+      {s.unavailable ? <StaleBanner>{s.unavailable}</StaleBanner> : s.items.length ? (
+        <ul className="-my-1 divide-y divide-line">
+          {s.items.map((it, i) => (
+            <li key={it.key}>
+              <Link href={it.href} className="flex items-start gap-3 py-2 hover:bg-canvas/60">
+                {numbered ? <span className="w-4 shrink-0 text-sm font-semibold text-brand">{i + 1}</span>
+                  : <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${DOT[it.tone ?? "neutral"]}`} />}
+                <span className="min-w-0 flex-1">
+                  <span className="block break-words text-sm font-medium">{it.title}</span>
+                  {it.meta ? <span className="block break-words text-xs text-ink-soft">{it.meta}</span> : null}
+                </span>
+              </Link>
             </li>
           ))}
+          {s.count > s.items.length && s.link ? <li className="pt-2 text-xs"><Link href={s.link.href} className="text-brand hover:underline">+{s.count - s.items.length} more</Link></li> : null}
         </ul>
-        {t.overrides.length ? <p className="mt-1 text-xs">Overrides: {t.overrides.join(", ")}</p> : null}
-      </details>
-      <div className="mt-2 flex flex-wrap gap-2">
-        <ButtonLink href={`/companies/${t.orgId}`} variant="ghost">Open</ButtonLink>
-        {canEdit ? (
-          <form action={addTargetTaskAction}>
-            <input type="hidden" name="org_id" value={t.orgId} /><input type="hidden" name="name" value={t.name} /><input type="hidden" name="why" value={t.why} />
-            <Button type="submit" variant="secondary">Add to tasks</Button>
-          </form>
-        ) : null}
-        <form action={snoozeTargetAction}>
-          <input type="hidden" name="org_id" value={t.orgId} /><input type="hidden" name="days" value="7" />
-          <Button type="submit" variant="ghost">Snooze 7 days</Button>
-        </form>
-      </div>
-    </li>
-  );
-}
-
-/** Private urgent/brief alerts for this user from the last 36 hours (outbox is user-scoped by RLS). */
-async function loadUrgent(ctx: { db: any; workspaceId: string; userId: string }) {
-  const since = new Date(Date.now() - 36 * 3_600_000).toISOString();
-  return ctx.db.from("outbox").select("id, kind, payload, created_at").eq("workspace_id", ctx.workspaceId).eq("user_id", ctx.userId)
-    .in("kind", ["urgent_alert", "brief_alert", "promise_overdue", "lease_event_alert", "deadline_48h"]).gte("created_at", since).order("created_at", { ascending: false }).limit(10);
-}
-
-type PreMeetingBrief = StoredBrief & { content: any };
-
-/** Today's pre-meeting briefs for meetings whose CURRENT version matches (rescheduled/cancelled → hidden). */
-async function loadPreMeetingBriefs(ctx: { db: any; workspaceId: string; userId: string }, date: string): Promise<Map<string, PreMeetingBrief>> {
-  const { data } = await ctx.db.from("brief").select("id, user_id, brief_date, kind, subject_key, version, generated_at, content, synthesis_status, source_health, delivered_at")
-    .eq("workspace_id", ctx.workspaceId).eq("user_id", ctx.userId).eq("kind", "pre_meeting").eq("brief_date", date).is("archived_at", null).order("version", { ascending: false }).limit(50);
-  const out = new Map<string, PreMeetingBrief>();
-  const rows = (data ?? []) as PreMeetingBrief[];
-  const ids = [...new Set(rows.map((b) => b.content?.meeting?.id).filter(Boolean))];
-  if (!ids.length) return out;
-  const { data: ms } = await ctx.db.from("meeting_visit").select("id, external_calendar_id, start_at, status, archived_at").eq("workspace_id", ctx.workspaceId).in("id", ids);
-  for (const m of ms ?? []) {
-    if (m.status === "cancelled" || m.archived_at) continue;
-    const vk = meetingVersionKey({ id: m.id, externalId: m.external_calendar_id, startAt: m.start_at });
-    const b = rows.find((r) => r.content?.meeting?.id === m.id && r.subject_key === vk);
-    if (b) out.set(m.id, b);
-  }
-  return out;
-}
-
-function PreMeetingCard({ b, tz }: { b: PreMeetingBrief; tz: string }) {
-  const c = b.content;
-  return (
-    <div id="pre-meeting">
-    <Card title={`Pre-meeting: ${c.meeting?.title ?? "Meeting"} · ${fmt(c.meeting?.startAt, "HH:mm", tz)}`}>
-      <div className="space-y-2 text-sm">
-        {c.org ? <div><span className="font-medium">{c.org.name}</span>{c.score ? <> — {c.score.total}/100 ({TIER_LABEL[c.score.tier as Tier] ?? c.score.tier})</> : null}</div> : <p className="text-ink-soft">Meeting not linked to a company.</p>}
-        {c.opportunity ? <div>Deal: {c.opportunity.name} · {c.opportunity.stage.replace(/_/g, " ")}{c.opportunity.nextAction ? ` · next: ${c.opportunity.nextAction}` : ""}</div> : null}
-        {c.questions?.length ? <div><div className="font-medium">Questions to confirm</div><ul className="ml-4 list-disc">{c.questions.map((q: string) => <li key={q}>{q}</li>)}</ul></div> : null}
-        {c.leases?.length ? <div><div className="font-medium">Leases</div><ul className="ml-4 list-disc">{c.leases.map((l: any) => <li key={l.leaseId}>{l.asset ?? "Unknown building"} — expiry {l.expiry ?? "unknown"}{l.basis ? ` (${l.basis})` : ""}{l.notice ? ` · notice ${l.notice}` : ""}</li>)}</ul></div> : null}
-        {c.recent?.length ? <div><div className="font-medium">Recent interactions</div><ul className="ml-4 list-disc">{c.recent.map((r: any, i: number) => <li key={i}>{fmt(r.occurredAt, "dd MMM", tz)} {r.channel}: {r.subject ?? r.summary ?? ""}</li>)}</ul></div> : null}
-        {c.openTasks?.length ? <div><div className="font-medium">Open tasks</div><ul className="ml-4 list-disc">{c.openTasks.map((t: any) => <li key={t.id}>{t.title}</li>)}</ul></div> : null}
-      </div>
+      ) : <p className="text-sm text-ink-soft">{s.empty}</p>}
     </Card>
-    </div>
   );
 }
+

@@ -6,7 +6,8 @@ export const GET = route(async (req) => {
   const ctx = await requireContext();
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim().slice(0, 100);
   let query = ctx.db.from("assistant_conversation").select("id, title, last_message_at, pinned, context_entity_type")
-    .eq("workspace_id", ctx.workspaceId).eq("owner_user_id", ctx.userId).is("archived_at", null);
+    .eq("workspace_id", ctx.workspaceId).eq("owner_user_id", ctx.userId).is("archived_at", null)
+    .not("title", "ilike", "Morning brief — %"); // legacy daily-plan chats stay hidden (data kept)
   if (q) {
     const words = q.split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}]/gu, "")).filter(Boolean);
     const { data: hits } = words.length

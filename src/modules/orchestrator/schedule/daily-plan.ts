@@ -52,6 +52,28 @@ export async function savePlan(db: Db, ws: string, userId: string, p: { kind: "d
   return { plan: data as PlanRow, changed: true };
 }
 
+/** The ten §4.2 sections from live records (shared by the 08:00 job and the /today planner's live fallback). */
+export async function computeDailySections(c: LoadCtx, date: string, now: Date, brief: any, briefError: string | null) {
+  const userId = c.userId;
+  const meetings = await section(async () => loadMeetings(c, date));
+  const tomorrow = await section(async () => loadMeetings(c, addDays(date, 1)));
+  const allMeetings = [...meetings.items, ...tomorrow.items];
+  const prep = await loadPrepStatus(c, allMeetings.map((m) => m.id)).catch(() => new Map());
+  const toPlan = (m: any): PlanMeeting => ({ id: m.id, title: m.title, startAt: m.startAt, endAt: m.endAt, kind: m.kind, status: m.status, location: m.location, prep: prep.get(m.id) ?? null });
+  const soon = allMeetings.filter((m) => Date.parse(m.startAt) <= +now + 24 * 3600e3).map(toPlan);
+  const deals = await section(async () => loadOpenDeals(c));
+  return buildDailySections({
+    date, now: now.toISOString(),
+    meetingsToday: { ...meetings, items: meetings.items.map(toPlan) }, meetingsSoon: soon,
+    brief: brief ? { id: brief.id, targets: brief.content?.targets ?? [], deadlines: brief.content?.deadlines?.items ?? [] } : null, briefError,
+    signals: await section(async () => loadSignals(c, new Date(+now - 36 * 3600e3).toISOString())),
+    tasks: await section(async () => (await loadOpenTasks(c)).map((t) => ({ id: t.id, title: t.title, dueAt: t.dueAt, priority: t.priority, status: t.status, linkedEntityType: t.linkedEntityType, linkedEntityId: t.linkedEntityId, source: t.source }))),
+    commitments: await section(async () => (await loadOverdueCommitments(c, date, { mineOnly: true })).map((x) => ({ id: x.id, title: x.title, due: x.due, href: x.href, kind: x.kind }))),
+    deals: deals.state === "ok" ? { ...deals, items: dealsNeedingAttention(deals.items.filter((d: any) => !d.account_owner_user_id || d.account_owner_user_id === userId || d.owner_user_id === userId), date, now.toISOString()) } : deals as any,
+    approvals: await loadApprovals(c).catch(() => null),
+  });
+}
+
 export async function runDailyPlan(admin: Db, ws: string, userId: string, opts: { now?: Date; ai?: AiCaller; notify?: boolean } = {}) {
   const now = opts.now ?? new Date();
   const ai = opts.ai ?? callStructured;
@@ -68,23 +90,7 @@ export async function runDailyPlan(admin: Db, ws: string, userId: string, opts: 
   } catch (e) { briefError = `Daily brief unavailable: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200); }
 
   // 2. deterministic sections from records
-  const meetings = await section(async () => loadMeetings(c, date));
-  const tomorrow = await section(async () => loadMeetings(c, addDays(date, 1)));
-  const allMeetings = [...meetings.items, ...tomorrow.items];
-  const prep = await loadPrepStatus(c, allMeetings.map((m) => m.id)).catch(() => new Map());
-  const toPlan = (m: any): PlanMeeting => ({ id: m.id, title: m.title, startAt: m.startAt, endAt: m.endAt, kind: m.kind, status: m.status, location: m.location, prep: prep.get(m.id) ?? null });
-  const soon = allMeetings.filter((m) => Date.parse(m.startAt) <= +now + 24 * 3600e3).map(toPlan);
-  const deals = await section(async () => loadOpenDeals(c));
-  const sections = buildDailySections({
-    date, now: now.toISOString(),
-    meetingsToday: { ...meetings, items: meetings.items.map(toPlan) }, meetingsSoon: soon,
-    brief: brief ? { id: brief.id, targets: brief.content?.targets ?? [], deadlines: brief.content?.deadlines?.items ?? [] } : null, briefError,
-    signals: await section(async () => loadSignals(c, new Date(+now - 36 * 3600e3).toISOString())),
-    tasks: await section(async () => (await loadOpenTasks(c)).map((t) => ({ id: t.id, title: t.title, dueAt: t.dueAt, priority: t.priority, status: t.status, linkedEntityType: t.linkedEntityType, linkedEntityId: t.linkedEntityId, source: t.source }))),
-    commitments: await section(async () => (await loadOverdueCommitments(c, date, { mineOnly: true })).map((x) => ({ id: x.id, title: x.title, due: x.due, href: x.href, kind: x.kind }))),
-    deals: deals.state === "ok" ? { ...deals, items: dealsNeedingAttention(deals.items.filter((d: any) => !d.account_owner_user_id || d.account_owner_user_id === userId || d.owner_user_id === userId), date, now.toISOString()) } : deals as any,
-    approvals: await loadApprovals(c).catch(() => null),
-  });
+  const sections = await computeDailySections(c, date, now, brief, briefError);
   const capacity = await loadCapacity(c, s, date, now).catch((e) => ({ error: String(e?.message ?? e) }));
 
   // 3. optional AI headline — never required
@@ -107,10 +113,10 @@ export async function runDailyPlan(admin: Db, ws: string, userId: string, opts: 
 
   const { plan, changed } = await savePlan(admin, ws, userId, { kind: "daily", period: date, tz: s.timezone, briefId: brief?.id ?? null, sections: { ...sections, capacity }, recommended: recs, aiStatus, aiSummary });
   if (opts.notify !== false) {
-    await notifyUser(admin, ws, { userId, category: "daily_plan", eventKey: `daily_plan:${userId}:${date}`, title: "Your plan for today is ready", body: aiStatus === "delayed" ? "Basic plan (AI summary delayed)" : null, record: { type: "orch_plan", id: plan.id }, href: "/automation?view=daily", settings: s, now });
+    await notifyUser(admin, ws, { userId, category: "daily_plan", eventKey: `daily_plan:${userId}:${date}`, title: "Your plan for today is ready", body: aiStatus === "delayed" ? "Basic plan (AI summary delayed)" : null, record: { type: "orch_plan", id: plan.id }, href: "/today", settings: s, now });
     if (capacity && "warnings" in capacity) {
       for (const w of capacity.warnings.filter((x) => x.kind !== "over_capacity" || capacity.unplaced.length > 2))
-        await notifyUser(admin, ws, { userId, category: "capacity", eventKey: `capacity:${userId}:${date}:${w.kind}`, title: w.message, severity: w.severity, groupKey: `capacity:${date}`, triggerKey: `capacity:${userId}:${date}`, href: "/automation?view=daily", settings: s, now });
+        await notifyUser(admin, ws, { userId, category: "capacity", eventKey: `capacity:${userId}:${date}:${w.kind}`, title: w.message, severity: w.severity, groupKey: `capacity:${date}`, triggerKey: `capacity:${userId}:${date}`, href: "/today", settings: s, now });
     }
   }
   return { planId: plan.id, date, changed, aiStatus, week: isoWeekKey(date) };

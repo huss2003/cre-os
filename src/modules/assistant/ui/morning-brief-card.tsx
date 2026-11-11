@@ -18,12 +18,12 @@ export async function MorningBriefCard({ c, editor }: { c: BriefCtx; editor: boo
             <p className="mt-1 text-sm">
               {fresh.status === "partial" ? <span className="font-medium text-warn">Partial — not checked: {fresh.failed_sources.join(", ")}. </span> : null}
               {fresh.counts.meetings ?? 0} meetings · {fresh.counts.followups ?? 0} follow-ups · {fresh.counts.signals ?? 0} signals · {fresh.counts.leases ?? 0} lease windows · {fresh.counts.approvals ?? 0} approvals.{" "}
-              {fresh.conversation_id ? <Link href={`/assistant/${fresh.conversation_id}`} className="font-semibold text-brand underline underline-offset-4">Open today&apos;s brief →</Link> : null}
+              <Link href="/today" className="font-semibold text-brand underline underline-offset-4">Open today&apos;s plan →</Link>
             </p>
           ) : (
             <p className="mt-1 text-sm text-ink-soft">
               {setting?.enabled ? `Arrives weekdays at ${setting.time_local}. ` : "Get meetings, follow-ups, new signals, lease windows and approvals in one place each weekday morning. "}
-              It appears here and as a pinned assistant conversation — nothing is emailed.
+              It appears on your Today page — nothing is emailed.
             </p>
           )}
         </div>

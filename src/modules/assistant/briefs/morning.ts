@@ -214,7 +214,7 @@ export async function latestBrief(c: BriefCtx) {
 }
 
 /**
- * Build and deliver today's brief as a pinned conversation. Idempotent per user per local day: a second call returns
+ * Record today's brief (counts only; shown on /today, not as a conversation). Idempotent per user per local day: a second call returns
  * the existing delivery. `appendMessage` is injected so tests / callers can reuse the engine's message writer.
  */
 export async function deliverMorningBrief(c: BriefCtx, now = new Date(), opts: { topN?: number } = {}) {
@@ -225,18 +225,12 @@ export async function deliverMorningBrief(c: BriefCtx, now = new Date(), opts: {
 
   const b = await assembleMorningBrief(c, now, opts);
   const status = b.failed.length ? "partial" : "complete";
-  const conv = await c.db.from("assistant_conversation").insert({ workspace_id: c.workspaceId, owner_user_id: c.userId, title: b.title, pinned: true }).select("id").single();
-  if (conv.error) throw new Error(conv.error.message);
-  const conversationId = conv.data.id as string;
-  const ins = await c.db.from("assistant_morning_brief").insert({ workspace_id: c.workspaceId, owner_user_id: c.userId, brief_date: date, conversation_id: conversationId, status, failed_sources: b.failed, counts: b.counts }).select("id").single();
+  // The daily plan lives on /today as a planner — never as an Ask AI conversation.
+  const conversationId: string | null = null;
+  const ins = await c.db.from("assistant_morning_brief").insert({ workspace_id: c.workspaceId, owner_user_id: c.userId, brief_date: date, conversation_id: null, status, failed_sources: b.failed, counts: b.counts }).select("id").single();
   if (ins.error) {
-    // lost a race with a concurrent run: drop our conversation and return the winner
-    await c.db.from("assistant_conversation").update({ archived_at: new Date().toISOString() }).eq("workspace_id", c.workspaceId).eq("id", conversationId);
     if (/duplicate|unique/i.test(ins.error.message)) return deliverMorningBrief(c, now, opts);
     throw new Error(ins.error.message);
   }
-  const msg = await c.db.from("assistant_message").insert({ workspace_id: c.workspaceId, owner_user_id: c.userId, conversation_id: conversationId, seq: 1, role: "assistant",
-    content: b.title, blocks: b.blocks as object, status: status === "partial" ? "partial" : "complete", model: "deterministic" }).select("id").single();
-  if (msg.error) throw new Error(msg.error.message);
   return { duplicate: false, briefId: ins.data.id as string, conversationId, status, failed: b.failed };
 }
