@@ -7,9 +7,9 @@ import { helpFor } from "./help-text";
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <h1 className="flex items-center text-2xl font-bold tracking-tight">{title}<HelpFor k={title} /></h1>
+        <h1 className="flex items-center text-2xl font-semibold tracking-tight">{title}<HelpFor k={title} /></h1>
         {subtitle ? <p className="mt-1 max-w-2xl text-sm text-ink-soft">{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
@@ -21,8 +21,8 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 export function Help({ children }: { children: ReactNode }) {
   return (
     <span className="group relative inline-flex align-middle">
-      <button type="button" aria-label="What is this?" className="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border border-line bg-canvas text-[11px] font-bold text-ink-soft transition hover:border-brand hover:text-brand focus:border-brand focus:text-brand">?</button>
-      <span role="tooltip" className="pointer-events-none invisible absolute left-1/2 top-7 z-30 w-72 -translate-x-1/2 rounded-xl bg-ink px-3 py-2.5 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-white opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+      <button type="button" aria-label="What is this?" className="ml-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-line text-[10px] font-semibold text-ink-soft transition hover:border-ink-soft hover:text-ink focus:text-ink">?</button>
+      <span role="tooltip" className="pointer-events-none invisible absolute left-1/2 top-7 z-30 w-72 -translate-x-1/2 rounded-lg bg-ink px-3 py-2.5 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-white opacity-0 shadow-xl transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
         {children}
       </span>
     </span>
@@ -37,10 +37,10 @@ export function HelpFor({ k }: { k: string }) {
 
 export function Card({ title, actions, children, className, help }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string; help?: ReactNode }) {
   return (
-    <section className={clsx("rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]", className)}>
+    <section className={clsx("rounded-xl border border-line bg-surface p-5", className)}>
       {(title || actions) && (
         <div className="mb-3 flex items-center justify-between gap-2">
-          {title ? <h2 className="flex items-center text-base font-semibold">{title}{(help ?? helpFor(title)) ? <Help>{help ?? helpFor(title)}</Help> : null}</h2> : <span />}
+          {title ? <h2 className="flex items-center text-sm font-semibold">{title}{(help ?? helpFor(title)) ? <Help>{help ?? helpFor(title)}</Help> : null}</h2> : <span />}
           {actions}
         </div>
       )}
@@ -52,11 +52,11 @@ export function Card({ title, actions, children, className, help }: { title?: Re
 type Variant = "primary" | "secondary" | "danger" | "ghost";
 const variants: Record<Variant, string> = {
   primary: "bg-brand text-white shadow-sm hover:bg-brand-strong",
-  secondary: "border border-line bg-surface text-ink shadow-sm hover:border-brand/40 hover:text-brand",
+  secondary: "border border-line bg-surface text-ink shadow-sm hover:bg-canvas",
   danger: "bg-bad text-white shadow-sm hover:opacity-90",
-  ghost: "text-brand hover:bg-brand-soft",
+  ghost: "text-ink-soft hover:bg-canvas hover:text-ink",
 };
-const btnBase = "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50";
+const btnBase = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-8";
 
 export function Button({ variant = "primary", className, ...p }: ComponentProps<"button"> & { variant?: Variant }) {
   return <button {...p} className={clsx(btnBase, variants[variant], className)} />;
@@ -75,7 +75,7 @@ const tones: Record<Tone, string> = {
   accent: "bg-accent/10 text-accent border-accent/30",
 };
 export function Badge({ tone = "neutral", children, title }: { tone?: Tone; children: ReactNode; title?: string }) {
-  return <span title={title} className={clsx("inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium", tones[tone])}>{children}</span>;
+  return <span title={title} className={clsx("inline-flex items-center rounded-md border px-1.5 py-px text-xs font-medium", tones[tone])}>{children}</span>;
 }
 
 /** Fact status label — keep "reported" / "confirmed" / "AI inference" visually distinct everywhere. */
@@ -93,8 +93,8 @@ export function FactBadge({ status }: { status?: string | null }) {
 
 export function EmptyState({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-line bg-canvas/60 px-5 py-6 text-center">
-      <p className="font-medium">{title}</p>
+    <div className="rounded-xl border border-dashed border-line px-5 py-8 text-center">
+      <p className="text-sm font-medium">{title}</p>
       {children ? <div className="mx-auto mt-1 max-w-md text-sm text-ink-soft">{children}</div> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
@@ -111,7 +111,7 @@ export function Field({ label, hint, children }: { label: string; hint?: ReactNo
   );
 }
 
-const inputCls = "w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10";
+const inputCls = "w-full rounded-md border border-line bg-surface px-2.5 py-2 text-sm outline-none transition-colors placeholder:text-ink-soft/70 focus:border-brand focus:ring-2 focus:ring-brand/15";
 export function Input(p: ComponentProps<"input">) {
   return <input {...p} className={clsx(inputCls, p.className)} />;
 }
@@ -124,9 +124,9 @@ export function Select(p: ComponentProps<"select">) {
 
 export function Table({ head, children }: { head: ReactNode[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line bg-surface">
+    <div className="overflow-x-auto rounded-xl border border-line bg-surface">
       <table className="w-full min-w-[560px] text-left text-sm">
-        <thead className="bg-canvas text-xs uppercase tracking-wide text-ink-soft">
+        <thead className="border-b border-line text-xs text-ink-soft">
           <tr>{head.map((h, i) => <th key={i} className="px-3 py-2 font-medium">{h}</th>)}</tr>
         </thead>
         <tbody className="divide-y divide-line">{children}</tbody>
@@ -140,9 +140,9 @@ export function Td({ children, className }: { children?: ReactNode; className?: 
 
 export function Stat({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface p-4">
+    <div className="rounded-xl border border-line bg-surface p-4">
       <div className="text-xs font-medium text-ink-soft">{label}</div>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
+      <div className="mt-1 text-xl font-semibold tabular-nums tracking-tight">{value}</div>
       {hint ? <div className="mt-1 text-xs text-ink-soft">{hint}</div> : null}
     </div>
   );
@@ -150,7 +150,7 @@ export function Stat({ label, value, hint }: { label: string; value: ReactNode; 
 
 /** Banner for stale / unavailable sources. Never hide a failed source. */
 export function StaleBanner({ children }: { children: ReactNode }) {
-  return <div className="mb-4 rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-sm text-warn">{children}</div>;
+  return <div className="mb-4 rounded-md border border-warn/30 bg-warn/5 px-3 py-2 text-sm text-warn">{children}</div>;
 }
 
 export function inr(n: number | string | null | undefined, opts: { compact?: boolean } = {}) {
@@ -171,7 +171,7 @@ export function sf(n: number | string | null | undefined) {
 export function MoreFields({ children, label = "More details (optional)" }: { children: ReactNode; label?: string }) {
   return (
     <details className="group">
-      <summary className="cursor-pointer list-none py-1 text-sm font-medium text-ink-soft hover:text-brand">
+      <summary className="cursor-pointer list-none py-1 text-sm font-medium text-ink-soft hover:text-ink">
         <span className="group-open:hidden">＋ </span><span className="hidden group-open:inline">－ </span>{label}
       </summary>
       <div className="mt-3 space-y-4">{children}</div>

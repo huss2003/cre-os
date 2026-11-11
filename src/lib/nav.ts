@@ -7,24 +7,26 @@ export interface NavTab { href: string; label: string; minRole?: Role; platformO
 /** One menu entry. `tabs` lists every screen that belongs to it (shown as tabs above the page when >1). */
 export interface NavSection { key: string; label: string; hint: string; href: string; tabs: NavTab[]; minRole?: Role; platformOnly?: boolean; badge?: BadgeKey }
 export type BadgeKey = "review" | "outreach" | "meetings";
-/** A labelled group of menu entries (one per module). `label` null = no heading. */
-export interface NavGroup { key: string; label: string | null; items: NavSection[] }
+/** A labelled group of menu entries. `label` null = no heading. `collapsible` groups start folded. */
+export interface NavGroup { key: string; label: string | null; items: NavSection[]; collapsible?: boolean }
 
 const one = (key: string, label: string, hint: string, href: string, extra: Partial<NavSection> = {}): NavSection =>
   ({ key, label, hint, href, tabs: [{ href, label }], ...extra });
 
-/** The sidebar, in order. Plain-language groups, one per module. */
+/**
+ * The sidebar, in order. Kept deliberately short (spec: four entry points — Today, Ask, Capture, Review),
+ * then the records you work on, then daily work. Everything else lives under a folded "More".
+ */
 export const NAV_GROUPS: NavGroup[] = [
-  { key: "home", label: null, items: [
-    one("home", "Home", "Today at a glance", "/home"),
+  { key: "main", label: null, items: [
+    { key: "today", label: "Today", hint: "What needs you today", href: "/today", tabs: [
+      { href: "/today", label: "Today" }, { href: "/home", label: "Overview" }, { href: "/tasks", label: "Tasks" }, { href: "/calendar", label: "Calendar" }] },
     { key: "assistant", label: "Ask AI", hint: "Ask questions, get briefs and drafts", href: "/assistant", tabs: [
-      { href: "/assistant", label: "Chat" }, { href: "/assistant/memory", label: "Memory" }, { href: "/assistant/commands", label: "Saved commands" }, { href: "/assistant/notes", label: "Notes" }, { href: "/assistant/usage", label: "Usage" }] },
+      { href: "/assistant", label: "Chat" }, { href: "/assistant/memory", label: "Memory" }, { href: "/assistant/commands", label: "Saved commands" },
+      { href: "/assistant/notes", label: "Notes" }, { href: "/assistant/usage", label: "Usage" }] },
+    one("capture", "Capture", "Add notes, files and calls", "/capture"),
+    one("review", "Review", "Check changes before they apply", "/approvals", { badge: "review" }),
   ] },
-  { key: "plan", label: "Plan", items: [
-    { key: "today", label: "Today", hint: "Your plan, tasks and visits", href: "/today", tabs: [
-      { href: "/today", label: "Plan" }, { href: "/tasks", label: "Tasks" }, { href: "/calendar", label: "Calendar & visits" }] },
-    one("leases", "Lease radar", "Leases coming up for renewal", "/leases"),
-  ]},
   { key: "records", label: "Records", items: [
     one("companies", "Companies", "Every company you track", "/companies"),
     one("people", "People", "Contacts at those companies", "/people"),
@@ -32,30 +34,28 @@ export const NAV_GROUPS: NavGroup[] = [
     one("requirements", "Requirements", "What each client is looking for", "/requirements"),
     { key: "deals", label: "Deals", hint: "Opportunities in progress", href: "/deals", tabs: [
       { href: "/deals", label: "Pipeline" }, { href: "/finance", label: "Financials" }, { href: "/documents", label: "Documents" }, { href: "/fees", label: "Fees" }] },
-    one("capture", "Capture", "Log a call, meeting or visit", "/capture"),
-    one("review", "Review", "Check changes before they apply", "/approvals", { badge: "review" }),
-    one("imports", "Imports", "Bring in a spreadsheet", "/imports", { minRole: "editor" }),
-    one("database", "Database", "Browse all tables", "/database", { minRole: "editor" }),
-    one("geography", "Places", "Cities, micro-markets", "/geography", { minRole: "editor" }),
   ]},
-  { key: "signals", label: "Signals & research", items: [
+  { key: "work", label: "Work", items: [
+    { key: "outreach", label: "Outreach", hint: "Who to contact and what to say", href: "/outreach", badge: "outreach", tabs: [
+      { href: "/outreach", label: "Outreach" }, { href: "/drafts", label: "Drafts & messages" }] },
+    one("meetings", "Meetings", "Prepare for every meeting", "/meetings", { badge: "meetings" }),
+    one("toolkit", "Deal toolkit", "Compare, cost and recommend", "/toolkit"),
     one("signals", "Signals", "Events that may need action", "/signals"),
-    one("research", "Research", "Look into a company", "/research"),
   ]},
-  { key: "intel", label: "Intelligence", items: [
+  { key: "more", label: "More", collapsible: true, items: [
+    one("scoring", "Scores", "Who to focus on first", "/scoring"),
+    one("contacts", "Find contacts", "Find and verify decision-makers", "/contacts"),
+    one("research", "Research", "Look into a company", "/research"),
+    one("leases", "Lease radar", "Leases coming up for renewal", "/leases"),
     { key: "intel", label: "Market & reports", hint: "Market, network, legal, content", href: "/market", tabs: [
       { href: "/market", label: "Market" }, { href: "/network", label: "Network" }, { href: "/legal", label: "Legal" },
       { href: "/content", label: "Content" }, { href: "/insights", label: "Reports" }] },
+    one("workflows", "Automations", "Chains that run on their own", "/workflows"),
+    one("imports", "Imports", "Bring in a spreadsheet", "/imports", { minRole: "editor" }),
+    one("database", "Database", "Browse all tables", "/database", { minRole: "editor" }),
+    one("geography", "Places", "Cities, micro-markets", "/geography", { minRole: "editor" }),
+    one("tutorials", "Tutorials", "Guided walk-throughs", "/tutorials"),
   ]},
-  { key: "scoring", label: "Scoring", items: [one("scoring", "Scores", "Who to focus on first", "/scoring")] },
-  { key: "contacts", label: "Contacts", items: [one("contacts", "Find contacts", "Find and verify decision-makers", "/contacts")] },
-  { key: "outreach", label: "Outreach", items: [
-    { key: "outreach", label: "Outreach", hint: "Who to contact and what to say", href: "/outreach", badge: "outreach", tabs: [
-      { href: "/outreach", label: "Outreach" }, { href: "/drafts", label: "Drafts & messages" }] },
-  ]},
-  { key: "meetings", label: "Meetings", items: [one("meetings", "Meetings", "Prepare for every meeting", "/meetings", { badge: "meetings" })] },
-  { key: "toolkit", label: "Deal toolkit", items: [one("toolkit", "Deal toolkit", "Compare, cost and recommend", "/toolkit")] },
-  { key: "learn", label: "Learn", items: [one("tutorials", "Tutorials", "Guided walk-throughs", "/tutorials")] },
 ];
 
 /** Shown at the bottom of the sidebar, next to the account. Not affected by focus mode. */
@@ -75,7 +75,7 @@ export const NAV: NavSection[] = [...NAV_GROUPS.flatMap((g) => g.items), ...NAV_
  * tasks, review) stay reachable by link but are not in the menu. Everything else redirects to /signals (src/proxy.ts).
  * Set NEXT_PUBLIC_FULL_APP=1 in Vercel to show the whole app again.
  */
-export const FOCUS_MODE = process.env.NEXT_PUBLIC_FULL_APP !== "1";
+export const FOCUS_MODE = process.env.NEXT_PUBLIC_FOCUS_MODE === "1";
 /** Screens shown in the menu while in focus mode. */
 export const FOCUS_MENU = [
   "/home",
@@ -112,7 +112,7 @@ export function isHiddenPath(path: string): boolean {
 export function inFocusMenu(path: string): boolean {
   return !FOCUS_MODE || under(path, FOCUS_MENU);
 }
-export const HOME = "/home";
+export const HOME = "/today";
 
 /** The section a path belongs to: the tab with the longest matching prefix wins. */
 export function sectionFor(path: string, sections: NavSection[] = NAV): NavSection | null {
@@ -124,4 +124,4 @@ export function sectionFor(path: string, sections: NavSection[] = NAV): NavSecti
 }
 
 /** Mobile bottom tab bar (plus a "More" button that opens the full menu). */
-export const MOBILE_BAR = ["home", "outreach", "meetings", "toolkit"] as const;
+export const MOBILE_BAR = ["today", "assistant", "capture", "review"] as const;

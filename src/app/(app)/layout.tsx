@@ -40,12 +40,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const footer = NAV_FOOTER.map((s) => fit(s, false)).filter((s): s is NavSection => !!s);
   const badges = await loadBadges(ctx);
 
+  const initial = (ctx.email ?? "?").slice(0, 1).toUpperCase();
   const account = (
-    <div className="rounded-xl bg-canvas p-3 text-xs text-ink-soft">
-      <div className="truncate font-medium text-ink">{ctx.email}</div>
-      <div className="capitalize">{ctx.role}{ctx.isPlatformAdmin ? " · platform admin" : ""}</div>
+    <div className="flex items-center gap-2 rounded-md px-2 py-1">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-white" aria-hidden>{initial}</span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-medium text-ink">{ctx.email}</div>
+        <div className="text-[11px] capitalize text-ink-soft">{ctx.role}{ctx.isPlatformAdmin ? " · platform admin" : ""}</div>
+      </div>
       <form action="/auth/signout" method="post">
-        <button className="mt-1 min-h-11 font-semibold text-brand hover:underline">Sign out</button>
+        <button className="min-h-11 rounded-md px-1.5 text-xs text-ink-soft hover:bg-ink/[0.05] hover:text-ink lg:min-h-7">Sign out</button>
       </form>
     </div>
   );
