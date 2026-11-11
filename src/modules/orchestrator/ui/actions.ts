@@ -3,7 +3,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireContext } from "@/lib/auth/context";
 import type { ActionState } from "@/modules/changes/ui/client";
-import { AutomationError, markControl, runControl, workflowControl, type Actor, type RunAction } from "./service";
+import { automationControl, AutomationError, markControl, runControl, workflowControl, type Actor, type RunAction } from "./service";
 
 /** Server actions for the Automation pages. Role checks live in the service (admin-only controls). */
 const UUID = /^[0-9a-f-]{36}$/i;
@@ -69,4 +69,15 @@ export async function markAction(_prev: ActionState, form: FormData): Promise<Ac
   } catch (e) { return { error: msg(e) }; }
   if (runId) redirect(`/automation/runs/${runId}`);
   return { ok: true, message: "Nothing to refresh." };
+}
+
+/** Global pause / resume (Automation header). */
+export async function automationAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const op = str(form, "op");
+    if (op !== "pause" && op !== "resume") throw new Error("Unknown action.");
+    const r = await automationControl(await actor(), { action: op, reason: str(form, "reason") || null });
+    refresh();
+    return { ok: true, message: op === "pause" ? "Automation paused — background jobs wait; your own actions still run." : `Automation resumed${r.released ? ` — ${r.released} waiting job(s) released` : ""}.` };
+  } catch (e) { return { error: msg(e) }; }
 }

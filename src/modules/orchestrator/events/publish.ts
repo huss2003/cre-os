@@ -17,6 +17,8 @@ export const EVENT_TYPES = [
   "commercial.quote_received" /* (t) */, "commercial.terms_revised", "commercial.availability_changed", "commercial.requirement_changed" /* (t) */, "commercial.offer_revised", "commercial.proposal_version_created",
   // platform
   "integration.failed" /* (t) */, "integration.recovered" /* (t) */,
+  // records (t) — 20261111001800: company.created/updated also come from the organisation trigger
+  "contact.created", "contact.info_added", "lease.created", "lease.changed",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 

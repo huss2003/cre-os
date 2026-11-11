@@ -8,6 +8,7 @@ import { runAction } from "@/modules/orchestrator/ui/actions";
 import { RunStatus, When } from "@/modules/orchestrator/ui/components";
 import { MARK, REF_TYPE, refHref } from "@/modules/orchestrator/ui/labels";
 import { loadRun } from "@/modules/orchestrator/ui/service";
+import { triggerLabel } from "@/modules/orchestrator/automation/service";
 
 export const metadata = { title: "Run" };
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -48,7 +49,8 @@ async function Body({ params }: { params: Promise<{ runId: string }> }) {
 
       <Card title="Progress">
         <div className="h-2 overflow-hidden rounded bg-canvas" role="progressbar" aria-valuenow={run.progress ?? 0} aria-valuemin={0} aria-valuemax={100}><div className={`h-full ${run.status === "failed" ? "bg-bad" : "bg-brand"}`} style={{ width: `${run.progress ?? 0}%` }} /></div>
-        <p className="mt-2 text-sm text-ink-soft">{run.progress ?? 0}% · {x.completed.length} done · {x.current.length} in progress · {x.failedSteps.length} failed · {x.remaining.length} waiting</p>
+        <p className="mt-2 text-sm" data-testid="run-trigger">Triggered by: {triggerLabel(run)}</p>
+        <p className="mt-1 text-sm text-ink-soft">{run.progress ?? 0}% · {x.completed.length} done · {x.current.length} in progress · {x.failedSteps.length} failed · {x.remaining.length} waiting</p>
         {run.status === "partially_completed" && run.next_attempt_at ? <p className="mt-1 text-sm">Next automatic try <When at={run.next_attempt_at} tz={tz} />.</p> : null}
       </Card>
 

@@ -13,6 +13,7 @@ import { RunStatus, When } from "@/modules/orchestrator/ui/components";
 import { capacityKindLabel, DEF_STATUS, everyText, triggerText } from "@/modules/orchestrator/ui/labels";
 import { dateForRequest, loadDashboard, startableWorkflows } from "@/modules/orchestrator/ui/service";
 import { PREPARE_MEETINGS } from "@/modules/orchestrator/ui/workflows";
+import { AlertsCard, AutomationSwitch, HistoryView, JobsView, UsageCategories } from "@/modules/orchestrator/ui/overview";
 
 export const metadata = { title: "Automation" };
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -33,7 +34,7 @@ function RunList({ runs, tz, empty }: { runs: Row[]; tz: string; empty: string }
   );
 }
 
-const VIEWS = [["overview", "Overview"], ["daily", "Daily plan"], ["weekly", "Weekly review"], ["budgets", "Budgets & usage"], ["notifications", "Notifications"]] as const;
+const VIEWS = [["overview", "Overview"], ["daily", "Daily plan"], ["history", "History"], ["jobs", "Background jobs"], ["weekly", "Weekly review"], ["budgets", "Budgets & usage"], ["notifications", "Notifications"]] as const;
 type View = (typeof VIEWS)[number][0];
 
 function Tabs({ view }: { view: View }) {
@@ -61,12 +62,13 @@ async function CapacityCard() {
   );
 }
 
-async function Body({ view }: { view: View }) {
+async function Body({ view, filter }: { view: View; filter?: string }) {
   if (view !== "overview") return (
     <div className="space-y-4">
       <PageHeader title="Automation" subtitle="Your daily plan, weekly review, usage limits and notifications. Nothing here sends messages — drafts only." />
+      <AutomationSwitch />
       <Tabs view={view} />
-      <ScheduleView view={view} />
+      {view === "history" ? <HistoryView status={filter} /> : view === "jobs" ? <JobsView state={filter} /> : <ScheduleView view={view} />}
     </div>
   );
   const ctx = await requirePageContext();
@@ -79,6 +81,7 @@ async function Body({ view }: { view: View }) {
   return (
     <div className="space-y-4">
       <PageHeader title="Automation" subtitle="Work that runs in the background: what is running, what is scheduled, what failed and what needs you." />
+      <AutomationSwitch />
       <Tabs view="overview" />
       <JobBacklogBanner db={ctx.db} ws={ctx.workspaceId} />
 
@@ -86,13 +89,17 @@ async function Body({ view }: { view: View }) {
         <StaleBanner key={h.id}>{h.label ?? h.source_key} is not working ({h.consecutive_failures} failed attempt{h.consecutive_failures === 1 ? "" : "s"}). Data from it may be out of date{h.next_retry_at ? `; next try ${fmt(h.next_retry_at, "dd MMM, HH:mm", tz)}` : ""}.</StaleBanner>
       ))}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <Stat label="Workflows on" value={d.active.length} hint={d.pausedWorkflows.length ? `${d.pausedWorkflows.length} paused` : undefined} />
-        <Stat label="Running now" value={d.running.length} />
-        <Stat label="Failed" value={d.failed.length} />
-        <Stat label="Need approval" value={d.waitingApproval.length} />
-        <Stat label="Changes to review" value={<Link className="hover:text-brand" href="/approvals">{d.pendingProposals}</Link>} />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7" data-testid="automation-counts">
+        <Stat label="Total workflows" value={<Link className="hover:text-brand" href="/automation?view=history">{d.counts.total}</Link>} hint={`${d.workflows.length} defined · ${d.active.length} on`} />
+        <Stat label="Active" value={d.counts.active} />
+        <Stat label="Scheduled" value={d.counts.scheduled} />
+        <Stat label="Completed" value={<Link className="hover:text-brand" href="/automation?view=history&status=completed">{d.counts.completed}</Link>} />
+        <Stat label="Failed" value={<Link className="hover:text-brand" href="/automation?view=history&status=failed">{d.counts.failed}</Link>} />
+        <Stat label="Delayed" value={<Link className="hover:text-brand" href="/automation?view=history&status=delayed">{d.counts.delayed}</Link>} />
+        <Stat label="Needs attention" value={d.counts.attention} hint={d.pendingProposals ? `${d.pendingProposals} change(s) to review` : undefined} />
       </div>
+
+      <AlertsCard alerts={d.alerts} />
 
       <Suspense fallback={null}><CapacityCard /></Suspense>
 
@@ -100,6 +107,12 @@ async function Body({ view }: { view: View }) {
         <RunList runs={attention} tz={tz} empty="Nothing needs you. Failed, paused and waiting jobs appear here." />
         {d.openMarks.length ? <p className="mt-2 text-sm"><Link className="text-brand underline" href="/approvals/outdated">{d.openMarks.length} record(s) flagged as outdated or needing a refresh</Link></p> : null}
       </Card>
+
+      {d.delayed.length ? (
+        <Card title="Delayed">
+          <ul className="divide-y divide-line">{d.delayed.slice(0, 10).map((r) => <li key={r.id} className="py-2 text-sm"><Link href={`/automation/runs/${r.id}`} className="font-medium hover:text-brand">{r.name}</Link><p className="text-xs text-warn">{r.delayReason}</p></li>)}</ul>
+        </Card>
+      ) : null}
 
       <Card title="Running now">
         <RunList runs={d.running} tz={tz} empty="Nothing is running. Jobs start on a schedule, when something changes, or when you start one below." />
@@ -184,6 +197,7 @@ async function Body({ view }: { view: View }) {
       </div>
 
       <Card title="Usage and limits" actions={<Link className="text-sm text-brand" href="/automation?view=budgets">Details</Link>}>
+        <UsageCategories items={d.categories} />
         {!d.budgets.ok ? <StaleBanner>Usage could not be loaded right now.</StaleBanner> : budgets.length ? (
           <ul className="divide-y divide-line">
             {budgets.map((b) => (
@@ -197,7 +211,7 @@ async function Body({ view }: { view: View }) {
               </li>
             ))}
           </ul>
-        ) : <EmptyState title="No limits set">Admins can set daily or monthly limits for AI, research and enrichment usage.</EmptyState>}
+        ) : <p className="mt-2 text-xs text-ink-soft">No limits set. Admins can set daily or monthly limits in Budgets &amp; usage.</p>}
       </Card>
     </div>
   );
@@ -206,8 +220,10 @@ async function Body({ view }: { view: View }) {
 const UNIT_LABEL: Record<string, string> = { usd: "US$", inr: "₹", model_tokens: "AI tokens", tokens: "AI tokens", calls: "calls", requests: "requests" };
 function unitLabel(u: string | null | undefined): string { return u ? UNIT_LABEL[u.toLowerCase()] ?? u.replace(/_/g, " ") : ""; }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
-  const v = (await searchParams).view;
+export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string; status?: string; state?: string }> }) {
+  const sp = await searchParams;
+  const v = sp.view;
   const view: View = VIEWS.some(([k]) => k === v) ? (v as View) : "overview";
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body view={view} /></Suspense>;
+  const filter = (view === "history" ? sp.status : view === "jobs" ? sp.state : undefined)?.replace(/[^a-z_]/g, "");
+  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body view={view} filter={filter} /></Suspense>;
 }

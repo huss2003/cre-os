@@ -1,0 +1,429 @@
+MODULE 9: ORCHESTRATOR
+
+Keeping the Entire CRE AI Operating System Working Together
+
+1. MODULE PURPOSE
+
+The Orchestrator is the central coordination and automation layer of the CRE AI Operating System.
+
+Its purpose is to coordinate schedules, dependencies, background processes and activities across all relevant modules.
+
+It ensures that the system operates continuously, processes important updates, triggers the correct workflows, manages priorities and keeps the user informed about important activities.
+
+The Orchestrator should reduce the need for the user to manually operate individual modules.
+
+---
+
+2. CORE FUNCTIONALITIES AND FEATURES
+
+2.1 Automated Workflow Scheduling
+
+The system must automatically schedule and execute recurring and event-based activities.
+
+Features:
+
+- Schedule and run source updates.
+- Schedule and execute signal checks.
+- Trigger account and opportunity scoring updates.
+- Schedule meeting preparation briefs.
+- Trigger post-meeting processing.
+- Schedule reminders and follow-up activities.
+- Generate weekly business reviews.
+- Execute recurring background research.
+- Manage multiple workflows running simultaneously.
+- Allow users to view upcoming, running, completed and failed workflows.
+- Allow workflows to be paused and resumed.
+- Prevent duplicate execution of the same scheduled action.
+
+2.2 Automated 08:00 Daily Plan
+
+The Orchestrator must generate a daily plan at 08:00.
+
+The daily plan should coordinate existing information and activities across the system.
+
+Features:
+
+- Review scheduled meetings.
+- Identify urgent client-related activities.
+- Review pending follow-ups and commitments.
+- Identify overdue tasks.
+- Review high-priority accounts and opportunities.
+- Identify important new signals.
+- Highlight upcoming meetings requiring preparation.
+- Identify tasks that need attention.
+- Prioritise activities based on urgency and importance.
+- Consider calendar commitments.
+- Consider travel requirements.
+- Consider the user's daily working capacity.
+- Present the most important activities for the day.
+
+The daily plan must still be generated using existing tasks and calendar records when AI services are unavailable.
+
+2.3 Meeting Workflow Automation
+
+The Orchestrator must automatically coordinate activities before and after meetings.
+
+Features:
+
+- Detect upcoming meetings from calendar records.
+- Trigger meeting preparation briefs approximately one hour before meetings.
+- Route meeting preparation work to the appropriate specialist module.
+- Ensure relevant company, contact, property and requirement information is available.
+- Trigger post-call processing after meetings.
+- Ensure meeting outcomes are processed and relevant records are updated.
+- Trigger follow-up tasks based on meeting commitments.
+- Schedule reminders for agreed actions.
+- Trigger weekly reviews of meeting outcomes and pending commitments.
+
+Meeting cancellation rules:
+
+- When a meeting is cancelled, automatically cancel its associated reminders.
+- Prevent obsolete meeting preparation workflows from running.
+- Preserve the meeting history and cancellation information.
+
+2.4 Specialist Module Routing
+
+The Orchestrator must route tasks to the appropriate specialist modules instead of attempting to perform every activity itself.
+
+Features:
+
+- Route source updates to the relevant source and research processes.
+- Route signal checks to Module 2 – Signal Engine.
+- Route scoring updates to Module 3 – Scoring Engine.
+- Route contact-related reviews to Module 4 – Contact Enrichment.
+- Route outreach-related workflows to Module 5 – Outreach Engine.
+- Route meeting preparation and post-meeting processing to Module 7 – Meeting Intelligence.
+- Route commercial reassessments to Module 8 – Deal Toolkit.
+- Coordinate information retrieval and AI-related tasks with Module 12 – Supercharged Assistant.
+- Coordinate updates with Module 1 – Database.
+- Track the status of every routed task.
+- Track whether the receiving module completed the requested activity.
+- Handle failed or delayed module operations.
+- Avoid running unnecessary workflows when no relevant change has occurred.
+
+2.5 Event-Driven Automation
+
+The Orchestrator must react to important changes occurring anywhere in the CRE AI Operating System.
+
+Features:
+
+- Detect newly created records.
+- Detect updated company information.
+- Detect new contact information.
+- Detect changes in lease details.
+- Detect new rent quotations.
+- Detect changes in property requirements.
+- Detect meeting creation and cancellation.
+- Detect changes in contact employment.
+- Detect changes in research information.
+- Trigger relevant workflows when these events occur.
+- Reassess affected outputs when underlying information changes.
+- Ensure that relevant modules receive the updated information.
+
+Example:
+When a new rent quotation is added, the Orchestrator should trigger an updated property comparison and warn the user if existing drafts are affected.
+
+2.6 Dependency Management
+
+The Orchestrator must understand relationships between workflows and their dependencies.
+
+Features:
+
+- Identify which workflows depend on other workflows.
+- Execute dependent tasks in the correct order.
+- Prevent a workflow from executing before its required information is available.
+- Identify incomplete dependencies.
+- Track pending dependencies.
+- Resume workflows when required information becomes available.
+- Reassess dependent outputs when source information changes.
+- Prevent obsolete tasks from continuing after their underlying requirement changes.
+
+Example:
+A property comparison depends on property pricing, CAM, area and lease terms. If a new rent quotation changes the commercial information, the comparison must be reassessed.
+
+2.7 Priority and Daily Capacity Management
+
+The Orchestrator must manage work according to urgency, importance and available capacity.
+
+Features:
+
+- Prioritise urgent client work over routine background research.
+- Identify time-sensitive client commitments.
+- Consider scheduled meetings and travel requirements.
+- Consider the user's daily working capacity.
+- Identify conflicting scheduled activities.
+- Prevent unnecessary background work from interfering with important client activities.
+- Highlight activities that cannot be completed within the available capacity.
+- Track delayed and pending work.
+- Reprioritise activities when urgent work arrives.
+
+2.8 Reminder and Notification Management
+
+The Orchestrator must coordinate important reminders and notifications.
+
+Features:
+
+- Generate reminders for scheduled meetings.
+- Generate reminders for pending commitments.
+- Generate reminders for follow-up activities.
+- Notify users about important workflow failures.
+- Notify users about delayed processes.
+- Notify users when important information changes.
+- Notify users when a new rent quotation affects an existing comparison.
+- Notify users about stale source information.
+- Avoid unnecessary or repetitive notifications.
+- Prioritise meaningful alerts over routine system updates.
+
+The objective is to provide a small number of meaningful alerts rather than overwhelm the user with notifications.
+
+2.9 Background Job Management
+
+The Orchestrator must manage background processes running across the system.
+
+Features:
+
+- Run source updates in the background.
+- Run signal checks in the background.
+- Run scoring processes in the background.
+- Run research tasks in the background.
+- Coordinate enrichment activities.
+- Coordinate transcription activities.
+- Trigger AI processing tasks.
+- Track job execution status.
+- Track job completion time.
+- Track failed and delayed jobs.
+- Track resource and service usage.
+- Allow users to inspect background job details.
+- Prevent duplicate background actions.
+
+2.10 Failure Recovery and Automatic Retry
+
+The Orchestrator must handle temporary service failures without requiring manual intervention for every failure.
+
+Features:
+
+- Detect failed background jobs.
+- Identify temporary service failures.
+- Automatically retry temporary failures.
+- Avoid duplicate actions during retries.
+- Track the number of retry attempts.
+- Track the reason for failure.
+- Identify workflows that require manual intervention.
+- Preserve completed workflow steps when a later step fails.
+- Resume eligible workflows after a temporary failure.
+- Notify the user when a workflow cannot be recovered automatically.
+
+2.11 System Health and Execution Monitoring
+
+The Orchestrator must provide visibility into the operational status of the system.
+
+Features:
+
+- Track successfully completed workflows.
+- Track running workflows.
+- Track delayed workflows.
+- Track failed workflows.
+- Track workflows requiring attention.
+- Track source availability.
+- Identify unavailable services.
+- Identify stale information caused by source outages.
+- Track background processing activity.
+- Provide a clear execution history.
+- Show what succeeded, what is delayed and what needs attention.
+
+2.12 AI and Operational Budget Management
+
+The Orchestrator must manage usage budgets for expensive or resource-intensive activities.
+
+Features:
+
+- Track research usage.
+- Track contact enrichment usage.
+- Track transcription usage.
+- Track AI usage.
+- Monitor usage against configured budgets.
+- Identify resource-intensive workflows.
+- Track usage by workflow or activity.
+- Prevent background processes from consuming resources without appropriate limits.
+- Provide visibility into operational usage.
+- Support configured usage limits.
+
+2.13 Pause and Resume Controls
+
+The user must have direct control over automated operations.
+
+Features:
+
+- Provide a one-click pause control.
+- Provide a one-click resume control.
+- Allow the user to pause background automation.
+- Allow the user to resume paused automation.
+- Prevent new eligible jobs from starting while the relevant automation is paused.
+- Preserve existing workflow states.
+- Resume eligible pending workflows without creating duplicate actions.
+- Clearly display whether automation is active or paused.
+
+---
+
+3. IMPORTANT AUTOMATION RULES
+
+The Orchestrator must follow these rules consistently:
+
+1. NEW RENT QUOTATION:
+   When a new rent quotation is added, trigger an updated property comparison and warn the user about affected drafts.
+
+2. CANCELLED MEETING:
+   When a meeting is cancelled, cancel its associated reminders and prevent obsolete preparation workflows from running.
+
+3. CONTACT EMPLOYMENT CHANGE:
+   When a contact changes employer, trigger a contact review. Do not automatically transfer company opportunities to the new employer.
+
+4. SOURCE OUTAGE:
+   When a source becomes unavailable, clearly identify affected information as potentially stale.
+
+5. NEW RECORDS:
+   When new records, contacts or lease details are added, update the relevant information and trigger appropriate dependent workflows.
+
+6. AI SERVICE UNAVAILABLE:
+   If AI services are unavailable, the daily plan must still be generated using existing tasks and calendar records.
+
+7. EXTERNAL COMMUNICATION:
+   External invitations and messages must follow the existing review and manual-send rules. The Orchestrator must not independently send external communications.
+
+8. DUPLICATE PREVENTION:
+   Retries and repeated events must not create duplicate actions, reminders or records.
+
+9. PRIORITY MANAGEMENT:
+   Urgent client work must take priority over routine background research.
+
+10. INFORMATION DEPENDENCY:
+    When underlying information changes, reassess affected outputs instead of continuing to use outdated results.
+
+---
+
+4. MAIN USER INTERFACE
+
+The Orchestrator should provide a simple operational interface.
+
+A. Automation Overview
+
+- Total workflows.
+- Active workflows.
+- Scheduled workflows.
+- Completed workflows.
+- Failed workflows.
+- Delayed workflows.
+- Workflows requiring attention.
+- Automation status.
+- Pause/resume control.
+
+B. Daily Plan
+
+- Daily 08:00 plan.
+- Today's meetings.
+- Priority activities.
+- Pending follow-ups.
+- Urgent client commitments.
+- Overdue tasks.
+- Important new signals.
+- Activities requiring attention.
+
+C. Workflow History
+
+- Workflow name.
+- Triggering event.
+- Execution start time.
+- Completion time.
+- Current status.
+- Executed actions.
+- Failed actions.
+- Retry attempts.
+- Error details.
+
+D. Background Jobs
+
+- Job name.
+- Assigned specialist module.
+- Job status.
+- Execution time.
+- Completion status.
+- Failure reason.
+- Retry status.
+
+E. System Alerts
+
+- Important information changes.
+- Failed workflows.
+- Delayed activities.
+- Source outages.
+- Stale information warnings.
+- Budget-related warnings.
+- Actions requiring user attention.
+
+F. Budget and Usage
+
+- Research usage.
+- Enrichment usage.
+- Transcription usage.
+- AI usage.
+- Configured limits.
+- Current usage.
+- Remaining budget.
+
+---
+
+5. EXPECTED END-TO-END WORKFLOWS
+
+WORKFLOW 1: DAILY BUSINESS PLAN
+At 08:00, the Orchestrator reviews calendar records, pending tasks, commitments, priority accounts and important signals. It generates a prioritised daily plan.
+
+WORKFLOW 2: NEW BUSINESS SIGNAL
+When a new relevant signal is identified, the Orchestrator coordinates the necessary scoring, contact review and follow-up activities.
+
+WORKFLOW 3: UPCOMING MEETING
+Approximately one hour before a meeting, the Orchestrator triggers meeting preparation and ensures that the relevant information is available.
+
+WORKFLOW 4: POST-MEETING PROCESSING
+After a meeting, the Orchestrator triggers meeting processing, coordinates relevant database updates and schedules follow-up activities.
+
+WORKFLOW 5: NEW RENT QUOTATION
+When a new quotation is added, the Orchestrator triggers an updated commercial comparison and identifies affected drafts.
+
+WORKFLOW 6: CANCELLED MEETING
+When a meeting is cancelled, the Orchestrator cancels associated reminders and prevents obsolete meeting workflows from running.
+
+WORKFLOW 7: OVERDUE COMMITMENT
+When a commitment becomes overdue, the Orchestrator identifies it and brings it to the user's attention.
+
+WORKFLOW 8: WEEKLY BUSINESS REVIEW
+The Orchestrator triggers the weekly review and coordinates the information required from relevant modules.
+
+WORKFLOW 9: TEMPORARY SERVICE FAILURE
+When a background process fails because of a temporary service issue, the Orchestrator retries it without duplicating completed actions.
+
+WORKFLOW 10: CONTACT EMPLOYMENT CHANGE
+When a contact's employer changes, the Orchestrator triggers a contact review without automatically transferring company opportunities.
+
+---
+
+6. FINAL EXPECTED OUTCOME
+
+The Orchestrator must make the entire CRE AI Operating System function as one coordinated system.
+
+The user should not need to manually check every module, trigger every process or remember every dependency.
+
+The Orchestrator should:
+
+- Coordinate all scheduled and background activities.
+- Automatically trigger relevant workflows.
+- Keep modules updated when important information changes.
+- Prepare the user's daily plan.
+- Coordinate meeting preparation and follow-through.
+- Prioritise important client activities.
+- Recover from temporary failures.
+- Prevent duplicate actions.
+- Monitor system health and operational usage.
+- Provide simple pause and resume controls.
+- Notify the user only when meaningful attention is required.
+
+The final objective is a dependable daily operating service that keeps the CRE business moving while the user focuses on clients, relationships, negotiations and closing transactions.

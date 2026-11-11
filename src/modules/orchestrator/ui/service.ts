@@ -12,6 +12,8 @@ import {
   changePriority, affectedRecords, listMarks, resolveMark, listIntegrationHealth, type ExecStatus, type Ref,
 } from "../index";
 import { budgetStates } from "../budget/service";
+import { buildAlerts, categoryUsage, delayReason, isDelayedRun, overviewCounts } from "../automation/rules";
+import { getAutomationState, monthUsage, setAutomationPaused } from "../automation/service";
 import { PREPARE_MEETINGS, REFRESH_RECORD } from "./workflows";
 import { loadOrchSettings } from "../schedule/settings-db";
 import { recurringScheduleItems } from "../schedule/next-runs";
@@ -53,20 +55,37 @@ function definitionOrThrow(key: string) {
 // ------------------------------------------------------------------ dashboard
 export async function loadDashboard(a: Actor) {
   const { db, ws } = a;
-  const [workflows, runs, health, proposals, marks, budgets] = await Promise.all([
+  const [workflows, runs, health, proposals, marks, budgets, automation, info, routedFailed, monthUsed] = await Promise.all([
     listWorkflows(db, ws),
-    listExecutions(db, ws, { limit: 100 }),
+    listExecutions(db, ws, { limit: 500 }),
     listIntegrationHealth(db, ws),
     db.from("change_proposal").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("state", "proposed"),
     listMarks(db, ws, { limit: 200 }),
     budgetStates(db, ws).then((b) => ({ ok: true as const, items: b })).catch((e) => ({ ok: false as const, items: [], error: e instanceof Error ? e.message : String(e) })),
+    getAutomationState(db, ws),
+    db.from("notification_state").select("title, body, href, created_at").eq("workspace_id", ws).eq("user_id", a.userId).eq("status", "pending").in("category", ["commercial_change", "lease_event", "source_health"]).is("group_parent", null).order("created_at", { ascending: false }).limit(3),
+    db.from("event_processing_log").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("status", "routed").eq("routed_status", "failed"),
+    monthUsage(db, ws).catch(() => ({})),
   ]);
   const scheduled = workflows.filter((w) => w.trigger.type === "schedule").map((w) => ({ key: w.key, name: w.name, status: w.state?.status ?? "active", everyMinutes: w.state?.every_minutes ?? w.trigger.everyMinutes ?? null, nextRunAt: w.state?.next_run_at ?? null, lastRunAt: w.state?.last_run_at ?? null }));
   // Per-user recurring items (daily plan, weekly review) come from the schedule settings, not workflow definitions.
   const recurring = await loadOrchSettings(db, ws, a.userId).then((st) => recurringScheduleItems(st, new Date())).catch(() => []);
   const names = new Map(workflows.map((w) => [w.key, w.name]));
   const withName = (r: Row) => ({ ...r, name: names.get(r.definition_key) ?? r.summary ?? r.definition_key });
+  const now = new Date();
+  const failedRuns = runs.filter(stuck).map(withName);
+  const delayed = runs.filter((r) => isDelayedRun(r, now)).map((r): Row => ({ ...withName(r), delayReason: delayReason(r, now) }));
+  const waitingApproval = runs.filter((r) => r.status === "waiting_approval");
+  const alerts = buildAlerts({
+    paused: automation.paused, failedRuns, delayedRuns: delayed, unhealthy: health.filter((h) => h.status !== "healthy"), marks,
+    budgets: budgets.items, pendingProposals: proposals.count ?? 0, waitingApproval: waitingApproval.length, infoChanges: (info.data ?? []) as Row[], routedFailed: routedFailed.count ?? 0,
+  });
   return {
+    automation,
+    counts: overviewCounts(runs, scheduled.filter((x) => x.status !== "paused").length + recurring.length, now),
+    delayed,
+    alerts,
+    categories: categoryUsage(budgets.items, monthUsed),
     workflows,
     active: workflows.filter((w) => (w.state?.status ?? "active") === "active"),
     pausedWorkflows: workflows.filter((w) => w.state?.status === "paused"),
@@ -155,6 +174,12 @@ export async function loadRun(a: Actor, runId: string) {
 }
 
 // ------------------------------------------------------------------ controls
+/** One-click global pause / resume of background automation (editor+). */
+export async function automationControl(a: Actor, body: { action: "pause" | "resume"; reason?: string | null }) {
+  need(a, "editor", body.action === "pause" ? "pause automation" : "resume automation");
+  return wrap(() => setAutomationPaused(a.db, a.ws, a.userId, body.action === "pause", body.reason ?? null));
+}
+
 export type WorkflowAction = { action: "pause" | "resume" } | { action: "schedule"; everyMinutes: number | null; nextRunAt?: string | null }
   | { action: "priority"; priority: number } | { action: "start"; input?: Record<string, unknown>; dedupeKey?: string };
 

@@ -1,6 +1,6 @@
 // Spec §18 tests 6, 10, 11, 12 (+ pause/cancel of an execution). Local stack, seeded owner (RLS), tagged fixtures.
 import { describe, it, expect, beforeAll } from "vitest";
-import { userClient, WS1, USERS, tag } from "../../../tests/helpers";
+import { adminClient, userClient, WS1, USERS, tag } from "../../../tests/helpers";
 import {
   registerWorkflow, startExecution, advanceExecution, runWorkflow, retryExecution, pauseExecution, resumeExecution, cancelExecution,
   getExecution, startDueScheduled, setWorkflowStatus, publishEvent, processEvents, registerConsumer, TemporaryError, PermanentError, getWorkflow,
@@ -148,6 +148,9 @@ describe("Test 12 — pause and resume a recurring workflow", () => {
     expect(await mine()).toBe(2);
     const wf = await getWorkflow(db, WS1, key);
     expect(wf.versions.map((v: Row) => v.note)).toEqual(expect.arrayContaining(["paused", "activated", "created"]));
+    // Cleanup: the second run is dated 3 h ahead; left behind it would crowd "newest runs" lists in other tests.
+    await adminClient().from("workflow_run").delete().eq("workspace_id", WS1).eq("definition_key", key);
+    await setWorkflowStatus(db, WS1, key, "paused", ME);
   });
 
   it("execution pause / resume / cancel", async () => {

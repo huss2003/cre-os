@@ -14,6 +14,8 @@ import type { Job, JobHandler } from "@/lib/jobs/queue";
 import { enqueue } from "@/lib/jobs/queue";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyAdmins } from "../notify/service";
+import { isPausableJob } from "../automation/rules";
+import { deferForPause, isAutomationPaused } from "../automation/service";
 import { isAny, norm, usageRowMatches } from "./rules";
 import { evaluate, jobResource, type JobResource, matches, moduleOf, periodWindow, RESOURCES, UNITS, workflowResource, type BudgetRow, type BudgetState, type Period, type Resource, type Unit } from "./rules";
 
@@ -118,8 +120,13 @@ export async function budgetAlerts(admin: Db, ws: string, now = new Date()) {
  */
 export function guardHandlers(handlers: Record<string, JobHandler>, adminFactory: () => Db = createAdminClient, resolve: (type: string) => JobResource | null = jobResource): Record<string, JobHandler> {
   const out: Record<string, JobHandler> = {};
-  for (const [type, h] of Object.entries(handlers)) {
+  for (const [type, h0] of Object.entries(handlers)) {
     const spec = resolve(type);
+    // Global automation pause (§2.13): pausable background job types are deferred; user-started / critical ones run.
+    const h: JobHandler = async (job: Job) => {
+      if (job.workspace_id && isPausableJob(type, job.payload) && await isAutomationPaused(adminFactory(), job.workspace_id)) return deferForPause(job);
+      return h0(job);
+    };
     out[type] = !spec ? h : async (job: Job) => {
       if (!job.workspace_id) return h(job);
       const admin = adminFactory();

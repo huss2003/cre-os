@@ -144,3 +144,24 @@ to `scheduleMeetingPreps(…, {prepId})` — the 15-minute sweep covers it; no n
 - Comparison recalculation skips when the inputs hash (requirement, quotes on its buildings, model, manual rows) is unchanged since the last orchestrator recalculation (`output.unchanged`). A newer mark on a record supersedes older open marks of the same kind.
 - Already-recalculated needs-refresh marks show "Recalculated — review" with Review / Dismiss (no Refresh).
 - Budget usage matching is normalised (`budget/rules.usageRowMatches`); "Brief ready" meeting notices are informational; Overview "Scheduled" lists daily plan / weekly review with next run (`schedule/next-runs.ts`); capacity kinds and the run-history "advance" entry have plain labels.
+
+## Automation controls & monitoring (feature audit, `automation/`; see docs/orchestrator/FEATURE-AUDIT.md)
+- **Global pause/resume** (`automation/service.ts` `setAutomationPaused`, table `automation_control`, editor+): pausable
+  background job types (`automation/rules.ts` `isPausableJob`: signals/research/scoring/sweeps/weekly review …) are
+  deferred by the job guard (`budget/service.ts` `guardHandlers`, re-queued +30 min, dedupe per job+slot); the
+  dispatcher leaves events pending, starts no scheduled runs and only advances user-started runs. Never paused:
+  captures, imports, assistant commands, meeting reminders/briefs, daily plan, admin/backups, `payload.userInitiated`.
+  Resume → `mudar_app.release_automation_deferred` (deferred jobs due now; queued runs nudged; no new rows).
+- **Priorities**: `dispatchOrder` — urgent (≥70 or user-started) first; routine (<40) held while urgent work waits.
+- **Routed work**: `handledBy` consumers log `status='routed'`; `trackRouted` follows the receiving chain run
+  (completed/failed/running/delayed/untracked).
+- **Delays/failures**: `delayReason` (retry backoff, queued >30 min, waiting on dependency >2 h); `notifyDelayed` (info,
+  after 60 min) and `notifyFailures` (urgent, unrecoverable) — once per run.
+- **New events** (migration 20261111001800): `lease.created/changed`, `company.created/updated`, `contact.created`,
+  `contact.info_added` → workflow `reassess.record_changed` (`reassess/records.ts`: affected companies → `recalcOrg`;
+  lease change → flag analyses using that lease) + routed `workflows.lease_chain`.
+- **UI** (`ui/overview.tsx`): status switch on every tab, 7 overview counts, System alerts, Delayed card, `?view=history`
+  (trigger, start/finish, done/failed actions, retries, errors; filters), `?view=jobs` (job, module, status, timing,
+  reason, retry; routed module work), usage per research/enrichment/transcription/AI with limit/used/remaining,
+  "Triggered by" on run pages.
+- Tests: `automation/rules.test.ts`, `automation/automation.db.test.ts` (pause tests use WS2 and always resume).
