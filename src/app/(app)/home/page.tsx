@@ -3,6 +3,8 @@ import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { inFocusMenu } from "@/lib/nav";
 import { atLocal, fmt, localDate } from "@/lib/util/time";
 import { SectionIcon } from "../nav-links";
+import { UsageBanner } from "@/modules/assistant/usage/ui";
+import { MorningBriefCard } from "@/modules/assistant/ui/morning-brief-card";
 
 export const metadata = { title: "Home · CRE OS" };
 
@@ -102,6 +104,9 @@ export default async function HomePage() {
         <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{greeting(tz)}</h1>
         <p className="mt-1 text-ink-soft">Workspace: <span className="font-medium text-ink">{ctx.workspaceName || "—"}</span></p>
       </header>
+
+      <UsageBanner workspaceId={ws} />
+      <MorningBriefCard c={{ db: ctx.db, workspaceId: ws, userId: ctx.userId, timezone: tz }} editor={editor} />
 
       {blocks.length ? (
         <section aria-labelledby="today-h">

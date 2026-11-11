@@ -1,3 +1,4 @@
+import { styleHintFor } from "../outputs/style";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase rows are untyped */
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -66,7 +67,7 @@ const generateOutreachDraft = defineTool({
     if (i.opportunityId && (!isUuid(i.opportunityId) || !(await getOne(t, "opportunity", i.opportunityId, "id")))) return denied(t, "generate_outreach_draft", { entity: "opportunity", id: i.opportunityId });
     if (i.signalId && (!isUuid(i.signalId) || !(await getOne(t, "signal", i.signalId, "id")))) return denied(t, "generate_outreach_draft", { entity: "signal", id: i.signalId });
     try {
-      const r = await createOutreach(db(t), ws(t), t.ctx.userId, { personId: i.personId, channels: i.channels, scenario: i.scenario, signalId: i.signalId ?? null, opportunityId: i.opportunityId ?? null, language: i.language });
+      const r = await createOutreach(db(t), ws(t), t.ctx.userId, { personId: i.personId, channels: i.channels, scenario: i.scenario, signalId: i.signalId ?? null, opportunityId: i.opportunityId ?? null, language: i.language, styleHint: (await styleHintFor(db(t), ws(t), t.ctx.userId)) ?? undefined });
       const { data: items } = await db(t).from("outreach_item").select("id, channel, scenario, reason, draft_id").eq("workspace_id", ws(t)).in("id", r.ids);
       const drafts = ((items ?? []) as Row[]).filter((x) => x.draft_id).map((x) => x.draft_id);
       const { data: dr } = drafts.length ? await db(t).from("draft").select("id, subject, body, channel").eq("workspace_id", ws(t)).in("id", drafts) : { data: [] };

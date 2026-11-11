@@ -5,6 +5,7 @@ import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { listMemories, CATEGORIES, type MemoryListItem } from "@/modules/assistant/memory/service";
 import { correctAction, verifyAction, restrictAction, forgetAction } from "@/modules/assistant/memory/actions";
 import { fmtDate } from "@/lib/util/time";
+import { StyleProfileCard } from "@/modules/assistant/outputs/style-card";
 
 export const metadata = { title: "Assistant memory" };
 type SP = { category?: string; entity?: string; status?: string; q?: string };
@@ -87,6 +88,7 @@ export default async function MemoryPage({ searchParams }: { searchParams: Promi
   return (
     <div className="space-y-5">
       <PageHeader title="Memory" subtitle="What the assistant remembers about people, companies and requirements. Inferred items are never treated as confirmed; items older than 180 days are flagged for review." actions={<ButtonLink href="/assistant" variant="secondary">Back to assistant</ButtonLink>} />
+      <StyleProfileCard ctx={ctx} />
       <form className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_auto_auto_auto]" method="get">
         <Input name="q" defaultValue={sp.q ?? ""} placeholder="Search memories" aria-label="Search" className="col-span-2 sm:col-span-1" />
         <Select name="category" defaultValue={category} aria-label="Category"><option value="">All categories</option>{CATEGORIES.map((c) => <option key={c} value={c}>{CAT_LABEL[c]}</option>)}</Select>

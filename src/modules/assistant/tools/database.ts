@@ -5,6 +5,7 @@ import { getCompany, getPerson, getBuilding } from "@/modules/admin/entities";
 import { getOpportunityDetail } from "@/modules/deals/pipeline/service";
 import { missingQuestions, requirementCompleteness, type RequirementRow } from "@/modules/deals/requirements/contract";
 import { edate } from "@/lib/util/time";
+import { orgIdsWithLocationIn } from "../data/locations";
 import type { Block, SourceRef, ToolContext, ToolResult } from "../types";
 import {
   HREF, NOT_FOUND, clampLimit, daysBetween, db, defineTool, denied, factToStatus, fmt, getOne, ilikeSafe, isUuid,
@@ -522,7 +523,7 @@ const getOpportunityDetails = defineTool({
 // ---------------------------------------------------------------------------------------------------- leases
 const findLeasesExpiring = defineTool({
   id: "find_leases_expiring", module: "database", category: "A",
-  description: "Companies whose recorded lease expires within the next N months, optionally only offices in a place (city, micro-market, MIDC/industrial area — matched on the leased building's address and geography) or a sector. ALWAYS reports coverage: how many companies were checked and how many have no lease/expiry data — absence of a lease record is NOT absence of a lease. Expiry dates carry their fact status.",
+  description: "Companies whose recorded lease expires within the next N months, optionally only offices in a place (city, micro-market, MIDC/industrial area — matched on the leased building's address and geography, and for leases without a building on the company's recorded office locations) or a sector. ALWAYS reports coverage: how many companies were checked and how many have no lease/expiry data — absence of a lease record is NOT absence of a lease. Expiry dates carry their fact status.",
   input: z.object({
     windowMonths: z.number().int().min(1).max(60).optional().describe("Look-ahead window in months (default 12)"),
     place: z.string().max(100).optional().describe("Location text: city, micro-market, MIDC area etc."),
@@ -558,10 +559,14 @@ const findLeasesExpiring = defineTool({
     let pool = mine;
     if (i.place) {
       const needle = i.place.toLowerCase();
-      pool = mine.filter((l) => placeOf(l).toLowerCase().includes(needle));
+      // company locations (org_location) also place a company: a lease of a company with an office/HQ in the place counts
+      const loc = await orgIdsWithLocationIn(db(t), ws(t), i.place, ["hq", "office", "r_and_d"]);
+      pool = mine.filter((l) => placeOf(l).toLowerCase().includes(needle) || (!l.asset_id && loc.matched.has(l.tenant_org_id)));
       checkedOrgs = new Set(pool.map((l) => l.tenant_org_id));
-      const noLoc = orgs.filter((o) => !mine.some((l) => l.tenant_org_id === o.id && l.asset_id)).length;
-      note = `${checkedOrgs.size} compan${checkedOrgs.size === 1 ? "y has" : "ies have"} a recorded lease in "${i.place}". ${noLoc} of ${orgs.length} companies have no lease with a building on record, so their location could not be checked.`;
+      const noLoc = orgs.filter((o) => !mine.some((l) => l.tenant_org_id === o.id && l.asset_id) && !loc.withAnyLocation.has(o.id)).length;
+      const viaLoc = orgs.filter((o) => loc.matched.has(o.id) && !checkedOrgs.has(o.id)).length;
+      note = `${checkedOrgs.size} compan${checkedOrgs.size === 1 ? "y has" : "ies have"} a recorded lease in "${i.place}". ${noLoc} of ${orgs.length} companies have no lease with a building and no recorded location, so their location could not be checked.`;
+      if (viaLoc) { note += ` ${viaLoc} other compan${viaLoc === 1 ? "y has" : "ies have"} a recorded office in "${i.place}" but no lease with an expiry there.`; missing.push(`${viaLoc} companies with an office in "${i.place}" (company locations) have no lease record there — expiry unknown`); }
       if (noLoc) missing.push(`${noLoc} companies have no lease/location data and could not be checked against "${i.place}"`);
     } else {
       checkedOrgs = new Set(orgs.map((o) => o.id));

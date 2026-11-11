@@ -9,6 +9,10 @@ import { actionTools } from "./actions";
 import { changeTools } from "./changes";
 import { memoryTools } from "./memory";
 import { commandTools } from "./commands";
+import { briefsTools } from "./briefs";
+import { documents2Tools } from "./documents2";
+import { outputsTools } from "./outputs";
+import { dataTools } from "./data";
 
 /**
  * Cross-module tool registry for the AI assistant (Module 12). Tools wrap the EXISTING module services and tables;
@@ -17,7 +21,7 @@ import { commandTools } from "./commands";
  */
 export const TOOLS: ToolDef[] = [
   ...databaseTools, ...activityTools, ...documentTools, ...researchTools, ...toolkitTools, ...actionTools, ...changeTools,
-  ...memoryTools, ...commandTools,
+  ...memoryTools, ...commandTools, ...briefsTools, ...documents2Tools, ...outputsTools, ...dataTools,
 ];
 
 const BY_ID = new Map<string, ToolDef>();

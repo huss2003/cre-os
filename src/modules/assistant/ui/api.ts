@@ -41,7 +41,7 @@ export const api = {
 };
 
 /** POST chat and feed every SSE `data:` event to onEvent. Resolves when the stream ends. */
-export async function streamChat(body: { conversationId?: string | null; message: string; focus?: EntityRef | null; attachmentIds?: string[]; commandId?: string },
+export async function streamChat(body: { conversationId?: string | null; message: string; focus?: EntityRef | null; attachmentIds?: string[]; commandId?: string; fresh?: boolean },
   onEvent: (e: StreamEvent) => void, signal?: AbortSignal): Promise<void> {
   const res = await fetch(`${BASE}/chat`, { method: "POST", signal, headers: { "content-type": "application/json", accept: "text/event-stream", "idempotency-key": key() }, body: JSON.stringify(body) });
   if (!res.ok || !res.body) {

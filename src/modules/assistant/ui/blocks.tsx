@@ -5,6 +5,10 @@ import clsx from "clsx";
 import type { Block, EntityRef, SourceRef } from "../types";
 import { parseMarkdown, type Inline } from "./markdown";
 import { api } from "./api";
+import dynamic from "next/dynamic";
+
+/** Leaflet touches window — load the map only in the browser. */
+const MapView = dynamic(() => import("./map-view").then((m) => m.MapView), { ssr: false, loading: () => <div className="h-72 animate-pulse rounded-xl border border-line bg-canvas" aria-label="Loading map" /> });
 
 /* Renderers for every assistant Block kind. Model text is rendered via the safe markdown AST only. */
 
@@ -232,7 +236,42 @@ export function BlockView({ b }: { b: Block }) {
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden><path d="M12 4v11M8 11l4 4 4-4M5 20h14" /></svg>{b.label}
       </a>
     );
+    case "map": return <MapView b={b} />;
   }
+}
+
+/** Kinds worth turning into a deliverable (mirrors outputs/render.ts hasStructured). */
+export const isExportable = (blocks: Block[]) => blocks.some((b) => !["text", "status", "approval", "download", "draft"].includes(b.kind));
+
+/**
+ * One-click deliverables for a stored assistant message: "Make deck" / "Word doc" / "PDF".
+ * Render under any assistant message that has a messageId and structured blocks.
+ */
+export function ExportBar({ messageId, blocks }: { messageId?: string | null; blocks: Block[] }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [files, setFiles] = useState<{ label: string; href: string; name: string }[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+  if (!messageId || !isExportable(blocks)) return null;
+  const make = async (format: "pptx" | "docx" | "pdf") => {
+    setBusy(format); setErr(null);
+    try {
+      const res = await fetch("/api/v1/assistant/exports", { method: "POST", headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() }, body: JSON.stringify({ messageId, format }) });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? `Export failed (${res.status})`);
+      setFiles((f) => [{ label: { pptx: "Deck", docx: "Word doc", pdf: "PDF" }[format], href: body.href, name: body.fileName }, ...f.filter((x) => x.name !== body.fileName)]);
+    } catch (e) { setErr(e instanceof Error ? e.message : "Export failed"); }
+    finally { setBusy(null); }
+  };
+  const btn = "inline-flex min-h-9 items-center rounded-lg border border-line bg-surface px-3 text-xs font-semibold hover:border-brand/40 hover:text-brand disabled:opacity-50";
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2" aria-label="Export this answer">
+      <button type="button" className={btn} disabled={!!busy} onClick={() => make("pptx")}>{busy === "pptx" ? "Building…" : "Make deck"}</button>
+      <button type="button" className={btn} disabled={!!busy} onClick={() => make("docx")}>{busy === "docx" ? "Building…" : "Word doc"}</button>
+      <button type="button" className={btn} disabled={!!busy} onClick={() => make("pdf")}>{busy === "pdf" ? "Building…" : "PDF"}</button>
+      {files.map((f) => <a key={f.href} href={f.href} download={f.name} className="text-xs font-medium text-brand underline">{f.label}: {f.name}</a>)}
+      {err ? <span role="alert" className="text-xs text-bad">{err}</span> : null}
+    </div>
+  );
 }
 
 function StatusBlock({ b }: { b: Extract<Block, { kind: "status" }> }) {
@@ -268,6 +307,7 @@ export function blocksToMarkdown(blocks: Block[]): string {
       case "draft": return `Draft ${b.channel}${b.subject ? `: ${b.subject}` : ""}\n${b.preview}`;
       case "status": return `Done: ${b.done.join("; ") || "—"}\nPending: ${b.pending.join("; ") || "—"}\nBlocked: ${b.blocked.join("; ") || "—"}`;
       case "download": return `${b.label}: ${b.href}`;
+      case "map": return `${b.title ? `**${b.title}**\n` : ""}` + b.points.map((p) => `- ${p.label} (${p.lat}, ${p.lon})`).join("\n") + `\n${b.note}`;
     }
   }).join("\n\n");
 }

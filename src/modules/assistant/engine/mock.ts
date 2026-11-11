@@ -156,6 +156,8 @@ const HEADINGS: Record<Intent, string> = {
   memory_correction: "Memory updated", research: "Research", general: "Answer",
 };
 
+export const MOCK_CHUNK = 24;
+
 export class MockProvider implements ModelProvider {
   name = "mock";
   private turn = 0;
@@ -169,6 +171,17 @@ export class MockProvider implements ModelProvider {
     const calls = this.turn === 1 ? this.plan() : this.turn === 2 ? this.followUp(results) : [];
     if (calls.length) return { content: calls, stop_reason: "tool_use", usage, model: "mock" };
     return { content: [{ type: "text", text: this.compose(results) }], stop_reason: "end_turn", usage, model: "mock" };
+  }
+
+  /** Streams the final text in small chunks so the live-text path (engine → SSE → UI) is exercised without a key. */
+  async chatStream(req: ChatRequest, onText: (delta: string) => void): Promise<ChatResponse> {
+    const r = await this.chat(req);
+    for (const b of r.content) {
+      if (b.type !== "text") continue;
+      const t = (b as { text: string }).text;
+      for (let i = 0; i < t.length; i += MOCK_CHUNK) { onText(t.slice(i, i + MOCK_CHUNK)); await new Promise((res) => setImmediate(res)); }
+    }
+    return r;
   }
 
   private call(name: string, input: unknown): ToolUse { return { type: "tool_use", id: `mock_${++this.uses}`, name, input }; }

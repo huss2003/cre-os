@@ -38,6 +38,8 @@ export interface ChatResponse {
 export interface ModelProvider {
   name: string;
   chat(req: ChatRequest): Promise<ChatResponse>;
+  /** Same result as chat(), but calls onText with each text delta as it arrives. */
+  chatStream?(req: ChatRequest, onText: (delta: string) => void): Promise<ChatResponse>;
 }
 
 export class ProviderError extends Error {
@@ -126,6 +128,62 @@ export class AnthropicProvider implements ModelProvider {
     return { content: body.content ?? [], stop_reason: body.stop_reason ?? "end_turn", usage: { input: input + cacheWrite + cacheRead, output, searches, cacheWrite, cacheRead, usd: estimateUsd(req.model, input, output, searches, cacheWrite, cacheRead) }, model: req.model };
   }
 
+  private async streamOnce(req: ChatRequest, onText: (d: string) => void, state: { started: boolean }): Promise<ChatResponse> {
+    const timeout = AbortSignal.timeout(TIMEOUT_MS * 2);
+    const signal = req.signal ? AbortSignal.any([req.signal, timeout]) : timeout;
+    let res: Response;
+    try {
+      res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "text/event-stream", "x-api-key": this.apiKey, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({ ...buildRequestBody(req), stream: true }),
+        signal,
+      });
+    } catch (e) {
+      throw new ProviderError(0, `network/timeout: ${String(e).slice(0, 200)}`);
+    }
+    if (!res.ok || !res.body) {
+      const body = (await res.json().catch(() => ({}))) as { error?: { type?: string; message?: string } };
+      throw new ProviderError(body.error?.type === "overloaded_error" ? 529 : res.status || 0, `${res.status} ${body.error?.message ?? ""}`);
+    }
+    const acc = new StreamAccumulator(req.model, (d) => { state.started = true; onText(d); });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        state.started = true;
+        buf += dec.decode(value, { stream: true });
+        let i: number;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+          acc.feedSse(chunk);
+        }
+      }
+      if (buf.trim()) acc.feedSse(buf);
+    } catch (e) {
+      if (e instanceof ProviderError) throw e;
+      throw new ProviderError(0, `stream interrupted: ${String(e).slice(0, 200)}`);
+    }
+    return acc.result();
+  }
+
+  /** Streaming variant. Retries once on 429/5xx/overloaded, but only if no byte of the response had arrived yet. */
+  async chatStream(req: ChatRequest, onText: (delta: string) => void): Promise<ChatResponse> {
+    const state = { started: false };
+    try {
+      return await this.streamOnce(req, onText, state);
+    } catch (e) {
+      if (e instanceof ProviderError && e.retryable && !state.started && !req.signal?.aborted) {
+        await new Promise((r) => setTimeout(r, e.status === 429 ? 2000 : 800));
+        return this.streamOnce(req, onText, state);
+      }
+      throw e;
+    }
+  }
+
   /** timeout + one retry on 429/5xx/overloaded. */
   async chat(req: ChatRequest): Promise<ChatResponse> {
     try {
@@ -141,12 +199,87 @@ export class AnthropicProvider implements ModelProvider {
 }
 
 /**
- * Call with logging, and fall back deep → fast model when the deep model fails.
+ * Folds Anthropic SSE events (message_start, content_block_start/delta/stop, message_delta, message_stop, error)
+ * into a ChatResponse identical to the non-streaming one. Exported for tests.
  */
-export async function chatWithFallback(provider: ModelProvider, req: ChatRequest, log: { workspaceId: string; workflow: string; requestId?: string }): Promise<ChatResponse> {
+export class StreamAccumulator {
+  private blocks: (ContentBlock & { _json?: string })[] = [];
+  private stop = "end_turn";
+  private u = { input: 0, output: 0, cacheWrite: 0, cacheRead: 0, searches: 0 };
+  constructor(private model: string, private onText: (d: string) => void) {}
+
+  feedSse(chunk: string) {
+    const data = chunk.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trimStart()).join("\n");
+    if (!data) return;
+    let ev: Record<string, any>;
+    try { ev = JSON.parse(data); } catch { return; }
+    this.feed(ev);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  feed(ev: Record<string, any>) {
+    switch (ev.type) {
+      case "message_start": this.usage(ev.message?.usage); break;
+      case "content_block_start": {
+        const b = { ...(ev.content_block ?? {}) } as ContentBlock & { _json?: string };
+        if (b.type === "tool_use" || b.type === "server_tool_use") b._json = "";
+        this.blocks[ev.index] = b;
+        if (b.type === "text" && (b as { text?: string }).text) this.onText((b as { text: string }).text);
+        break;
+      }
+      case "content_block_delta": {
+        const b = this.blocks[ev.index]; const d = ev.delta ?? {};
+        if (!b) break;
+        if (d.type === "text_delta") { (b as { text: string }).text = ((b as { text?: string }).text ?? "") + d.text; this.onText(d.text); }
+        else if (d.type === "input_json_delta") b._json = (b._json ?? "") + (d.partial_json ?? "");
+        break;
+      }
+      case "content_block_stop": {
+        const b = this.blocks[ev.index];
+        if (b && b._json !== undefined) {
+          try { (b as { input: unknown }).input = b._json ? JSON.parse(b._json) : {}; } catch { (b as { input: unknown }).input = {}; }
+          delete b._json;
+        }
+        break;
+      }
+      case "message_delta":
+        if (ev.delta?.stop_reason) this.stop = ev.delta.stop_reason;
+        this.usage(ev.usage);
+        break;
+      case "error":
+        throw new ProviderError(ev.error?.type === "overloaded_error" ? 529 : 500, `stream error: ${ev.error?.message ?? ""}`);
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private usage(x: any) {
+    if (!x) return;
+    // message_delta usage is cumulative; take the max so either ordering is safe.
+    this.u.input = Math.max(this.u.input, x.input_tokens ?? 0);
+    this.u.output = Math.max(this.u.output, x.output_tokens ?? 0);
+    this.u.cacheWrite = Math.max(this.u.cacheWrite, x.cache_creation_input_tokens ?? 0);
+    this.u.cacheRead = Math.max(this.u.cacheRead, x.cache_read_input_tokens ?? 0);
+    this.u.searches = Math.max(this.u.searches, x.server_tool_use?.web_search_requests ?? 0);
+  }
+
+  result(): ChatResponse {
+    const content = this.blocks.filter(Boolean).map((b) => { const { _json, ...rest } = b; void _json; return rest as ContentBlock; });
+    const { input, output, cacheWrite, cacheRead, searches } = this.u;
+    return { content, stop_reason: this.stop, model: this.model,
+      usage: { input: input + cacheWrite + cacheRead, output, searches, cacheWrite, cacheRead, usd: estimateUsd(this.model, input, output, searches, cacheWrite, cacheRead) } };
+  }
+}
+
+/**
+ * Call with logging, and fall back deep → fast model when the deep model fails. With `onText` and a streaming provider,
+ * text deltas are forwarded live; the fast-model fallback only happens if no text has been forwarded yet.
+ */
+export async function chatWithFallback(provider: ModelProvider, req: ChatRequest, log: { workspaceId: string; workflow: string; requestId?: string }, onText?: (delta: string) => void): Promise<ChatResponse> {
+  let emitted = false;
+  const fwd = (d: string) => { if (d) { emitted = true; onText?.(d); } };
   const attempt = async (model: string) => {
     try {
-      const r = await provider.chat({ ...req, model });
+      const r = onText && provider.chatStream ? await provider.chatStream({ ...req, model }, fwd) : await provider.chat({ ...req, model });
       await logModelUsage({ ...log, model: r.model, inTok: r.usage.input, outTok: r.usage.output, searchCalls: r.usage.searches, usd: r.usage.usd, ok: true });
       return r;
     } catch (e) {
@@ -157,7 +290,7 @@ export async function chatWithFallback(provider: ModelProvider, req: ChatRequest
   try {
     return await attempt(req.model);
   } catch (e) {
-    if (req.model !== MODEL_FAST() && !req.signal?.aborted) return attempt(MODEL_FAST());
+    if (req.model !== MODEL_FAST() && !req.signal?.aborted && !emitted) return attempt(MODEL_FAST());
     throw e;
   }
 }

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "re
 import clsx from "clsx";
 import type { Block, EntityRef, RunStatus, StreamEvent } from "../types";
 import { api, streamChat, type StoredMessage } from "./api";
-import { BlockList, Markdown, blocksToMarkdown } from "./blocks";
+import { BlockList, Markdown, blocksToMarkdown, ExportBar } from "./blocks";
 import { markdownToPlain } from "./markdown";
 
 /* Shared chat engine + thread + composer (used by the full page and the side panel). */
@@ -13,7 +13,15 @@ export interface UiMessage {
   key: string; messageId?: string; role: "user" | "assistant";
   text: string; blocks: Block[]; steps: Step[];
   status?: RunStatus | "streaming"; error?: string; route?: "fast" | "deep";
+  /** Set when the answer came from the answer cache: re-asks with `fresh: true`. */
+  onRefresh?: () => void;
 }
+
+/** Status-block label written by the engine's answer cache. */
+const REUSED = "Reused answer from";
+const isReused = (blocks: Block[]) => blocks.some((b) => b.kind === "status" && b.done.some((d) => d.startsWith(REUSED)));
+/** Markdown re-parse throttle while streaming. */
+const FLUSH_MS = 60;
 
 const toUi = (m: StoredMessage): UiMessage => ({
   key: m.id, messageId: m.id, role: m.role === "user" ? "user" : "assistant",
@@ -39,7 +47,8 @@ export function useAssistantChat(opts: { conversationId?: string | null; focus?:
 
   useEffect(() => { void load(opts.conversationId ?? null); }, [opts.conversationId, load]);
 
-  const send = useCallback(async (message: string, extra: { attachmentIds?: string[]; commandId?: string } = {}) => {
+  const sendRef = useRef<(m: string, e?: { attachmentIds?: string[]; commandId?: string; fresh?: boolean }) => Promise<void>>(async () => undefined);
+  const send = useCallback(async (message: string, extra: { attachmentIds?: string[]; commandId?: string; fresh?: boolean } = {}) => {
     const text = message.trim();
     if (!text || busy) return;
     const aKey = `a-${Date.now()}`;
@@ -48,8 +57,13 @@ export function useAssistantChat(opts: { conversationId?: string | null; focus?:
     setBusy(true);
     const patch = (fn: (m: UiMessage) => UiMessage) => setMessages((all) => all.map((m) => (m.key === aKey ? fn(m) : m)));
     const ctrl = new AbortController(); abort.current = ctrl;
+    // Text deltas are buffered and flushed at most every FLUSH_MS, so markdown is re-parsed ~16×/s, not per token.
+    let pending = "";
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const flush = () => { if (timer) { clearTimeout(timer); timer = null; } if (!pending) return; const d = pending; pending = ""; patch((m) => ({ ...m, text: m.text + d })); };
     try {
-      await streamChat({ conversationId, message: text, focus: opts.focus ?? null, attachmentIds: extra.attachmentIds, commandId: extra.commandId }, (e) => {
+      await streamChat({ conversationId, message: text, focus: opts.focus ?? null, attachmentIds: extra.attachmentIds, commandId: extra.commandId, fresh: extra.fresh }, (e) => {
+        if (e.type !== "text") flush();
         switch (e.type) {
           case "run":
             if (e.conversationId !== conversationId) { setConversationId(e.conversationId); onConv.current?.(e.conversationId); }
@@ -58,18 +72,24 @@ export function useAssistantChat(opts: { conversationId?: string | null; focus?:
             const others = m.steps.filter((s) => s.step !== e.step);
             return { ...m, steps: [...others, { step: e.step, label: e.label, status: e.status, summary: e.summary }].sort((a, b) => a.step - b.step) };
           }); break;
-          case "text": patch((m) => ({ ...m, text: m.text + e.delta })); break;
-          case "blocks": patch((m) => ({ ...m, blocks: [...m.blocks, ...e.blocks] })); break;
+          case "text": pending += e.delta; if (!timer) timer = setTimeout(flush, FLUSH_MS); break;
+          case "blocks": patch((m) => {
+            const blocks = [...m.blocks, ...e.blocks];
+            return { ...m, blocks, onRefresh: isReused(blocks) ? () => void sendRef.current(text, { fresh: true }) : m.onRefresh };
+          }); break;
           case "done": patch((m) => ({ ...m, status: e.status, messageId: e.messageId })); break;
           case "error": patch((m) => ({ ...m, status: "failed", error: e.message })); break;
         }
       }, ctrl.signal);
+      flush();
       patch((m) => (m.status === "streaming" ? { ...m, status: "partial", error: m.error ?? "The connection ended before the answer finished." } : m));
     } catch (e) {
+      flush();
       if ((e as Error).name === "AbortError") patch((m) => ({ ...m, status: "cancelled" }));
       else patch((m) => ({ ...m, status: "failed", error: e instanceof Error ? e.message : "Something went wrong" }));
     } finally { setBusy(false); abort.current = null; }
   }, [busy, conversationId, opts.focus]);
+  sendRef.current = send;
 
   const stop = useCallback(() => abort.current?.abort(), []);
   return { conversationId, messages, busy, send, stop, load, loadError };
@@ -120,16 +140,38 @@ function messageText(m: UiMessage) { return [markdownToPlain(m.text), m.blocks.l
 function MessageActions({ m }: { m: UiMessage }) {
   const [copied, setCopied] = useState(false);
   const [rated, setRated] = useState<"up" | "down" | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [comment, setComment] = useState("");
+  const [note, setNote] = useState<string | null>(null);
   const copy = async () => { try { await navigator.clipboard.writeText(messageText(m)); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* blocked */ } };
-  const rate = async (r: "up" | "down") => { if (!m.messageId) return; setRated(r); try { await api.feedback(m.messageId, r); } catch { setRated(null); } };
+  const rate = async (r: "up" | "down", text?: string) => {
+    if (!m.messageId) return;
+    setRated(r); setAsking(false);
+    try {
+      const res = (await api.feedback(m.messageId, r, text?.trim() || undefined)) as { memoryId?: string | null };
+      if (res?.memoryId) setNote("Thanks — I'll remember that preference (see Memory to review or remove it).");
+    } catch { setRated(null); }
+  };
   const cls = "inline-flex h-9 min-w-9 items-center justify-center rounded-md px-2 text-xs text-ink-soft hover:bg-canvas hover:text-ink";
   return (
-    <div className="mt-2 flex items-center gap-1">
+    <div className="mt-2">
+      <div className="flex items-center gap-1">
       <button type="button" onClick={copy} className={cls}>{copied ? "Copied" : "Copy"}</button>
       {m.messageId ? <>
         <button type="button" onClick={() => rate("up")} aria-pressed={rated === "up"} className={clsx(cls, rated === "up" && "text-ok")} aria-label="Helpful">👍</button>
-        <button type="button" onClick={() => rate("down")} aria-pressed={rated === "down"} className={clsx(cls, rated === "down" && "text-bad")} aria-label="Not helpful">👎</button>
+        <button type="button" onClick={() => (rated ? undefined : setAsking((a) => !a))} aria-pressed={rated === "down"} aria-expanded={asking} className={clsx(cls, rated === "down" && "text-bad")} aria-label="Not helpful">👎</button>
       </> : null}
+      {m.onRefresh ? <button type="button" onClick={m.onRefresh} className={cls} title="Run again with the latest data">Refresh</button> : null}
+      </div>
+      {asking ? (
+        <form className="mt-1 flex max-w-xl gap-1.5" onSubmit={(e) => { e.preventDefault(); void rate("down", comment); }}>
+          <label htmlFor={`fb-${m.key}`} className="sr-only">What should I do differently?</label>
+          <input id={`fb-${m.key}`} value={comment} onChange={(e) => setComment(e.target.value)} maxLength={2000} autoFocus placeholder="What should I do differently? (optional)"
+            className="min-h-9 min-w-0 flex-1 rounded-md border border-line bg-surface px-2.5 text-sm outline-none focus:border-brand" />
+          <button type="submit" className="min-h-9 rounded-md bg-brand px-3 text-xs font-semibold text-white">Send</button>
+        </form>
+      ) : null}
+      {note ? <p className="mt-1 text-xs text-ink-soft" role="status">{note}</p> : null}
     </div>
   );
 }
@@ -137,7 +179,15 @@ function MessageActions({ m }: { m: UiMessage }) {
 export function Thread({ messages, compact }: { messages: UiMessage[]; compact?: boolean }) {
   const end = useRef<HTMLDivElement>(null);
   const last = messages[messages.length - 1];
-  useEffect(() => { end.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [messages.length, last?.text.length, last?.blocks.length, last?.steps.length]);
+  const pinned = useRef(true);
+  // Follow the stream only while the reader is at the bottom; instant (not smooth) scroll per flush avoids jitter.
+  useEffect(() => {
+    const onScroll = () => { pinned.current = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 120 || !end.current || end.current.getBoundingClientRect().top <= window.innerHeight + 120; };
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    return () => window.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions);
+  }, []);
+  useEffect(() => { pinned.current = true; end.current?.scrollIntoView({ block: "end", behavior: "smooth" }); }, [messages.length]);
+  useEffect(() => { if (pinned.current) end.current?.scrollIntoView({ block: "end", behavior: "auto" }); }, [last?.text.length, last?.blocks.length, last?.steps.length]);
   return (
     <div className={clsx("space-y-5", compact && "space-y-4")}>
       {messages.map((m) => m.role === "user" ? (
@@ -147,8 +197,13 @@ export function Thread({ messages, compact }: { messages: UiMessage[]; compact?:
       ) : (
         <article key={m.key} className="min-w-0" aria-busy={m.status === "streaming"}>
           <StepTrail steps={m.steps} live={m.status === "streaming"} />
-          {m.text ? <Markdown text={m.text} /> : null}
-          {m.blocks.length ? <div className={clsx(m.text && "mt-3")}><BlockList blocks={m.blocks} /></div> : null}
+          {m.text ? (
+            <div className={clsx(m.status === "streaming" && "assistant-streaming")}>
+              <Markdown text={m.text} />
+              {m.status === "streaming" ? <span aria-hidden className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[0.15em] bg-ink motion-safe:animate-pulse" /> : null}
+            </div>
+          ) : null}
+          {m.blocks.length ? <div className={clsx(m.text && "mt-3")}><BlockList blocks={m.blocks} />{m.messageId ? <ExportBar messageId={m.messageId} blocks={m.blocks} /> : null}</div> : null}
           {m.status && RUN_LABEL[m.status] ? (
             <p className={clsx("mt-2 text-xs font-medium", RUN_LABEL[m.status]![1])} role={m.status === "failed" ? "alert" : undefined}>
               {m.status === "streaming" && !m.text && !m.steps.length ? <span className="motion-safe:animate-pulse">Thinking…</span> : RUN_LABEL[m.status]![0]}

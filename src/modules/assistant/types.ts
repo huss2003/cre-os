@@ -35,7 +35,11 @@ export type Block =
   | { kind: "approval"; approvalId: string; title: string; explanation: string; affected: EntityRef[]; diff: { field: string; before: unknown; after: unknown }[]; status: string }
   | { kind: "draft"; draftHref: string; channel: string; subject?: string | null; preview: string }
   | { kind: "status"; done: string[]; pending: string[]; blocked: string[] }
-  | { kind: "download"; label: string; href: string };
+  | { kind: "download"; label: string; href: string }
+  | { kind: "map"; title?: string; points: MapPoint[]; lines?: { label: string; coords: [number, number][] }[]; rings?: { centerId: string; radiiKm: number[] }[]; note: string };
+
+/** A map marker. Coordinates come from stored records only — never geocoded or guessed by a model. */
+export interface MapPoint { id: string; label: string; lat: number; lon: number; kind: "building" | "station" | "company" | "other"; href?: string }
 
 export interface ToolContext {
   ctx: AppContext;             // authenticated user; ctx.db is RLS-scoped. NEVER use the admin client in tools.

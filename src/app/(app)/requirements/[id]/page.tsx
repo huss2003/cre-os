@@ -11,6 +11,7 @@ import {
   reviseQuoteAction, runShortlistAction, setOptionStatusAction, updateRequirementFieldAction,
 } from "@/modules/deals/actions";
 import { saveMatchingConfigAction } from "@/modules/deals/actions-a";
+import { LandlordOffersCard } from "@/modules/assistant/data/ui";
 import { CRITERIA, DEFAULT_WEIGHTS, effectiveWeights } from "@/modules/deals/matching/match";
 import { STAKEHOLDER_ROLES, fieldValue, type RequirementConstraints, type RequirementRow } from "@/modules/deals/requirements/contract";
 import { getRequirementDetail } from "@/modules/deals/requirements/service";
@@ -346,6 +347,10 @@ export default async function RequirementDetail({ params, searchParams }: { para
             </details>
           </div>
         )}
+      </Card>
+
+      <Card title="Landlord offers (compare line by line)">
+        <LandlordOffersCard ctx={{ db: app.db, workspaceId: app.workspaceId, userId: app.userId }} requirementId={id} canEdit={canEdit} />
       </Card>
 
       <Card title="Opportunity">

@@ -1,4 +1,5 @@
 import "server-only";
+import { learnFromDraftEdit } from "@/modules/assistant/engine/learn";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured } from "@/lib/ai/gateway";
@@ -145,7 +146,7 @@ async function styleNotes(db: Db, ws: string, userId: string, channel: string): 
   return mine.length ? `\nThe user approved these as examples of their style (match tone and length, not content):\n${mine.map((v) => `---\n${String(v.body).slice(0, 600)}`).join("\n")}` : "";
 }
 
-async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string }; mock?: () => GenOut }, ai: Ai): Promise<{ out: GenOut; mocked: boolean; model: string }> {
+async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string }; mock?: () => GenOut; styleHint?: string }, ai: Ai): Promise<{ out: GenOut; mocked: boolean; model: string }> {
   const tpl = R.templateDraft({ channel: a.channel, scenario: a.scenario, first: c.first, company: c.org?.display_name ?? "your company", level: c.level, reason: a.reason, roleKey: c.roleKey, sender: a.sender, via: a.via?.full_name?.split(/\s+/)[0] ?? null, lang: a.lang });
   const focus = R.ROLE_FOCUS[c.roleKey] ?? R.ROLE_FOCUS.other;
   const input = [
@@ -159,7 +160,7 @@ async function generate(db: Db, ws: string, userId: string, c: Context, a: { cha
     a.via ? `Introduction via: ${a.via.full_name}. Write the request TO them and a short forwardable blurb. Do not imply they agreed.` : "",
     `Sender name: ${a.sender}. Language: ${a.lang}.`,
     a.current ? `Rewrite this draft — instruction: ${a.instruction}\nSubject: ${a.current.subject ?? ""}\n${a.current.body}` : `Suggest up to 3 discovery questions from: ${R.SCENARIOS[a.scenario].questions.join(" | ")}`,
-  ].filter(Boolean).join("\n\n") + await styleNotes(db, ws, userId, a.channel);
+  ].filter(Boolean).join("\n\n") + await styleNotes(db, ws, userId, a.channel) + (a.styleHint ? `\n\nUser writing style (tone/length only, not content): ${a.styleHint.slice(0, 800)}` : "");
   const mock = a.mock ?? ((): GenOut => a.current ? mockEdit(a.current, a.instruction ?? "", tpl) : { ...tpl, value_prop: R.SCENARIOS[a.scenario].value, assumptions: c.unknowns.map((u) => `Unknown: ${u}`), questions: R.SCENARIOS[a.scenario].questions.slice(0, 3) });
   const r = await ai({ workspaceId: ws, workflow: "outreach.draft", tier: "luna", system: SYSTEM, input, schema: Gen, schemaName: "outreach_draft", maxOutputTokens: 2500, classification: "corporate_confidential", mock });
   const out = r.data;
@@ -191,7 +192,7 @@ export async function senderName(db: Db, ws: string): Promise<string> {
   return (data?.value as Row)?.sender_name ?? "[Your name]";
 }
 
-export interface CreateInput { personId: string; channels: R.Channel[]; scenario?: R.Scenario; signalId?: string | null; opportunityId?: string | null; language?: R.Lang; viaPersonId?: string | null; plannedOn?: string; mentionAvailabilityIds?: string[]; ai?: Ai }
+export interface CreateInput { personId: string; channels: R.Channel[]; scenario?: R.Scenario; signalId?: string | null; opportunityId?: string | null; language?: R.Lang; viaPersonId?: string | null; plannedOn?: string; mentionAvailabilityIds?: string[]; ai?: Ai; /** Optional writing-style hint (assistant style profile). Wording only — never facts. */ styleHint?: string }
 /** Create a conversation plan: one item per chosen channel (e.g. email + WhatsApp alternative), all step 1. */
 export async function createOutreach(db: Db, ws: string, userId: string, inp: CreateInput) {
   const ai = inp.ai ?? callStructured;
@@ -217,7 +218,7 @@ export async function createOutreach(db: Db, ws: string, userId: string, inp: Cr
   });
   if (chans.includes("introduction") && !via) throw new OutreachError("Pick who should make the introduction.");
   // All channels are written at the same time (one AI call each, in parallel) — much faster than one after another.
-  const gens = await Promise.all(chans.map((ch) => generate(db, ws, userId, c, { channel: ch, scenario, reason, lang: inp.language ?? "en", via, sender }, ai)));
+  const gens = await Promise.all(chans.map((ch) => generate(db, ws, userId, c, { channel: ch, scenario, reason, lang: inp.language ?? "en", via, sender, styleHint: inp.styleHint }, ai)));
   for (const [gi, ch] of chans.entries()) {
     const dch = R.draftChannel(ch);
     const g = gens[gi];
@@ -261,6 +262,8 @@ export async function editItem(db: Db, ws: string, userId: string, id: string, e
   if (e.recipientAddress !== undefined) patch.recipientAddress = e.recipientAddress;
   const after = (await updateDraft(db, ws, it.draft_id, patch, { actorUserId: userId })).draft;
   await version(db, ws, id, kind, after.subject, after.body, userId, op);
+  // Module 12: learn the user's preferences from their own edits (best effort, never blocks the edit).
+  if (kind === "user_edit") await learnFromDraftEdit({ db, workspaceId: ws, userId }, { draftId: it.draft_id, before: { subject: before.subject, body: before.body }, after: { subject: after.subject, body: after.body } }).catch(() => null);
   if (e.learn) await db.from("outreach_version").update({ learn: true }).eq("item_id", id).eq("body", after.body);
   const invalidated = before.approved_hash && before.content_hash !== after.content_hash;
   if (["pending_approval", "approved"].includes(it.status) || invalidated) {

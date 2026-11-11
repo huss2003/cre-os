@@ -18,7 +18,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { key: "home", label: null, items: [
     one("home", "Home", "Today at a glance", "/home"),
     { key: "assistant", label: "Ask AI", hint: "Ask questions, get briefs and drafts", href: "/assistant", tabs: [
-      { href: "/assistant", label: "Chat" }, { href: "/assistant/memory", label: "Memory" }, { href: "/assistant/commands", label: "Saved commands" }] },
+      { href: "/assistant", label: "Chat" }, { href: "/assistant/memory", label: "Memory" }, { href: "/assistant/commands", label: "Saved commands" }, { href: "/assistant/notes", label: "Notes" }, { href: "/assistant/usage", label: "Usage" }] },
   ] },
   { key: "plan", label: "Plan", items: [
     { key: "today", label: "Today", hint: "Your plan, tasks and visits", href: "/today", tabs: [

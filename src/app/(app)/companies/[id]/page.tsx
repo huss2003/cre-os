@@ -7,6 +7,7 @@ import { getCompany, memberDirectory } from "@/modules/admin/entities";
 import { ArchiveCard, ShareCard } from "@/modules/admin/ui/entity";
 import { RecordTrust } from "@/modules/admin/ui/trust";
 import { LinkedAdd, LinkedRows } from "@/modules/admin/ui/linked";
+import { CompanyLocations } from "@/modules/assistant/data/ui";
 
 const INVERSE: Record<string, string> = { parent_of: "subsidiary of", subsidiary_of: "parent of", owner_of: "owned by", developer_of: "developed by", operator_of: "operated by", acquired: "acquired by", affiliate: "affiliate of" };
 import { AsOfForm, ClassBadge, EvidenceTrail, Facts, Loading, Section, TierBadge, fmtDate } from "@/modules/admin/ui/parts";
@@ -93,6 +94,8 @@ async function Body({ params, searchParams }: Props) {
               </ul>
             ) : null}
           </Section>
+
+          <Section title="Locations (HQ, offices, factories)"><CompanyLocations ctx={{ db: ctx.db, workspaceId: ctx.workspaceId, userId: ctx.userId }} orgId={id} canEdit={hasRole(ctx, "editor") && !o.archived_at} /></Section>
 
           <Section title="Evidence trail"><EvidenceTrail items={c.trail} asOf={asOf} /></Section>
         </div>

@@ -5,6 +5,10 @@ import { assistantRunHandler } from "./engine/job";
 import { runAssistant, serviceContext } from "./engine/run";
 import { fillPrompt, type CommandRow } from "./commands/service";
 import { scheduleCommands, advanceSchedule } from "./commands/schedule";
+import * as usageJobs from "./usage/jobs";
+import * as briefJobs from "./briefs/jobs";
+import * as docJobs from "./documents/jobs";
+import { outputHandlers, scheduleOutputs } from "./outputs/jobs";
 
 /**
  * assistant.run     — background assistant run (engine).
@@ -12,6 +16,7 @@ import { scheduleCommands, advanceSchedule } from "./commands/schedule";
  * Memory staleness is computed at read time (isStale), so no sweep job is needed.
  */
 export const handlers: Record<string, JobHandler> = {
+  ...usageJobs.handlers, ...briefJobs.handlers, ...docJobs.handlers, ...outputHandlers,
   "assistant.run": assistantRunHandler,
   "assistant.command": async (job) => {
     if (!job.workspace_id) throw new Error("workspace required");
@@ -31,5 +36,9 @@ export const handlers: Record<string, JobHandler> = {
 };
 
 export async function schedule(now: Date): Promise<void> {
-  await scheduleCommands(createAdminClient(), now, (o) => enqueue(o));
+  const run = (f: () => Promise<unknown>) => f().catch((e) => console.error("assistant schedule", e));
+  await run(() => scheduleCommands(createAdminClient(), now, (o) => enqueue(o)));
+  await run(() => usageJobs.schedule(now));
+  await run(() => briefJobs.schedule(now));
+  await run(() => scheduleOutputs(now));
 }

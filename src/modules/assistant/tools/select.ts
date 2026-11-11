@@ -10,18 +10,21 @@ import type { EntityType } from "../types";
 
 export const TOOL_GROUPS = {
   core: ["search_companies", "get_company_profile", "search_contacts", "get_contact_profile", "search_opportunities", "get_opportunity_details", "recall_memories"],
-  properties: ["search_properties", "get_property_details", "search_requirements", "get_requirement_details", "calculate_distance"],
+  properties: ["search_properties", "get_property_details", "search_requirements", "get_requirement_details", "calculate_distance", "show_on_map"],
   meetings: ["get_upcoming_meetings", "get_meeting_history", "get_commitments", "generate_meeting_brief", "create_internal_task"],
   outreach: ["get_outreach_history", "find_decision_makers", "generate_outreach_draft", "prepare_send"],
   scoring: ["get_scores", "rank_priority_accounts", "get_research_signals"],
   leases: ["find_leases_expiring"],
   finance: ["compare_properties", "calculate_lease_economics", "compare_renewal_vs_relocation", "calculate_occupancy_cost", "compare_quotes", "analyse_fitout"],
   deals: ["explain_deal_stuck", "generate_deal_review", "get_commitments", "get_meeting_history"],
-  documents: ["search_documents", "retrieve_document_content"],
-  research: ["web_research", "get_research_signals", "search_properties", "calculate_distance"],
+  documents: ["search_documents", "retrieve_document_content", "extract_lease_terms", "save_lease_terms"],
+  research: ["web_research", "get_research_signals", "search_properties", "calculate_distance", "show_on_map"],
   memory: ["save_memory", "correct_memory", "forget_memory", "restrict_memory"],
   changes: ["update_company_record", "update_requirement_record", "change_opportunity_stage", "create_opportunity", "archive_record"],
   commands: ["list_saved_commands", "save_command"],
+  data: ["search_company_locations", "add_company_location", "save_landlord_offer", "revise_landlord_offer", "compare_landlord_offers"],
+  briefs: ["morning_brief", "capture_meeting_notes"],
+  outputs: ["export_deliverable", "show_on_map"],
 } as const;
 export type ToolGroup = keyof typeof TOOL_GROUPS;
 export const GROUP_ORDER = Object.keys(TOOL_GROUPS) as ToolGroup[];
@@ -29,8 +32,8 @@ export const GROUP_ORDER = Object.keys(TOOL_GROUPS) as ToolGroup[];
 const BY_INTENT: Partial<Record<Intent, ToolGroup[]>> = {
   company_summary: ["properties", "meetings", "scoring", "leases", "documents"],
   meeting_prep: ["meetings", "properties", "documents"],
-  compare_properties: ["properties", "finance"],
-  leases_expiring: ["leases", "properties"],
+  compare_properties: ["properties", "finance", "data"],
+  leases_expiring: ["leases", "properties", "data"],
   rejected_options: ["properties", "documents", "meetings"],
   deal_review: ["deals", "properties", "finance", "meetings"],
   priority_accounts: ["scoring", "meetings"],
@@ -52,6 +55,9 @@ const BY_WORDS: [ToolGroup, RegExp][] = [
   ["research", /\b(metro|news|web|online|infrastructure|research|market|construction|road)/i],
   ["memory", /\b(remember|memory|forget|prefer|outdated)/i],
   ["changes", /\b(update|change|set|move .* to|archive|delete|create (an? )?(deal|opportunity)|mark)/i],
+  ["data", /\b(factory|factories|plant|warehouse|midc|hq|headquarter|offices? in|locations?|landlord|offer|loi|term sheet)/i],
+  ["briefs", /\b(morning brief|my day|today|notes?|minutes|debrief|just met|after (the|my) meeting)/i],
+  ["outputs", /\b(deck|slides?|powerpoint|pptx|word doc|docx|pdf|export|download|map|plot)/i],
   ["commands", /\b(save (this|as)|saved command|every (morning|day|week)|schedule|routine)/i],
 ];
 
@@ -61,7 +67,7 @@ const BY_FOCUS: Partial<Record<EntityType, ToolGroup[]>> = {
   asset: ["properties", "finance"],
   requirement: ["properties", "finance"],
   opportunity: ["deals", "properties", "finance"],
-  meeting: ["meetings", "documents"],
+  meeting: ["meetings", "documents", "briefs"],
   outreach: ["outreach"],
   analysis: ["finance", "properties"],
 };

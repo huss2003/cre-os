@@ -2,7 +2,8 @@ import "server-only";
 import { z } from "zod";
 import { HttpError, type AppContext } from "@/lib/auth/context";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { callStructured } from "@/lib/ai/gateway";
+import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
+import { assertAssistantBudget } from "../usage/service";
 import { enqueue } from "@/lib/jobs/queue";
 import type { Block, EntityRef, RunStatus, SourceRef, StreamEvent, ToolContext } from "../types";
 import { getTool, toolsForModel, TOOLS } from "../tools";
@@ -12,6 +13,7 @@ import { routeRequest } from "./router";
 import { AnthropicProvider, chatWithFallback, RATE_LIMIT_PER_MIN, type ChatMessage, type ContentBlock, type ModelProvider, type ToolSpec } from "./provider";
 import { MockProvider } from "./mock";
 import { executeTool, mergeEntities, resultForModel } from "./execute";
+import { cacheKey, lookupAnswer, refersToConversation, reusedLabel, storeAnswer, tablesFor, REUSED_PREFIX } from "./cache";
 
 export const MAX_STEPS = 8;
 const SUMMARISE_AFTER = 20;
@@ -56,6 +58,8 @@ export interface RunOptions {
   /** internal: background continuation of an existing run */
   resumeRunId?: string;
   signal?: AbortSignal;
+  /** bypass the answer cache (the "Refresh" affordance); the fresh answer replaces the cached one. */
+  fresh?: boolean;
   /** tests: inject a provider */
   provider?: ModelProvider;
 }
@@ -166,7 +170,27 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
 
   const setRun = (patch: Record<string, unknown>) => ctx.db.from("assistant_run").update(patch).eq("workspace_id", ctx.workspaceId).eq("id", runId);
 
+  // Answer cache: same user + normalised question + focus + tool groups, within 24h, data unchanged → reuse.
+  const keySel = selectTools({ intent: route.intent, request, focusType: opts.focus?.type ?? null, available: TOOLS.map((t) => t.id) });
+  const cacheable = !opts.resumeRunId && !opts.attachmentIds?.length && !route.webSearch && !(conv.recent.length && refersToConversation(request));
+  const key = cacheable ? cacheKey({ request, focusId: opts.focus?.id ?? null, groups: keySel.all ? ["*"] : keySel.groups, userId: ctx.userId }) : null;
+  if (key && !opts.fresh) {
+    const hit = await lookupAnswer(ctx, key).catch(() => null);
+    if (hit) {
+      const label = reusedLabel(hit.createdAt, ctx.timezone || "Asia/Kolkata");
+      const blocks: Block[] = hit.blocks.map((b) => b.kind === "status" ? { ...b, done: [label, ...b.done.filter((d) => !d.startsWith(REUSED_PREFIX))] } : b);
+      if (!blocks.some((b) => b.kind === "status")) blocks.push({ kind: "status", done: [label], pending: [], blocked: [] });
+      emit({ type: "text", delta: hit.text });
+      emit({ type: "blocks", blocks: blocks.filter((b) => b.kind !== "text" || b !== blocks[0]) });
+      const messageId = await appendMessage(ctx, conversationId, { role: "assistant", content: hit.text, blocks, status: "complete", model: "cache", usage: { input: 0, output: 0, usd: 0, cachedFrom: hit.sourceRunId }, runId });
+      await setRun({ status: "completed", finished_at: new Date().toISOString(), progress: 100, steps_done: 0, result_summary: hit.text.slice(0, 300), usage: { input: 0, output: 0, usd: 0, cacheHit: hit.id } });
+      emit({ type: "done", status: "completed", messageId });
+      return { runId, conversationId, messageId, status: "completed" };
+    }
+  }
+
   try {
+    await assertAssistantBudget(ctx.workspaceId);
     const pkg = await buildContext({ ctx, request, focus: opts.focus, conversation: conv, attachmentIds: opts.attachmentIds, runId });
     const provider = opts.provider ?? defaultProvider() ?? new MockProvider(pkg, route.intent);
     const isMock = provider instanceof MockProvider;
@@ -210,17 +234,26 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     const status = { done: [] as string[], pending: [] as string[], blocked: [] as string[] };
     let text = "";
     let step = 0;
-    let usage = { input: 0, output: 0, usd: 0 };
+    let usage = { input: 0, output: 0, usd: 0, cacheRead: 0, cacheWrite: 0 };
     let modelUsed = isMock ? "mock" : route.model;
     let deferred = false;
     let anyError = false;
+    const toolsUsed: string[] = [];
+    let streamed = "";
+    const onText = (d: string) => {
+      if (!d) return;
+      if (streamed && !turnStarted) { const sep = streamed.endsWith("\n\n") ? "" : "\n\n"; if (sep) { streamed += sep; emit({ type: "text", delta: sep }); } }
+      turnStarted = true; streamed += d; emit({ type: "text", delta: d });
+    };
+    let turnStarted = false;
 
     for (let turn = 0; turn <= MAX_STEPS; turn++) {
       if (opts.deadlineAt && Date.now() > opts.deadlineAt && !opts.resumeRunId) { deferred = true; break; }
+      turnStarted = false;
       const res = await chatWithFallback(provider, { model: route.model, system, systemContext, messages: norm, tools, webSearch: route.webSearch, maxTokens: route.route === "deep" ? 3000 : 1500, signal: opts.signal },
-        { workspaceId: ctx.workspaceId, workflow: `assistant.${route.route}`, requestId: runId });
+        { workspaceId: ctx.workspaceId, workflow: `assistant.${route.route}`, requestId: runId }, onText);
       modelUsed = isMock ? "mock" : res.model;
-      usage = { input: usage.input + res.usage.input, output: usage.output + res.usage.output, usd: usage.usd + res.usage.usd };
+      usage = { input: usage.input + res.usage.input, output: usage.output + res.usage.output, usd: usage.usd + res.usage.usd, cacheRead: usage.cacheRead + (res.usage.cacheRead ?? 0), cacheWrite: usage.cacheWrite + (res.usage.cacheWrite ?? 0) };
       sources.push(...webSources(res.content));
       const turnText = res.content.filter((c) => c.type === "text").map((c) => (c as { text: string }).text).join("");
       const uses = res.content.filter((c) => c.type === "tool_use") as { type: "tool_use"; id: string; name: string; input: unknown }[];
@@ -242,6 +275,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
         }
         step++;
         const tool = getTool(u.name);
+        toolsUsed.push(tool?.id ?? u.name);
         if (tool && !selection.all && !selection.ids.includes(tool.id)) {
           const g = GROUP_ORDER.find((x) => (TOOL_GROUPS[x] as readonly string[]).includes(tool.id)) ?? null;
           widen(g);
@@ -304,7 +338,9 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
       ...(uniqMissing.length ? [{ kind: "missing", items: uniqMissing } as Block] : []),
       { kind: "status", done: status.done, pending: status.pending, blocked: [...new Set(status.blocked)] },
     ];
-    emit({ type: "text", delta: text.trim() });
+    // Text was streamed live; only emit what the stream did not already deliver (e.g. the fallback sentence).
+    if (!streamed.trim()) emit({ type: "text", delta: text.trim() });
+    else if (text.trim().startsWith(streamed.trim()) && text.trim().length > streamed.trim().length) emit({ type: "text", delta: text.trim().slice(streamed.trim().length) });
     emit({ type: "blocks", blocks: finalBlocks.slice(1) });
     const msgStatus = runStatus === "waiting_approval" ? "waiting_approval" : runStatus === "partial" ? "partial" : "complete";
     const messageId = await appendMessage(ctx, conversationId, { role: "assistant", content: text.trim(), blocks: finalBlocks, status: msgStatus, model: modelUsed, usage, runId });
@@ -314,16 +350,25 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
     await ctx.db.from("assistant_conversation").update({ entity_refs: refs.slice(-40) as object }).eq("workspace_id", ctx.workspaceId).eq("id", conversationId);
     await setRun({ status: runStatus, finished_at: new Date().toISOString(), progress: 100, steps_done: step, result_summary: text.trim().slice(0, 300), usage });
     emit({ type: "done", status: runStatus, messageId });
+    if (key && runStatus === "completed" && !asksQuestion && !status.pending.length && !status.blocked.length && !anyError && !route.webSearch
+        && !sources.some((s) => s.href && /^https?:/.test(s.href))) {
+      const tables = tablesFor(toolsUsed, opts.focus?.type ?? null);
+      if (tables) await storeAnswer(ctx, { key, request, text: text.trim(), blocks: finalBlocks, tables, runId }).catch(() => undefined);
+    }
     await maybeSummarise(ctx, conversationId).catch(() => undefined);
     return { runId, conversationId, messageId, status: runStatus };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    const budget = e instanceof AiUnavailableError && (e.reason === "paused" || e.reason === "budget_exceeded");
+    const userMsg = !budget ? "Sorry — this request failed before it finished. Nothing was changed."
+      : e.reason === "paused" ? "The AI assistant is paused for this workspace by an administrator. Nothing was changed."
+      : "This workspace has reached its AI budget for the period, so the assistant can't run right now. An admin can raise the budget in Settings. Nothing was changed.";
     await setRun({ status: "failed", error: msg.slice(0, 500), finished_at: new Date().toISOString() });
     const messageId = await appendMessage(ctx, conversationId, {
-      role: "assistant", content: "Sorry — this request failed before it finished. Nothing was changed.", status: "failed", runId,
-      blocks: [{ kind: "text", markdown: "Sorry — this request failed before it finished. Nothing was changed." }, { kind: "status", done: [], pending: [], blocked: [msg.slice(0, 200)] }],
+      role: "assistant", content: userMsg, status: "failed", runId,
+      blocks: [{ kind: "text", markdown: userMsg }, { kind: "status", done: [], pending: [], blocked: [msg.slice(0, 200)] }],
     }).catch(() => "");
-    emit({ type: "error", message: "The assistant run failed." });
+    emit({ type: "error", message: budget ? userMsg : "The assistant run failed." });
     emit({ type: "done", status: "failed", messageId });
     return { runId, conversationId, messageId, status: "failed" };
   }
