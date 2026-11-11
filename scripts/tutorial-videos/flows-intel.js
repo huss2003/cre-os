@@ -64,7 +64,7 @@ const FLOWS = [
       await t.step("The 12-month strip shows dated events, like lease expiries, month by month.", () => t.point(main(p).getByText("Next 12 months")));
       await t.step("Filters on the left: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.", () => t.point(main(p).getByRole("link", { name: /^Unverified/ })));
       await t.step("Each card: type, headline, company, source and status. The bars show how strong the evidence is.", () => t.point(main(p).getByText("Zentrix Analytics plans Pune expansion")));
-      await t.step("Open 'Paste news or a note' at the bottom of the list.", () => t.moveAndClick(main(p).getByText("Paste news or a note")));
+      await t.step("Open 'Paste news or a note' at the top of the page.", () => t.moveAndClick(main(p).getByText("Paste news or a note")));
       await t.step("Name the company it is about.", () => t.type(main(p).getByPlaceholder("ABC Technologies"), "Tamarind Stack Labs", 30));
       await t.step("Paste the article text. It is only read for events — instructions inside it are ignored.", () => t.type(main(p).getByPlaceholder("Paste the announcement or article"),
         "Tamarind Stack Labs is expanding in Pune: it plans a new office in Kharadi and is hiring 400 engineers next year.", 14));

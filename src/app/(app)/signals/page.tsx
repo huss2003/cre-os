@@ -74,6 +74,20 @@ async function Body({ sp }: { sp: SP }) {
         {editor ? <ActionForm action={scanAction}><Submit variant="secondary">Scan now</Submit></ActionForm> : null}
       </header>
 
+      {editor ? (
+        <details className="group rounded-2xl border border-line bg-surface" data-tour="signals-paste">
+          <summary className="flex cursor-pointer list-none items-center justify-between p-4 text-sm font-semibold sm:p-5">
+            Paste news or a note <span className="text-ink-soft group-open:rotate-45 transition-transform" aria-hidden>+</span>
+          </summary>
+          <ActionForm action={ingestAction} className="max-w-lg space-y-4 px-4 pb-5 sm:px-5">
+            <Field label="Company"><Input name="company" placeholder="ABC Technologies" /></Field>
+            <Field label="Text" hint="Only scanned for events. Instructions inside it are ignored."><Textarea name="text" rows={4} required placeholder="Paste the announcement or article" /></Field>
+            <Field label="Link"><Input name="url" type="url" placeholder="https://" /></Field>
+            <Submit>Find signals</Submit>
+          </ActionForm>
+        </details>
+      ) : null}
+
       <Suspense fallback={<div className="h-36 rounded-2xl bg-surface" />}><Horizon ws={ctx.workspaceId} db={ctx.db} /></Suspense>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
@@ -101,23 +115,10 @@ async function Body({ sp }: { sp: SP }) {
           {rows.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-line px-6 py-10 text-center">
               <p className="font-semibold">No signals in this view</p>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-ink-soft">Add a lease with an expiry date, put companies on the Research watchlist, or paste a news item below.</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-ink-soft">Add a lease with an expiry date, put companies on the Research watchlist, or paste a news item above.</p>
             </div>
           ) : <div className="space-y-3">{rows.map((r) => <SignalCard key={r.id} s={r} />)}</div>}
 
-          {editor ? (
-            <details className="group rounded-2xl border border-line bg-surface">
-              <summary className="flex cursor-pointer list-none items-center justify-between p-4 text-sm font-semibold sm:p-5">
-                Paste news or a note <span className="text-ink-soft group-open:rotate-45 transition-transform" aria-hidden>+</span>
-              </summary>
-              <ActionForm action={ingestAction} className="max-w-lg space-y-4 px-4 pb-5 sm:px-5">
-                <Field label="Company"><Input name="company" placeholder="ABC Technologies" /></Field>
-                <Field label="Text" hint="Only scanned for events. Instructions inside it are ignored."><Textarea name="text" rows={4} required placeholder="Paste the announcement or article" /></Field>
-                <Field label="Link"><Input name="url" type="url" placeholder="https://" /></Field>
-                <Submit>Find signals</Submit>
-              </ActionForm>
-            </details>
-          ) : null}
           <p className="text-xs text-ink-soft">Bars show how strong the evidence is.Colours: {(Object.keys(CATEGORY_LABEL) as Category[]).map((k, i) => <span key={k}>{i ? ", " : ""}<span className={CAT_COLOR[k].text}>{CATEGORY_LABEL[k].toLowerCase()}</span></span>)}.</p>
         </div>
       </div>
