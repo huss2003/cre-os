@@ -5,8 +5,8 @@ import { claim, complete, fail } from "./queue";
 import { handlers, schedulers } from "./registry";
 
 const SUPERVISOR_TIMEOUT_MS = 10_000;
-/** Jobs run per batch. Each job is short (≈1–3 s); 4 keeps DB load modest while clearing backlogs ~4× faster. */
-const JOB_CONCURRENCY = Number(process.env.JOB_CONCURRENCY ?? 4);
+/** Jobs run per batch. Each job is short (≈1–3 s); 8 clears backlogs quickly; DB load stays modest (each job is a few small queries). */
+const JOB_CONCURRENCY = Number(process.env.JOB_CONCURRENCY ?? 8);
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
