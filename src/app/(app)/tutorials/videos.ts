@@ -513,7 +513,7 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "automations",
+    "slug": "automation-chains",
     "title": "Automation → Chains — what each chain does, on/off, a run's steps",
     "category": "Ask AI & automation",
     "seconds": 53,

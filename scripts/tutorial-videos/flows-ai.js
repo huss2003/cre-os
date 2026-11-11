@@ -303,7 +303,7 @@ const FLOWS = [
     },
   },
   {
-    slug: "automations", category: "Ask AI & automation", title: "Automation → Chains — what each chain does, on/off, a run's steps",
+    slug: "automation-chains", category: "Ask AI & automation", title: "Automation → Chains — what each chain does, on/off, a run's steps",
     learn: "Six chains run by themselves every few minutes. Read what each does, switch any off, and open a run to see each step and why.", tryRoute: "/workflows",
     async run(t) {
       const p = t.page;
