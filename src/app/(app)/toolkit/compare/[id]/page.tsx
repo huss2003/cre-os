@@ -84,7 +84,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
                   <p className="font-semibold">{p.rank ? <span className="mr-1 text-ink-soft">#{p.rank}</span> : null}{p.name}</p>
                   <div className="flex flex-wrap gap-1"><Status s={p.eligibility} />{p.source === "manual" ? <Status s="manual" label="✎ Manual entry" /> : null}</div>
                 </div>
-                <p className="mt-0.5 text-xs text-ink-soft">{[r?.microMarket, r?.grade ? `Grade ${r.grade}` : null, r?.areaSf != null ? `${sf(r.areaSf)} sf` : null].filter(Boolean).join(" · ") || "Location, grade and area unknown"}</p>
+                <p className="mt-0.5 text-xs text-ink-soft">{[r?.microMarket, r?.grade ? `Grade ${r.grade}` : null, r?.areaSf != null ? sf(r.areaSf) : null].filter(Boolean).join(" · ") || "Location, grade and area unknown"}</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <ScoreBar score={p.score} eligible={p.eligibility === "eligible"} />
                   <Readout label="Effective cost" unknown={p.occupancyCost === null} value={p.occupancyCost === null ? "" : `₹${p.occupancyCost.toFixed(2)}`} sub={`per sf / month over ${out.termMonths} months`} />
@@ -131,7 +131,7 @@ export default async function ComparisonDetail({ params }: { params: Promise<{ i
               {row("Score", (p) => p.score === null ? unknown : <span className="tabular-nums"><b>{p.score}</b> <span className="text-xs text-ink-soft">out of 100</span></span>)}
               {row("Micro-market", (p) => fig(raw.get(p.key)?.microMarket, certOf(p)))}
               {row("Grade", (p) => fig(raw.get(p.key)?.grade, certOf(p)))}
-              {row("Area", (p) => { const r = raw.get(p.key); return fig(r?.areaSf != null ? `${sf(r.areaSf)} sf ${r.areaBasis ?? "(basis unknown)"}` : null, certOf(p)); })}
+              {row("Area", (p) => { const r = raw.get(p.key); return fig(r?.areaSf != null ? `${sf(r.areaSf)} ${r.areaBasis ?? "(basis unknown)"}` : null, certOf(p)); })}
               {row("Rent ₹/sf/month", (p) => { const r = raw.get(p.key); return fig(r?.rent != null ? <>{r.rent} <span className="text-xs text-ink-soft">{r.rentBasis ?? "basis?"}</span></> : null, certOf(p)); })}
               {row("CAM ₹/sf/month", (p) => fig(raw.get(p.key)?.cam, certOf(p)))}
               {row("Escalation", (p) => { const r = raw.get(p.key); return fig(r?.escalationPct != null ? `${r.escalationPct}%${r.escalationEveryMonths ? ` every ${r.escalationEveryMonths / 12} yr` : ""}` : null, certOf(p)); })}

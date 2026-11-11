@@ -6,7 +6,7 @@ const BASE = "/api/v1/assistant";
 const key = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now() + Math.random()));
 
 export interface ConversationItem { id: string; title: string | null; last_message_at: string | null; pinned: boolean; context_entity_type: string | null }
-export interface StoredMessage { id: string; seq: number; role: string; content: string | null; blocks: Block[] | null; status: string | null; created_at: string }
+export interface StoredMessage { id: string; seq: number; role: string; content: string | null; blocks: Block[] | null; status: string | null; created_at: string; run_id?: string | null; steps?: { step: number; label: string; status: string; summary?: string }[] }
 export interface SavedCommand { id: string; name: string; prompt: string }
 
 async function json<T>(res: Response): Promise<T> {

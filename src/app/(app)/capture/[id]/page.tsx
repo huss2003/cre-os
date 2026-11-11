@@ -10,6 +10,7 @@ import { getReview } from "@/modules/capture/service";
 import { StatusBadge } from "@/modules/capture/ui/parts";
 import { ActionForm, Submit } from "@/modules/changes/ui/client";
 import { ProposalCard } from "@/modules/changes/ui/proposal-card";
+import { fieldLabel, formatValue } from "@/modules/changes/display";
 import { reviewAction } from "@/modules/capture/actions";
 
 export const metadata = { title: "Review capture" };
@@ -104,7 +105,7 @@ async function Body({ params }: Props) {
             <Card title="What will be added when you press Reviewed" help="Nothing has been saved to your records yet. Check this list, answer any questions above, then press Reviewed — the meeting, tasks and record changes are added to their sections in one go.">
               <ul className="space-y-2 text-sm">
                 <li className="flex gap-2"><Badge tone="brand">Meeting log</Badge><span>{ex.interaction?.channel ?? "note"} — {(ex.interaction?.summary ?? "").slice(0, 160) || "summary of your note"}</span></li>
-                {ex.facts.map((f, i) => <li key={`f${i}`} className="flex gap-2"><Badge tone="accent">Requirement</Badge><span>{FIELD_LABEL[f.field] ?? f.field}: <b>{f.proposed_value ?? "?"}</b>{f.unit ? ` ${f.unit}` : ""} <span className="text-ink-soft">(from “{f.raw_text}”)</span></span></li>)}
+                {r.factPreview.map((f) => <li key={`f${f.index}`} className="flex gap-2"><Badge tone="accent">Requirement</Badge><span>{FIELD_LABEL[f.field] ?? fieldLabel(f.field)}: <b>{f.value == null ? "?" : formatValue(f.field, f.value)}</b>{f.unit && f.unit !== "date" && !/date/.test(f.field) ? ` ${f.unit}` : ""} <span className="text-ink-soft">(from “{f.raw_text}”)</span></span></li>)}
                 {ex.details.map((d, i) => <li key={`d${i}`} className="flex gap-2"><Badge tone="accent">Requirement</Badge><span>{d.key.replace(/_/g, " ")}: <b>{String(d.value ?? "—")}</b></span></li>)}
                 {ex.stakeholders.map((st, i) => <li key={`s${i}`} className="flex gap-2"><Badge>Stakeholder</Badge><span>{ex.mentions[st.mention_index]?.text} as {st.role}</span></li>)}
                 {ex.tasks.map((t, i) => <li key={`t${i}`} className="flex gap-2"><Badge tone="ok">Task</Badge><span>{t.description}{t.due_date ? <span className="text-ink-soft"> · due {t.due_date}</span> : null}</span></li>)}

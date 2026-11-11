@@ -3,8 +3,7 @@
  *
  * Writes ONLY into the synthetic demo workspace "Demo — Pune CRE (synthetic)" (scripts/demo-data), which is the
  * owner's default workspace once it exists. Two parts:
- *   1. the synthetic demo dataset (same rows as scripts/demo-seed.ts; one generated space that collides with the
- *      space_unit_uq index is merged into its twin so the insert succeeds),
+ *   1. the synthetic demo dataset (same rows as scripts/demo-seed.ts),
  *   2. the tutorial "story" records tagged demo: Zentrix Analytics, Ananya Rao (Head of Real Estate), Kharadi and
  *      Hinjewadi buildings with coordinates, a lease expiring in ~10 months, a 25,000 sf Kharadi requirement and a
  *      Pune-expansion signal.
@@ -36,18 +35,13 @@ async function main() {
   if (!url || !key) throw new Error("run with --env-file=.env.local");
   if (!["127.0.0.1", "localhost"].includes(new URL(url).hostname)) throw new Error("refusing: not local Supabase");
   const db = createClient(url, key, { auth: { persistSession: false }, db: { schema: "mudar" } });
-  const up = async (table: string, rows: Row[], lenient = false) => {
+  const up = async (table: string, rows: Row[]) => {
     if (!rows.length) return;
     for (const r of rows) if (r.workspace_id !== WS) throw new Error(`${table}: non-demo workspace row`);
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await db.from(table).upsert(chunk, { onConflict: "id", defaultToNull: false });
-      if (!error) continue;
-      if (!lenient) throw new Error(`${table}: ${error.message} ${error.details ?? ""}`);
-      // the synthetic generator has a few rows that violate newer constraints: skip just those
-      let skipped = 0;
-      for (const r of chunk) { const e = (await db.from(table).upsert(r, { onConflict: "id", defaultToNull: false })).error; if (e) skipped++; }
-      if (skipped) console.warn(`  ${table}: skipped ${skipped} invalid synthetic row(s)`);
+      if (error) throw new Error(`${table}: ${error.message} ${error.details ?? ""}`);
     }
   };
 
@@ -57,30 +51,15 @@ async function main() {
     allowed_classifications: ["public", "permitted_personal", "corporate_confidential", "licensed_restricted"], see_all_accounts: true, display_name: "Owner (demo)" },
     { onConflict: "workspace_id,user_id", ignoreDuplicates: true });
 
-  // ---- 1. synthetic dataset, with the duplicate space merged
+  // ---- 1. synthetic dataset
   const today = todayIst();
-  const batches = buildDemoDataset(today);
-  const remap = new Map<string, string>();
-  const spaces = batches.find((b) => b.table === "space")!;
-  const seen = new Map<string, string>();
-  spaces.rows = spaces.rows.filter((r: Row) => {
-    if (!r.unit) return true;
-    const k = `${r.asset_id}|${String(r.floor_text).toLowerCase()}|${String(r.unit).toLowerCase()}`;
-    if (seen.has(k)) { remap.set(r.id, seen.get(k)!); return false; }
-    seen.set(k, r.id); return true;
-  });
-  for (const b of batches) {
-    const rows = b.rows.map((r: Row) => {
-      const o: Row = { ...r };
-      for (const [c, v] of Object.entries(o)) if (typeof v === "string" && remap.has(v) && c !== "id") o[c] = remap.get(v);
-      return o;
-    });
+  for (const b of buildDemoDataset(today)) {
     // availability snapshots are append-only: only insert missing ones
     if (b.table === "availability") {
       const { data } = await db.from("availability").select("id").eq("workspace_id", WS).limit(5000);
       const have = new Set((data ?? []).map((x: Row) => x.id));
-      await up(b.table, rows.filter((r) => !have.has(r.id)), true);
-    } else await up(b.table, rows, true);
+      await up(b.table, b.rows.filter((r: Row) => !have.has(r.id)));
+    } else await up(b.table, b.rows);
   }
 
   // ---- 2. tutorial story records

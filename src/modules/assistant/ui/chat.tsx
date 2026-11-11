@@ -25,7 +25,8 @@ const FLUSH_MS = 60;
 
 const toUi = (m: StoredMessage): UiMessage => ({
   key: m.id, messageId: m.id, role: m.role === "user" ? "user" : "assistant",
-  text: m.content ?? "", blocks: Array.isArray(m.blocks) ? m.blocks : [], steps: [],
+  text: m.content ?? "", blocks: Array.isArray(m.blocks) ? m.blocks : [],
+  steps: (m.steps ?? []).map((s) => ({ ...s, status: s.status as Step["status"] })),
   status: (m.status as RunStatus | null) ?? "completed",
 });
 
@@ -41,7 +42,14 @@ export function useAssistantChat(opts: { conversationId?: string | null; focus?:
     abort.current?.abort();
     setConversationId(id); setLoadError(null);
     if (!id) { setMessages([]); return; }
-    try { const r = await api.get(id); setMessages(r.messages.sort((a, b) => a.seq - b.seq).map(toUi)); }
+    try {
+      const r = await api.get(id);
+      setMessages((prev) => {
+        // Live step trails survive a reload of the same conversation (e.g. a remount after the URL changed).
+        const live = new Map(prev.filter((m) => m.messageId && m.steps.length).map((m) => [m.messageId!, m.steps]));
+        return r.messages.sort((a, b) => a.seq - b.seq).map(toUi).map((m) => (!m.steps.length && live.has(m.messageId!) ? { ...m, steps: live.get(m.messageId!)! } : m));
+      });
+    }
     catch (e) { setMessages([]); setLoadError(e instanceof Error ? e.message : "Could not open this conversation"); }
   }, []);
 

@@ -118,6 +118,8 @@ export function buildAssets(ctx: GenContext, roster: PersonDef[]) {
   const spaces: Row[] = [];
   const spaceDefs: SpaceDef[] = [];
   const availability: Row[] = [];
+  // space_unit_uq: (asset, lower(floor_text), lower(unit)) must be unique while unit is set.
+  const usedUnits = new Set<string>();
   const leasingContact = (devKey: string) => roster.find((p) => p.orgKey === devKey && p.title.fn === "leasing")?.id ?? null;
 
   for (const a of defs.filter((d) => d.kind !== "campus")) {
@@ -139,6 +141,14 @@ export function buildAssets(ctx: GenContext, roster: PersonDef[]) {
         contiguous_group: carpet > 30000 ? `${a.key}:stack` : null,
         configuration: config,
       });
+      {
+        // Deterministic de-dupe (no extra rng draws, so every other generated value is unchanged): move up a floor.
+        const sp = spaces[spaces.length - 1];
+        let f = floorNo;
+        const k = () => `${a.id}|${String(sp.floor_text).toLowerCase()}|${String(sp.unit).toLowerCase()}`;
+        while (sp.unit && usedUnits.has(k())) { f++; sp.floor_text = carpet > 30000 ? `Floors ${f}–${f + 1}` : `Floor ${f}`; }
+        if (sp.unit) usedUnits.add(k());
+      }
 
       // snapshot history (append-only). freshness: fresh / ageing / stale(expired)
       const freshness = rng.pick(["fresh", "fresh", "ageing", "stale"]);
@@ -166,6 +176,12 @@ export function buildAssets(ctx: GenContext, roster: PersonDef[]) {
           valid_until: freshness === "stale" ? addDays(asOf, 60) : freshness === "ageing" ? addDays(asOf, 90) : addDays(asOf, rng.int(45, 75)),
           fact_status: h > 0 ? "historical_observed" : freshness === "fresh" && rng.chance(0.5) ? "currently_confirmed" : "reported",
         });
+        {
+          // availability_dates_chk: a quote cannot expire before the space is available — keep it open 30 days past availability.
+          const av = availability[availability.length - 1];
+          const from = av.available_from as string | null;
+          if (from && (av.valid_until as string) < from) av.valid_until = addDays(from, 30);
+        }
       }
       spaceDefs.push({ id: spaceId, key, assetKey: a.key, carpet, chargeable, config, latestStatus });
     }

@@ -1,4 +1,5 @@
 import "server-only";
+import { proposalRefs } from "@/modules/changes/display";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured, extractImageText, transcribe } from "@/lib/ai/gateway";
 import { enqueue } from "@/lib/jobs/queue";
@@ -325,6 +326,37 @@ function answeredValue(stored: StoredExtraction, ambiguityIndex: number) {
   return a.options.some((o) => o.value === v) ? v : undefined;     // only offered options count
 }
 
+/**
+ * Deterministic value of fact i after the user's answers (shared by apply and preview).
+ * undefined = still unresolved (an attached question is unanswered or the value is unknown).
+ */
+export function resolveFact(stored: StoredExtraction, f: Fact, i: number): { field: string; value: unknown; basis: string | null } | undefined {
+  let field: string = f.field;
+  let value: unknown = f.proposed_value;
+  let basis: string | null = f.field === "budget_max" ? basisForUnit(f.unit) : null;
+  for (const [j, a] of stored.ambiguities.entries()) {
+    if (a.fact_index !== i) continue;
+    const ans = answeredValue(stored, j);
+    if (ans === undefined) return undefined;
+    if (a.kind === "unit") {
+      const spec = parseUnitSpec(ans);
+      if (!spec) return undefined;
+      field = spec.field;
+      basis = spec.basis;
+    } else value = ans;
+  }
+  if (value === undefined || value === null) return undefined;
+  return { field, value, basis };
+}
+
+/** Preview of each fact as it will be applied (null value = still needs an answer). */
+export function factPreview(stored: StoredExtraction) {
+  return stored.facts.map((f, i) => {
+    const r = resolveFact(stored, f, i);
+    return { index: i, field: r?.field ?? f.field, value: r ? r.value : null, basis: r?.basis ?? null, unit: r ? (r.field === f.field ? f.unit : null) : f.unit, raw_text: f.raw_text };
+  });
+}
+
 const FIELD_COLUMN: Record<Exclude<Fact["field"], "preferred_geography">, string> = {
   area_target_sf: "area_target_sf", seats_target: "seats_target", budget_max: "budget_max",
   occupation_date: "occupation_date", decision_date: "decision_date",
@@ -461,24 +493,7 @@ async function materialise(admin: Db, workspaceId: string, c: CaptureRow, stored
 
   // ---- facts -> proposals (never for unresolved number/date/unit questions)
   const view = { ...stored, ambiguities };
-  const factResolution = (f: Fact, i: number): { field: string; value: unknown; basis: string | null } | undefined => {
-    let field: string = f.field;
-    let value: unknown = f.proposed_value;
-    let basis: string | null = f.field === "budget_max" ? basisForUnit(f.unit) : null;
-    for (const [j, a] of ambiguities.entries()) {
-      if (a.fact_index !== i) continue;
-      const ans = answeredValue(view, j);
-      if (ans === undefined) return undefined;
-      if (a.kind === "unit") {
-        const spec = parseUnitSpec(ans);
-        if (!spec) return undefined;
-        field = spec.field;
-        basis = spec.basis;
-      } else value = ans;
-    }
-    if (value === undefined || value === null) return undefined;
-    return { field, value, basis };
-  };
+  const factResolution = (f: Fact, i: number) => resolveFact(view, f, i);
   const createPatch: PatchOp[] = [];
   const createFacts: number[] = [];
   const geoIds = new Set(reqTarget?.preferred_geography_ids ?? []);
@@ -738,6 +753,7 @@ export async function getReview(db: Db, workspaceId: string, captureId: string) 
       ? db.from("interaction").select("id, channel, promises, objections").eq("workspace_id", workspaceId).eq("id", interactionId).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+  const refs = await proposalRefs(db, workspaceId, (proposals ?? []) as never);
   return {
     capture: { ...c, extraction: undefined },
     extraction: ext ? { schema_version: ext.schema_version, interaction: ext.interaction, mentions: ext.mentions, facts: ext.facts, tasks: ext.tasks, ambiguities: ext.ambiguities, drafts: ext.drafts,
@@ -745,8 +761,9 @@ export async function getReview(db: Db, workspaceId: string, captureId: string) 
     inferredOrg: ext?.meta.inferred_org ?? null, ocr: ext?.meta.ocr ?? null, interaction: interaction ?? null,
     candidates: ext?.meta.candidates ?? [], requirementCandidates: ext?.meta.requirement_candidates ?? [],
     resolved: ext?.meta.resolved ?? {}, review: ext?.meta.review ?? { resolutions: {}, answers: {} },
+    factPreview: ext ? factPreview(ext) : [],
     open: ext ? openQuestions(ext) : [], warnings: ext?.meta.warnings ?? [], mocked: ext?.meta.mocked ?? null,
-    proposals: proposals ?? [], tasks: tasks ?? [], drafts: drafts ?? [], spans: spans ?? [],
+    proposals: (proposals ?? []).map((p) => ({ ...p, refs })), tasks: tasks ?? [], drafts: drafts ?? [], spans: spans ?? [],
   };
 }
 

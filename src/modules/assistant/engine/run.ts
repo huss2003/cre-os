@@ -11,7 +11,7 @@ import { selectTools, LOAD_MORE_TOOLS, GROUP_ORDER, TOOL_GROUPS, type ToolGroup 
 import { buildContext, renderContext, type ConversationState } from "./context";
 import { routeRequest } from "./router";
 import { AnthropicProvider, chatWithFallback, RATE_LIMIT_PER_MIN, type ChatMessage, type ContentBlock, type ModelProvider, type ToolSpec } from "./provider";
-import { MockProvider } from "./mock";
+import { MockProvider, requestedCount } from "./mock";
 import { executeTool, mergeEntities, resultForModel } from "./execute";
 import { cacheKey, lookupAnswer, refersToConversation, reusedLabel, storeAnswer, tablesFor, REUSED_PREFIX } from "./cache";
 
@@ -198,7 +198,8 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
 
     // Static instructions are cached (with the tool list); the per-request context goes in a second, uncached block.
     const system = SYSTEM_PROMPT;
-    const systemContext = `## Context\n${renderContext(pkg)}`;
+    const asked = requestedCount(request);
+    const systemContext = `## Context\n${renderContext(pkg)}${asked ? `\n\nThe user asked for ${asked} items: pass limit: ${asked} to list/ranking tools and say how many you show.` : ""}`;
     const evidence = pkg.attachments.length ? `\n\n<evidence>\n${pkg.attachments.map((a) => `[attachment ${a.name}]\n${a.excerpt}`).join("\n\n")}\n</evidence>` : "";
     const messages: ChatMessage[] = [
       ...pkg.conversation.recent.filter((m) => m.role === "user" || m.role === "assistant")
@@ -284,10 +285,11 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
           results.push({ type: "tool_result", tool_use_id: u.id, content: JSON.stringify({ ok: false, error: tool ? "step_limit" : "unknown_tool" }), is_error: true });
           continue;
         }
-        emit({ type: "step", step, toolId: tool.id, label: tool.description.split(/[.\n]/)[0].slice(0, 80), status: "running" });
+        const stepLabel = tool.description.split(/[.\n]/)[0].slice(0, 80);
+        emit({ type: "step", step, toolId: tool.id, label: stepLabel, status: "running" });
         await setRun({ current_step: tool.id, steps_done: step, progress: Math.min(95, Math.round((step / MAX_STEPS) * 100)) });
         const o = await executeTool(tool, u.input, tctx, step);
-        emit({ type: "step", step, toolId: tool.id, label: tool.id, status: o.status === "timeout" ? "error" : o.status, summary: o.result.summary });
+        emit({ type: "step", step, toolId: tool.id, label: stepLabel, status: o.status === "timeout" ? "error" : o.status, summary: o.result.summary });
         mergeEntities(entities, o.result.entities);
         if (o.status === "ok") {
           for (const b of o.result.blocks ?? []) {

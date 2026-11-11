@@ -1,4 +1,5 @@
 import "server-only";
+import { proposalRefs } from "./display";
 import type { Db } from "@/lib/supabase/server";
 import { ChangeError, proposeChange, toChangeError, type PatchOp, type RiskLevel } from "@/lib/services/changes";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -250,6 +251,8 @@ export interface ProposalView extends ProposalRow {
   current: Record<string, unknown> | null;
   current_version: number | null;
   stale: boolean;
+  /** id -> display name for ids referenced in patch/current (missing = unknown/unreadable). */
+  refs: Record<string, string>;
 }
 
 const LABEL_COLS = ["display_name", "full_name", "title", "name", "summary"];
@@ -262,15 +265,17 @@ async function withTargets(db: Db, workspaceId: string, rows: ProposalRow[]): Pr
     const { data } = await db.from(t).select("*").eq("workspace_id", workspaceId).in("id", [...new Set(ids)]);
     for (const row of data ?? []) cache.set(`${t}:${row.id}`, row);
   }
-  return rows.map((r) => {
+  const views = rows.map((r) => {
     const cur = r.target_id ? cache.get(`${r.target_type}:${r.target_id}`) ?? null : null;
     const label = cur ? (LABEL_COLS.map((c) => cur[c]).find((v) => typeof v === "string" && v) as string | undefined) ?? null : null;
     const fields = r.patch.map((p) => p.path.replace(/^\//, ""));
     const current = cur ? Object.fromEntries(fields.filter((f) => f in cur).map((f) => [f, cur[f]])) : null;
     const curVersion = cur ? Number(cur.row_version) : null;
     const stale = ["proposed", "approved", "clarify"].includes(r.state) && r.expected_version != null && curVersion != null && curVersion !== Number(r.expected_version);
-    return { ...r, target_label: label, current, current_version: curVersion, stale };
+    return { ...r, target_label: label, current, current_version: curVersion, stale, refs: {} as Record<string, string> };
   });
+  const refs = await proposalRefs(db, workspaceId, views as never);
+  return views.map((v) => ({ ...v, refs }));
 }
 
 export async function getProposal(db: Db, workspaceId: string, id: string) {

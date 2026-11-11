@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Badge, Input, StaleBanner } from "@/components/ui";
 import { fmt } from "@/lib/util/time";
-import { RiskBadge, StateBadge, show } from "@/modules/capture/ui/parts";
+import { RiskBadge, StateBadge } from "@/modules/capture/ui/parts";
+import { fieldLabel, formatValue } from "../display";
 import { ActionForm, Submit } from "./client";
 import { decideAction, editAction, undoAction } from "../actions";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -13,6 +14,7 @@ export interface CardProposal {
   capture_id: string | null; created_at: string; expected_version: number | null; approval_required: boolean;
   target_label?: string | null; current?: Record<string, unknown> | null; current_version?: number | null; stale?: boolean;
   evidence_ids?: string[] | null;
+  refs?: Record<string, string>;
 }
 
 const OPEN = ["proposed", "approved", "clarify"];
@@ -45,9 +47,9 @@ export function ProposalCard({ p, role, selectable = false }: { p: CardProposal;
           <thead><tr className="text-left text-xs text-ink-soft"><th className="py-1 pr-2 font-medium">Field</th><th className="py-1 pr-2 font-medium">Now</th><th className="py-1 font-medium">Proposed</th></tr></thead>
           <tbody>{rows.map((r) => (
             <tr key={r.path} className="border-t border-line align-top">
-              <td className="py-1.5 pr-2 font-mono text-xs">{r.path.slice(1)}</td>
-              <td className="py-1.5 pr-2 text-ink-soft">{show(r.before)}</td>
-              <td className="py-1.5 font-medium">{show(r.value)}</td>
+              <td className="py-1.5 pr-2 text-xs">{r.path === "/loser_id" ? "Merge" : fieldLabel(r.path)}</td>
+              <td className="py-1.5 pr-2 text-ink-soft">{r.path === "/loser_id" ? String(r.before) : formatValue(r.path, r.before, p.refs)}</td>
+              <td className="py-1.5 font-medium">{r.path === "/loser_id" ? String(r.value) : formatValue(r.path, r.value, p.refs)}</td>
             </tr>
           ))}</tbody>
         </table>
@@ -81,7 +83,7 @@ export function ProposalCard({ p, role, selectable = false }: { p: CardProposal;
                 <input type="hidden" name="id" value={p.id} />
                 {p.patch.map((op) => (
                   <label key={op.path} className="block text-xs">
-                    <span className="font-mono">{op.path.slice(1)}</span>
+                    <span>{fieldLabel(op.path)}</span>
                     <input type="hidden" name="path" value={op.path} />
                     <Input name={`value:${op.path}`} defaultValue={typeof op.value === "string" ? op.value : JSON.stringify(op.value ?? null)} />
                   </label>

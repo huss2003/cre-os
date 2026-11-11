@@ -80,6 +80,22 @@ function monthsIn(text: string): number | null {
   if (/next year|12 months/i.test(text)) return 12;
   return null;
 }
+const COUNT_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20, "twenty-five": 25, thirty: 30, fifty: 50 };
+const COUNT_NOUNS = "accounts?|compan(?:y|ies)|clients?|customers?|deals?|leases?|buildings?|propert(?:y|ies)|options?|people|persons?|contacts?|meetings?|items?|tasks?|records?|results?|opportunit(?:y|ies)|requirements?|names?|prospects?|leads?|targets?|tenants?|landlords?|spaces?|ideas?|actions?|priorities";
+const COUNT_TOKEN = `(\\d{1,3}|${Object.keys(COUNT_WORDS).join("|")})`;
+/**
+ * How many items the user asked for ("five accounts", "top 3", "10 deals"), or null. Durations ("12 months") and
+ * areas are ignored: only "top N"/"first N" or N followed by a list noun counts. Shared by the mock planner and the
+ * real-model context hint.
+ */
+export function requestedCount(text: string): number | null {
+  const m = text.match(new RegExp(`\\b(?:top|first|best|biggest|largest)\\s+${COUNT_TOKEN}\\b`, "i"))
+    ?? text.match(new RegExp(`\\b${COUNT_TOKEN}\\s+(?:(?:most|top|key|main|best|priority|important|hot|warm|active|open|big(?:gest)?|new)\\s+){0,2}(?:${COUNT_NOUNS})\\b`, "i"));
+  if (!m) return null;
+  const n = Number(m[1]) || COUNT_WORDS[m[1].toLowerCase()];
+  return n && n > 0 && n <= 100 ? n : null;
+}
+
 const ENTITY_TYPE_ALIASES: Record<EntityType, string[]> = {
   company: ["company", "organisation", "org"], person: ["person", "contact"], asset: ["asset", "property", "building"], space: ["space"],
   requirement: ["requirement"], opportunity: ["opportunity", "deal"], lease: ["lease"], meeting: ["meeting"], outreach: ["outreach"],
@@ -114,6 +130,7 @@ export function fillInput(schema: ZodType, s: Slots): Record<string, unknown> {
       v = opts ? ENTITY_TYPE_ALIASES[s.primary.type].find((a) => opts.includes(a)) ?? opts.find((o) => o === s.primary!.type) : s.primary.type;
     } else if (k === "entityid") v = s.primary?.id;
     else if (/^(windowmonths|months|withinmonths|horizonmonths)$/.test(k)) v = monthsIn(s.request) ?? undefined;
+    else if (k === "limit") v = requestedCount(s.request) ?? undefined;
     else if (/^(newcontent|correction|content)$/.test(k)) v = correctionText(s.request);
     else if (k === "hint") v = s.request;
     else if (k === "question") v = s.request.length >= 5 ? s.request : undefined;
@@ -267,6 +284,13 @@ export class MockProvider implements ModelProvider {
     if (ok.length) lines.push(...ok.map((x) => `- ${x.r.summary ?? x.name}`));
     for (const x of ok) if (x.r.coverage) {
       lines.push(`Coverage: checked ${x.r.coverage.checked}, ${x.r.coverage.withData} with data.${x.r.coverage.note ? ` ${x.r.coverage.note}` : ""} This is based only on records in CRE OS — it is not a complete market list.`);
+    }
+    const asked = requestedCount(p.request);
+    if (asked) for (const x of ok) {
+      const n = ((x.r.data as { items?: unknown[] } | undefined)?.items ?? null)?.length;
+      if (n == null) continue;
+      lines.push(n >= asked ? `Showing ${n}, as you asked for ${asked}.` : `Showing ${n} — you asked for ${asked}, but only ${n} matched.`);
+      break;
     }
     if (failed.length) lines.push(...failed.map((x) => `- Not completed: ${x.r.error === "not_found_or_no_access" ? "a record was not found or you do not have access to it" : (x.r.summary ?? x.r.error ?? x.name)}`));
     const pendingApproval = ok.some((x) => /approval/i.test(x.r.summary ?? "") || (x.r.data as { status?: string } | undefined)?.status === "pending_approval");
