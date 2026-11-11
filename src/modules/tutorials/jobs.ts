@@ -27,8 +27,9 @@ export async function syncTutorialVideos(deadlineMs = 40_000) {
     const name = `${v.slug}.${ext}`;
     if (have.has(name)) continue;
     if (Date.now() - started > deadlineMs) return { uploaded, missingSource, more: true };
-    const res = await fetch(`${base}/tutorials/videos/${name}`, { cache: "no-store" });
-    if (!res.ok) { missingSource.push(name); continue; }
+    // Never follow redirects (an auth redirect would hand back the login page) and only accept the real media type.
+    const res = await fetch(`${base}/tutorials/videos/${name}`, { cache: "no-store", redirect: "manual" });
+    if (!res.ok || !(res.headers.get("content-type") ?? "").startsWith(type)) { missingSource.push(name); continue; }
     const body = new Uint8Array(await res.arrayBuffer());
     const { error: upErr } = await storage.upload(`videos/${name}`, body, { contentType: type, upsert: false, cacheControl: "604800" });
     if (upErr && !/exists/i.test(upErr.message)) throw new Error(`upload ${name}: ${upErr.message}`);
