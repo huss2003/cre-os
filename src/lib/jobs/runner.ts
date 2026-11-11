@@ -7,6 +7,8 @@ import { handlers, schedulers } from "./registry";
 const SUPERVISOR_TIMEOUT_MS = 10_000;
 /** Jobs run per batch. Each job is short (≈1–3 s); 8 clears backlogs quickly; DB load stays modest (each job is a few small queries). */
 const JOB_CONCURRENCY = Number(process.env.JOB_CONCURRENCY ?? 8);
+/** Per-job cap so a slow job cannot hold a slot for the whole tick (handlers that need longer must time-box and continue). */
+const JOB_TIMEOUT_MS = Number(process.env.JOB_TIMEOUT_MS ?? 28_000);
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | undefined;
@@ -54,17 +56,18 @@ export async function tick(opts: { budgetMs?: number; worker?: string; source?: 
 
   let ran = 0, failed = 0;
   try {
-    // Leave headroom: a job started late could overrun the 60 s platform limit (the cause of the live timeouts).
-    while (Date.now() - started < budget - 15_000) {
-      // Small batches run concurrently (SKIP LOCKED claim); the time budget is re-checked before every batch,
-      // and unclaimed work waits for the next tick.
-      const jobs = await claim(worker, JOB_CONCURRENCY);
-      if (jobs.length === 0) break;
-      await Promise.all(jobs.map(async (job) => {
+    // Worker pool: JOB_CONCURRENCY independent slots, each claiming one job at a time, so one slow job only
+    // occupies its own slot. Each job is capped (JOB_TIMEOUT_MS). Leave 15 s headroom under the 60 s platform limit.
+    const deadline = started + budget - 15_000;
+    const slot = async () => {
+      while (Date.now() < deadline) {
+        const jobs = await claim(worker, 1);
+        if (jobs.length === 0) return;
+        const job = jobs[0];
         const h = handlers[job.job_type];
         try {
           if (!h) throw new Error(`no handler for job_type ${job.job_type}`);
-          const remaining = Math.max(5_000, budget - (Date.now() - started));
+          const remaining = Math.max(5_000, Math.min(JOB_TIMEOUT_MS, budget - (Date.now() - started)));
           const result = await withTimeout(h(job), remaining, `job ${job.job_type}`);
           await complete(job.id, result);
           ran++;
@@ -72,8 +75,9 @@ export async function tick(opts: { budgetMs?: number; worker?: string; source?: 
           await fail(job.id, e);
           failed++;
         }
-      }));
-    }
+      }
+    };
+    await Promise.all(Array.from({ length: JOB_CONCURRENCY }, slot));
   } catch (e) {
     scheduleErrors.push(`queue: ${errText(e)}`);
   }

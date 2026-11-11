@@ -27,7 +27,8 @@ export async function loadCandidates(ctx: DealsCtx, requirementId: string): Prom
   if (!sp.length) return [];
   const assetIds = [...new Set(sp.map((s) => s.asset_id as string))];
   const spaceIds = sp.map((s) => s.id as string);
-  const chunk = <T,>(a: T[], n = 300) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+  // ~100 uuids per request keeps the PostgREST URL well under proxy limits ("URI too long" at 300).
+  const chunk = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
   const assets: Record<string, unknown>[] = [];
   for (const ids of chunk(assetIds)) {
     const r = await ctx.db.from("asset").select("id, name, locality_id, micro_market_id, lat, lon, status, completion_date, certifications, specs, total_area_sf").eq("workspace_id", ctx.workspaceId).in("id", ids);

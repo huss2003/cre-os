@@ -11,7 +11,7 @@ import { sweep } from "./service";
 export const handlers: Record<string, JobHandler> = {
   "workflows.sweep": async (job) => {
     if (!job.workspace_id) throw new Error("workflows.sweep requires workspace_id");
-    return sweep(createAdminClient(), job.workspace_id);
+    return sweep(createAdminClient(), job.workspace_id, { limit: 8, deadlineAt: Date.now() + 20_000 });
   },
 };
 

@@ -273,7 +273,9 @@ export async function runLeaseChain(db: Db, ws: string, leaseId: string, opts: C
  * Finds new triggers and resumes runs waiting on approval. Robust by construction: no DB trigger is needed, missed
  * ticks are caught up (lookback), and the unique dedupe_key makes concurrent or repeated sweeps harmless.
  */
-export async function sweep(db: Db, ws: string, opts: ChainOpts & { limit?: number; lookbackDays?: number } = {}) {
+export async function sweep(db: Db, ws: string, opts: ChainOpts & { limit?: number; lookbackDays?: number; deadlineAt?: number } = {}) {
+  // Time-boxed: stops starting new chains once the deadline passes; chains are idempotent, so the next sweep picks up the rest.
+  const timeUp = () => opts.deadlineAt !== undefined && Date.now() > opts.deadlineAt;
   const s = await getSettings(db, ws);
   const limit = opts.limit ?? 25; const out: Record<string, number> = { signals: 0, leases: 0, resumed: 0 };
   const has = async (keys: string[]) => {
@@ -286,7 +288,7 @@ export async function sweep(db: Db, ws: string, opts: ChainOpts & { limit?: numb
       .gte("updated_at", daysAgoIso(opts.lookbackDays ?? 14)).order("updated_at", { ascending: false }).limit(300);
     const keyed = (sigs ?? []).map((x) => ({ id: x.id as string, key: R.signalDedupeKey(x.id, R.signalStrength(x).strong) }));
     const done = await has(keyed.map((k) => k.key));
-    for (const k of keyed.filter((k) => !done.has(k.key)).slice(0, limit)) if (await runSignalChain(db, ws, k.id, opts)) out.signals++;
+    for (const k of keyed.filter((k) => !done.has(k.key)).slice(0, limit)) { if (timeUp()) break; if (await runSignalChain(db, ws, k.id, opts)) out.signals++; }
   }
   if (s.lease_chain) {
     const today = opts.today ?? localDate();
@@ -300,9 +302,11 @@ export async function sweep(db: Db, ws: string, opts: ChainOpts & { limit?: numb
     // Leases with a finished run may have entered a new window; runLeaseChain re-checks the exact key cheaply.
     const order = [...ids.filter((i) => !seen.has(i)), ...ids.filter((i) => seen.has(i))].slice(0, limit * 4);
     let n = 0;
-    for (const id of order) { if (n >= limit) break; if (await runLeaseChain(db, ws, id, opts)) { out.leases++; n++; } }
+    for (const id of order) { if (n >= limit || timeUp()) break; if (await runLeaseChain(db, ws, id, opts)) { out.leases++; n++; } }
   }
+  if (timeUp()) return { ...out, partial: 1 };
   Object.assign(out, await sweepEvents(db, ws, s, opts));
+  if (timeUp()) return { ...out, partial: 1 };
   const { data: waiting } = await db.from("workflow_run").select("kind, subject_id").eq("workspace_id", ws).eq("status", "waiting_approval").limit(limit);
   for (const r of waiting ?? []) {
     if (r.kind === "lease_chain" && !s.lease_chain) continue;
