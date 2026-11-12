@@ -63,7 +63,7 @@ async function main() {
   }
 
   // ---- 2. tutorial story records
-  const geo = async (name: string) => (await db.from("geography").select("id").eq("workspace_id", WS).ilike("name", name).limit(1)).data?.[0]?.id ?? null;
+  const geo = async (name: string) => (await db.from("geography").select("id").eq("workspace_id", WS).ilike("name", name).is("archived_at", null).limit(1)).data?.[0]?.id ?? null;
   const [kharadi, hinj, sbdEast, pbdWest] = await Promise.all([geo("Kharadi"), geo("Hinjewadi Phase 2"), geo("SBD East"), geo("PBD West")]);
   const base = (cls = "corporate_confidential") => ({ workspace_id: WS, owner_user_id: OWNER_USER_ID, classification: cls });
   const note = `Tutorial demo record (demo). ${SYNTHETIC_NOTE}`;

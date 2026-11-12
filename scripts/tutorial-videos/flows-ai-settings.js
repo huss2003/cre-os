@@ -53,7 +53,7 @@ const FLOWS = [
 
   // ------------------------------------------------------------------ 2. local OCR business card
   {
-    slug: "local-ocr-business-card", category: CAT, title: "Read a business card without AI (local OCR)",
+    slug: "local-ocr-business-card-v2", category: CAT, title: "Read a business card without AI (local OCR)",
     learn: "With 'Reading text from images & scans' set to Off, a business-card photo is still read — by local OCR on the server, with no AI call. The card's name, title, company, email and phone become observations, and a new contact is proposed for your approval in Review.",
     tryRoute: "/capture",
     async run(t) {

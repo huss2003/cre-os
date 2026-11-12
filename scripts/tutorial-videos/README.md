@@ -20,7 +20,7 @@ caption bar, title and outro cards). They are shown on `/tutorials` and `/tutori
 | `transactions` | `flows-transactions.js` | `setup-transactions.ts` ("… (tutorial)" transactions archived + rebuilt) | tx-create, tx-offers, tx-positions, tx-issues, tx-inspections-docs, tx-stakeholders, tx-loi-points, tx-agreement-approvals, tx-execution-handover, tx-closure, tx-command-view |
 | `supply` | `flows-supply.js` | `setup-supply.ts` | supply-inventory, supply-operators, supply-matching, supply-reconfirmation, supply-feedback |
 | `signals2` | `flows-signals2.js` | `setup-signals2.ts` (needs `setup-leases.ts` companies) | signals-dashboard-v2, signal-card-v2, signal-counter-evidence, signal-unresolved-company, signal-actions, signals-sources |
-| `ai-settings` | `flows-ai-settings.js` | `setup-ai-settings.ts` (resets AI modes; card PNG in /tmp/tutorial-ai) | ai-use-settings, local-ocr-business-card |
+| `ai-settings` | `flows-ai-settings.js` | `setup-ai-settings.ts` (resets AI modes; card PNG in /tmp/tutorial-ai) | ai-use-settings, local-ocr-business-card-v2 |
 
 Shared helpers for these groups: `new-modules-common.js` (`SOFT_LOG=1` prints optional pointers that were not found during a dry run).
 Existing videos broken by recent UI changes, with step fixes: `RERECORD.md`.

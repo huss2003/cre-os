@@ -50,7 +50,7 @@ async function data() {
   await up("person", [{ ...base("permitted_personal"), id: INPUT.anil, full_name: "Anil Deshmukh", preferred_channel: "phone", personal_notes: note, archived_at: null }]);
   await up("contact_method", [{ ...base("permitted_personal"), id: tid("contact", "anil-email"), person_id: INPUT.anil, method_type: "email", value: "anil.deshmukh@marigoldloop.example", preferred: true }]);
   await up("employment", [{ ...base(), id: INPUT.employment, person_id: INPUT.anil, org_id: ORG, title: "Head of Workplace", function: "Admin", seniority: "head", is_current: true, fact_status: "reported" }]);
-  const kharadi = (await must(db.from("geography").select("id").eq("workspace_id", WS).eq("name", "Kharadi").limit(1))) as Row[];
+  const kharadi = (await must(db.from("geography").select("id").eq("workspace_id", WS).eq("name", "Kharadi").is("archived_at", null).limit(1))) as Row[];
   await up("requirement", [{ ...base(), id: INPUT.requirement, org_id: ORG, title: "Marigold Loop — 20,000 sf in Kharadi (demo)", objective: "expansion", transaction_kinds: ["conventional"],
     area_target_sf: 20000, area_basis: "chargeable", preferred_geography_ids: kharadi.map((g) => g.id), status: "draft", archived_at: null }]);
 

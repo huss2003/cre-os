@@ -160,7 +160,7 @@ const FLOWS = [
       await soft(t, "Each match shows why it matched: the lease and its dates…", TX(p, /^Lease events:/));
       await soft(t, "…the contact you know there, and any signal about them.", TX(p, /Ananya Rao/));
       await t.step("Open the company to act on it.", () => t.moveAndClick(main(p).getByRole("link", { name: ZENTRIX })));
-      await soft(t, "From here, plan outreach, prepare a meeting, or compare buildings for them.", L(p, /^Next actions/));
+      await soft(t, "From here, plan outreach, prepare a meeting, or compare buildings for them.", H(p, /^Next actions/));
       await t.outro("found companies in Kharadi with a lease event next year and checked why each matched.", "understand one company page.");
     },
   },

@@ -1,0 +1,98 @@
+{
+  "durationMs": 88723,
+  "steps": [
+    {
+      "caption": "Open Signals.",
+      "ms": 3605
+    },
+    {
+      "caption": "Unverified lists signals nobody has checked yet.",
+      "ms": 7677
+    },
+    {
+      "caption": "Open one to review it.",
+      "ms": 11771
+    },
+    {
+      "caption": "Header: type, company, and badges — urgency, evidence strength, Unverified and New.",
+      "ms": 15665
+    },
+    {
+      "caption": "1. What happened — the event, quoted from the source.",
+      "ms": 18864
+    },
+    {
+      "caption": "2. Why it matters — CRE OS's reading of it, labelled as interpretation, not fact.",
+      "ms": 22042
+    },
+    {
+      "caption": "3. Supporting evidence: every source behind the signal.",
+      "ms": 25220
+    },
+    {
+      "caption": "4–9: what you already know — company records, offices, occupancy, leases, contacts, requirements.",
+      "ms": 28390
+    },
+    {
+      "caption": "10. Counter-evidence: 'none found yet' does not mean there is none.",
+      "ms": 31571
+    },
+    {
+      "caption": "11. Missing information and 12. Suggested next steps.",
+      "ms": 34738
+    },
+    {
+      "caption": "Priority — why: the reasons behind its urgency. History: every decision made on it.",
+      "ms": 37925
+    },
+    {
+      "caption": "Know something? Add it as evidence, with its source.",
+      "ms": 41117
+    },
+    {
+      "caption": "'Add supporting' backs the signal; 'Add counter-evidence' records evidence against it.",
+      "ms": 45959
+    },
+    {
+      "caption": "Wrong company matched? Correct it here.",
+      "ms": 50868
+    },
+    {
+      "caption": "Research this company searches the web for recent news (needs an AI key).",
+      "ms": 54037
+    },
+    {
+      "caption": "Link it to an existing deal, or propose a new opportunity — it goes to Review for approval.",
+      "ms": 57215
+    },
+    {
+      "caption": "Override the priority with a reason and a review date — it comes back for review then.",
+      "ms": 60383
+    },
+    {
+      "caption": "Or just create a follow-up task from it.",
+      "ms": 63556
+    },
+    {
+      "caption": "Decide: write a short reason first — it is kept in History.",
+      "ms": 66721
+    },
+    {
+      "caption": "Investigate: keep it open while you check. Assign to me: make it yours. Already known: you knew.",
+      "ms": 71048
+    },
+    {
+      "caption": "Reject: it is wrong. Dismiss: not relevant. Snooze until a date: look again later. Nothing is deleted.",
+      "ms": 74214
+    },
+    {
+      "caption": "Approve + task: it becomes a confirmed lead with a follow-up task.",
+      "ms": 77403
+    },
+    {
+      "caption": "The decision now shows in History, and the task appears under Tasks on Today.",
+      "ms": 81249
+    }
+  ],
+  "bytes": 1354698
+}

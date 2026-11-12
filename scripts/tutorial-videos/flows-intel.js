@@ -51,6 +51,17 @@ async function prepare() {
     "Rohan,Kulkarni,,rohan.kulkarni@zentrix.example,Zentrix Analytics,Head of Facilities & Workplace,01 Oct 2026\n");
 }
 
+/** Not filmed (signals-review-v3): earlier runs approved the Tamarind signals and added the same "HR head confirmed" evidence each
+ *  time. Put them back to New / unverified, drop the evidence, decisions and follow-up tasks those runs added (demo workspace only). */
+function resetTamarind() {
+  const sig = `select id from mudar.signal where workspace_id='${WS}' and title like 'Tamarind Stack Labs:%'`;
+  psql(`update mudar.task set archived_at = now() where workspace_id='${WS}' and archived_at is null and id in (select task_id from mudar.signal where id in (${sig}) and task_id is not null);
+        delete from mudar.signal_evidence where workspace_id='${WS}' and signal_id in (${sig}) and excerpt = 'Their Pune HR head confirmed the hiring plan on a call.';
+        delete from mudar.signal_review where workspace_id='${WS}' and signal_id in (${sig});
+        update mudar.signal set status='new', status_reason=null, snoozed_until=null, assigned_user_id=null, task_id=null, opportunity_id=null, priority_override=null
+          where workspace_id='${WS}' and id in (${sig});`);
+}
+
 /** First link to a signal card (not the Sources / lookup pages linked from the header). */
 const signalLink = (p) => main(p).locator("a[href^='/signals/']:not([href^='/signals/sources']):not([href^='/signals/lookup'])").first();
 
@@ -87,10 +98,11 @@ const FLOWS = [
     },
   },
   {
-    slug: "signals-review-v2", category: CAT, title: "Review a new signal and decide",
+    slug: "signals-review-v3", category: CAT, title: "Review a new signal and decide",
     learn: "Every part of a signal page: the 12 evidence sections, priority and history, and each decision — approve, investigate, dismiss, snooze, task, deal, research, evidence, override.", tryRoute: "/signals",
     async run(t) {
       const p = t.page;
+      resetTamarind();
       await p.context().addCookies([{ name: "cre_ws", value: WS, url: t.BASE }]);
       await t.goto("/today");
       await t.title("Review a new signal", "A signal is a hint, not a fact. Check the evidence, then decide what to do with it.",

@@ -80,10 +80,10 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "local-ocr-business-card",
+    "slug": "local-ocr-business-card-v2",
     "title": "Read a business card without AI (local OCR)",
     "category": "Review & settings",
-    "seconds": 55,
+    "seconds": 53,
     "learn": "With 'Reading text from images & scans' set to Off, a business-card photo is still read — by local OCR on the server, with no AI call. The card's name, title, company, email and phone become observations, and a new contact is proposed for your approval in Review.",
     "tryRoute": "/capture",
     "featured": false,
@@ -94,47 +94,47 @@ export const VIDEOS: TutorialVideo[] = [
       },
       {
         "caption": "Reading text from images & scans: by default Backup — local text reading first, AI vision only if that finds nothing.",
-        "ms": 9655
+        "ms": 9668
       },
       {
         "caption": "In this workspace it is set to Off — code only. So no AI is allowed to read photos.",
-        "ms": 12841
+        "ms": 12875
       },
       {
         "caption": "Now open Capture from the sidebar.",
-        "ms": 16140
+        "ms": 16045
       },
       {
         "caption": "Choose Photo — for visiting cards and whiteboards.",
-        "ms": 20555
+        "ms": 19929
       },
       {
         "caption": "Pick the photo of Rhea Kulkarni's card.",
-        "ms": 24502
+        "ms": 23840
       },
       {
         "caption": "Say what it is.",
-        "ms": 27760
+        "ms": 27079
       },
       {
         "caption": "Save capture. The photo is stored and read straight away.",
-        "ms": 32972
+        "ms": 31652
       },
       {
         "caption": "The review screen. The photo's text was read on the server by local OCR — no AI call. It is context, never proof of terms.",
-        "ms": 38542
+        "ms": 36505
       },
       {
         "caption": "The text from the card: name, title, company, email and phone.",
-        "ms": 41806
+        "ms": 39747
       },
       {
         "caption": "What was found becomes observations, and a new contact is proposed. It waits for your approval in Review — nothing is changed without you.",
-        "ms": 45084
+        "ms": 42962
       },
       {
         "caption": "Nothing was sent out to read the card. Approve the proposed contact in Review when you have checked it.",
-        "ms": 48334
+        "ms": 46149
       }
     ]
   },
@@ -706,93 +706,93 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "review-queues-v3",
+    "slug": "review-queues-v4",
     "title": "Review — what waits for you, approve, reject, ask for more info",
     "category": "Review & settings",
-    "seconds": 90,
+    "seconds": 102,
     "learn": "Review holds everything waiting for your OK: unverified contacts, captures, record changes, merges, drafts, documents. Approve, reject, edit or request more info.",
     "tryRoute": "/approvals",
     "featured": false,
     "steps": [
       {
         "caption": "Open Review. The badge counts what's waiting.",
-        "ms": 3606
+        "ms": 3605
       },
       {
-        "caption": "At the top: quick counts — files needing input, needs more info, unverified contact details, outreach drafts and failed jobs.",
-        "ms": 7635
+        "caption": "At the top: quick counts — files needing input, unverified contact details, outreach drafts and failed jobs.",
+        "ms": 7617
       },
       {
         "caption": "New sections above the tabs: transaction approvals waiting for you…",
-        "ms": 10857
+        "ms": 10832
       },
       {
         "caption": "…lease dates needing review and lease terms to confirm — decisions from Transactions and Leases also wait here.",
-        "ms": 14135
+        "ms": 14087
       },
       {
         "caption": "Imports to review: spreadsheet rows waiting for your check.",
-        "ms": 17326
+        "ms": 17316
       },
       {
         "caption": "Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.",
-        "ms": 20600
+        "ms": 20579
       },
       {
         "caption": "Captures to review: notes and files from Capture. Open one, check it, press Reviewed.",
-        "ms": 23783
+        "ms": 23761
       },
       {
         "caption": "Tabs split the rest. Record changes first.",
-        "ms": 26969
+        "ms": 26966
       },
       {
         "caption": "Each card: the record, 'Material' tag, now vs proposed, and the evidence quote.",
-        "ms": 31023
+        "ms": 33531
       },
       {
         "caption": "'why do we believe this?' opens the source behind the proposal.",
-        "ms": 34229
+        "ms": 36767
       },
       {
         "caption": "Buttons: Approve & apply, Approve only (apply later), Ask to clarify, Reject; or Edit proposed values.",
-        "ms": 37453
+        "ms": 39995
       },
       {
         "caption": "The lease proposal from the PDF (area 18,000 → 18,500). Something to check first? Request more info.",
-        "ms": 40647
+        "ms": 43172
       },
       {
         "caption": "Say what's missing and press Ask — it moves to 'Needs more info' and adds a linked task.",
-        "ms": 45552
+        "ms": 48044
       },
       {
         "caption": "The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.",
-        "ms": 52149
+        "ms": 54371
       },
       {
         "caption": "Applied — it leaves the queue and appears in History & undo.",
-        "ms": 56199
+        "ms": 58342
       },
       {
         "caption": "Identity merges: duplicate companies, people or buildings — never merged silently.",
-        "ms": 59422
+        "ms": 61557
       },
       {
         "caption": "External drafts: outreach drafts waiting to be checked and sent by you.",
-        "ms": 66046
+        "ms": 68872
       },
       {
         "caption": "Documents: generated documents still in draft.",
-        "ms": 72650
+        "ms": 76496
       },
       {
         "caption": "Conflicts: two sources disagree on a value — you choose.",
-        "ms": 79335
+        "ms": 83878
       },
       {
         "caption": "Stale records: data too old to trust until rechecked.",
-        "ms": 83374
+        "ms": 91419
       }
     ]
   },
@@ -3072,101 +3072,105 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "signals-review-v2",
+    "slug": "signals-review-v3",
     "title": "Review a new signal and decide",
     "category": "Signals, scores & contacts",
-    "seconds": 93,
+    "seconds": 89,
     "learn": "Every part of a signal page: the 12 evidence sections, priority and history, and each decision — approve, investigate, dismiss, snooze, task, deal, research, evidence, override.",
     "tryRoute": "/signals",
     "featured": false,
     "steps": [
       {
         "caption": "Open Signals.",
-        "ms": 3606
+        "ms": 3605
       },
       {
         "caption": "Unverified lists signals nobody has checked yet.",
-        "ms": 7724
+        "ms": 7677
       },
       {
         "caption": "Open one to review it.",
-        "ms": 11969
+        "ms": 11771
       },
       {
         "caption": "Header: type, company, and badges — urgency, evidence strength, Unverified and New.",
-        "ms": 15893
+        "ms": 15665
       },
       {
         "caption": "1. What happened — the event, quoted from the source.",
-        "ms": 19085
+        "ms": 18864
       },
       {
         "caption": "2. Why it matters — CRE OS's reading of it, labelled as interpretation, not fact.",
-        "ms": 22281
+        "ms": 22042
       },
       {
         "caption": "3. Supporting evidence: every source behind the signal.",
-        "ms": 25449
+        "ms": 25220
       },
       {
         "caption": "4–9: what you already know — company records, offices, occupancy, leases, contacts, requirements.",
-        "ms": 28639
+        "ms": 28390
       },
       {
         "caption": "10. Counter-evidence: 'none found yet' does not mean there is none.",
-        "ms": 31853
+        "ms": 31571
       },
       {
         "caption": "11. Missing information and 12. Suggested next steps.",
-        "ms": 35059
+        "ms": 34738
       },
       {
         "caption": "Priority — why: the reasons behind its urgency. History: every decision made on it.",
-        "ms": 38224
+        "ms": 37925
       },
       {
         "caption": "Know something? Add it as evidence, with its source.",
-        "ms": 41422
+        "ms": 41117
       },
       {
         "caption": "'Add supporting' backs the signal; 'Add counter-evidence' records evidence against it.",
-        "ms": 46463
+        "ms": 45959
       },
       {
         "caption": "Wrong company matched? Correct it here.",
-        "ms": 51295
+        "ms": 50868
       },
       {
         "caption": "Research this company searches the web for recent news (needs an AI key).",
-        "ms": 54458
+        "ms": 54037
       },
       {
         "caption": "Link it to an existing deal, or propose a new opportunity — it goes to Review for approval.",
-        "ms": 57657
+        "ms": 57215
       },
       {
         "caption": "Override the priority with a reason and a review date — it comes back for review then.",
-        "ms": 60834
+        "ms": 60383
       },
       {
         "caption": "Or just create a follow-up task from it.",
-        "ms": 64008
+        "ms": 63556
       },
       {
         "caption": "Decide: write a short reason first — it is kept in History.",
-        "ms": 67181
+        "ms": 66721
       },
       {
         "caption": "Investigate: keep it open while you check. Assign to me: make it yours. Already known: you knew.",
-        "ms": 71515
+        "ms": 71048
       },
       {
         "caption": "Reject: it is wrong. Dismiss: not relevant. Snooze until a date: look again later. Nothing is deleted.",
-        "ms": 78821
+        "ms": 74214
       },
       {
-        "caption": "Approve + task makes it a confirmed lead with a follow-up task (shown under Tasks on Today).",
-        "ms": 81992
+        "caption": "Approve + task: it becomes a confirmed lead with a follow-up task.",
+        "ms": 77403
+      },
+      {
+        "caption": "The decision now shows in History, and the task appears under Tasks on Today.",
+        "ms": 81249
       }
     ]
   },
@@ -8131,67 +8135,67 @@ export const VIDEOS: TutorialVideo[] = [
     "steps": [
       {
         "caption": "Open Search from the sidebar.",
-        "ms": 3605
+        "ms": 3604
       },
       {
         "caption": "Search has two modes. 'Search everything' finds any record by name.",
-        "ms": 7602
+        "ms": 7601
       },
       {
         "caption": "'Find accounts' finds companies that match a description. Switch to it.",
-        "ms": 12261
+        "ms": 12337
       },
       {
         "caption": "Describe what you want, in plain English.",
-        "ms": 16424
+        "ms": 16322
       },
       {
         "caption": "Press Find.",
-        "ms": 21811
+        "ms": 21714
       },
       {
         "caption": "'Understood' shows how your words became filters: place Kharadi, lease event next year.",
-        "ms": 29294
+        "ms": 29962
       },
       {
         "caption": "Edit filters opens every filter, so you can fine-tune by hand.",
-        "ms": 32624
+        "ms": 33170
       },
       {
         "caption": "Size: minimum and maximum square feet, on chargeable or carpet basis.",
-        "ms": 36821
+        "ms": 37070
       },
       {
         "caption": "Places, building grade and sector.",
-        "ms": 40026
+        "ms": 40235
       },
       {
         "caption": "Lease event: expiry, notice or break, within a window of N months.",
-        "ms": 43223
+        "ms": 43404
       },
       {
         "caption": "Known contact, recent signals, score bands, and whether a requirement or deal already exists.",
-        "ms": 46392
+        "ms": 46571
       },
       {
         "caption": "Coverage: how many companies matched out of all you can see — so you know what was checked.",
-        "ms": 49664
+        "ms": 49736
       },
       {
         "caption": "Each match shows why it matched: the lease and its dates…",
-        "ms": 52866
+        "ms": 52888
       },
       {
         "caption": "…the contact you know there, and any signal about them.",
-        "ms": 56041
+        "ms": 56056
       },
       {
         "caption": "Open the company to act on it.",
-        "ms": 59284
+        "ms": 59231
       },
       {
         "caption": "From here, plan outreach, prepare a meeting, or compare buildings for them.",
-        "ms": 63546
+        "ms": 63177
       }
     ]
   },

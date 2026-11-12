@@ -73,6 +73,30 @@ function finish() {
   execFileSync("npx", ["tsx", "--env-file=.env.local", "scripts/tutorial-videos/setup-demo.ts"], { cwd: ROOT, stdio: "pipe", timeout: 300000 });
 }
 
+/** Not filmed (review-queues-v4): the flow consumes its own cards (approve / request info), so start each run with exactly one
+ *  fresh "Awaiting review" notes change (budget Rs 90, move-in June 2027) and one fresh lease-area change (18,000 → 18,500). */
+const ZENTRIX_REQ = "88fb0b73-7486-5053-8bbe-5af8609b361e", ZENTRIX_LEASE = "bdb6d698-b437-5857-8fc9-1575713bcbf4";
+function resetReviewQueue() {
+  sql(`update mudar.change_proposal set archived_at = now() where workspace_id='${WS}' and archived_at is null and state in ('proposed','clarify')
+         and ((target_type='requirement' and target_id='${ZENTRIX_REQ}') or (target_type='lease' and target_id='${ZENTRIX_LEASE}'));
+       update mudar.requirement set budget_max=null, occupation_date='2027-03-31' where id='${ZENTRIX_REQ}' and workspace_id='${WS}';
+       update mudar.lease set area_sf=18000, rent_basis='chargeable_monthly', start_date='2022-09-08', contractual_expiry='2027-09-08' where id='${ZENTRIX_LEASE}' and workspace_id='${WS}';`);
+  const n = Date.now();
+  sql(`insert into mudar.change_proposal (workspace_id, owner_user_id, target_type, target_id, operation, expected_version, patch, before, reason, risk, approval_required, state, proposed_by_kind, idempotency_key)
+    select '${WS}', '${OWNER}', 'requirement', r.id, 'update', r.row_version,
+      '[{"op":"replace","path":"/budget_max","value":90},{"op":"replace","path":"/occupation_date","value":"2027-06-30"}]'::jsonb,
+      '{"kind":"proposal_snapshot","fields":{"budget_max":null,"occupation_date":"2027-03-31"}}'::jsonb,
+      $$From notes reviewed in the assistant: "Rs 90 per sq ft"; "by June 2027"$$, 'material_fact', true, 'proposed', 'model', 'tutorial-review:req:${n}'
+    from mudar.requirement r where r.id='${ZENTRIX_REQ}';
+    insert into mudar.change_proposal (workspace_id, owner_user_id, target_type, target_id, operation, expected_version, patch, before, reason, risk, approval_required, state, proposed_by_kind, idempotency_key)
+    select '${WS}', '${OWNER}', 'lease', l.id, 'update', l.row_version,
+      '[{"op":"replace","path":"/area_sf","value":"18500"},{"op":"replace","path":"/rent_basis","value":"per_sf_per_month"},{"op":"replace","path":"/start_date","value":"2022-09-07"},{"op":"replace","path":"/contractual_expiry","value":"2027-09-07"}]'::jsonb,
+      '{"kind":"proposal_snapshot","fields":{"area_sf":18000.00,"rent_basis":"chargeable_monthly","start_date":"2022-09-08","contractual_expiry":"2027-09-08"}}'::jsonb,
+      $$Assistant: terms from "zentrix-lease.pdf" for Zentrix Analytics; Area (sq ft) (page 1: “Chargeable area: 18,500 sq ft.”); Rent basis (page 2: “Monthly rent: INR 85 per sq ft per month on chargeable area.”); Start date (page 2: “Commencement date: 7 September 2022.”); Expiry date (page 2: “Expiry date: 7 September 2027.”)$$,
+      'material_fact', true, 'proposed', 'user', 'tutorial-review:lease:${n}'
+    from mudar.lease l where l.id='${ZENTRIX_LEASE}';`);
+}
+
 /** Type a question in the chat box (page or side panel) and wait for the answer to finish. */
 async function ask(t, root, q, waitFor) {
   await t.type(root.getByPlaceholder(/Ask about your accounts/), q, 30);
@@ -336,25 +360,37 @@ const FLOWS = [
   },
   // ------------------------------------------------------------------ Review & settings
   {
-    slug: "review-queues-v3", category: "Review & settings", title: "Review — what waits for you, approve, reject, ask for more info",
+    slug: "review-queues-v4", category: "Review & settings", title: "Review — what waits for you, approve, reject, ask for more info",
     learn: "Review holds everything waiting for your OK: unverified contacts, captures, record changes, merges, drafts, documents. Approve, reject, edit or request more info.", tryRoute: "/approvals",
     async run(t) {
       const p = t.page;
+      resetReviewQueue();
       // Not filmed: earlier tutorial runs left identical open proposals (same record, same change). Keep only the newest of each.
       sql(`update mudar.change_proposal c set archived_at = now() where c.workspace_id = '${WS}' and c.archived_at is null and c.state in ('proposed','clarify')
            and exists (select 1 from mudar.change_proposal d where d.workspace_id = c.workspace_id and d.archived_at is null and d.state in ('proposed','clarify')
              and d.state = c.state and d.target_type = c.target_type and coalesce(d.target_id::text,'') = coalesce(c.target_id::text,'') and d.patch::text = c.patch::text and d.created_at > c.created_at)`);
       await p.context().addCookies([{ name: "cre_ws", value: WS, url: t.BASE }]);
+      /** Click a Review tab, wait for it to load, bring the tab row back into view and point at it, then show its content. */
+      const openTab = async (name, scrollBy = 250) => {
+        const tabLink = () => main(p).getByRole("link", { name, exact: true }).first();
+        await t.moveAndClick(tabLink());
+        await p.waitForLoadState("networkidle").catch(() => {});
+        // Review tabs are soft navigations (?tab=…): wait until the new tab is the current one, so the page doesn't jump back to the top later.
+        await main(p).locator("a[aria-current=page]", { hasText: name }).first().waitFor({ timeout: 8000 }).catch(() => {});
+        await sleep(1500);
+        await tabLink().scrollIntoViewIfNeeded().catch(() => {}); await t.point(tabLink());
+        if (scrollBy) await t.scroll(scrollBy);
+      };
       await t.goto("/today");
       await t.title("Review — what waits for you", "Nothing material changes your records until you approve it here.");
       await t.step("Open Review. The badge counts what's waiting.", () => t.moveAndClick(navLink(p, "Review")));
-      await t.step("At the top: quick counts — files needing input, needs more info, unverified contact details, outreach drafts and failed jobs.", () => t.point(main(p).getByRole("link", { name: /Unverified contact details/ }).first()));
+      await t.step("At the top: quick counts — files needing input, unverified contact details, outreach drafts and failed jobs.", () => t.point(main(p).getByRole("link", { name: /Unverified contact details/ }).first()));
       await t.step("New sections above the tabs: transaction approvals waiting for you…", () => optPoint(t, main(p).getByText(/Transaction approvals waiting for you/)));
       await t.step("…lease dates needing review and lease terms to confirm — decisions from Transactions and Leases also wait here.", () => optPoint(t, main(p).getByText(/Lease dates needing review|Lease terms to confirm/)));
       await t.step("Imports to review: spreadsheet rows waiting for your check.", () => optPoint(t, main(p).getByText(/Imports to review/)));
       await t.step("Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.", () => t.point(main(p).getByText(/Unverified contact details \(/)));
       await t.step("Captures to review: notes and files from Capture. Open one, check it, press Reviewed.", () => t.point(main(p).getByText(/Captures to review/)));
-      await t.step("Tabs split the rest. Record changes first.", () => t.moveAndClick(main(p).getByRole("link", { name: "Record changes" })));
+      await t.step("Tabs split the rest. Record changes first.", () => openTab("Record changes", 0));
       p.on("dialog", (d) => d.accept().catch(() => {}));
       const req = main(p).locator("article").filter({ hasText: "Max budget" }).filter({ hasText: /Awaiting review/ }).first();
       // State badges are humanised now ("Awaiting review", not "proposed"); prefer a fresh lease card over a stale/clarify one.
@@ -372,11 +408,11 @@ const FLOWS = [
       });
       await t.step("The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.", () => t.moveAndClick(main(p).locator("article").filter({ hasText: "Max budget" }).filter({ hasText: /Rs 90 per sq ft/ }).filter({ hasText: /Awaiting review/ }).first().getByRole("button", { name: "Approve & apply" })));
       await t.step("Applied — it leaves the queue and appears in History & undo.", () => t.point(main(p).getByRole("link", { name: "History & undo" })));
-      await t.step("Identity merges: duplicate companies, people or buildings — never merged silently.", async () => { await t.moveAndClick(main(p).getByRole("link", { name: "Identity merges" })); await sleep(800); await t.point(main(p).getByRole("link", { name: "Identity merges" })); await t.scroll(250); });
-      await t.step("External drafts: outreach drafts waiting to be checked and sent by you.", async () => { await t.moveAndClick(main(p).getByRole("link", { name: "External drafts" })); await sleep(800); await t.point(main(p).getByRole("link", { name: "External drafts" })); await t.scroll(250); });
-      await t.step("Documents: generated documents still in draft.", async () => { await t.moveAndClick(main(p).getByRole("link", { name: "Documents" })); await sleep(800); await t.point(main(p).getByRole("link", { name: "Documents" })); await t.scroll(250); });
-      await t.step("Conflicts: two sources disagree on a value — you choose.", () => t.moveAndClick(main(p).getByRole("link", { name: "Conflicts" })));
-      await t.step("Stale records: data too old to trust until rechecked.", () => t.moveAndClick(main(p).getByRole("link", { name: "Stale records" })));
+      await t.step("Identity merges: duplicate companies, people or buildings — never merged silently.", () => openTab("Identity merges"));
+      await t.step("External drafts: outreach drafts waiting to be checked and sent by you.", () => openTab("External drafts"));
+      await t.step("Documents: generated documents still in draft.", () => openTab("Documents"));
+      await t.step("Conflicts: two sources disagree on a value — you choose.", () => openTab("Conflicts"));
+      await t.step("Stale records: data too old to trust until rechecked.", () => openTab("Stale records"));
       await t.outro("worked through Review: approved one change and asked for more info on another.", "undo an applied change.");
     },
   },

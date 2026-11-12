@@ -1,0 +1,54 @@
+{
+  "durationMs": 52539,
+  "steps": [
+    {
+      "caption": "Open Settings → AI use.",
+      "ms": 3606
+    },
+    {
+      "caption": "Reading text from images & scans: by default Backup — local text reading first, AI vision only if that finds nothing.",
+      "ms": 9668
+    },
+    {
+      "caption": "In this workspace it is set to Off — code only. So no AI is allowed to read photos.",
+      "ms": 12875
+    },
+    {
+      "caption": "Now open Capture from the sidebar.",
+      "ms": 16045
+    },
+    {
+      "caption": "Choose Photo — for visiting cards and whiteboards.",
+      "ms": 19929
+    },
+    {
+      "caption": "Pick the photo of Rhea Kulkarni's card.",
+      "ms": 23840
+    },
+    {
+      "caption": "Say what it is.",
+      "ms": 27079
+    },
+    {
+      "caption": "Save capture. The photo is stored and read straight away.",
+      "ms": 31652
+    },
+    {
+      "caption": "The review screen. The photo's text was read on the server by local OCR — no AI call. It is context, never proof of terms.",
+      "ms": 36505
+    },
+    {
+      "caption": "The text from the card: name, title, company, email and phone.",
+      "ms": 39747
+    },
+    {
+      "caption": "What was found becomes observations, and a new contact is proposed. It waits for your approval in Review — nothing is changed without you.",
+      "ms": 42962
+    },
+    {
+      "caption": "Nothing was sent out to read the card. Approve the proposed contact in Review when you have checked it.",
+      "ms": 46149
+    }
+  ],
+  "bytes": 658189
+}
