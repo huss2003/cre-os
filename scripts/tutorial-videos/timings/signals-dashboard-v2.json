@@ -1,0 +1,66 @@
+{
+  "durationMs": 74078,
+  "steps": [
+    {
+      "caption": "Open Signals from the sidebar, under Work.",
+      "ms": 3604
+    },
+    {
+      "caption": "The header counts open signals and how many to act on now.",
+      "ms": 8123
+    },
+    {
+      "caption": "Sources shows where signals come from. Scan now checks your own records — leases, occupancy, availability — for new signals.",
+      "ms": 11586
+    },
+    {
+      "caption": "Next 12 months: each dot is a dated event, coloured by category. Click a dot to open it.",
+      "ms": 15110
+    },
+    {
+      "caption": "Views on the left: All, High priority, Expansion, Restructuring, Lease events, Commercial, Leadership, Infrastructure, Unverified, Dismissed & snoozed. The number is how many are open.",
+      "ms": 18459
+    },
+    {
+      "caption": "Open the Expansion view.",
+      "ms": 21844
+    },
+    {
+      "caption": "Each card: category and type, the company, place, priority, evidence strength bars and status.",
+      "ms": 26230
+    },
+    {
+      "caption": "Search finds a company, a place or words in the evidence.",
+      "ms": 29802
+    },
+    {
+      "caption": "Open Filters for the full set.",
+      "ms": 40634
+    },
+    {
+      "caption": "Company, industry, micro-market, category and type, and the source.",
+      "ms": 45131
+    },
+    {
+      "caption": "Event dates, detected dates and freshness — for example evidence from the last 30 days.",
+      "ms": 48499
+    },
+    {
+      "caption": "Confidence (strong, moderate, weak), urgency (act now, this month, watch), status and who it is assigned to.",
+      "ms": 52118
+    },
+    {
+      "caption": "Sort by priority, newest detected or soonest event. Apply filters.",
+      "ms": 55633
+    },
+    {
+      "caption": "The badge shows how many filters are on; Clear removes them. The link can be shared — the filters are in the address.",
+      "ms": 64277
+    },
+    {
+      "caption": "At the bottom: the bars show evidence strength, and the colour key for categories.",
+      "ms": 67553
+    }
+  ],
+  "bytes": 913689
+}

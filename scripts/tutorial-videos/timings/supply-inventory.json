@@ -1,0 +1,50 @@
+{
+  "durationMs": 49667,
+  "steps": [
+    {
+      "caption": "Open Buildings from the sidebar, then the Supply tab.",
+      "ms": 3667
+    },
+    {
+      "caption": "The rule at the top: lease expiry and future supply are never shown as vacancy.",
+      "ms": 11818
+    },
+    {
+      "caption": "Three views: Inventory (this one), Operators for managed offices and coworking, and Match for a client requirement.",
+      "ms": 15202
+    },
+    {
+      "caption": "The yellow line counts stale observations — reconfirm them before presenting to a client.",
+      "ms": 18451
+    },
+    {
+      "caption": "Each row: the building, floor and unit, category and contiguous block.",
+      "ms": 21708
+    },
+    {
+      "caption": "Harbour Point floor 4 is Immediately available, verified this week from a landlord email: high confidence.",
+      "ms": 25476
+    },
+    {
+      "caption": "Floor 5 is Future availability from April 2027 — it is not counted as available today.",
+      "ms": 28694
+    },
+    {
+      "caption": "Floor 6 is Occupied: confidence none, so it is never offered.",
+      "ms": 31992
+    },
+    {
+      "caption": "Other statuses include under offer, leased, withdrawn and unconfirmed. Unknown CAM shows as unknown — never zero.",
+      "ms": 35228
+    },
+    {
+      "caption": "Source and verified: where the information came from and when it was last checked. 'Never verified' rows have low confidence.",
+      "ms": 38505
+    },
+    {
+      "caption": "Click a building to open it and see all its spaces.",
+      "ms": 41785
+    }
+  ],
+  "bytes": 814517
+}

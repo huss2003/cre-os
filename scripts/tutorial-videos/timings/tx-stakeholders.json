@@ -1,0 +1,38 @@
+{
+  "durationMs": 54642,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3606
+    },
+    {
+      "caption": "Section 8, Stakeholders.",
+      "ms": 10272
+    },
+    {
+      "caption": "Each person: organisation, internal or external, role, decision authority, pending actions, issues, approvals and whether they block.",
+      "ms": 16191
+    },
+    {
+      "caption": "Rohan, the landlord's leasing representative, is blocking: he owns an overdue issue and has an action pending.",
+      "ms": 19349
+    },
+    {
+      "caption": "Add a stakeholder: name, category — here the client's decision maker — and organisation.",
+      "ms": 22556
+    },
+    {
+      "caption": "Add it.",
+      "ms": 32044
+    },
+    {
+      "caption": "Assign an action to a stakeholder. It becomes a task for you to chase — nothing is sent to them.",
+      "ms": 36807
+    },
+    {
+      "caption": "Neha now shows one pending action. External messages are drafts only — you send them yourself.",
+      "ms": 48273
+    }
+  ],
+  "bytes": 564100
+}

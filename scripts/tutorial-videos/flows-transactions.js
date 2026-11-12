@@ -2,7 +2,17 @@
 // Demo data: setup-transactions.ts (run in prepare): "Lumen Harbour Tech — Kharadi 20k SF (tutorial)", mid-negotiation, synthetic.
 // Every run archives earlier "(tutorial)" transactions and rebuilds the demo one. All maths is code (Deal toolkit formulas);
 // nothing is sent externally — messages are drafts. Captions describe only what is on screen.
-const { WS, sql, runSetup, main, field, start, side, soft, choose, fill, submit, sleep } = require("./new-modules-common");
+const { WS, sql, runSetup, main, field, start, side, soft, choose: chooseExact, fill, submit, sleep } = require("./new-modules-common");
+// Option labels are humanised by the app (codeLabel: "client_review" -> "Client review"); match loosely.
+const norm = (x) => String(x).toLowerCase().replace(/[_\s-]+/g, " ").trim();
+async function choose(t, loc, label) {
+  const opts = await loc.locator("option").evaluateAll((os) => os.map((o) => ({ v: o.value, t: o.textContent || "" })));
+  const n = norm(label);
+  const hit = opts.find((o) => o.t === label) || opts.find((o) => norm(o.t) === n) || opts.find((o) => o.v === label)
+    || opts.find((o) => norm(o.t).startsWith(n.replace(/ \(.*\)$/, "")));
+  if (!hit) return chooseExact(t, loc, label);
+  await t.point(loc); await loc.selectOption(hit.v); await sleep(300);
+}
 
 const CAT = "Deal toolkit";
 const TX_NAME = "Lumen Harbour Tech — Kharadi 20k SF (tutorial)";

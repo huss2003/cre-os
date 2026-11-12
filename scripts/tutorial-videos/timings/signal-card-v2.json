@@ -1,0 +1,70 @@
+{
+  "durationMs": 85893,
+  "steps": [
+    {
+      "caption": "Open Signals and press Paste news or a note.",
+      "ms": 3606
+    },
+    {
+      "caption": "Name the company (optional — it is taken from the text when left blank) and paste the announcement.",
+      "ms": 10438
+    },
+    {
+      "caption": "The text is only scanned for events — instructions inside it are ignored. Press Find signals.",
+      "ms": 15926
+    },
+    {
+      "caption": "The result: how many signals were found and how many are new.",
+      "ms": 20842
+    },
+    {
+      "caption": "Open the new Lumen Harbour Tech signal.",
+      "ms": 24137
+    },
+    {
+      "caption": "The header: category and type, company and place, detected and event dates, evidence sources, priority out of 100, evidence strength, verification and status.",
+      "ms": 34181
+    },
+    {
+      "caption": "1. What happened — labelled HYPOTHESIS: rule-detected from the text, to verify before relying on it.",
+      "ms": 37389
+    },
+    {
+      "caption": "2. Why it matters — an INFERENCE: expansion can create a space need; it is not proof.",
+      "ms": 40889
+    },
+    {
+      "caption": "3. Supporting evidence: FOR and AGAINST, with source, date and reliability, plus how many independent sources.",
+      "ms": 44399
+    },
+    {
+      "caption": "4. Related company records, 5. Known office locations and 6. Existing occupancy — facts from your records.",
+      "ms": 47975
+    },
+    {
+      "caption": "7. Relevant lease events: the company's lease with Leases — expiry, renewal and notice dates.",
+      "ms": 56300
+    },
+    {
+      "caption": "8. Related contacts and 9. Existing requirements.",
+      "ms": 60466
+    },
+    {
+      "caption": "10. Counter-evidence and 11. Missing information — what is unknown is said, never filled in.",
+      "ms": 66554
+    },
+    {
+      "caption": "12. Suggested next steps.",
+      "ms": 72810
+    },
+    {
+      "caption": "Below the sections: the same points sorted into Fact, Inference, Hypothesis and Unknown, and Priority — why, with each point added or taken away.",
+      "ms": 76297
+    },
+    {
+      "caption": "History records every decision and re-assessment.",
+      "ms": 79474
+    }
+  ],
+  "bytes": 1121488
+}

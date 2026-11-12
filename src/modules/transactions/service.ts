@@ -112,7 +112,7 @@ export async function importClientRequirements(ctx: TxCtx, txId: string, require
   if (!r) return [];
   const statuses: Record<string, string> = r.constraints?.field_status ?? {};
   const map: [string, string, unknown][] = [["budgetMax", "budget_max", r.budget_max], ["areaTarget", "area_target_sf", r.area_target_sf], ["occupationDate", "occupation_date", r.occupation_date], ["seatsTarget", "seats_target", r.seats_target]];
-  const rows = map.filter(([, f, v]) => v !== null && v !== undefined && (statuses[f] ?? (r.status === "confirmed" ? "client_confirmed" : "")) === "client_confirmed")
+  const rows = map.filter(([, f, v]) => v !== null && v !== undefined && (statuses[f] ?? ((r.status === "confirmed" || r.status === "client_confirmed") ? "client_confirmed" : "")) === "client_confirmed")
     .map(([k, f, v]) => ({ workspace_id: ctx.workspaceId, transaction_id: txId, position_kind: "client_requirement", term_key: k, value: String(v), source: `requirement ${requirementId} field ${f} (client confirmed)` }));
   if (!rows.length) return [];
   return q<Row[]>(ctx.db.from("tx_position").insert(rows).select(), "positions");

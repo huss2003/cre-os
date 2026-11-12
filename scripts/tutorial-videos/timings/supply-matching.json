@@ -1,0 +1,46 @@
+{
+  "durationMs": 49830,
+  "steps": [
+    {
+      "caption": "Open Buildings, then Supply, then the Match view.",
+      "ms": 3742
+    },
+    {
+      "caption": "Choose a requirement — Lumen Harbour Tech, 18,000 to 19,500 sf, up to ₹100 a sf.",
+      "ms": 13960
+    },
+    {
+      "caption": "#1 Harbour Point floor 4: eligible, availability confidence high, with its fit score and how complete the data is.",
+      "ms": 20182
+    },
+    {
+      "caption": "The reason in one line: it meets all hard requirements.",
+      "ms": 23425
+    },
+    {
+      "caption": "Satisfies, advantages, disadvantages and missing information — for example deposit and escalation not recorded.",
+      "ms": 26665
+    },
+    {
+      "caption": "Harbour Point floor 5 is eligible but its disadvantage says: future availability from April 2027. Unknown CAM is not assumed to be zero.",
+      "ms": 29980
+    },
+    {
+      "caption": "Riverstone floor 2 needs verification: the availability is stale and the price is out of date.",
+      "ms": 33266
+    },
+    {
+      "caption": "Riverstone floor 3 only has a lease ending — lease expiry is not vacancy, so it needs verification too.",
+      "ms": 36549
+    },
+    {
+      "caption": "Lower down, ineligible spaces list exactly which hard filter they fail. They are ranked last, not hidden.",
+      "ms": 39849
+    },
+    {
+      "caption": "The Requirement button opens the brief to change area, budget or location; the ranking updates.",
+      "ms": 43181
+    }
+  ],
+  "bytes": 807712
+}

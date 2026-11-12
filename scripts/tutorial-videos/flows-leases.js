@@ -152,11 +152,11 @@ const FLOWS = [
       await t.step("Open Leases, then the Renewals tab.", async () => { await side(t, "Leases"); await subTab(t, "Renewals"); });
       await t.step("Upcoming renewals: leases that expire within 12 months and have no renewal record yet. Peregrine Loom Studios expires on 30 June 2027.", () => soft(t, card(p, /^Upcoming renewals/)));
       await t.step("Open it.", () => t.moveAndClick(card(p, /^Upcoming renewals/).getByRole("link", { name: /Peregrine Loom/ }).first()));
-      await t.step("The renewal notice deadline is 31 December 2026 — six months before expiry, from clause 4.2 on page 3.", () => soft(t, dateRow(p, "Renewal notice deadline")));
+      await t.step("The renewal notice deadline is 30 December 2026 — six months before expiry, from clause 4.2 on page 3.", () => soft(t, dateRow(p, "Renewal notice deadline")));
       await t.step("In the Renewal section press Start renewal review. A review task is created for you.", () => submit(t, card(p, "Renewal").getByRole("button", { name: "Start renewal review" })));
       await t.step("The review starts at stage upcoming. Record the stage, the tenant's and the landlord's responses and a note.", async () => {
         const c = card(p, "Renewal");
-        await choose(t, c.locator('[name="stage"]'), "discussion");
+        await choose(t, c.locator('[name="stage"]'), "Discussion");
         await fill(t, c.locator('[name="tenant_response"]'), "Open to renewing if rent stays flat");
         await fill(t, c.locator('[name="note"]'), "Call with facilities head");
       });
@@ -165,7 +165,7 @@ const FLOWS = [
         const alt = card(p, "Renewal").getByText("Possible alternatives");
         if (await alt.isVisible().catch(() => false)) await t.point(alt); else await t.point(card(p, "Renewal").getByRole("heading").first());
       });
-      await t.step("Back on Renewals, the lease now sits in the Discussion column. Other columns: proposals pending, negotiation, agreed, completed and at risk.", async () => { await subTab(t, "Renewals"); await soft(t, card(p, /^Discussion/)); });
+      await t.step("Back on Renewals, the lease now sits in the Discussion column. Other columns: proposals pending, negotiation, agreed, completed and at risk.", async () => { await subTab(t, "Renewals"); await p.waitForURL(/\/leases\/renewals/, { timeout: 30000 }).catch(() => {}); await sleep(1200); await soft(t, card(p, /^Discussion/)); });
       await t.step("To compare staying with moving, open Deal toolkit → Stay or move: rent, overlap, moving costs and deposits, worked out by fixed formulas.", async () => { await side(t, "Deal toolkit"); await soft(t, main(p).getByRole("link", { name: /Stay or move/ })); });
       await t.outro("started a renewal review, tracked its stage and looked at alternatives.", "record a termination and the handover checklist.");
     },
@@ -199,10 +199,10 @@ const FLOWS = [
         const c = card(p, "Termination & handover");
         await c.locator('[name="confirmed_date"]').fill("2027-03-31"); await t.point(c.locator('[name="confirmed_date"]'));
         await fill(t, c.locator('[name="deposit_recovered"]'), "5000000");
-        await choose(t, c.locator('[name="status"]'), "in_settlement");
+        await choose(t, c.locator('[name="status"]'), "In settlement");
         await submit(t, c.getByRole("button", { name: "Update" }).first());
       });
-      await t.step("Create handover checklist adds the standard items: keys, access cards, reinstatement, meter readings and more.", () => submit(t, card(p, "Termination & handover").getByRole("button", { name: "Create handover checklist" })));
+      await t.step("Create handover checklist adds the standard items: inspection, repair and restoration, utilities, access cards, keys and more.", () => submit(t, card(p, "Termination & handover").getByRole("button", { name: "Create handover checklist" })));
       await t.step("Each item is pending until you mark it Done with evidence — for example who received the keys.", async () => {
         const c = card(p, "Termination & handover"); const item = c.locator("li").filter({ has: p.getByRole("button", { name: "Done" }) }).first();
         await fill(t, item.locator('[name="evidence"]'), "Keys handed to landlord"); await submit(t, item.getByRole("button", { name: "Done" }));
@@ -229,7 +229,7 @@ const FLOWS = [
       await t.step("Obligations: each one shows the category, the clause text, the responsible party, the deadline, the status and the source page.", () => showCard(t, "Obligations"));
       await t.step("They were read from the deed: insurance, structural repairs, no sub-letting, restoring the premises. Unclear responsibility is shown as unclear.", () => soft(t, card(p, "Obligations").locator("tbody tr").first()));
       await t.step("Mark one Done with the evidence — for example the insurance policy number.", async () => {
-        const row = card(p, "Obligations").locator("tbody tr").filter({ has: p.getByRole("button", { name: "Done" }) }).first();
+        const row = card(p, "Obligations").locator("tbody tr").filter({ hasText: /^\s*insurance/ }).filter({ has: p.getByRole("button", { name: "Done" }) }).first();
         await fill(t, row.locator('[name="evidence"]'), "Policy no. DEMO-123"); await submit(t, row.getByRole("button", { name: "Done" }));
       });
       await t.step("Add an obligation by hand: category, what must be done, who is responsible and the deadline.", async () => {

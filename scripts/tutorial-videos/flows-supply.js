@@ -36,7 +36,7 @@ const FLOWS = [
       await t.step("The rule at the top: lease expiry and future supply are never shown as vacancy.", () => soft(t, main(p).getByText(/never shown as vacancy/)));
       await t.step("Three views: Inventory (this one), Operators for managed offices and coworking, and Match for a client requirement.", () => t.point(main(p).getByRole("tablist", { name: "Supply view" })));
       await t.step("The yellow line counts stale observations — reconfirm them before presenting to a client.", () => soft(t, main(p).getByText(/availability observations are stale/)));
-      await t.step("Each row: the building, floor and unit, category and contiguous block.", () => soft(t, row(p, "Harbour Point (demo) · Floor 4")));
+      await t.step("Each row: the building, floor and unit, category and contiguous block.", async () => { await row(p, "Harbour Point (demo) · Floor 4").evaluate((el) => el.scrollIntoView({ block: "center" })).catch(() => {}); await sleep(400); await soft(t, row(p, "Harbour Point (demo) · Floor 4")); });
       await t.step("Harbour Point floor 4 is Immediately available, verified this week from a landlord email: high confidence.", () => soft(t, row(p, "Harbour Point (demo) · Floor 4").getByText("high")));
       await t.step("Floor 5 is Future availability from April 2027 — it is not counted as available today.", () => soft(t, row(p, "Harbour Point (demo) · Floor 5")));
       await t.step("Floor 6 is Occupied: confidence none, so it is never offered.", () => soft(t, row(p, "Harbour Point (demo) · Floor 6")));
@@ -96,7 +96,7 @@ const FLOWS = [
       await t.step("Harbour Point floor 5 is eligible but its disadvantage says: future availability from April 2027. Unknown CAM is not assumed to be zero.", () => soft(t, matchCard(p, "Harbour Point (demo) · Floor 5").getByText(/Future availability from/)));
       await t.step("Riverstone floor 2 needs verification: the availability is stale and the price is out of date.", () => soft(t, matchCard(p, "Riverstone Tech Annex (demo) · Floor 2")));
       await t.step("Riverstone floor 3 only has a lease ending — lease expiry is not vacancy, so it needs verification too.", () => soft(t, matchCard(p, "Riverstone Tech Annex (demo) · Floor 3")));
-      await t.step("Lower down, ineligible spaces list exactly which hard filter they fail. They are ranked last, not hidden.", async () => { const c = main(p).getByRole("heading", { name: /ineligible/ }).first(); await c.scrollIntoViewIfNeeded().catch(() => {}); await soft(t, c); });
+      await t.step("Lower down, ineligible spaces list exactly which hard filter they fail. They are ranked last, not hidden.", async () => { const c = main(p).getByRole("heading", { name: /Ineligible/ }).first(); await c.scrollIntoViewIfNeeded().catch(() => {}); await soft(t, c); });
       await t.step("The Requirement button opens the brief to change area, budget or location; the ranking updates.", () => soft(t, main(p).getByRole("link", { name: "Requirement", exact: true })));
       await t.outro("matched supply to a requirement and read each explanation.", "reconfirm options before presenting.");
     },
@@ -138,7 +138,7 @@ const FLOWS = [
         await submit(t, c.getByRole("button", { name: /^Record/ }));
       });
       await t.step("Now a rejection on Harbour Point floor 5. A reason is required.", async () => {
-        const c = matchCard(p, "Harbour Point (demo) · Floor 5"); await choose(t, c.locator('[name="kind"]'), "Rejection"); await choose(t, c.locator('[name="reason_code"]'), "timing");
+        const c = matchCard(p, "Harbour Point (demo) · Floor 5"); await choose(t, c.locator('[name="kind"]'), "Rejection"); await choose(t, c.locator('[name="reason_code"]'), "Timing");
         await fill(t, c.locator('[name="comment"]'), "April 2027 is too late for the move");
       });
       await t.step("Record. The option becomes rejected.", () => submit(t, matchCard(p, "Harbour Point (demo) · Floor 5").getByRole("button", { name: /^Record/ })));

@@ -1,0 +1,50 @@
+{
+  "durationMs": 79391,
+  "steps": [
+    {
+      "caption": "Open the Quillstone Labs lease from Leases. It expires on 31 March 2027.",
+      "ms": 3608
+    },
+    {
+      "caption": "Scroll to Termination & handover.",
+      "ms": 15294
+    },
+    {
+      "caption": "Lock-in completion alone does not permit termination — check the notice and termination conditions first.",
+      "ms": 18533
+    },
+    {
+      "caption": "Enter the reason, the date notice was served and the notice period exactly as the clause words it.",
+      "ms": 21721
+    },
+    {
+      "caption": "And the proposed termination date. Press Start termination.",
+      "ms": 30392
+    },
+    {
+      "caption": "The termination shows the notice and proposed dates. The confirmed date stays 'not confirmed' until you enter it.",
+      "ms": 36775
+    },
+    {
+      "caption": "Later, record the confirmed date, deposit recovered, status and settlement, then Update.",
+      "ms": 45134
+    },
+    {
+      "caption": "Create handover checklist adds the standard items: inspection, repair and restoration, utilities, access cards, keys and more.",
+      "ms": 53363
+    },
+    {
+      "caption": "Each item is pending until you mark it Done with evidence — for example who received the keys.",
+      "ms": 59092
+    },
+    {
+      "caption": "Add your own checklist item if something is missing.",
+      "ms": 66050
+    },
+    {
+      "caption": "The lease can be marked terminated only when the termination date is confirmed and every handover item is done or not applicable.",
+      "ms": 72820
+    }
+  ],
+  "bytes": 1093118
+}

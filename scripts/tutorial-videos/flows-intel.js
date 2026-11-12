@@ -123,7 +123,8 @@ const FLOWS = [
       await t.step("Decide: write a short reason first — it is kept in History.", () => t.type(main(p).locator("input[name=reason]").first(), "Hiring plan confirmed on a call", 22));
       await t.step("Investigate: keep it open while you check. Assign to me: make it yours. Already known: you knew.", () => soft(t, main(p).getByRole("button", { name: "Investigate" })));
       await t.step("Reject: it is wrong. Dismiss: not relevant. Snooze until a date: look again later. Nothing is deleted.", () => soft(t, main(p).getByRole("button", { name: "Dismiss" })));
-      if (isTam) {
+      // Tamarind may already be approved by an earlier recording run (then the page offers Record outcome instead).
+      if (isTam && await main(p).getByRole("button", { name: "Approve + task" }).count()) {
         await t.step("Approve + task: it becomes a confirmed lead with a follow-up task.", () => t.moveAndClick(main(p).getByRole("button", { name: "Approve + task" })));
         await t.step("The decision now shows in History, and the task appears under Tasks on Today.", async () => { await t.scroll(-3000); await soft(t, main(p).getByText("History").first()); });
       } else {

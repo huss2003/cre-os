@@ -1,0 +1,70 @@
+{
+  "durationMs": 71184,
+  "steps": [
+    {
+      "caption": "Open Capture and scroll to Add files.",
+      "ms": 3605
+    },
+    {
+      "caption": "Open 'Link to a record' and set 'What is it?' to Business card (or leave Detect).",
+      "ms": 8928
+    },
+    {
+      "caption": "Choose the photo of Meera Joshi's card.",
+      "ms": 14050
+    },
+    {
+      "caption": "Open it.",
+      "ms": 19108
+    },
+    {
+      "caption": "The card was read on the server by local OCR — no AI call.",
+      "ms": 23227
+    },
+    {
+      "caption": "The fields: name, title, company, email, phones, website and address — copied exactly as on the card.",
+      "ms": 26423
+    },
+    {
+      "caption": "Phones are typed: mobile from 'M:'. The 'Ph:' number could be direct or switchboard, so it is marked unknown.",
+      "ms": 29609
+    },
+    {
+      "caption": "Check these: uncertain fields — the unlabelled phone, and an email domain that differs from the website.",
+      "ms": 32778
+    },
+    {
+      "caption": "No existing contact matches, so a new contact is suggested.",
+      "ms": 35975
+    },
+    {
+      "caption": "Proposals: a new person and a new company — they wait for your approval in Review.",
+      "ms": 39157
+    },
+    {
+      "caption": "After you approve the person, press Process again to propose the emails and phones.",
+      "ms": 42325
+    },
+    {
+      "caption": "Now a card for someone you already know: Anil Deshmukh. Back to Capture.",
+      "ms": 45489
+    },
+    {
+      "caption": "Business card again, and choose Anil's card.",
+      "ms": 50772
+    },
+    {
+      "caption": "High-confidence match: the same email already belongs to Anil Deshmukh, so no new person is created.",
+      "ms": 58375
+    },
+    {
+      "caption": "Only the new mobile number is proposed for his record. Same name alone would be a suggestion, never a merge.",
+      "ms": 61536
+    },
+    {
+      "caption": "The company on the card looks like Marigold Loop Technologies — pick it in the link picker if it is the same.",
+      "ms": 64704
+    }
+  ],
+  "bytes": 926763
+}

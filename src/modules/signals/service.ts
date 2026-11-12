@@ -193,7 +193,7 @@ export async function reassess(db: Db, ws: string, id: string, s: Settings, toda
   const textMm = (sig.derived?.text_micro_market as string | undefined) ?? d?.textGeo?.microMarket ?? null;
   const textLocality = (sig.derived?.text_locality as string | undefined) ?? d?.textGeo?.locality ?? null;
   const recordedMms = [...new Set((ctx?.leases ?? []).map((l) => l.asset?.mm?.name).filter(Boolean))] as string[];
-  const locationNote = textMm && recordedMms.length && !recordedMms.includes(textMm)
+  const locationNote = textMm && recordedMms.length && !placesOverlap([textMm, textLocality], recordedMms)
     ? `The text names ${textLocality ?? textMm}${textLocality && textLocality !== textMm ? ` (${textMm})` : ""}, but recorded occupancy is in ${recordedMms.join(", ")} — confirm which location this is about.` : null;
   const counters = [...ruleCounters.filter((c) => !GROUPING_NOTE.test(c)), ...(locationNote ? [locationNote] : []), ...userCounters];
   const leaseEv = (sig.category === "lease" || sig.category === "commercial") && (sig.lease_event_id || sig.lease_id)
@@ -741,4 +741,18 @@ export async function filterOptions(db: Db, ws: string): Promise<FilterOptions> 
     subTypes: [...subs.values()].sort((a, b) => sort(a.label, b.label)),
     assignees: ids.map((id) => ({ id, name: (profiles ?? []).find((p: Row) => p.user_id === id)?.display_name ?? "Team member" })),
   };
+}
+
+/** Place-name variants: "Kharadi (SBD East)" → ["kharadi", "sbd east"]; case/punctuation-insensitive. */
+export function placeKeys(name: string | null | undefined): string[] {
+  if (!name) return [];
+  const norm = (x: string) => x.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim();
+  const inner = [...name.matchAll(/\(([^)]*)\)/g)].flatMap((m) => m[1].split(/[\/,;]| or /));
+  const outer = name.replace(/\([^)]*\)/g, " ").split(/[\/,;]| or /);
+  return [...new Set([...outer, ...inner].map(norm).filter(Boolean))];
+}
+/** True when any text-side name (micro-market or locality, incl. aliases) matches any recorded micro-market. */
+export function placesOverlap(text: (string | null | undefined)[], recorded: string[]): boolean {
+  const r = new Set(recorded.flatMap(placeKeys));
+  return text.flatMap(placeKeys).some((k) => r.has(k));
 }

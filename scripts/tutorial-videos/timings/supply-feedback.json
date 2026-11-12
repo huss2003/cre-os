@@ -1,0 +1,34 @@
+{
+  "durationMs": 56385,
+  "steps": [
+    {
+      "caption": "Open Buildings → Supply → Match and choose the Lumen Harbour Tech requirement.",
+      "ms": 3615
+    },
+    {
+      "caption": "Each option on the stored shortlist has a feedback form and shows its status — proposed here.",
+      "ms": 18091
+    },
+    {
+      "caption": "Client feedback on Harbour Point floor 4: liked the floor plate.",
+      "ms": 21681
+    },
+    {
+      "caption": "Now a rejection on Harbour Point floor 5. A reason is required.",
+      "ms": 32887
+    },
+    {
+      "caption": "Record. The option becomes rejected.",
+      "ms": 40791
+    },
+    {
+      "caption": "Shortlist history at the bottom: each shortlist version with how many options were eligible, and every piece of feedback with its reason.",
+      "ms": 46402
+    },
+    {
+      "caption": "Rejections are remembered: the company's memory shows rejected buildings and why, so they are not offered again by mistake.",
+      "ms": 49699
+    }
+  ],
+  "bytes": 780125
+}

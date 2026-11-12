@@ -1,0 +1,54 @@
+{
+  "durationMs": 66696,
+  "steps": [
+    {
+      "caption": "Open the Quillstone Labs expansion signal from Signals.",
+      "ms": 3620
+    },
+    {
+      "caption": "Note its priority now.",
+      "ms": 17127
+    },
+    {
+      "caption": "Section 3 shows one source FOR the expansion.",
+      "ms": 20330
+    },
+    {
+      "caption": "Back on Signals, paste a later report that contradicts it.",
+      "ms": 23863
+    },
+    {
+      "caption": "Find signals. The message says the text was attached as counter-evidence to the open signal.",
+      "ms": 33248
+    },
+    {
+      "caption": "The result message.",
+      "ms": 38071
+    },
+    {
+      "caption": "Open the Quillstone Labs expansion signal again.",
+      "ms": 41347
+    },
+    {
+      "caption": "The priority has dropped.",
+      "ms": 45482
+    },
+    {
+      "caption": "Section 3 now has the report under AGAINST.",
+      "ms": 48740
+    },
+    {
+      "caption": "And section 10, Counter-evidence, lists it.",
+      "ms": 52348
+    },
+    {
+      "caption": "You can also add evidence by hand: what the source says, its name and link, then Add supporting or Add counter-evidence.",
+      "ms": 57062
+    },
+    {
+      "caption": "History shows the re-assessment.",
+      "ms": 60310
+    }
+  ],
+  "bytes": 977826
+}

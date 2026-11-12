@@ -7,7 +7,7 @@ import { adminClient, tag, userClient, USERS, WS1 } from "../../../tests/helpers
 import {
   addDocument, addFinancialRecord, alternativeProperties, confirmDate, confirmTermVersion, createLease, depositRecovery, dispatchDueReminders, escalationView, getLease,
   initHandover, addHandoverItem, leaseAudit, leaseContextForOrg, openRenewal, paymentStatus, receiveExecutedLease, renewalDecisionSupport, renewalPipeline, scanOpportunities, setHandoverItem,
-  setStatus, startTermination, syncReminders, updateRenewal, updateTermination, upcomingDates, addManualDate, addTermVersion, setObligationStatus, obligationTracker, type W,
+  setStatus, startTermination, syncReminders, updateRenewal, updateTermination, upcomingDates, addManualDate, addTermVersion, setObligationStatus, obligationTracker, addObligation, portfolioView, type W,
 } from "./service";
 import { answerLeaseQuestion } from "./assist";
 import { AMENDMENT_PAGES, DRAFT_LOI_PAGES, EXECUTED_LEASE_PAGES } from "./fixtures";
@@ -94,6 +94,18 @@ describe("Module 15 — lease lifecycle (§18)", () => {
     await setStatus(w, leaseId, "executed", { documentId: execDocId, executionDate: "2026-12-15", today: T0 });
     await setStatus(w, leaseId, "active", { today: T0 });
     expect((await getLease(w, leaseId))!.lease.lifecycle_status).toBe("active");
+  });
+
+  it("confirming a lock-in completion date does not spawn a 'Base date changed' duplicate", async () => {
+    const lk = live(await dates(), "lockin_end")[0];
+    expect(lk).toBeTruthy();
+    await confirmDate(w, lk.id, { date: lk.calculated_date, note: "checked clause", today: T0 });
+    const rows = live(await dates(), "lockin_end");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: lk.id, verification_status: "confirmed" });
+    expect(rows[0].review_reason ?? "").not.toMatch(/Base date changed/);
+    const cal = await upcomingDates(w, { from: "2020-01-01", to: "2040-12-31", types: ["lockin_end"], includeUnverified: true, leaseId });
+    expect(cal).toHaveLength(1);
   });
 
   it("#15 #16 expiry confirmed → mirrored to lease_event; dependent notice deadlines recalculated; renewal notice deadline", async () => {
@@ -280,5 +292,29 @@ describe("Module 16 hand-off: receiveExecutedLease (CONTRACT.md)", () => {
     const r3 = await receiveExecutedLease(w, tx2, { tenantNameRaw: tag("NoDoc Co"), today: T0 });
     expect(r3.status).toBe("awaiting_execution");
     expect(r3.warnings.join()).toMatch(/No executed document/);
+  });
+});
+
+describe("lease lists: labels, archived leases, duplicate obligations", () => {
+  it("unnamed lease is labelled by property; archived leases leave renewals, obligations and portfolio counts", async () => {
+    const db = await userClient("owner");
+    const ww: W = { db, ws: WS1, userId: USERS.owner.id };
+    const asset = (await db.from("asset").insert({ workspace_id: WS1, name: tag("Label Tower"), owner_user_id: USERS.owner.id }).select("id, name").single()).data!;
+    // imported leases can lack a tenant (createLease requires one) → insert directly
+    const l = (await db.from("lease").insert({ workspace_id: WS1, owner_user_id: USERS.owner.id, asset_id: asset.id, reference: tag("NoTenant"), lifecycle_status: "active", floor: "5" }).select("id").single()).data!;
+    await addObligation(ww, l.id, { category: "insurance", description: "Maintain fire insurance" });
+    await addObligation(ww, l.id, { category: "insurance", description: "Maintain  fire insurance " });
+    await openRenewal(ww, l.id);
+    const obl = (await obligationTracker(ww)).filter((o) => o.lease_id === l.id);
+    expect(obl).toHaveLength(1);
+    expect(obl[0].lease.label).toContain(asset.name);
+    expect((await renewalPipeline(ww, T0)).renewals.find((r) => r.lease_id === l.id)!.lease.label).toContain(asset.name);
+    const before = (await portfolioView(ww, T0)).pendingObligations;
+    await db.from("lease").update({ archived_at: new Date().toISOString() }).eq("id", l.id);
+    expect((await obligationTracker(ww)).some((o) => o.lease_id === l.id)).toBe(false);
+    expect((await renewalPipeline(ww, T0)).renewals.some((r) => r.lease_id === l.id)).toBe(false);
+    const v = await portfolioView(ww, T0);
+    expect(v.leases.some((x) => x.id === l.id)).toBe(false);
+    expect(v.pendingObligations).toBe(before - 1);
   });
 });

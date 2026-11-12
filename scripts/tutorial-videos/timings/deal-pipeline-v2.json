@@ -1,0 +1,82 @@
+{
+  "durationMs": 82844,
+  "steps": [
+    {
+      "caption": "Open Deals under Records: every opportunity, in columns by stage.",
+      "ms": 3607
+    },
+    {
+      "caption": "'Show lost / dormant' brings back closed deals. New opportunity is at the bottom.",
+      "ms": 7835
+    },
+    {
+      "caption": "Open a deal in Research — Marigold Loop.",
+      "ms": 11034
+    },
+    {
+      "caption": "Top cards: expected fee (a forecast), then invoiced, recognised and collected — real money only.",
+      "ms": 15228
+    },
+    {
+      "caption": "The stage bar: green = done, blue = now, grey = still to come.",
+      "ms": 18404
+    },
+    {
+      "caption": "Move to: the next stage is already chosen — Approach attempted.",
+      "ms": 21571
+    },
+    {
+      "caption": "Add a reason. Later stages require one; it is kept in the stage history.",
+      "ms": 26174
+    },
+    {
+      "caption": "Press Move stage.",
+      "ms": 30859
+    },
+    {
+      "caption": "Moved: the deal is now in Approach attempted.",
+      "ms": 34704
+    },
+    {
+      "caption": "Stage history keeps every move with its reason.",
+      "ms": 37883
+    },
+    {
+      "caption": "Labels & outcome: temperature, mandate, next action and expected close; set won/lost here too.",
+      "ms": 41216
+    },
+    {
+      "caption": "Closing checklist: items 'needed before' a stage block it until done (with proof) or waived.",
+      "ms": 44381
+    },
+    {
+      "caption": "Fees: each amount has its own status — a forecast never counts as invoiced or collected.",
+      "ms": 47551
+    },
+    {
+      "caption": "Some moves are blocked. Back to Deals, open Kestrelbay Payments.",
+      "ms": 50871
+    },
+    {
+      "caption": "Try Requirement confirmed, with a reason, and press Move stage.",
+      "ms": 56698
+    },
+    {
+      "caption": "Blocked: the linked requirement must be client-confirmed first. It is still 'estimated'.",
+      "ms": 64487
+    },
+    {
+      "caption": "Open the requirement to confirm its facts with the client first.",
+      "ms": 67698
+    },
+    {
+      "caption": "Client confirmation lists what the client still has to confirm.",
+      "ms": 71705
+    },
+    {
+      "caption": "Changes from captures, imports or the official CRM wait in Review for your OK.",
+      "ms": 74908
+    }
+  ],
+  "bytes": 1118756
+}

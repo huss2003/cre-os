@@ -93,10 +93,19 @@ export async function listLeases(w: W, f: { status?: string; q?: string; categor
   if (f.assigned) q = q.eq("assigned_user_id", f.assigned);
   const rows = (must(await q, "list leases") as Row[]);
   const names = await nameMaps(w, rows);
-  const out: Row[] = rows.map((l) => ({ ...l, tenant_name: names.org.get(l.tenant_org_id) ?? l.tenant_name_raw ?? null, landlord_name: names.org.get(l.landlord_org_id) ?? null, asset_name: names.asset.get(l.asset_id) ?? null }));
+  const out: Row[] = rows.map((l) => withLabel({ ...l, tenant_name: names.org.get(l.tenant_org_id) ?? l.tenant_name_raw ?? null, landlord_name: names.org.get(l.landlord_org_id) ?? null, asset_name: names.asset.get(l.asset_id) ?? null }));
   const s = f.q?.trim().toLowerCase();
   return s ? out.filter((l) => `${l.tenant_name ?? ""} ${l.landlord_name ?? ""} ${l.asset_name ?? ""} ${l.reference ?? ""}`.toLowerCase().includes(s)) : out;
 }
+
+/** Display name for a lease: tenant → landlord → building (+ floor/unit) → reference. Never a bare "Lease" when anything is known. */
+export function leaseLabel(l: { tenant_name?: string | null; landlord_name?: string | null; asset_name?: string | null; floor?: string | null; unit?: string | null; reference?: string | null }): string {
+  if (l.tenant_name) return l.tenant_name;
+  const where = [l.asset_name, l.floor ? `Floor ${l.floor}` : null, l.unit].filter(Boolean).join(" · ");
+  if (l.landlord_name) return where ? `${l.landlord_name} — ${where}` : l.landlord_name;
+  return where || l.reference || "Lease (no tenant or property)";
+}
+const withLabel = (l: Row): Row => ({ ...l, label: leaseLabel(l) });
 
 async function nameMaps(w: W, rows: Row[]) {
   const orgIds = [...new Set(rows.flatMap((l) => [l.tenant_org_id, l.landlord_org_id]).filter(Boolean))];
@@ -121,7 +130,7 @@ export async function getLease(w: W, id: string) {
   const current = [...termRows].reverse().find((t) => t.status === "current") ?? null;
   const contacts = lease.contact_person_ids?.length ? (await w.db.from("person").select("id, full_name").in("id", lease.contact_person_ids)).data ?? [] : [];
   return {
-    lease: Object.assign(leaseOut, { tenant_name: names.org.get(lease.tenant_org_id) ?? lease.tenant_name_raw, landlord_name: names.org.get(lease.landlord_org_id) ?? null, asset_name: names.asset.get(lease.asset_id) ?? null }) as Row,
+    lease: Object.assign(leaseOut, withLabel({ ...leaseOut, tenant_name: names.org.get(lease.tenant_org_id) ?? lease.tenant_name_raw, landlord_name: names.org.get(lease.landlord_org_id) ?? null, asset_name: names.asset.get(lease.asset_id) ?? null })) as Row,
     documents: (documents.data ?? []) as Row[], dates: (dates.data ?? []) as Row[], terms: termRows, currentTerms: (current?.terms ?? {}) as CommercialTerms, currentTermVersion: current,
     obligations: (obligations.data ?? []) as Row[], history: (history.data ?? []) as Row[], renewals: (renewals.data ?? []) as Row[],
     terminations: (terminations.data ?? []) as Row[], handover: (handover.data ?? []) as Row[], reminders: (reminders.data ?? []) as Row[], financial: (financial.data ?? []) as Row[], contacts,
@@ -367,7 +376,7 @@ export async function confirmDate(w: W, dateId: string, i: { date?: string | nul
     const m = await w.db.schema("mudar_app").rpc("lease_mirror_confirmed_expiry", { p_date_id: dateId });
     if (m.error) console.warn(`lease expiry mirror failed: ${m.error.message}`);
   }
-  if (["commencement", "expiry", "lockin_end"].includes(d.date_type)) await recalcDependents(w, d.lease_id);
+  if (["commencement", "expiry", "lockin_end"].includes(d.date_type)) await recalcDependents(w, d.lease_id, { skipDateId: dateId });
   await syncReminders(w, d.lease_id, i.today);
   return updated;
 }
@@ -377,20 +386,36 @@ export async function rejectDate(w: W, dateId: string, note: string) {
 }
 
 /** After an anchor changes: unconfirmed calculated dates are recalculated in place (new row, old superseded); confirmed ones get a needs_review successor. */
-export async function recalcDependents(w: W, leaseId: string, opts: { skipDocumentId?: string } = {}) {
+export async function recalcDependents(w: W, leaseId: string, opts: { skipDocumentId?: string; skipDateId?: string } = {}) {
   const a = await currentAnchors(w, leaseId);
   const { data } = await w.db.from("lease_date").select("*").eq("workspace_id", w.ws).eq("lease_id", leaseId).eq("origin", "calculated").is("superseded_by", null).is("archived_at", null)
     .in("date_type", ["lockin_end", "termination_notice_deadline", "renewal_notice_deadline", "expiry"]);
   const changed: Row[] = [];
-  for (const d of (data ?? []) as Row[]) {
+  const all = (data ?? []) as Row[];
+  for (const d of all) {
     if (!d.clause_text) continue;
+    if (d.id === opts.skipDateId) continue; // the date a reviewer just confirmed is not "changed" by its own confirmation
+    if (d.verification_status !== "confirmed" && all.some((x) => x.id === d.base_date_id && x.verification_status === "confirmed")) continue; // re-review successor: handled with its confirmed parent
     if (opts.skipDocumentId && d.document_id === opts.skipDocumentId) continue;
     if (d.date_type === "expiry" && a.expiryConfirmed) continue;
     if (d.date_type === "lockin_end" && !a.commencement) continue;
     const [p0] = recalcWithAnchors([{ ...d, origin: "calculated" } as DateProposal], d.date_type === "expiry" ? { ...a, expiry: null } : a);
     const p = { ...p0, review_reason: [p0.review_reason, ...(p0.calculated_date ? a.notes.filter((n) => (["lockin_end", "expiry"].includes(d.date_type) ? n.type === "commencement" : true)).map((n) => n.text) : [])].filter(Boolean).join(" ") || null };
-    if (p.calculated_date === d.calculated_date && (p.review_reason ?? null) === (d.review_reason ?? null)) continue;
     const wasConfirmed = d.verification_status === "confirmed";
+    // confirmed: only a different DATE needs re-review (confirmation rewrites review_reason, so don't compare it)
+    if (wasConfirmed ? p.calculated_date === d.calculated_date : p.calculated_date === d.calculated_date && (p.review_reason ?? null) === (d.review_reason ?? null)) continue;
+    if (wasConfirmed) {
+      // one open re-review successor per confirmed date: update it in place instead of stacking duplicates
+      const open = all.find((x) => x.base_date_id === d.id && x.id !== d.id && x.verification_status !== "confirmed");
+      if (open) {
+        if (open.calculated_date !== p.calculated_date) {
+          const u = await w.db.from("lease_date").update({ calculated_date: p.calculated_date, alternatives: p.alternatives, method: p.method, convention: p.convention,
+            review_reason: `Base date changed; previously confirmed ${d.calculated_date}. ${p.review_reason ?? ""}`.trim() }).eq("workspace_id", w.ws).eq("id", open.id).select("*").single();
+          if (u.data) changed.push(u.data);
+        }
+        continue;
+      }
+    }
     const ins = await w.db.from("lease_date").insert({ workspace_id: w.ws, owner_user_id: w.userId, lease_id: leaseId, date_type: d.date_type, label: d.label, calculated_date: p.calculated_date, alternatives: p.alternatives,
       method: p.method, convention: p.convention, clause_text: d.clause_text, document_id: d.document_id, page: d.page, base_date_id: d.id, origin: "calculated",
       verification_status: wasConfirmed ? "needs_review" : p.verification_status, review_reason: wasConfirmed ? `Base date changed; previously confirmed ${d.calculated_date}. ${p.review_reason ?? ""}`.trim() : p.review_reason ?? null }).select("*").single();
@@ -538,14 +563,15 @@ export async function renewalPipeline(w: W, today: string) {
   const leases = await listLeases(w);
   const byId = new Map(leases.map((l) => [l.id, l]));
   const deadlines = await upcomingDates(w, { from: today, to: addDays(today, 730), types: ["renewal_notice_deadline", "expiry"], includeUnverified: true });
-  const enriched = rows.map((r): Row => {
+  const enriched = rows.filter((r) => byId.has(r.lease_id)).map((r): Row => {
     const dl = deadlines.filter((d) => d.lease_id === r.lease_id).sort((a, b) => a.calculated_date.localeCompare(b.calculated_date))[0] ?? null;
     const days = dl ? daysBetween(today, dl.calculated_date) : null;
     const atRisk = r.stage === "at_risk" || (days !== null && days <= 60 && !["agreed", "completed", "declined"].includes(r.stage));
     return { ...r, lease: byId.get(r.lease_id) ?? null, nextDeadline: dl, daysToDeadline: days, atRisk, immediate: days !== null && days <= 30 && !["agreed", "completed", "declined"].includes(r.stage) };
   });
   // leases with an expiry within 12 months and no renewal record yet = "upcoming"
-  const upcoming = deadlines.filter((d) => d.date_type === "expiry" && daysBetween(today, d.calculated_date) <= 365 && !rows.some((r) => r.lease_id === d.lease_id));
+  const upcoming = deadlines.filter((d) => d.date_type === "expiry" && daysBetween(today, d.calculated_date) <= 365 && !rows.some((r) => r.lease_id === d.lease_id))
+    .filter((d, i, a) => a.findIndex((x) => x.lease_id === d.lease_id) === i);
   return { renewals: enriched, upcomingWithoutRecord: upcoming };
 }
 
@@ -639,7 +665,21 @@ export async function obligationTracker(w: W, f: { status?: string; responsible?
   const docIds = [...new Set(rows.map((r) => r.document_id).filter(Boolean))];
   const docs = docIds.length ? (await w.db.from("lease_document").select("id, title, version").in("id", docIds)).data ?? [] : [];
   const leases = new Map((await listLeases(w)).map((l) => [l.id, l]));
-  return rows.map((r): Row => ({ ...r, document: docs.find((d: Row) => d.id === r.document_id) ?? null, lease: leases.get(r.lease_id) ?? null }));
+  return dedupeObligations(rows.filter((r) => leases.has(r.lease_id)))
+    .map((r): Row => ({ ...r, document: docs.find((d: Row) => d.id === r.document_id) ?? null, lease: leases.get(r.lease_id) ?? null }));
+}
+
+/** Same obligation extracted twice (re-upload / re-extract) → keep one; a manually progressed row wins over an open duplicate. */
+export function dedupeObligations<T extends Row>(rows: T[]): T[] {
+  const rank = (s?: string | null) => (s === "done" || s === "waived" ? 2 : s === "in_progress" ? 1 : 0);
+  const best = new Map<string, T>();
+  for (const r of rows) {
+    const k = [r.lease_id, r.category, String(r.description ?? "").trim().toLowerCase().replace(/\s+/g, " "), r.deadline ?? "", r.responsible ?? ""].join("|");
+    const cur = best.get(k);
+    if (!cur || rank(r.status) > rank(cur.status)) best.set(k, r);
+  }
+  const keep = new Set(best.values());
+  return rows.filter((r) => keep.has(r));
 }
 
 // ------------------------------------------------------------------ portfolio (§12) & dashboard
@@ -659,11 +699,14 @@ export async function portfolioView(w: W, today: string, f: Parameters<typeof li
     return { id: l.id, lifecycle_status: l.lifecycle_status, area_sf: l.area_sf == null ? null : Number(l.area_sf), area_basis: l.area_basis, monthly_rent: t.monthlyRent ?? null, missing };
   }));
   const soon = await upcomingDates(w, { from: today, to: addDays(today, 365) });
-  const count = (t: string) => soon.filter((d) => d.date_type === t).length;
-  const { count: pendingObl } = await w.db.from("lease_obligation").select("id", { count: "exact", head: true }).eq("workspace_id", w.ws).in("status", ["open", "in_progress"]).is("archived_at", null);
-  const { count: review } = await w.db.from("lease_date").select("id", { count: "exact", head: true }).eq("workspace_id", w.ws).in("verification_status", ["needs_review", "conflicting", "calculated", "extracted"]).is("archived_at", null).is("superseded_by", null);
+  const count = (t: string) => soonLive.filter((d) => d.date_type === t).length;
+  const soonLive = soon.filter((d) => idSet.has(d.lease_id));
+  // counts only for live (non-archived, filter-matching) leases
+  const obl = ((await w.db.from("lease_obligation").select("lease_id, category, description, deadline, responsible, status").eq("workspace_id", w.ws).in("status", ["open", "in_progress"]).is("archived_at", null).limit(10000)).data ?? []) as Row[];
+  const pendingObl = dedupeObligations(obl.filter((o) => idSet.has(o.lease_id))).length;
+  const review = dates.filter((d) => ["needs_review", "conflicting", "calculated", "extracted"].includes(d.verification_status)).length;
   return { leases, portfolio: p, upcoming: { expiries: count("expiry"), renewalDeadlines: count("renewal_notice_deadline"), escalations: count("escalation"), lockins: count("lockin_end"), breaks: count("break_option"), notices: count("termination_notice_deadline") },
-    terminationPipeline: leases.filter((l) => ["termination_notice_served"].includes(l.lifecycle_status) || l.termination_status).length, pendingObligations: pendingObl ?? 0, datesAwaitingReview: review ?? 0 };
+    terminationPipeline: leases.filter((l) => ["termination_notice_served"].includes(l.lifecycle_status) || l.termination_status).length, pendingObligations: pendingObl, datesAwaitingReview: review };
 }
 
 async function liveDates(w: W, types?: string[]): Promise<Row[]> {

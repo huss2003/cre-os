@@ -9,6 +9,8 @@ import {
 } from "@/modules/deals/supply";
 import { floorLabel, unitLabel } from "@/modules/deals/matching/match";
 import { codeLabel } from "@/lib/util/labels";
+import { latestLiveAvailability } from "@/modules/deals/supply/inventory";
+import { readyPurpose, type ReadyPurpose } from "@/modules/deals/supply/purpose";
 import { addOperatorCentreAction, checkReadyAction, shortlistFeedbackAction } from "@/modules/deals/supply/actions";
 
 export const metadata = { title: "Property supply" };
@@ -19,10 +21,9 @@ const termText = (t: { value: unknown; status: string }) => t.status === "missin
 
 async function Inventory({ ctx }: { ctx: Awaited<ReturnType<typeof requirePageContext>> }) {
   const asOf = new Date().toISOString().slice(0, 10);
-  const { data: avs } = await ctx.db.from("availability").select("*, space:space_id(id, floor_text, unit, chargeable_sf, carpet_sf, contiguous_group, divisible, asset:asset_id(id, name, category, status, completion_date))")
-    .eq("workspace_id", ctx.workspaceId).is("archived_at", null).order("as_of", { ascending: false }).limit(300);
-  const seen = new Set<string>();
-  const rows = (avs ?? []).filter((a) => { const k = a.space_id as string; if (seen.has(k)) return false; seen.add(k); return true; });
+  const { data: avs } = await ctx.db.from("availability").select("*, space:space_id(id, floor_text, unit, chargeable_sf, carpet_sf, contiguous_group, divisible, archived_at, asset:asset_id(id, name, category, status, completion_date, archived_at))")
+    .eq("workspace_id", ctx.workspaceId).is("archived_at", null).order("as_of", { ascending: false }).order("created_at", { ascending: false }).limit(300);
+  const rows = latestLiveAvailability(avs ?? []);
   if (!rows.length) return <EmptyState title="No supply recorded yet" action={<ButtonLink href="/imports">Import availability</ButtonLink>}>Import an availability list or add a building with spaces. Each availability row should carry a source and a verification date.</EmptyState>;
   const stale = rows.filter((r) => availabilityStatus(r as never, { asOf }).stale).length;
   return <>
@@ -80,7 +81,7 @@ async function Operators({ ctx }: { ctx: Awaited<ReturnType<typeof requirePageCo
   </>;
 }
 
-async function Match({ ctx, requirementId }: { ctx: Awaited<ReturnType<typeof requirePageContext>>; requirementId: string }) {
+async function Match({ ctx, requirementId, purpose }: { ctx: Awaited<ReturnType<typeof requirePageContext>>; requirementId: string; purpose: ReadyPurpose }) {
   if (!requirementId) {
     const { data } = await ctx.db.from("requirement").select("id, title").eq("workspace_id", ctx.workspaceId).is("archived_at", null).order("updated_at", { ascending: false }).limit(50);
     if (!data?.length) return <EmptyState title="No requirements yet" action={<ButtonLink href="/requirements">Add a requirement</ButtonLink>}>Matching runs a client requirement against the supply inventory.</EmptyState>;
@@ -95,7 +96,7 @@ async function Match({ ctx, requirementId }: { ctx: Awaited<ReturnType<typeof re
     {due.length ? <StaleBanner>{due.length} shortlisted propert{due.length === 1 ? "y needs" : "ies need"} reconfirmation before presentation or site visits: {due.map((d) => `${d.label} (${d.items.map((i) => codeLabel(i.code).toLowerCase()).join(", ")})`).join("; ")}</StaleBanner> : null}
     <form action={checkReadyAction} className="mb-3 flex flex-wrap gap-2">
       <input type="hidden" name="requirement_id" value={requirementId} />
-      <Select name="purpose" aria-label="Purpose"><option value="presentation">Client presentation</option><option value="site_visit">Site visit</option></Select>
+      <Select name="purpose" aria-label="Purpose" defaultValue={purpose} key={purpose}><option value="presentation">Client presentation</option><option value="site_visit">Site visit</option></Select>
       <Button type="submit" variant="secondary">Check ready to present</Button>
       <ButtonLink href={`/requirements/${requirementId}`} variant="secondary">Requirement</ButtonLink>
     </form>
@@ -137,7 +138,7 @@ async function Body({ searchParams }: { searchParams: SP }) {
     <div className="mb-3 flex flex-wrap gap-2 text-sm" role="tablist" aria-label="Supply view">
       {tabs.map(([k, l]) => <ButtonLink key={k} href={`/buildings/supply?tab=${k}`} variant={tab === k ? "primary" : "secondary"}>{l}</ButtonLink>)}
     </div>
-    {tab === "operators" ? <Operators ctx={ctx} /> : tab === "match" ? <Match ctx={ctx} requirementId={one(sp.requirement)} /> : <Inventory ctx={ctx} />}
+    {tab === "operators" ? <Operators ctx={ctx} /> : tab === "match" ? <Match ctx={ctx} requirementId={one(sp.requirement)} purpose={readyPurpose(one(sp.purpose))} /> : <Inventory ctx={ctx} />}
   </>;
 }
 

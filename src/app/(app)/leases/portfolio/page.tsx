@@ -4,7 +4,7 @@ import { localDate } from "@/lib/util/time";
 import { Card, EmptyState, Input, PageHeader, Select, Stat, inr, sf } from "@/components/ui";
 import { portfolioView } from "@/modules/leases/service";
 import { CATEGORY_LABEL, STATUS_LABEL, type LeaseStatus } from "@/modules/leases/status";
-import { LeaseTabs } from "@/modules/leases/ui";
+
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
@@ -16,10 +16,9 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   const w = { db: ctx.db, ws: ctx.workspaceId, userId: ctx.userId };
   const v = await portfolioView(w, localDate(), { q: str("q") || undefined, category: str("category") || undefined, microMarket: str("mm") || undefined, assigned: str("mine") ? ctx.userId : undefined });
   const p = v.portfolio;
-  const name = (id: string) => v.leases.find((l) => l.id === id)?.tenant_name ?? id.slice(0, 8);
+  const name = (id: string) => v.leases.find((l) => l.id === id)?.label ?? id.slice(0, 8);
   return (
     <div className="space-y-4">
-      <LeaseTabs active="portfolio" />
       <PageHeader title="Lease portfolio" subtitle="Aggregates use only known, compatible values. Missing data is listed, never treated as zero." />
       <form action="/leases/portfolio" className="grid grid-cols-2 gap-2 md:grid-cols-5">
         <Input name="q" placeholder="Tenant / landlord / building" defaultValue={str("q")} aria-label="Search" />

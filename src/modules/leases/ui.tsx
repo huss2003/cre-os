@@ -1,22 +1,8 @@
-import Link from "next/link";
 import clsx from "clsx";
 import { Badge } from "@/components/ui";
 import { VERIFICATION_LABEL, type VerificationStatus } from "./dates";
 
-const TABS = [
-  ["dashboard", "/leases", "Dashboard"], ["calendar", "/leases/calendar", "Calendar"], ["renewals", "/leases/renewals", "Renewals"],
-  ["obligations", "/leases/obligations", "Obligations"], ["portfolio", "/leases/portfolio", "Portfolio"], ["radar", "/leases/radar", "Radar"],
-] as const;
-
-export function LeaseTabs({ active }: { active: (typeof TABS)[number][0] }) {
-  return (
-    <nav aria-label="Lease views" className="-mx-1 flex gap-1 overflow-x-auto pb-1 text-sm">
-      {TABS.map(([k, href, label]) => (
-        <Link key={k} href={href} className={clsx("whitespace-nowrap rounded-md px-3 py-1.5", k === active ? "bg-brand text-white" : "bg-surface text-ink-soft border border-line hover:text-ink")}>{label}</Link>
-      ))}
-    </nav>
-  );
-}
+// Lease view tabs come from the app shell (src/lib/nav.ts) — no in-page tab bar.
 
 const TONE: Record<VerificationStatus, "ok" | "warn" | "neutral" | "bad"> = { confirmed: "ok", extracted: "neutral", calculated: "neutral", needs_review: "warn", conflicting: "bad" };
 export function VerificationBadge({ status }: { status: string }) {

@@ -7,7 +7,7 @@ import { Badge, Button, Card, Input, MoreFields, PageHeader, Select, Skeleton, T
 import * as A from "@/modules/leases/actions";
 import { alternativeProperties, depositRecovery, diffTerms, escalationView, getLease, leaseAudit, leaseCost, TERM_LABEL, type CommercialTerms } from "@/modules/leases/service";
 import { CATEGORY_LABEL, STATUS_LABEL, nextStatuses, type LeaseStatus } from "@/modules/leases/status";
-import { DATE_TYPE_LABEL, DEPOSIT_STATUS_LABEL, FACT_STATUS_LABEL, Flash, LeaseTabs, TERMINATION_STATUS_LABEL, VerificationBadge, auditEventText, conventionText, humanize } from "@/modules/leases/ui";
+import { DATE_TYPE_LABEL, DEPOSIT_STATUS_LABEL, FACT_STATUS_LABEL, Flash, TERMINATION_STATUS_LABEL, VerificationBadge, auditEventText, conventionText, humanize } from "@/modules/leases/ui";
 
 type P = Promise<{ id: string }>;
 type SP = Promise<Record<string, string | string[] | undefined>>;
@@ -53,8 +53,7 @@ async function Body({ params, searchParams }: { params: P; searchParams: SP }) {
 
   return (
     <div className="space-y-4">
-      <LeaseTabs active="dashboard" />
-      <PageHeader title={L.tenant_name ?? "Lease"} subtitle={<>{L.asset_name ?? "Property unknown"}{L.floor ? ` · Floor ${L.floor}` : ""}{L.unit ? ` · Unit ${L.unit}` : ""} · {CATEGORY_LABEL[L.category as keyof typeof CATEGORY_LABEL]} · <Badge>{STATUS_LABEL[L.lifecycle_status as LeaseStatus]}</Badge></>} />
+      <PageHeader title={L.label} subtitle={<>{L.asset_name ?? "Property unknown"}{L.floor ? ` · Floor ${L.floor}` : ""}{L.unit ? ` · Unit ${L.unit}` : ""} · {CATEGORY_LABEL[L.category as keyof typeof CATEGORY_LABEL]} · <Badge>{STATUS_LABEL[L.lifecycle_status as LeaseStatus]}</Badge></>} />
       <Flash sp={sp} />
       <p className="text-xs text-ink-soft">Extracted clauses are shown verbatim with page references. They are administrative summaries, not legal advice; only dates a person has reviewed are confirmed contractual deadlines.</p>
 

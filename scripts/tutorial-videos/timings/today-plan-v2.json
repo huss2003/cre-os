@@ -1,0 +1,54 @@
+{
+  "durationMs": 55419,
+  "steps": [
+    {
+      "caption": "Open Today from the sidebar. It is your start page every morning.",
+      "ms": 3619
+    },
+    {
+      "caption": "Getting started tracks the set-up steps still left, with a button for the next one.",
+      "ms": 7866
+    },
+    {
+      "caption": "Today's schedule: every meeting with its time, place and whether the brief is ready.",
+      "ms": 11104
+    },
+    {
+      "caption": "Priority tasks & follow-ups: what to do today, most urgent first.",
+      "ms": 14340
+    },
+    {
+      "caption": "Overdue commitments: promises that slipped past their date.",
+      "ms": 18607
+    },
+    {
+      "caption": "Recommended next actions: the most urgent things first, each with the reason.",
+      "ms": 21980
+    },
+    {
+      "caption": "Active transactions: deals in offers, approvals or execution, and what blocks them.",
+      "ms": 26328
+    },
+    {
+      "caption": "Pending approvals: changes waiting in Review before they touch your records.",
+      "ms": 30760
+    },
+    {
+      "caption": "Important lease events: notice deadlines and expiries coming up, so nothing is missed.",
+      "ms": 34975
+    },
+    {
+      "caption": "Priority accounts: the companies most worth calling, with their score and why.",
+      "ms": 39310
+    },
+    {
+      "caption": "Open All tasks to start working through them.",
+      "ms": 43562
+    },
+    {
+      "caption": "It opens in Tasks, where you complete it, snooze it or see what it is linked to.",
+      "ms": 48811
+    }
+  ],
+  "bytes": 1619323
+}

@@ -1,0 +1,46 @@
+{
+  "durationMs": 64701,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3606
+    },
+    {
+      "caption": "At the top: open issues — one overdue and one blocking — and a red line naming what is blocking progress.",
+      "ms": 10966
+    },
+    {
+      "caption": "Section 7, Open issues.",
+      "ms": 14235
+    },
+    {
+      "caption": "CAM increase unexplained: blocking, owned by you, the landlord's rep is responsible, next action and due date — overdue.",
+      "ms": 19858
+    },
+    {
+      "caption": "Signage rights depends on the CAM issue, and records why it has no due date.",
+      "ms": 23106
+    },
+    {
+      "caption": "Raise a new issue: title, category and the next action.",
+      "ms": 26284
+    },
+    {
+      "caption": "A due date — or a reason why there is none — plus who is responsible and whether it blocks progress.",
+      "ms": 37392
+    },
+    {
+      "caption": "It can depend on other open issues. Raise.",
+      "ms": 44662
+    },
+    {
+      "caption": "Update an issue's status. Resolving needs a resolution note.",
+      "ms": 49369
+    },
+    {
+      "caption": "Next actions & route to completion: the list updates — blocking and overdue items first.",
+      "ms": 58196
+    }
+  ],
+  "bytes": 702993
+}

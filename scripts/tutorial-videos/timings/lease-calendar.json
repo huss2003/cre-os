@@ -1,0 +1,42 @@
+{
+  "durationMs": 47291,
+  "steps": [
+    {
+      "caption": "Open Leases, then the Calendar tab.",
+      "ms": 3605
+    },
+    {
+      "caption": "The count at the top: milestones in the date range, confirmed only.",
+      "ms": 9458
+    },
+    {
+      "caption": "Choose the dates: from and to.",
+      "ms": 12684
+    },
+    {
+      "caption": "Narrow it to one lease, one company or one property.",
+      "ms": 15849
+    },
+    {
+      "caption": "Or one event type — for example lease expiry.",
+      "ms": 19028
+    },
+    {
+      "caption": "Show.",
+      "ms": 22523
+    },
+    {
+      "caption": "Grouped by month: each date, its type and the lease — here the demo leases' expiries.",
+      "ms": 28401
+    },
+    {
+      "caption": "Tick Include unverified to add calculated and needs-review dates. They keep their label so you never mistake them for deadlines.",
+      "ms": 31773
+    },
+    {
+      "caption": "Assigned to me shows only leases you look after.",
+      "ms": 40866
+    }
+  ],
+  "bytes": 501639
+}

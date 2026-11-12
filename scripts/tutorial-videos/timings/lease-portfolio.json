@@ -1,0 +1,38 @@
+{
+  "durationMs": 49940,
+  "steps": [
+    {
+      "caption": "Open Leases, then the Portfolio tab.",
+      "ms": 3607
+    },
+    {
+      "caption": "Aggregates use only known, compatible values. Missing data is listed, never treated as zero.",
+      "ms": 9537
+    },
+    {
+      "caption": "The tiles: active leases, leased area, monthly and annual rent, expiries, renewal deadlines, escalations, lock-ins, terminations and obligations.",
+      "ms": 12698
+    },
+    {
+      "caption": "Under each total: how many leases were included and how many excluded.",
+      "ms": 21080
+    },
+    {
+      "caption": "By status: how many leases are draft, active, expiring and so on.",
+      "ms": 24269
+    },
+    {
+      "caption": "Excluded from totals, and leases with incomplete information: each one says what is missing — for example rent or a confirmed expiry.",
+      "ms": 27432
+    },
+    {
+      "caption": "Filter by category, micro-market or your own leases.",
+      "ms": 30684
+    },
+    {
+      "caption": "The totals now cover Kharadi leases only.",
+      "ms": 38341
+    }
+  ],
+  "bytes": 580695
+}

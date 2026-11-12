@@ -1,0 +1,50 @@
+{
+  "durationMs": 50314,
+  "steps": [
+    {
+      "caption": "Open Signals, then Sources.",
+      "ms": 3609
+    },
+    {
+      "caption": "Source registry: each source with what it is for, its connection status, permission, last sync, refresh interval and how often it was used.",
+      "ms": 11249
+    },
+    {
+      "caption": "News / RSS feeds are Unavailable — needs access: no licensed feed is set up, so paste articles by hand instead. A failed source is always labelled — never shown as 'no news'.",
+      "ms": 14588
+    },
+    {
+      "caption": "Your CRE OS records — leases, occupancy, availability — are connected and scanned daily.",
+      "ms": 17793
+    },
+    {
+      "caption": "Manual paste and uploaded documents are on-demand sources.",
+      "ms": 21175
+    },
+    {
+      "caption": "Pause stops a source; Resume starts it again; Reconnect retries one that needs access.",
+      "ms": 24373
+    },
+    {
+      "caption": "Refresh now runs the scheduled refresh for companies that are due.",
+      "ms": 27559
+    },
+    {
+      "caption": "Recent runs: when each source ran and how many new items it found.",
+      "ms": 30756
+    },
+    {
+      "caption": "Failed items and jobs: anything that failed, with the error and a Retry button.",
+      "ms": 33937
+    },
+    {
+      "caption": "Research universe: how many companies are actively kept up to date, and how often each tier is refreshed — weekly, monthly or quarterly.",
+      "ms": 37155
+    },
+    {
+      "caption": "Change the universe size (50 to 8,000 companies) and Save.",
+      "ms": 40501
+    }
+  ],
+  "bytes": 579506
+}

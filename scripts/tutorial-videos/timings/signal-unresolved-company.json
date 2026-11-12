@@ -1,0 +1,38 @@
+{
+  "durationMs": 42571,
+  "steps": [
+    {
+      "caption": "Open Signals and the Ottervale Systems signal.",
+      "ms": 3626
+    },
+    {
+      "caption": "The header says Company not matched (Ottervale Systems).",
+      "ms": 15249
+    },
+    {
+      "caption": "Which company is this? Fuzzy matches are never linked without you.",
+      "ms": 18488
+    },
+    {
+      "caption": "Each suggestion gives the reason — here they only share the common word “systems”, a weak match. This is it would link it.",
+      "ms": 21714
+    },
+    {
+      "caption": "Ottervale is not on record yet, so add it as a new company.",
+      "ms": 24903
+    },
+    {
+      "caption": "The signal is now linked to the new company record. The change is kept in the history and audit log.",
+      "ms": 29669
+    },
+    {
+      "caption": "Linked the wrong company? Correct company lets you pick another; the change is kept in history.",
+      "ms": 32898
+    },
+    {
+      "caption": "People are never matched by name alone.",
+      "ms": 36190
+    }
+  ],
+  "bytes": 567244
+}

@@ -1,0 +1,42 @@
+{
+  "durationMs": 59158,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3635
+    },
+    {
+      "caption": "Section 10, LOI and term sheet. LOI v1 is a draft, unsigned.",
+      "ms": 11892
+    },
+    {
+      "caption": "It is checked against the agreed terms: lease duration was agreed at 60 months but is not in the LOI.",
+      "ms": 17574
+    },
+    {
+      "caption": "Add a version: an updated LOI with the duration clause.",
+      "ms": 20924
+    },
+    {
+      "caption": "Save version. The same title makes it version 2 of the same document; v1 is kept.",
+      "ms": 30863
+    },
+    {
+      "caption": "LOI v2 is compared with v1 — clauses added, removed or changed — and with the agreed terms.",
+      "ms": 36375
+    },
+    {
+      "caption": "Move its status along: draft, submitted, client review, counterparty review, agreed, signed, executed.",
+      "ms": 39863
+    },
+    {
+      "caption": "A term sheet is added the same way — choose term sheet as the type.",
+      "ms": 46298
+    },
+    {
+      "caption": "The point tracker (section 5) holds the agreed values these documents are checked against.",
+      "ms": 49520
+    }
+  ],
+  "bytes": 667849
+}

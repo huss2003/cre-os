@@ -1,0 +1,62 @@
+{
+  "durationMs": 75513,
+  "steps": [
+    {
+      "caption": "Open Transactions from the sidebar, under Work.",
+      "ms": 3624
+    },
+    {
+      "caption": "The list: each transaction's name, code, type, status, priority and current stage.",
+      "ms": 8170
+    },
+    {
+      "caption": "New transaction: give it a name.",
+      "ms": 11391
+    },
+    {
+      "caption": "Choose the type. Each type has its own stage plan — renewal starts with an existing-lease review, investment includes due diligence.",
+      "ms": 16975
+    },
+    {
+      "caption": "Link the confirmed requirement and the deal, so client positions and matching properties come along.",
+      "ms": 21173
+    },
+    {
+      "caption": "Properties under consideration, separated by commas, and the expected completion date.",
+      "ms": 26770
+    },
+    {
+      "caption": "More details: priority and a workflow template if you made your own.",
+      "ms": 32733
+    },
+    {
+      "caption": "Create transaction.",
+      "ms": 38457
+    },
+    {
+      "caption": "It gets a unique code (TX-…), its type, status and current stage.",
+      "ms": 43552
+    },
+    {
+      "caption": "The chips jump to each of the 16 sections: overview, requirements, property, offers, negotiation, inspections, issues, stakeholders, approvals, LOI, legal, deposits, execution, possession, handover and closure.",
+      "ms": 46811
+    },
+    {
+      "caption": "Transaction overview: the stage plan for a relocation. The first stage is in progress; press start or mark done as work moves on.",
+      "ms": 50072
+    },
+    {
+      "caption": "Mark the first stage done — the next one becomes current.",
+      "ms": 55854
+    },
+    {
+      "caption": "Client requirements were copied from the client-confirmed requirement — only confirmed fields, nothing guessed.",
+      "ms": 61082
+    },
+    {
+      "caption": "Back on the list, Workflow templates let you change the stages for a type, or add a new type. Existing transactions keep their stages.",
+      "ms": 66954
+    }
+  ],
+  "bytes": 851548
+}

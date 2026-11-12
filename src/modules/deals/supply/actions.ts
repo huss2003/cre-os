@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth/context";
 import { toDealsCtx } from "../api";
 import { DealsError } from "../ctx";
+import { matchPath, readyPurpose } from "./purpose";
 import { assertReadyToPresent, recordShortlistFeedback, upsertOperatorCentre } from "./service";
 
 const s = (f: FormData, k: string) => { const v = f.get(k); return v === null ? "" : String(v).trim(); };
@@ -39,10 +40,11 @@ export async function shortlistFeedbackAction(f: FormData) {
 }
 
 export async function checkReadyAction(f: FormData) {
-  const path = `/buildings/supply?tab=match&requirement=${encodeURIComponent(s(f, "requirement_id"))}`;
+  const purpose = readyPurpose(s(f, "purpose"));
+  const path = matchPath(s(f, "requirement_id"), purpose);
   try {
     const ctx = toDealsCtx(await requireContext());
-    await assertReadyToPresent(ctx, s(f, "requirement_id"), { purpose: s(f, "purpose") === "site_visit" ? "site_visit" : "presentation" });
+    await assertReadyToPresent(ctx, s(f, "requirement_id"), { purpose });
   } catch (e) { back(path, "err", err(e)); }
   back(path, "msg", "All shortlisted properties are reconfirmed — ready to present");
 }

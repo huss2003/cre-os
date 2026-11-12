@@ -17,6 +17,128 @@ export interface TutorialVideo {
 
 export const VIDEOS: TutorialVideo[] = [
   {
+    "slug": "ai-use-settings",
+    "title": "Settings → AI use: Off, Backup or On per feature",
+    "category": "Review & settings",
+    "seconds": 57,
+    "learn": "Choose for each feature whether CRE OS uses code only (Off), code first with AI as a backup (Backup), or AI first with code as the fallback (On). Features are grouped into runs on code, code first, and needs AI. Off means no AI call at all. The owner needs two-step sign-in to save changes.",
+    "tryRoute": "/settings/ai",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Settings at the bottom of the sidebar, then the AI use tab.",
+        "ms": 3611
+      },
+      {
+        "caption": "The summary: how many features use AI, how many run on code only, and how many AI calls were avoided this month.",
+        "ms": 11479
+      },
+      {
+        "caption": "Off = code only. Backup = code first, AI only when code can't read the input. On = AI first, code if AI fails. Nothing is lost when a feature is Off.",
+        "ms": 14984
+      },
+      {
+        "caption": "Runs on code: rules and templates do these well — morning brief, daily plan, score explanations, outreach drafts and more. AI is off by default.",
+        "ms": 18238
+      },
+      {
+        "caption": "Each feature says what it does and whether it is on its default.",
+        "ms": 21481
+      },
+      {
+        "caption": "Code first, AI as backup: capture fields, lease terms, quotes, legal clauses and reading text from photos. Code tries first.",
+        "ms": 24757
+      },
+      {
+        "caption": "Needs AI: voice transcription, web research, signal discovery and open writing — code can't do these well.",
+        "ms": 28569
+      },
+      {
+        "caption": "Each switch has three positions. Off, Backup or On — hover a position to see what it means.",
+        "ms": 31877
+      },
+      {
+        "caption": "A changed feature says so, with its default. Here 'Reading text from images & scans' is set to Off — code only.",
+        "ms": 35323
+      },
+      {
+        "caption": "To change a switch: pick the position, then press Save at the bottom. Reset to defaults puts every feature back (you confirm first).",
+        "ms": 38586
+      },
+      {
+        "caption": "For the workspace owner, saving needs two-step sign-in first. The note links to Settings → Security, where you turn it on.",
+        "ms": 42293
+      },
+      {
+        "caption": "Open Security & MFA to see the two-step sign-in set-up.",
+        "ms": 45636
+      },
+      {
+        "caption": "After setting it up, come back to AI use: the switches can be changed and saved. When a feature is Off, CRE OS makes no AI call at all.",
+        "ms": 50249
+      }
+    ]
+  },
+  {
+    "slug": "local-ocr-business-card",
+    "title": "Read a business card without AI (local OCR)",
+    "category": "Review & settings",
+    "seconds": 55,
+    "learn": "With 'Reading text from images & scans' set to Off, a business-card photo is still read — by local OCR on the server, with no AI call. The card's name, title, company, email and phone become observations, and a new contact is proposed for your approval in Review.",
+    "tryRoute": "/capture",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Settings → AI use.",
+        "ms": 3606
+      },
+      {
+        "caption": "Reading text from images & scans: by default Backup — local text reading first, AI vision only if that finds nothing.",
+        "ms": 9655
+      },
+      {
+        "caption": "In this workspace it is set to Off — code only. So no AI is allowed to read photos.",
+        "ms": 12841
+      },
+      {
+        "caption": "Now open Capture from the sidebar.",
+        "ms": 16140
+      },
+      {
+        "caption": "Choose Photo — for visiting cards and whiteboards.",
+        "ms": 20555
+      },
+      {
+        "caption": "Pick the photo of Rhea Kulkarni's card.",
+        "ms": 24502
+      },
+      {
+        "caption": "Say what it is.",
+        "ms": 27760
+      },
+      {
+        "caption": "Save capture. The photo is stored and read straight away.",
+        "ms": 32972
+      },
+      {
+        "caption": "The review screen. The photo's text was read on the server by local OCR — no AI call. It is context, never proof of terms.",
+        "ms": 38542
+      },
+      {
+        "caption": "The text from the card: name, title, company, email and phone.",
+        "ms": 41806
+      },
+      {
+        "caption": "What was found becomes observations, and a new contact is proposed. It waits for your approval in Review — nothing is changed without you.",
+        "ms": 45084
+      },
+      {
+        "caption": "Nothing was sent out to read the card. Approve the proposed contact in Review when you have checked it.",
+        "ms": 48334
+      }
+    ]
+  },
+  {
     "slug": "ai-on-record",
     "title": "Ask AI about the record you're looking at",
     "category": "Ask AI & automation",
@@ -87,78 +209,78 @@ export const VIDEOS: TutorialVideo[] = [
     "slug": "ai-lease-extract",
     "title": "Extract lease terms from a PDF and attach them to a lease",
     "category": "Ask AI & automation",
-    "seconds": 83,
+    "seconds": 74,
     "learn": "Attach a lease or LOI to Ask AI: it lists each term with page number and exact quote, then prepares an approval card to update the lease record.",
     "tryRoute": "/assistant",
     "featured": false,
     "steps": [
       {
         "caption": "Open Ask AI from the sidebar.",
-        "ms": 3616
+        "ms": 3605
       },
       {
         "caption": "Start a new conversation.",
-        "ms": 7828
+        "ms": 7650
       },
       {
         "caption": "Press the paper-clip to attach a file: PDF, Word, TXT, CSV or MD, up to 15 MB.",
-        "ms": 12432
+        "ms": 11650
       },
       {
         "caption": "The lease PDF is attached (× removes it).",
-        "ms": 16450
+        "ms": 14905
       },
       {
         "caption": "Ask it to extract the lease terms.",
-        "ms": 19655
+        "ms": 18074
       },
       {
         "caption": "A table of terms: value, page number, the exact quote and a check mark.",
-        "ms": 30247
+        "ms": 26284
       },
       {
         "caption": "Area, rent and dates are parsed by code from the quote — not invented by the AI.",
-        "ms": 33738
+        "ms": 29468
       },
       {
         "caption": "'verified on page' means the quote really is on that page.",
-        "ms": 37053
+        "ms": 32632
       },
       {
         "caption": "Terms not in the document stay 'unknown' — e.g. CAM and fit-out.",
-        "ms": 40309
+        "ms": 35802
       },
       {
         "caption": "Now attach the terms to a lease record. Search by tenant name.",
-        "ms": 43660
+        "ms": 38968
       },
       {
         "caption": "Pick Zentrix's lease at Kharadi Tech Park.",
-        "ms": 50036
+        "ms": 44262
       },
       {
         "caption": "Tick to also store the PDF on the lease.",
-        "ms": 54188
+        "ms": 48112
       },
       {
         "caption": "Press Attach to lease record. Nothing is saved yet.",
-        "ms": 57396
+        "ms": 51282
       },
       {
         "caption": "An approval card shows every field: what it is now, what it would become, and the page it came from.",
-        "ms": 62124
+        "ms": 55276
       },
       {
         "caption": "Here the area changes from 18,000 to 18,500 sq ft (page 1).",
-        "ms": 65607
+        "ms": 58462
       },
       {
         "caption": "Approve change. Material lease fields go on to Review for a second check.",
-        "ms": 68888
+        "ms": 61638
       },
       {
         "caption": "Done — the proposal now waits in Review.",
-        "ms": 73549
+        "ms": 65510
       }
     ]
   },
@@ -584,81 +706,93 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "review-queues-v2",
+    "slug": "review-queues-v3",
     "title": "Review — what waits for you, approve, reject, ask for more info",
     "category": "Review & settings",
-    "seconds": 71,
+    "seconds": 90,
     "learn": "Review holds everything waiting for your OK: unverified contacts, captures, record changes, merges, drafts, documents. Approve, reject, edit or request more info.",
     "tryRoute": "/approvals",
     "featured": false,
     "steps": [
       {
         "caption": "Open Review. The badge counts what's waiting.",
-        "ms": 3605
+        "ms": 3606
       },
       {
-        "caption": "At the top: quick counts — unverified contact details and outreach drafts.",
-        "ms": 7552
+        "caption": "At the top: quick counts — files needing input, needs more info, unverified contact details, outreach drafts and failed jobs.",
+        "ms": 7635
+      },
+      {
+        "caption": "New sections above the tabs: transaction approvals waiting for you…",
+        "ms": 10857
+      },
+      {
+        "caption": "…lease dates needing review and lease terms to confirm — decisions from Transactions and Leases also wait here.",
+        "ms": 14135
+      },
+      {
+        "caption": "Imports to review: spreadsheet rows waiting for your check.",
+        "ms": 17326
       },
       {
         "caption": "Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.",
-        "ms": 10740
+        "ms": 20600
       },
       {
         "caption": "Captures to review: notes and files from Capture. Open one, check it, press Reviewed.",
-        "ms": 13921
+        "ms": 23783
       },
       {
         "caption": "Tabs split the rest. Record changes first.",
-        "ms": 17170
+        "ms": 26969
       },
       {
         "caption": "Each card: the record, 'Material' tag, now vs proposed, and the evidence quote.",
-        "ms": 21090
+        "ms": 31023
       },
       {
         "caption": "'why do we believe this?' opens the source behind the proposal.",
-        "ms": 24292
+        "ms": 34229
       },
       {
         "caption": "Buttons: Approve & apply, Approve only (apply later), Ask to clarify, Reject; or Edit proposed values.",
-        "ms": 27486
+        "ms": 37453
       },
       {
         "caption": "The lease proposal from the PDF (area 18,000 → 18,500). Something to check first? Request more info.",
-        "ms": 30654
+        "ms": 40647
       },
       {
         "caption": "Say what's missing and press Ask — it moves to 'Needs more info' and adds a linked task.",
-        "ms": 35449
+        "ms": 45552
       },
       {
         "caption": "The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.",
-        "ms": 41482
+        "ms": 52149
       },
       {
         "caption": "Applied — it leaves the queue and appears in History & undo.",
-        "ms": 45352
+        "ms": 56199
       },
       {
         "caption": "Identity merges: duplicate companies, people or buildings — never merged silently.",
-        "ms": 48518
+        "ms": 59422
       },
       {
         "caption": "External drafts: outreach drafts waiting to be checked and sent by you.",
-        "ms": 52390
+        "ms": 66046
       },
       {
         "caption": "Documents: generated documents still in draft.",
-        "ms": 56280
+        "ms": 72650
       },
       {
         "caption": "Conflicts: two sources disagree on a value — you choose.",
-        "ms": 60109
+        "ms": 79335
       },
       {
         "caption": "Stale records: data too old to trust until rechecked.",
-        "ms": 63986
+        "ms": 83374
       }
     ]
   },
@@ -706,77 +840,77 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "capture-files-v2",
+    "slug": "capture-files-v3",
     "title": "Capture any file — quote, business card, photo → proposals",
     "category": "Review & settings",
-    "seconds": 67,
+    "seconds": 68,
     "learn": "Drop quotes, leases, notes, cards, photos or spreadsheets into Capture. CRE OS says what it found, page by page, and turns it into proposals you review.",
     "tryRoute": "/capture",
     "featured": false,
     "steps": [
       {
         "caption": "Open Capture.",
-        "ms": 3604
+        "ms": 3606
       },
       {
         "caption": "'Add files' takes almost anything, up to 25 MB each.",
-        "ms": 7554
+        "ms": 7584
       },
       {
-        "caption": "Optional: link it to a record first — company, person, building, requirement or meeting.",
-        "ms": 10766
+        "caption": "Optional: link it to a record first — company, person, building, requirement, meeting, lease or transaction.",
+        "ms": 10765
       },
       {
         "caption": "This quote is for Zentrix's requirement.",
-        "ms": 14632
+        "ms": 14746
       },
       {
         "caption": "'What is it?' — leave on Detect, or pick: quotation, lease, LOI, notes, business card, photo, layout…",
-        "ms": 17873
+        "ms": 17915
       },
       {
         "caption": "Choose the landlord's quotation PDF.",
-        "ms": 21029
+        "ms": 21073
       },
       {
         "caption": "It's recognised as a Quotation. Open it.",
-        "ms": 24237
+        "ms": 24293
       },
       {
         "caption": "What CRE OS found: type, confidence, and each value with its page and quote.",
-        "ms": 28279
+        "ms": 28199
       },
       {
         "caption": "Without an AI key it uses pattern matching — 'check every value'.",
-        "ms": 31474
+        "ms": 31396
       },
       {
         "caption": "Proposals: here, create a quote. Review opens it for your approval.",
-        "ms": 34660
+        "ms": 34580
       },
       {
         "caption": "Wrong guess? 'Fix and process again' changes the type or linked records.",
-        "ms": 37817
+        "ms": 37748
       },
       {
         "caption": "Back to Capture for a building photo.",
-        "ms": 40994
+        "ms": 40927
       },
       {
         "caption": "Upload the photo.",
-        "ms": 44852
+        "ms": 44821
       },
       {
         "caption": "A photo needs a building or visit — open it to choose.",
-        "ms": 50068
+        "ms": 50034
       },
       {
         "caption": "Pick the building, then Process again. Business cards work the same way: type 'Business card'.",
-        "ms": 54008
+        "ms": 54139
       },
       {
         "caption": "Recent files on Capture list every file and whether it needs your input.",
-        "ms": 58752
+        "ms": 59405
       }
     ]
   },
@@ -1538,61 +1672,61 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "today-plan",
+    "slug": "today-plan-v2",
     "title": "Plan your day from Today",
     "category": "Outreach & meetings",
-    "seconds": 53,
-    "learn": "Read Today top to bottom: recommended next actions, meetings, priority accounts and follow-ups — then open what to do first.",
+    "seconds": 55,
+    "learn": "Read Today top to bottom: schedule, priority tasks, overdue commitments, transactions and lease events — then open what to do first.",
     "tryRoute": "/today",
     "featured": false,
     "steps": [
       {
         "caption": "Open Today from the sidebar. It is your start page every morning.",
-        "ms": 3609
-      },
-      {
-        "caption": "The date line says whether this is the morning brief or a live preview. 'Generate brief now' prepares it on demand.",
-        "ms": 7830
+        "ms": 3619
       },
       {
         "caption": "Getting started tracks the set-up steps still left, with a button for the next one.",
-        "ms": 11031
+        "ms": 7866
+      },
+      {
+        "caption": "Today's schedule: every meeting with its time, place and whether the brief is ready.",
+        "ms": 11104
+      },
+      {
+        "caption": "Priority tasks & follow-ups: what to do today, most urgent first.",
+        "ms": 14340
+      },
+      {
+        "caption": "Overdue commitments: promises that slipped past their date.",
+        "ms": 18607
       },
       {
         "caption": "Recommended next actions: the most urgent things first, each with the reason.",
-        "ms": 14309
+        "ms": 21980
       },
       {
-        "caption": "Each action has a button that takes you straight to the work.",
-        "ms": 17493
-      },
-      {
-        "caption": "Meetings in the next three days, with their preparation status.",
-        "ms": 20682
-      },
-      {
-        "caption": "Priority accounts: the companies most worth calling, with their score and why.",
-        "ms": 24985
-      },
-      {
-        "caption": "Follow-ups and commitments due: overdue tasks and drafts waiting to be sent.",
-        "ms": 29278
+        "caption": "Active transactions: deals in offers, approvals or execution, and what blocks them.",
+        "ms": 26328
       },
       {
         "caption": "Pending approvals: changes waiting in Review before they touch your records.",
-        "ms": 33509
+        "ms": 30760
       },
       {
-        "caption": "Lease events: notice deadlines and expiries coming up, so nothing is missed.",
-        "ms": 37748
+        "caption": "Important lease events: notice deadlines and expiries coming up, so nothing is missed.",
+        "ms": 34975
       },
       {
-        "caption": "Back to the top: open the first task to start working on it.",
-        "ms": 41945
+        "caption": "Priority accounts: the companies most worth calling, with their score and why.",
+        "ms": 39310
+      },
+      {
+        "caption": "Open All tasks to start working through them.",
+        "ms": 43562
       },
       {
         "caption": "It opens in Tasks, where you complete it, snooze it or see what it is linked to.",
-        "ms": 47053
+        "ms": 48811
       }
     ]
   },
@@ -2326,10 +2460,10 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "capture-business-card",
+    "slug": "capture-business-card-v2",
     "title": "Scan a business card",
     "category": "Records & data",
-    "seconds": 97,
+    "seconds": 71,
     "learn": "Upload a card photo. CRE OS lists name, title, company, emails, phones (typed mobile/direct/switchboard), website and address, flags uncertain fields, and either matches an existing contact or proposes a new one for approval.",
     "tryRoute": "/capture",
     "featured": false,
@@ -2340,75 +2474,63 @@ export const VIDEOS: TutorialVideo[] = [
       },
       {
         "caption": "Open 'Link to a record' and set 'What is it?' to Business card (or leave Detect).",
-        "ms": 8879
+        "ms": 8928
       },
       {
         "caption": "Choose the photo of Meera Joshi's card.",
-        "ms": 13945
+        "ms": 14050
       },
       {
         "caption": "Open it.",
-        "ms": 18397
+        "ms": 19108
       },
       {
-        "caption": "Practice mode cannot read photos ('photo text not read'), so no name, email or phone was found yet.",
-        "ms": 22386
-      },
-      {
-        "caption": "Type the card text into 'Text (if the file couldn't be read)'. With AI set up this is read for you.",
-        "ms": 25547
-      },
-      {
-        "caption": "Process again.",
-        "ms": 30492
+        "caption": "The card was read on the server by local OCR — no AI call.",
+        "ms": 23227
       },
       {
         "caption": "The fields: name, title, company, email, phones, website and address — copied exactly as on the card.",
-        "ms": 40761
+        "ms": 26423
       },
       {
         "caption": "Phones are typed: mobile from 'M:'. The 'Ph:' number could be direct or switchboard, so it is marked unknown.",
-        "ms": 43978
+        "ms": 29609
       },
       {
         "caption": "Check these: uncertain fields — the unlabelled phone, and an email domain that differs from the website.",
-        "ms": 47148
+        "ms": 32778
       },
       {
         "caption": "No existing contact matches, so a new contact is suggested.",
-        "ms": 50311
+        "ms": 35975
       },
       {
         "caption": "Proposals: a new person and a new company — they wait for your approval in Review.",
-        "ms": 53478
+        "ms": 39157
       },
       {
         "caption": "After you approve the person, press Process again to propose the emails and phones.",
-        "ms": 56633
+        "ms": 42325
       },
       {
         "caption": "Now a card for someone you already know: Anil Deshmukh. Back to Capture.",
-        "ms": 59800
+        "ms": 45489
       },
       {
         "caption": "Business card again, and choose Anil's card.",
-        "ms": 64963
-      },
-      {
-        "caption": "Type the card text and Process again.",
-        "ms": 71841
+        "ms": 50772
       },
       {
         "caption": "High-confidence match: the same email already belongs to Anil Deshmukh, so no new person is created.",
-        "ms": 84036
+        "ms": 58375
       },
       {
         "caption": "Only the new mobile number is proposed for his record. Same name alone would be a suggestion, never a merge.",
-        "ms": 87244
+        "ms": 61536
       },
       {
         "caption": "The company on the card looks like Marigold Loop Technologies — pick it in the link picker if it is the same.",
-        "ms": 90394
+        "ms": 64704
       }
     ]
   },
@@ -2887,168 +3009,164 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "signal-paste-v2",
+    "slug": "signal-paste-v3",
     "title": "Turn pasted news into a signal",
     "category": "Signals, scores & contacts",
-    "seconds": 54,
+    "seconds": 56,
     "learn": "Paste an article or a note; CRE OS finds the event in it and adds an unverified signal you can review.",
     "tryRoute": "/signals",
     "featured": false,
     "steps": [
       {
         "caption": "Open Signals: news and events that may mean a company needs space.",
-        "ms": 3605
+        "ms": 3608
       },
       {
         "caption": "Top: how many signals are open and how many need action now. 'Scan now' re-checks your sources.",
-        "ms": 7523
+        "ms": 7723
       },
       {
         "caption": "Right next to it, at the top of the page: 'Paste news or a note'. Open it.",
-        "ms": 10680
+        "ms": 10907
       },
       {
         "caption": "Name the company it is about.",
-        "ms": 14502
+        "ms": 15164
       },
       {
         "caption": "Paste the article text. It is only read for events — instructions inside it are ignored.",
-        "ms": 18398
+        "ms": 19272
       },
       {
         "caption": "Press Find signals.",
-        "ms": 23865
+        "ms": 25211
       },
       {
         "caption": "The result line says how many signals were found and how many are new — the same news pasted twice is not added twice.",
-        "ms": 27713
+        "ms": 29212
       },
       {
         "caption": "The signal is listed, marked Unverified until you check it.",
-        "ms": 30878
+        "ms": 32466
       },
       {
         "caption": "Below the paste box: the 12-month strip of dated events, like lease expiries, month by month.",
-        "ms": 34029
+        "ms": 35792
       },
       {
         "caption": "Filters: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.",
-        "ms": 37187
+        "ms": 39034
       },
       {
         "caption": "Each card: type, headline, company, source and status. The bars show how strong the evidence is.",
-        "ms": 40368
+        "ms": 42378
       },
       {
         "caption": "Open it to see the evidence and decide what to do.",
-        "ms": 43532
+        "ms": 45604
       },
       {
         "caption": "'What happened' quotes the event; the source is your pasted text.",
-        "ms": 47375
+        "ms": 49820
       }
     ]
   },
   {
-    "slug": "signals-review",
+    "slug": "signals-review-v2",
     "title": "Review a new signal and decide",
     "category": "Signals, scores & contacts",
-    "seconds": 102,
+    "seconds": 93,
     "learn": "Every part of a signal page: the 12 evidence sections, priority and history, and each decision — approve, investigate, dismiss, snooze, task, deal, research, evidence, override.",
     "tryRoute": "/signals",
     "featured": false,
     "steps": [
       {
         "caption": "Open Signals.",
-        "ms": 3604
+        "ms": 3606
       },
       {
         "caption": "Unverified lists signals nobody has checked yet.",
-        "ms": 8428
+        "ms": 7724
       },
       {
         "caption": "Open one to review it.",
-        "ms": 13676
+        "ms": 11969
       },
       {
         "caption": "Header: type, company, and badges — urgency, evidence strength, Unverified and New.",
-        "ms": 18278
+        "ms": 15893
       },
       {
         "caption": "1. What happened — the event, quoted from the source.",
-        "ms": 21684
+        "ms": 19085
       },
       {
         "caption": "2. Why it matters — CRE OS's reading of it, labelled as interpretation, not fact.",
-        "ms": 25077
+        "ms": 22281
       },
       {
         "caption": "3. Supporting evidence: every source behind the signal.",
-        "ms": 28499
+        "ms": 25449
       },
       {
         "caption": "4–9: what you already know — company records, offices, occupancy, leases, contacts, requirements.",
-        "ms": 31816
+        "ms": 28639
       },
       {
         "caption": "10. Counter-evidence: 'none found yet' does not mean there is none.",
-        "ms": 35319
+        "ms": 31853
       },
       {
-        "caption": "11. Missing information and 12. Suggested next step.",
-        "ms": 38809
+        "caption": "11. Missing information and 12. Suggested next steps.",
+        "ms": 35059
       },
       {
         "caption": "Priority — why: the reasons behind its urgency. History: every decision made on it.",
-        "ms": 42071
+        "ms": 38224
       },
       {
         "caption": "Know something? Add it as evidence, with its source.",
-        "ms": 45441
+        "ms": 41422
       },
       {
-        "caption": "'Add supporting' backs the signal; 'Add counter' records evidence against it.",
-        "ms": 52630
+        "caption": "'Add supporting' backs the signal; 'Add counter-evidence' records evidence against it.",
+        "ms": 46463
       },
       {
         "caption": "Wrong company matched? Correct it here.",
-        "ms": 58675
+        "ms": 51295
       },
       {
         "caption": "Research this company searches the web for recent news (needs an AI key).",
-        "ms": 61952
+        "ms": 54458
       },
       {
-        "caption": "Link it to an existing deal, or propose a new deal from it.",
-        "ms": 65251
+        "caption": "Link it to an existing deal, or propose a new opportunity — it goes to Review for approval.",
+        "ms": 57657
       },
       {
         "caption": "Override the priority with a reason and a review date — it comes back for review then.",
-        "ms": 68564
+        "ms": 60834
       },
       {
         "caption": "Or just create a follow-up task from it.",
-        "ms": 71870
+        "ms": 64008
       },
       {
         "caption": "Decide: write a short reason first — it is kept in History.",
-        "ms": 75299
+        "ms": 67181
       },
       {
         "caption": "Investigate: keep it open while you check. Assign to me: make it yours. Already known: you knew.",
-        "ms": 81071
+        "ms": 71515
       },
       {
         "caption": "Reject: it is wrong. Dismiss: not relevant. Snooze until a date: look again later. Nothing is deleted.",
-        "ms": 84585
+        "ms": 78821
       },
       {
-        "caption": "Approve + task: it becomes a confirmed lead with a follow-up task.",
-        "ms": 87886
-      },
-      {
-        "caption": "The decision now shows in History, and the task appears under Tasks on Today.",
-        "ms": 93794
+        "caption": "Approve + task makes it a confirmed lead with a follow-up task (shown under Tasks on Today).",
+        "ms": 81992
       }
     ]
   },
@@ -3570,85 +3688,588 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "market-reports",
+    "slug": "market-reports-v2",
     "title": "Market & reports: a tour of all five tabs",
     "category": "Signals, scores & contacts",
-    "seconds": 82,
+    "seconds": 72,
     "learn": "Five tabs: market figures with their source, network moves and intro paths, the legal desk, content planning and pipeline reports.",
     "tryRoute": "/market",
     "featured": false,
     "steps": [
       {
         "caption": "Open Market & reports from the More menu.",
-        "ms": 3613
+        "ms": 3604
       },
       {
         "caption": "Market: validated releases only. 'Re-run checks' re-validates the figures.",
-        "ms": 11793
+        "ms": 9769
       },
       {
         "caption": "Descriptive only — not a forecast. Stock is never summed and no vacancy is guessed.",
-        "ms": 15298
+        "ms": 13021
       },
       {
         "caption": "Each series names its measure, area and unit — here absorption in msf, per year.",
-        "ms": 19227
+        "ms": 16317
       },
       {
         "caption": "Below each chart: period, unit and source with its release date. Missing years stay unknown.",
-        "ms": 22797
+        "ms": 19513
       },
       {
         "caption": "Network: job moves, who knows whom, introduction paths and deal gaps.",
-        "ms": 28645
+        "ms": 23977
       },
       {
         "caption": "Recent job moves are unverified until you confirm them.",
-        "ms": 34570
+        "ms": 28041
       },
       {
         "caption": "Legal: for LOIs, term sheets and leases — for the tenant's lawyers, not legal advice.",
-        "ms": 37999
+        "ms": 31225
       },
       {
         "caption": "Upload a PDF or Word file; add a later version with the same family key to get a redline.",
-        "ms": 42749
+        "ms": 35347
       },
       {
-        "caption": "Link it to a lease so Lease radar can use its clauses (notice dates, break options).",
-        "ms": 45972
+        "caption": "Link it to a lease so Leases (and its Radar tab) can use its clauses (notice dates, break options).",
+        "ms": 38587
       },
       {
         "caption": "Content: LinkedIn posts and market notes in your voice. You publish them yourself.",
-        "ms": 49324
+        "ms": 41765
       },
       {
         "caption": "'Plan this week' suggests two post ideas and a market-note slot (it also runs every Monday).",
-        "ms": 54686
+        "ms": 45784
       },
       {
         "caption": "Drafts are checked against the evidence and confidentiality rules before they can be approved.",
-        "ms": 57919
+        "ms": 49005
       },
       {
         "caption": "Reports: approaches, discussions and deals by month — descriptive, not predictions.",
-        "ms": 61416
+        "ms": 52355
       },
       {
         "caption": "Targets are your planning assumptions. Drafts and follow-ups never count as approaches.",
-        "ms": 65850
+        "ms": 56243
       },
       {
         "caption": "Cohort funnel: what happened to the approaches started each month.",
-        "ms": 69168
+        "ms": 59524
       },
       {
         "caption": "Stage conversion: how many deals are at each stage, from research to collected.",
-        "ms": 72438
+        "ms": 62735
       },
       {
         "caption": "Time to stage: how many days deals take to reach each step.",
-        "ms": 75653
+        "ms": 65933
+      }
+    ]
+  },
+  {
+    "slug": "leases-dashboard",
+    "title": "Leases: the lease dashboard and its filters",
+    "category": "Records & data",
+    "seconds": 71,
+    "learn": "Open Leases: headline counts, filters by status, category, event and window, the upcoming milestones list, the lease table and the tabs for calendar, renewals, obligations, portfolio and radar.",
+    "tryRoute": "/leases",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Leases from the sidebar, under Work.",
+        "ms": 3607
+      },
+      {
+        "caption": "The tabs: Leases (this dashboard), Calendar, Renewals, Obligations, Portfolio and Radar — the old lease radar now lives here.",
+        "ms": 7730
+      },
+      {
+        "caption": "The headline counts: active leases, expiries in the next 12 months, renewal deadlines, escalations, lock-in completions, break options and pending obligations.",
+        "ms": 11220
+      },
+      {
+        "caption": "They count only confirmed dates. Dates awaiting review are counted separately because they are not yet contractual deadlines.",
+        "ms": 14488
+      },
+      {
+        "caption": "Filter by lifecycle status: draft, under negotiation, executed, active, renewal under discussion, termination notice served, expired and more.",
+        "ms": 17699
+      },
+      {
+        "caption": "Filter by category: conventional office, managed office, coworking, retail or industrial.",
+        "ms": 21165
+      },
+      {
+        "caption": "Filter by event type and time window — for example lock-in completions in the next 90 days.",
+        "ms": 24410
+      },
+      {
+        "caption": "Press Filter.",
+        "ms": 29294
+      },
+      {
+        "caption": "Upcoming milestones lists each confirmed date with the lease and how many days are left.",
+        "ms": 35334
+      },
+      {
+        "caption": "Widen the window to the next 365 days and clear the event filter to see everything coming up.",
+        "ms": 38555
+      },
+      {
+        "caption": "The milestones now include expiries and renewal notice deadlines for the demo leases.",
+        "ms": 46879
+      },
+      {
+        "caption": "Below is every lease: tenant, property, category, status and what it still Needs — for example rent or a confirmed expiry.",
+        "ms": 50116
+      },
+      {
+        "caption": "Search finds a lease by tenant, landlord or building.",
+        "ms": 53372
+      },
+      {
+        "caption": "Filter, then open the lease to see its details.",
+        "ms": 57211
+      },
+      {
+        "caption": "The lease page: overview, important dates, terms, financials, documents, obligations, renewal, termination, reminders and history.",
+        "ms": 64739
+      }
+    ]
+  },
+  {
+    "slug": "lease-add",
+    "title": "Add a lease and attach the agreement",
+    "category": "Records & data",
+    "seconds": 73,
+    "learn": "Create a lease (tenant, landlord, property, category, status, rent, area and optional details), then paste the executed agreement so dates, terms and obligations are extracted by code with page references.",
+    "tryRoute": "/leases/new",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Leases from the sidebar.",
+        "ms": 3608
+      },
+      {
+        "caption": "Press New lease.",
+        "ms": 7896
+      },
+      {
+        "caption": "New leases always start as draft or negotiation. Executed and active need evidence: a signed agreement and confirmed dates.",
+        "ms": 11811
+      },
+      {
+        "caption": "Choose the tenant company. If it is not a company record yet, type its name in the box below instead.",
+        "ms": 14981
+      },
+      {
+        "caption": "Choose the landlord and the property. Unknown is allowed — nothing is guessed.",
+        "ms": 18751
+      },
+      {
+        "caption": "Category and status: a conventional office lease, under negotiation.",
+        "ms": 23410
+      },
+      {
+        "caption": "Monthly rent and area, if you know them. Leave a field blank when unknown — it is never treated as zero.",
+        "ms": 28193
+      },
+      {
+        "caption": "More details (optional): reference, micro-market, floor, unit, dates, area basis, CAM, parking, deposit, term, lock-in and escalation.",
+        "ms": 32878
+      },
+      {
+        "caption": "Create lease.",
+        "ms": 40674
+      },
+      {
+        "caption": "The lease page opens with status Under negotiation. No dates yet — they come from the agreement.",
+        "ms": 45471
+      },
+      {
+        "caption": "Documents: give the agreement a title and choose its type and execution state.",
+        "ms": 48645
+      },
+      {
+        "caption": "Paste the text (PDFs and scans go through Capture first). A draft is never treated as executed.",
+        "ms": 54953
+      },
+      {
+        "caption": "Attach & extract. Code reads the clauses — no AI is needed for dates.",
+        "ms": 58216
+      },
+      {
+        "caption": "Important dates now lists commencement, expiry and lock-in, each with the source clause and page.",
+        "ms": 62929
+      },
+      {
+        "caption": "Because the document is a draft, every date is marked Needs review — a person must check it before it counts.",
+        "ms": 66131
+      }
+    ]
+  },
+  {
+    "slug": "lease-critical-dates",
+    "title": "Critical lease dates: check the clause and confirm",
+    "category": "Records & data",
+    "seconds": 61,
+    "learn": "Each lease date shows the source clause, page, calculation method and status (calculated, needs review, conflicting, confirmed). Only a person's confirmation makes it a contractual deadline, which then creates reminders.",
+    "tryRoute": "/leases",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open the Lumen Harbour Tech lease from Leases. Its executed deed is already attached.",
+        "ms": 3607
+      },
+      {
+        "caption": "The note at the top: extracted clauses are shown word for word with page numbers. They are summaries, not legal advice.",
+        "ms": 15114
+      },
+      {
+        "caption": "Important dates: execution, commencement, lock-in, escalations, break option, notice deadlines and expiry.",
+        "ms": 18296
+      },
+      {
+        "caption": "Confirmed contractual deadline: someone checked it against the signed deed. Commencement and expiry are confirmed here.",
+        "ms": 21495
+      },
+      {
+        "caption": "Lock-in completion: Calculated — not verified. It shows the method — 36 months from 1 Jan 2024, minus one day.",
+        "ms": 24675
+      },
+      {
+        "caption": "And the exact clause it came from, with the document and page number.",
+        "ms": 27840
+      },
+      {
+        "caption": "A warning: lock-in completion alone does not allow termination — the notice clause still applies.",
+        "ms": 31047
+      },
+      {
+        "caption": "Checked it against the deed? Add a review note and press Confirm after review.",
+        "ms": 34253
+      },
+      {
+        "caption": "It is now a Confirmed contractual deadline, with today's date and your note.",
+        "ms": 41152
+      },
+      {
+        "caption": "Break option says Needs review: its conditions (a break fee) must be checked, so you must pick the date yourself.",
+        "ms": 44403
+      },
+      {
+        "caption": "Reject removes a wrong date; Add or calculate a date lets you enter one by hand or calculate it from a clause.",
+        "ms": 47715
+      },
+      {
+        "caption": "Reminders are created only from confirmed dates — here, ahead of the lock-in completion. They appear in the app; nothing is sent outside.",
+        "ms": 50884
+      },
+      {
+        "caption": "The activity timeline records who confirmed what, and when.",
+        "ms": 54180
+      }
+    ]
+  },
+  {
+    "slug": "lease-escalation",
+    "title": "Rent escalation: expected vs actual",
+    "category": "Records & data",
+    "seconds": 57,
+    "learn": "Confirm the terms extracted from the deed, then see the escalation schedule (dates and expected rent, calculated by code) checked against the rent actually recorded.",
+    "tryRoute": "/leases",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open the Lumen Harbour Tech lease from Leases.",
+        "ms": 3611
+      },
+      {
+        "caption": "In Important dates, each escalation shows its date and the expected new rent: 15% every 36 months on the last paid rent.",
+        "ms": 15174
+      },
+      {
+        "caption": "Commercial terms: current values next to the original version 1. Unknown terms are simply not listed.",
+        "ms": 18363
+      },
+      {
+        "caption": "Version 2 was extracted from the deed and is Proposed: it adds the escalation, the term and the lock-in.",
+        "ms": 21652
+      },
+      {
+        "caption": "Nothing extracted replaces the terms by itself. After checking, press Confirm as current.",
+        "ms": 29982
+      },
+      {
+        "caption": "Version 2 is now current; version 1 is kept as history.",
+        "ms": 34664
+      },
+      {
+        "caption": "Financials: rent, CAM, parking and other costs a month. Unknown items say unknown — they are not counted as zero.",
+        "ms": 37853
+      },
+      {
+        "caption": "The escalation table: each step, its effective date, the expected rent, the actual rent recorded and a check.",
+        "ms": 41076
+      },
+      {
+        "caption": "Step 1 matches: ₹13.8 lakh was recorded after January 2027. A different amount would show a discrepancy.",
+        "ms": 44307
+      },
+      {
+        "caption": "Record a payment or actual value adds rent or CAM paid. Payment status comes only from these records.",
+        "ms": 47487
+      },
+      {
+        "caption": "Record an amendment adds new terms with an effective date — the old terms stay in the history.",
+        "ms": 50698
+      }
+    ]
+  },
+  {
+    "slug": "lease-renewals",
+    "title": "Renewal pipeline and renew vs relocate",
+    "category": "Records & data",
+    "seconds": 58,
+    "learn": "Leases expiring within 12 months appear on Renewals. Start a renewal review on the lease (a task is created), move it through the stages, see alternative spaces from recorded supply, and compare staying with moving in the Deal toolkit.",
+    "tryRoute": "/leases/renewals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Leases, then the Renewals tab.",
+        "ms": 3606
+      },
+      {
+        "caption": "Upcoming renewals: leases that expire within 12 months and have no renewal record yet. Peregrine Loom Studios expires on 30 June 2027.",
+        "ms": 11716
+      },
+      {
+        "caption": "Open it.",
+        "ms": 15079
+      },
+      {
+        "caption": "The renewal notice deadline is 30 December 2026 — six months before expiry, from clause 4.2 on page 3.",
+        "ms": 19357
+      },
+      {
+        "caption": "In the Renewal section press Start renewal review. A review task is created for you.",
+        "ms": 22586
+      },
+      {
+        "caption": "The review starts at stage upcoming. Record the stage, the tenant's and the landlord's responses and a note.",
+        "ms": 27450
+      },
+      {
+        "caption": "Update. Every change is logged with the date.",
+        "ms": 34977
+      },
+      {
+        "caption": "When your recorded supply has similar spaces, 'Possible alternatives' appears here too — useful if the client may relocate.",
+        "ms": 40182
+      },
+      {
+        "caption": "Back on Renewals, the lease now sits in the Discussion column. Other columns: proposals pending, negotiation, agreed, completed and at risk.",
+        "ms": 43441
+      },
+      {
+        "caption": "To compare staying with moving, open Deal toolkit → Stay or move: rent, overlap, moving costs and deposits, worked out by fixed formulas.",
+        "ms": 49678
+      }
+    ]
+  },
+  {
+    "slug": "lease-termination",
+    "title": "Termination and the handover checklist",
+    "category": "Records & data",
+    "seconds": 79,
+    "learn": "Start a termination (reason, notice date, notice period wording, proposed date), update its status, deposit recovered and settlement, then work through the handover checklist — each item needs evidence.",
+    "tryRoute": "/leases",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open the Quillstone Labs lease from Leases. It expires on 31 March 2027.",
+        "ms": 3608
+      },
+      {
+        "caption": "Scroll to Termination & handover.",
+        "ms": 15294
+      },
+      {
+        "caption": "Lock-in completion alone does not permit termination — check the notice and termination conditions first.",
+        "ms": 18533
+      },
+      {
+        "caption": "Enter the reason, the date notice was served and the notice period exactly as the clause words it.",
+        "ms": 21721
+      },
+      {
+        "caption": "And the proposed termination date. Press Start termination.",
+        "ms": 30392
+      },
+      {
+        "caption": "The termination shows the notice and proposed dates. The confirmed date stays 'not confirmed' until you enter it.",
+        "ms": 36775
+      },
+      {
+        "caption": "Later, record the confirmed date, deposit recovered, status and settlement, then Update.",
+        "ms": 45134
+      },
+      {
+        "caption": "Create handover checklist adds the standard items: inspection, repair and restoration, utilities, access cards, keys and more.",
+        "ms": 53363
+      },
+      {
+        "caption": "Each item is pending until you mark it Done with evidence — for example who received the keys.",
+        "ms": 59092
+      },
+      {
+        "caption": "Add your own checklist item if something is missing.",
+        "ms": 66050
+      },
+      {
+        "caption": "The lease can be marked terminated only when the termination date is confirmed and every handover item is done or not applicable.",
+        "ms": 72820
+      }
+    ]
+  },
+  {
+    "slug": "lease-obligations",
+    "title": "Lease obligations: who must do what",
+    "category": "Records & data",
+    "seconds": 63,
+    "learn": "Obligations are extracted from the agreement with page references (or added by hand) and tracked on the lease and on the Obligations tab, filtered by status and responsible party.",
+    "tryRoute": "/leases/obligations",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open the Lumen Harbour Tech lease from Leases.",
+        "ms": 3609
+      },
+      {
+        "caption": "Obligations: each one shows the category, the clause text, the responsible party, the deadline, the status and the source page.",
+        "ms": 15510
+      },
+      {
+        "caption": "They were read from the deed: insurance, structural repairs, no sub-letting, restoring the premises. Unclear responsibility is shown as unclear.",
+        "ms": 18730
+      },
+      {
+        "caption": "Mark one Done with the evidence — for example the insurance policy number.",
+        "ms": 21973
+      },
+      {
+        "caption": "Add an obligation by hand: category, what must be done, who is responsible and the deadline.",
+        "ms": 29545
+      },
+      {
+        "caption": "Now open the Obligations tab: every lease's obligations in one tracker.",
+        "ms": 40610
+      },
+      {
+        "caption": "Source-linked summaries — not legal advice. Filter by status and by party: tenant, landlord, shared or unclear.",
+        "ms": 44678
+      },
+      {
+        "caption": "Filter.",
+        "ms": 49445
+      },
+      {
+        "caption": "The list shows the open tenant obligations, with the lease each belongs to.",
+        "ms": 56176
+      }
+    ]
+  },
+  {
+    "slug": "lease-calendar",
+    "title": "The lease calendar",
+    "category": "Records & data",
+    "seconds": 47,
+    "learn": "The Calendar tab lists lease milestones between two dates, filtered by lease, company, property and event type. It shows confirmed dates; tick Include unverified to see the rest, clearly labelled.",
+    "tryRoute": "/leases/calendar",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Leases, then the Calendar tab.",
+        "ms": 3605
+      },
+      {
+        "caption": "The count at the top: milestones in the date range, confirmed only.",
+        "ms": 9458
+      },
+      {
+        "caption": "Choose the dates: from and to.",
+        "ms": 12684
+      },
+      {
+        "caption": "Narrow it to one lease, one company or one property.",
+        "ms": 15849
+      },
+      {
+        "caption": "Or one event type — for example lease expiry.",
+        "ms": 19028
+      },
+      {
+        "caption": "Show.",
+        "ms": 22523
+      },
+      {
+        "caption": "Grouped by month: each date, its type and the lease — here the demo leases' expiries.",
+        "ms": 28401
+      },
+      {
+        "caption": "Tick Include unverified to add calculated and needs-review dates. They keep their label so you never mistake them for deadlines.",
+        "ms": 31773
+      },
+      {
+        "caption": "Assigned to me shows only leases you look after.",
+        "ms": 40866
+      }
+    ]
+  },
+  {
+    "slug": "lease-portfolio",
+    "title": "The lease portfolio",
+    "category": "Records & data",
+    "seconds": 50,
+    "learn": "Portfolio totals use only known, compatible values: active leases, leased area, monthly and annual rent, expiries, deadlines and obligations — and list which leases were left out and why.",
+    "tryRoute": "/leases/portfolio",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Leases, then the Portfolio tab.",
+        "ms": 3607
+      },
+      {
+        "caption": "Aggregates use only known, compatible values. Missing data is listed, never treated as zero.",
+        "ms": 9537
+      },
+      {
+        "caption": "The tiles: active leases, leased area, monthly and annual rent, expiries, renewal deadlines, escalations, lock-ins, terminations and obligations.",
+        "ms": 12698
+      },
+      {
+        "caption": "Under each total: how many leases were included and how many excluded.",
+        "ms": 21080
+      },
+      {
+        "caption": "By status: how many leases are draft, active, expiring and so on.",
+        "ms": 24269
+      },
+      {
+        "caption": "Excluded from totals, and leases with incomplete information: each one says what is missing — for example rent or a confirmed expiry.",
+        "ms": 27432
+      },
+      {
+        "caption": "Filter by category, micro-market or your own leases.",
+        "ms": 30684
+      },
+      {
+        "caption": "The totals now cover Kharadi leases only.",
+        "ms": 38341
       }
     ]
   },
@@ -4844,10 +5465,10 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "deal-pipeline",
+    "slug": "deal-pipeline-v2",
     "title": "Move a deal through stages",
     "category": "Records & data",
-    "seconds": 84,
+    "seconds": 83,
     "learn": "Move an opportunity to its next stage with a reason, and see what blocks a stage (an unconfirmed requirement, checklist items).",
     "tryRoute": "/deals",
     "featured": false,
@@ -4858,130 +5479,130 @@ export const VIDEOS: TutorialVideo[] = [
       },
       {
         "caption": "'Show lost / dormant' brings back closed deals. New opportunity is at the bottom.",
-        "ms": 7649
+        "ms": 7835
       },
       {
         "caption": "Open a deal in Research — Marigold Loop.",
-        "ms": 10818
+        "ms": 11034
       },
       {
         "caption": "Top cards: expected fee (a forecast), then invoiced, recognised and collected — real money only.",
-        "ms": 14713
+        "ms": 15228
       },
       {
         "caption": "The stage bar: green = done, blue = now, grey = still to come.",
-        "ms": 18056
+        "ms": 18404
       },
       {
         "caption": "Move to: the next stage is already chosen — Approach attempted.",
-        "ms": 21217
+        "ms": 21571
       },
       {
         "caption": "Add a reason. Later stages require one; it is kept in the stage history.",
-        "ms": 26191
+        "ms": 26174
       },
       {
         "caption": "Press Move stage.",
-        "ms": 31548
+        "ms": 30859
       },
       {
         "caption": "Moved: the deal is now in Approach attempted.",
-        "ms": 35920
+        "ms": 34704
       },
       {
         "caption": "Stage history keeps every move with its reason.",
-        "ms": 39135
+        "ms": 37883
       },
       {
         "caption": "Labels & outcome: temperature, mandate, next action and expected close; set won/lost here too.",
-        "ms": 42301
+        "ms": 41216
       },
       {
         "caption": "Closing checklist: items 'needed before' a stage block it until done (with proof) or waived.",
-        "ms": 45511
+        "ms": 44381
       },
       {
         "caption": "Fees: each amount has its own status — a forecast never counts as invoiced or collected.",
-        "ms": 48758
+        "ms": 47551
       },
       {
         "caption": "Some moves are blocked. Back to Deals, open Kestrelbay Payments.",
-        "ms": 51945
+        "ms": 50871
       },
       {
         "caption": "Try Requirement confirmed, with a reason, and press Move stage.",
-        "ms": 57739
+        "ms": 56698
       },
       {
         "caption": "Blocked: the linked requirement must be client-confirmed first. It is still 'estimated'.",
-        "ms": 65714
+        "ms": 64487
       },
       {
         "caption": "Open the requirement to confirm its facts with the client first.",
-        "ms": 68896
+        "ms": 67698
       },
       {
         "caption": "Client confirmation lists what the client still has to confirm.",
-        "ms": 73172
+        "ms": 71705
       },
       {
         "caption": "Changes from captures, imports or the official CRM wait in Review for your OK.",
-        "ms": 76436
+        "ms": 74908
       }
     ]
   },
   {
-    "slug": "lease-radar",
-    "title": "Lease radar: expiries, lock-ins and notice deadlines",
+    "slug": "lease-radar-v2",
+    "title": "Lease radar tab: expiries, lock-ins and notice deadlines",
     "category": "Records & data",
-    "seconds": 48,
+    "seconds": 49,
     "learn": "See which leases expire soon, when lock-ins end and by when notice must be given.",
-    "tryRoute": "/leases",
+    "tryRoute": "/leases/radar",
     "featured": false,
     "steps": [
       {
-        "caption": "Open More in the sidebar, then Lease radar.",
+        "caption": "Open Leases (under Work), then the Radar tab.",
         "ms": 3605
       },
       {
         "caption": "Verified dates come from the lease; 'calculated by radar' dates are formulas, never treated as verified.",
-        "ms": 9338
+        "ms": 10481
       },
       {
         "caption": "Buckets: needs review, notice in 90 days, expiring in 0–3, 3–12, 12–24 months…",
-        "ms": 12585
+        "ms": 13681
       },
       {
         "caption": "…expired but not confirmed, and dates unknown. Each shows how many leases are in it.",
-        "ms": 15776
+        "ms": 16879
       },
       {
         "caption": "Start with notice deadlines in the next 90 days — the most urgent.",
-        "ms": 19090
+        "ms": 20064
       },
       {
         "caption": "Each lease: tenant, building, landlord, area, and a call-window status.",
-        "ms": 23101
+        "ms": 24056
       },
       {
         "caption": "Expiry, lock-in end and notice-by, each with days left.",
-        "ms": 26273
+        "ms": 27206
       },
       {
         "caption": "Under each date: where it came from — contractual, or calculated (formula shown).",
-        "ms": 29453
+        "ms": 30373
       },
       {
         "caption": "Reverse plan: working back from the move date — warns when the decision date has passed.",
-        "ms": 32660
+        "ms": 33543
       },
       {
         "caption": "See all leases, then search one tenant, building or landlord.",
-        "ms": 35869
+        "ms": 36708
       },
       {
         "caption": "Click the tenant to open the company and act on it.",
-        "ms": 41520
+        "ms": 42126
       }
     ]
   },
@@ -5088,6 +5709,603 @@ export const VIDEOS: TutorialVideo[] = [
       {
         "caption": "Add place (at the bottom) creates a new one with its level, parent and other names.",
         "ms": 40366
+      }
+    ]
+  },
+  {
+    "slug": "signals-dashboard-v2",
+    "title": "Signals: views, the 12-month strip and every filter",
+    "category": "Signals, scores & contacts",
+    "seconds": 74,
+    "learn": "Open Signals: open and act-now counts, Sources and Scan now, the next-12-months strip, the views (all, high priority, expansion, restructuring, lease, commercial, leadership, infrastructure, unverified, dismissed & snoozed), search and the full filter panel.",
+    "tryRoute": "/signals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Signals from the sidebar, under Work.",
+        "ms": 3604
+      },
+      {
+        "caption": "The header counts open signals and how many to act on now.",
+        "ms": 8123
+      },
+      {
+        "caption": "Sources shows where signals come from. Scan now checks your own records — leases, occupancy, availability — for new signals.",
+        "ms": 11586
+      },
+      {
+        "caption": "Next 12 months: each dot is a dated event, coloured by category. Click a dot to open it.",
+        "ms": 15110
+      },
+      {
+        "caption": "Views on the left: All, High priority, Expansion, Restructuring, Lease events, Commercial, Leadership, Infrastructure, Unverified, Dismissed & snoozed. The number is how many are open.",
+        "ms": 18459
+      },
+      {
+        "caption": "Open the Expansion view.",
+        "ms": 21844
+      },
+      {
+        "caption": "Each card: category and type, the company, place, priority, evidence strength bars and status.",
+        "ms": 26230
+      },
+      {
+        "caption": "Search finds a company, a place or words in the evidence.",
+        "ms": 29802
+      },
+      {
+        "caption": "Open Filters for the full set.",
+        "ms": 40634
+      },
+      {
+        "caption": "Company, industry, micro-market, category and type, and the source.",
+        "ms": 45131
+      },
+      {
+        "caption": "Event dates, detected dates and freshness — for example evidence from the last 30 days.",
+        "ms": 48499
+      },
+      {
+        "caption": "Confidence (strong, moderate, weak), urgency (act now, this month, watch), status and who it is assigned to.",
+        "ms": 52118
+      },
+      {
+        "caption": "Sort by priority, newest detected or soonest event. Apply filters.",
+        "ms": 55633
+      },
+      {
+        "caption": "The badge shows how many filters are on; Clear removes them. The link can be shared — the filters are in the address.",
+        "ms": 64277
+      },
+      {
+        "caption": "At the bottom: the bars show evidence strength, and the colour key for categories.",
+        "ms": 67553
+      }
+    ]
+  },
+  {
+    "slug": "signal-card-v2",
+    "title": "Paste news and read the 12-section signal card",
+    "category": "Signals, scores & contacts",
+    "seconds": 86,
+    "learn": "Paste an announcement: rules find the event, match the company and create a signal. The card shows what happened, why it matters, evidence for and against, company records, offices, occupancy, lease events, contacts, requirements, counter-evidence, missing information and next steps — each labelled fact, inference, hypothesis or unknown.",
+    "tryRoute": "/signals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Signals and press Paste news or a note.",
+        "ms": 3606
+      },
+      {
+        "caption": "Name the company (optional — it is taken from the text when left blank) and paste the announcement.",
+        "ms": 10438
+      },
+      {
+        "caption": "The text is only scanned for events — instructions inside it are ignored. Press Find signals.",
+        "ms": 15926
+      },
+      {
+        "caption": "The result: how many signals were found and how many are new.",
+        "ms": 20842
+      },
+      {
+        "caption": "Open the new Lumen Harbour Tech signal.",
+        "ms": 24137
+      },
+      {
+        "caption": "The header: category and type, company and place, detected and event dates, evidence sources, priority out of 100, evidence strength, verification and status.",
+        "ms": 34181
+      },
+      {
+        "caption": "1. What happened — labelled HYPOTHESIS: rule-detected from the text, to verify before relying on it.",
+        "ms": 37389
+      },
+      {
+        "caption": "2. Why it matters — an INFERENCE: expansion can create a space need; it is not proof.",
+        "ms": 40889
+      },
+      {
+        "caption": "3. Supporting evidence: FOR and AGAINST, with source, date and reliability, plus how many independent sources.",
+        "ms": 44399
+      },
+      {
+        "caption": "4. Related company records, 5. Known office locations and 6. Existing occupancy — facts from your records.",
+        "ms": 47975
+      },
+      {
+        "caption": "7. Relevant lease events: the company's lease with Leases — expiry, renewal and notice dates.",
+        "ms": 56300
+      },
+      {
+        "caption": "8. Related contacts and 9. Existing requirements.",
+        "ms": 60466
+      },
+      {
+        "caption": "10. Counter-evidence and 11. Missing information — what is unknown is said, never filled in.",
+        "ms": 66554
+      },
+      {
+        "caption": "12. Suggested next steps.",
+        "ms": 72810
+      },
+      {
+        "caption": "Below the sections: the same points sorted into Fact, Inference, Hypothesis and Unknown, and Priority — why, with each point added or taken away.",
+        "ms": 76297
+      },
+      {
+        "caption": "History records every decision and re-assessment.",
+        "ms": 79474
+      }
+    ]
+  },
+  {
+    "slug": "signal-counter-evidence",
+    "title": "Counter-evidence lowers a signal's priority",
+    "category": "Signals, scores & contacts",
+    "seconds": 67,
+    "learn": "Paste news that contradicts an open signal (\"hires will work remotely\", \"no additional office space\"): it is attached as AGAINST evidence and the signal is re-assessed. You can also add supporting or counter-evidence on the card.",
+    "tryRoute": "/signals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open the Quillstone Labs expansion signal from Signals.",
+        "ms": 3620
+      },
+      {
+        "caption": "Note its priority now.",
+        "ms": 17127
+      },
+      {
+        "caption": "Section 3 shows one source FOR the expansion.",
+        "ms": 20330
+      },
+      {
+        "caption": "Back on Signals, paste a later report that contradicts it.",
+        "ms": 23863
+      },
+      {
+        "caption": "Find signals. The message says the text was attached as counter-evidence to the open signal.",
+        "ms": 33248
+      },
+      {
+        "caption": "The result message.",
+        "ms": 38071
+      },
+      {
+        "caption": "Open the Quillstone Labs expansion signal again.",
+        "ms": 41347
+      },
+      {
+        "caption": "The priority has dropped.",
+        "ms": 45482
+      },
+      {
+        "caption": "Section 3 now has the report under AGAINST.",
+        "ms": 48740
+      },
+      {
+        "caption": "And section 10, Counter-evidence, lists it.",
+        "ms": 52348
+      },
+      {
+        "caption": "You can also add evidence by hand: what the source says, its name and link, then Add supporting or Add counter-evidence.",
+        "ms": 57062
+      },
+      {
+        "caption": "History shows the re-assessment.",
+        "ms": 60310
+      }
+    ]
+  },
+  {
+    "slug": "signal-unresolved-company",
+    "title": "When the company isn't matched",
+    "category": "Signals, scores & contacts",
+    "seconds": 43,
+    "learn": "If the company named in the news is not matched exactly, the signal asks \"Which company is this?\": weak fuzzy matches are listed with the reason and never linked without you. Pick one, add it as a new company, or correct the company later.",
+    "tryRoute": "/signals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Signals and the Ottervale Systems signal.",
+        "ms": 3626
+      },
+      {
+        "caption": "The header says Company not matched (Ottervale Systems).",
+        "ms": 15249
+      },
+      {
+        "caption": "Which company is this? Fuzzy matches are never linked without you.",
+        "ms": 18488
+      },
+      {
+        "caption": "Each suggestion gives the reason — here they only share the common word “systems”, a weak match. This is it would link it.",
+        "ms": 21714
+      },
+      {
+        "caption": "Ottervale is not on record yet, so add it as a new company.",
+        "ms": 24903
+      },
+      {
+        "caption": "The signal is now linked to the new company record. The change is kept in the history and audit log.",
+        "ms": 29669
+      },
+      {
+        "caption": "Linked the wrong company? Correct company lets you pick another; the change is kept in history.",
+        "ms": 32898
+      },
+      {
+        "caption": "People are never matched by name alone.",
+        "ms": 36190
+      }
+    ]
+  },
+  {
+    "slug": "signal-actions",
+    "title": "Decide: approve, task, snooze, dismiss, override",
+    "category": "Signals, scores & contacts",
+    "seconds": 84,
+    "learn": "On a signal: Approve + task, Investigate, Assign to me, Already known, Re-assess; Dismiss or Reject with a reason; Snooze until a date; create a task, link or propose an opportunity (via Review); override the priority with a reason and review date.",
+    "tryRoute": "/signals",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open the Peregrine Loom Studios signal from Signals.",
+        "ms": 3620
+      },
+      {
+        "caption": "Decide: Approve + task, Investigate, Assign to me, Already known and Re-assess.",
+        "ms": 15354
+      },
+      {
+        "caption": "Approve + task: the signal is approved and a follow-up task is created in Tasks.",
+        "ms": 18518
+      },
+      {
+        "caption": "The status changes and History records the decision and the new follow-up task.",
+        "ms": 23472
+      },
+      {
+        "caption": "Task: create another task with your own title. Opportunity: link an existing deal, or propose a new one — it goes to Review for approval.",
+        "ms": 26761
+      },
+      {
+        "caption": "Now the Quillstone Labs funding signal. Funding alone is not an office requirement, so it is ranked low.",
+        "ms": 30153
+      },
+      {
+        "caption": "Override priority: choose Medium, give the reason and a date to review it.",
+        "ms": 46033
+      },
+      {
+        "caption": "Save override. The priority shows it was overridden, and Clear override undoes it.",
+        "ms": 53257
+      },
+      {
+        "caption": "Snooze until a date — it comes back on its own then.",
+        "ms": 58229
+      },
+      {
+        "caption": "Dismiss or Reject needs a reason. Dismiss the Quillstone expansion: the hires are remote.",
+        "ms": 64229
+      },
+      {
+        "caption": "Dismissed and snoozed signals move to their own view — nothing is deleted. Reopen brings one back.",
+        "ms": 73968
+      }
+    ]
+  },
+  {
+    "slug": "signals-sources",
+    "title": "Signal sources and the research universe",
+    "category": "Signals, scores & contacts",
+    "seconds": 50,
+    "learn": "Signals → Sources lists each source (news feeds, your records, manual paste, uploaded documents) with permission, connection status, last sync, refresh interval and use; pause, resume, reconnect or refresh now; see recent runs and failed items (retry); and set how many companies are kept up to date.",
+    "tryRoute": "/signals/sources",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Signals, then Sources.",
+        "ms": 3609
+      },
+      {
+        "caption": "Source registry: each source with what it is for, its connection status, permission, last sync, refresh interval and how often it was used.",
+        "ms": 11249
+      },
+      {
+        "caption": "News / RSS feeds are Unavailable — needs access: no licensed feed is set up, so paste articles by hand instead. A failed source is always labelled — never shown as 'no news'.",
+        "ms": 14588
+      },
+      {
+        "caption": "Your CRE OS records — leases, occupancy, availability — are connected and scanned daily.",
+        "ms": 17793
+      },
+      {
+        "caption": "Manual paste and uploaded documents are on-demand sources.",
+        "ms": 21175
+      },
+      {
+        "caption": "Pause stops a source; Resume starts it again; Reconnect retries one that needs access.",
+        "ms": 24373
+      },
+      {
+        "caption": "Refresh now runs the scheduled refresh for companies that are due.",
+        "ms": 27559
+      },
+      {
+        "caption": "Recent runs: when each source ran and how many new items it found.",
+        "ms": 30756
+      },
+      {
+        "caption": "Failed items and jobs: anything that failed, with the error and a Retry button.",
+        "ms": 33937
+      },
+      {
+        "caption": "Research universe: how many companies are actively kept up to date, and how often each tier is refreshed — weekly, monthly or quarterly.",
+        "ms": 37155
+      },
+      {
+        "caption": "Change the universe size (50 to 8,000 companies) and Save.",
+        "ms": 40501
+      }
+    ]
+  },
+  {
+    "slug": "supply-inventory",
+    "title": "Supply inventory and availability statuses",
+    "category": "Records & data",
+    "seconds": 50,
+    "learn": "Buildings → Supply shows every space's current availability: one of nine statuses, area, rent and CAM, the source and last verification date, and a confidence level. Lease expiry and future supply are never shown as vacancy.",
+    "tryRoute": "/buildings/supply",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Buildings from the sidebar, then the Supply tab.",
+        "ms": 3667
+      },
+      {
+        "caption": "The rule at the top: lease expiry and future supply are never shown as vacancy.",
+        "ms": 11818
+      },
+      {
+        "caption": "Three views: Inventory (this one), Operators for managed offices and coworking, and Match for a client requirement.",
+        "ms": 15202
+      },
+      {
+        "caption": "The yellow line counts stale observations — reconfirm them before presenting to a client.",
+        "ms": 18451
+      },
+      {
+        "caption": "Each row: the building, floor and unit, category and contiguous block.",
+        "ms": 21708
+      },
+      {
+        "caption": "Harbour Point floor 4 is Immediately available, verified this week from a landlord email: high confidence.",
+        "ms": 25476
+      },
+      {
+        "caption": "Floor 5 is Future availability from April 2027 — it is not counted as available today.",
+        "ms": 28694
+      },
+      {
+        "caption": "Floor 6 is Occupied: confidence none, so it is never offered.",
+        "ms": 31992
+      },
+      {
+        "caption": "Other statuses include under offer, leased, withdrawn and unconfirmed. Unknown CAM shows as unknown — never zero.",
+        "ms": 35228
+      },
+      {
+        "caption": "Source and verified: where the information came from and when it was last checked. 'Never verified' rows have low confidence.",
+        "ms": 38505
+      },
+      {
+        "caption": "Click a building to open it and see all its spaces.",
+        "ms": 41785
+      }
+    ]
+  },
+  {
+    "slug": "supply-operators",
+    "title": "Managed office and coworking operators",
+    "category": "Records & data",
+    "seconds": 65,
+    "learn": "The Operators view lists managed-office and coworking centres: seats available out of capacity, private offices, price per seat, services, extra charges, brokerage and when it was verified. Add or update a centre with the form.",
+    "tryRoute": "/buildings/supply?tab=operators",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Buildings, then Supply.",
+        "ms": 3629
+      },
+      {
+        "caption": "Choose the Operators view.",
+        "ms": 11194
+      },
+      {
+        "caption": "NestWorks Kharadi Hub, a managed office: 140 of 600 seats available, 12 private offices, ₹11,000–14,500 a seat.",
+        "ms": 16016
+      },
+      {
+        "caption": "Its services, and extra charges listed separately — car parks and meeting rooms beyond 10 hours.",
+        "ms": 19237
+      },
+      {
+        "caption": "Brokerage terms and the date it was verified.",
+        "ms": 22506
+      },
+      {
+        "caption": "LoopDesk, a coworking centre: seats available is unknown and the top price is '?' — missing stays missing.",
+        "ms": 25870
+      },
+      {
+        "caption": "Add centre: operator, centre name and type — managed office or coworking.",
+        "ms": 29122
+      },
+      {
+        "caption": "Capacity, seats available, private offices and the price range per seat.",
+        "ms": 36323
+      },
+      {
+        "caption": "Services, amenities, brokerage, the source and when you verified it.",
+        "ms": 45876
+      },
+      {
+        "caption": "Save centre. Seats available can never be more than capacity.",
+        "ms": 53834
+      },
+      {
+        "caption": "The new centre is in the list.",
+        "ms": 58975
+      }
+    ]
+  },
+  {
+    "slug": "supply-matching",
+    "title": "Match supply to a requirement — with explanations",
+    "category": "Records & data",
+    "seconds": 50,
+    "learn": "The Match view ranks every space against a requirement. Hard filters come first (status, area, budget, category); each option explains why, what it satisfies or fails, advantages, disadvantages, missing information, availability confidence and what needs verifying.",
+    "tryRoute": "/buildings/supply?tab=match",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Buildings, then Supply, then the Match view.",
+        "ms": 3742
+      },
+      {
+        "caption": "Choose a requirement — Lumen Harbour Tech, 18,000 to 19,500 sf, up to ₹100 a sf.",
+        "ms": 13960
+      },
+      {
+        "caption": "#1 Harbour Point floor 4: eligible, availability confidence high, with its fit score and how complete the data is.",
+        "ms": 20182
+      },
+      {
+        "caption": "The reason in one line: it meets all hard requirements.",
+        "ms": 23425
+      },
+      {
+        "caption": "Satisfies, advantages, disadvantages and missing information — for example deposit and escalation not recorded.",
+        "ms": 26665
+      },
+      {
+        "caption": "Harbour Point floor 5 is eligible but its disadvantage says: future availability from April 2027. Unknown CAM is not assumed to be zero.",
+        "ms": 29980
+      },
+      {
+        "caption": "Riverstone floor 2 needs verification: the availability is stale and the price is out of date.",
+        "ms": 33266
+      },
+      {
+        "caption": "Riverstone floor 3 only has a lease ending — lease expiry is not vacancy, so it needs verification too.",
+        "ms": 36549
+      },
+      {
+        "caption": "Lower down, ineligible spaces list exactly which hard filter they fail. They are ranked last, not hidden.",
+        "ms": 39849
+      },
+      {
+        "caption": "The Requirement button opens the brief to change area, budget or location; the ranking updates.",
+        "ms": 43181
+      }
+    ]
+  },
+  {
+    "slug": "supply-reconfirmation",
+    "title": "Reconfirm before presenting or a site visit",
+    "category": "Records & data",
+    "seconds": 40,
+    "learn": "Before a presentation or site visit, check the shortlist: options with stale availability, outdated pricing, expired quotes or missing technical details are listed and must be reconfirmed first.",
+    "tryRoute": "/buildings/supply?tab=match",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Buildings → Supply → Match and choose the Lumen Harbour Tech requirement.",
+        "ms": 3612
+      },
+      {
+        "caption": "The yellow line lists shortlisted properties that need reconfirmation, and why: stale availability, outdated pricing, missing technical details.",
+        "ms": 15073
+      },
+      {
+        "caption": "Choose what you are preparing for: a client presentation or a site visit.",
+        "ms": 18289
+      },
+      {
+        "caption": "Press Check ready to present.",
+        "ms": 21772
+      },
+      {
+        "caption": "The answer lists every option that is not ready and what to recheck. Nothing is presented until they are reconfirmed.",
+        "ms": 26842
+      },
+      {
+        "caption": "To reconfirm, call or email the landlord and update the availability with today's date and the source — the confidence goes up.",
+        "ms": 30194
+      },
+      {
+        "caption": "Old quotes stay in the history and are never used as current pricing.",
+        "ms": 33398
+      }
+    ]
+  },
+  {
+    "slug": "supply-feedback",
+    "title": "Shortlist feedback and rejection reasons",
+    "category": "Records & data",
+    "seconds": 56,
+    "learn": "Record the client's feedback on each shortlisted option. A rejection needs a reason (price, area, location, timing, specification, landlord, parking, availability, other) and marks the option rejected; everything is kept in the shortlist history.",
+    "tryRoute": "/buildings/supply?tab=match",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Buildings → Supply → Match and choose the Lumen Harbour Tech requirement.",
+        "ms": 3615
+      },
+      {
+        "caption": "Each option on the stored shortlist has a feedback form and shows its status — proposed here.",
+        "ms": 18091
+      },
+      {
+        "caption": "Client feedback on Harbour Point floor 4: liked the floor plate.",
+        "ms": 21681
+      },
+      {
+        "caption": "Now a rejection on Harbour Point floor 5. A reason is required.",
+        "ms": 32887
+      },
+      {
+        "caption": "Record. The option becomes rejected.",
+        "ms": 40791
+      },
+      {
+        "caption": "Shortlist history at the bottom: each shortlist version with how many options were eligible, and every piece of feedback with its reason.",
+        "ms": 46402
+      },
+      {
+        "caption": "Rejections are remembered: the company's memory shows rejected buildings and why, so they are not offered again by mistake.",
+        "ms": 49699
       }
     ]
   },
@@ -6032,272 +7250,873 @@ export const VIDEOS: TutorialVideo[] = [
     ]
   },
   {
-    "slug": "tour",
+    "slug": "tx-create",
+    "title": "Create a transaction and its stage plan",
+    "category": "Deal toolkit",
+    "seconds": 76,
+    "learn": "Create a transaction for a confirmed requirement: name, type (conventional, managed office, coworking, renewal, relocation, build-to-suit, investment), requirement, deal, properties, expected completion, priority and template. It gets a unique code and a stage plan for its type.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions from the sidebar, under Work.",
+        "ms": 3624
+      },
+      {
+        "caption": "The list: each transaction's name, code, type, status, priority and current stage.",
+        "ms": 8170
+      },
+      {
+        "caption": "New transaction: give it a name.",
+        "ms": 11391
+      },
+      {
+        "caption": "Choose the type. Each type has its own stage plan — renewal starts with an existing-lease review, investment includes due diligence.",
+        "ms": 16975
+      },
+      {
+        "caption": "Link the confirmed requirement and the deal, so client positions and matching properties come along.",
+        "ms": 21173
+      },
+      {
+        "caption": "Properties under consideration, separated by commas, and the expected completion date.",
+        "ms": 26770
+      },
+      {
+        "caption": "More details: priority and a workflow template if you made your own.",
+        "ms": 32733
+      },
+      {
+        "caption": "Create transaction.",
+        "ms": 38457
+      },
+      {
+        "caption": "It gets a unique code (TX-…), its type, status and current stage.",
+        "ms": 43552
+      },
+      {
+        "caption": "The chips jump to each of the 16 sections: overview, requirements, property, offers, negotiation, inspections, issues, stakeholders, approvals, LOI, legal, deposits, execution, possession, handover and closure.",
+        "ms": 46811
+      },
+      {
+        "caption": "Transaction overview: the stage plan for a relocation. The first stage is in progress; press start or mark done as work moves on.",
+        "ms": 50072
+      },
+      {
+        "caption": "Mark the first stage done — the next one becomes current.",
+        "ms": 55854
+      },
+      {
+        "caption": "Client requirements were copied from the client-confirmed requirement — only confirmed fields, nothing guessed.",
+        "ms": 61082
+      },
+      {
+        "caption": "Back on the list, Workflow templates let you change the stages for a type, or add a new type. Existing transactions keep their stages.",
+        "ms": 66954
+      }
+    ]
+  },
+  {
+    "slug": "tx-offers",
+    "title": "Offers and counteroffers: versions and package comparison",
+    "category": "Deal toolkit",
+    "seconds": 77,
+    "learn": "Every offer and counteroffer is a new version linked to the one it answers, with a reason; nothing is overwritten. See the changes between versions and compare any two as complete packages (rent, CAM, rent-free, deposit) with fixed formulas.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3629
+      },
+      {
+        "caption": "Section 4, Offers and counteroffers.",
+        "ms": 11238
+      },
+      {
+        "caption": "v1 came from the landlord; v2 is the client's counter with its reason; v3 is the landlord's counter. Each version answers the one before.",
+        "ms": 17633
+      },
+      {
+        "caption": "Responses: v1 and v2 are countered; v3 is pending. An offer past its valid-until date is marked expired.",
+        "ms": 20812
+      },
+      {
+        "caption": "Changes between versions: what got better or worse from one version to the next.",
+        "ms": 24034
+      },
+      {
+        "caption": "Compare two versions as whole packages: choose v1 as A and v3 as B.",
+        "ms": 28421
+      },
+      {
+        "caption": "Compare packages.",
+        "ms": 33183
+      },
+      {
+        "caption": "The verdict. Lower headline rent alone never wins — if inputs like commencement or a discount rate are missing, it says it cannot determine.",
+        "ms": 39363
+      },
+      {
+        "caption": "Better in B, worse in B, what is missing, the assumptions and what is not modelled.",
+        "ms": 42583
+      },
+      {
+        "caption": "Record the client's answer: open Record offer / counteroffer.",
+        "ms": 45820
+      },
+      {
+        "caption": "Counter to v3, from the client, with the reason for the change.",
+        "ms": 50248
+      },
+      {
+        "caption": "Enter the terms that change. Blank stays unknown — never zero.",
+        "ms": 57339
+      },
+      {
+        "caption": "Save new version. v4 appears; v3 becomes countered.",
+        "ms": 64238
+      },
+      {
+        "caption": "Intake: paste a proposal, LOI or report. Terms are extracted for your review before anything becomes a record.",
+        "ms": 70222
+      }
+    ]
+  },
+  {
+    "slug": "tx-positions",
+    "title": "Three positions: client, adviser and counterparty",
+    "category": "Deal toolkit",
+    "seconds": 65,
+    "learn": "What the client requires, what you recommend and what the landlord proposes are kept in separate columns and never merged. Agreed values come only from the point tracker, with evidence.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3605
+      },
+      {
+        "caption": "Section 2 compares the three positions for each term.",
+        "ms": 11460
+      },
+      {
+        "caption": "Rent: the client requires ₹92, you recommend ₹94, the landlord proposes ₹95. Agreed stays blank — a proposal is never an agreed term.",
+        "ms": 16867
+      },
+      {
+        "caption": "Area, lock-in and duration are agreed — they were confirmed with evidence.",
+        "ms": 20095
+      },
+      {
+        "caption": "Record a position: choose whose position it is and the term.",
+        "ms": 23280
+      },
+      {
+        "caption": "The value, and the source — every position needs one.",
+        "ms": 28297
+      },
+      {
+        "caption": "Record.",
+        "ms": 35114
+      },
+      {
+        "caption": "Section 5, the point tracker: each term's value and status — proposed, under negotiation, agreed, documented, verified.",
+        "ms": 40005
+      },
+      {
+        "caption": "Agreed is not the same as documented or verified against the executed agreement. Agreeing needs evidence.",
+        "ms": 46228
+      },
+      {
+        "caption": "Mark rent-free as Agreed, with the evidence.",
+        "ms": 49714
+      },
+      {
+        "caption": "Rent-free is now agreed. An agreed value is never overwritten — a change creates a new version.",
+        "ms": 57986
+      }
+    ]
+  },
+  {
+    "slug": "tx-issues",
+    "title": "Open issues, owners and dependencies",
+    "category": "Deal toolkit",
+    "seconds": 65,
+    "learn": "Every unresolved issue has an owner, a next action and a due date (or a reason for none). Blocking and overdue issues show at the top; dependencies show what waits on what; a task is created for each issue.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3606
+      },
+      {
+        "caption": "At the top: open issues — one overdue and one blocking — and a red line naming what is blocking progress.",
+        "ms": 10966
+      },
+      {
+        "caption": "Section 7, Open issues.",
+        "ms": 14235
+      },
+      {
+        "caption": "CAM increase unexplained: blocking, owned by you, the landlord's rep is responsible, next action and due date — overdue.",
+        "ms": 19858
+      },
+      {
+        "caption": "Signage rights depends on the CAM issue, and records why it has no due date.",
+        "ms": 23106
+      },
+      {
+        "caption": "Raise a new issue: title, category and the next action.",
+        "ms": 26284
+      },
+      {
+        "caption": "A due date — or a reason why there is none — plus who is responsible and whether it blocks progress.",
+        "ms": 37392
+      },
+      {
+        "caption": "It can depend on other open issues. Raise.",
+        "ms": 44662
+      },
+      {
+        "caption": "Update an issue's status. Resolving needs a resolution note.",
+        "ms": 49369
+      },
+      {
+        "caption": "Next actions & route to completion: the list updates — blocking and overdue items first.",
+        "ms": 58196
+      }
+    ]
+  },
+  {
+    "slug": "tx-inspections-docs",
+    "title": "Inspections, clarifications and document requests",
+    "category": "Deal toolkit",
+    "seconds": 67,
+    "learn": "Record site inspections with findings and concerns, ask the landlord clarifications that are checked against the client's requirement (discrepancies flagged), and request documents — received is not the same as verified.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3605
+      },
+      {
+        "caption": "Section 6, Technical inspections & clarifications.",
+        "ms": 10626
+      },
+      {
+        "caption": "The MEP walk-through: date, findings and the concern still open — the fire NOC copy.",
+        "ms": 16404
+      },
+      {
+        "caption": "Clarifications are checked against the client's requirement: 150 kVA was needed, 120 kVA offered — a discrepancy.",
+        "ms": 19678
+      },
+      {
+        "caption": "Answer the parking question: the landlord says 40 car parks.",
+        "ms": 23071
+      },
+      {
+        "caption": "40 matches the requirement, so it is accepted.",
+        "ms": 29176
+      },
+      {
+        "caption": "Record inspection / request clarification holds both forms.",
+        "ms": 32426
+      },
+      {
+        "caption": "Section 11 lists document requests. The occupancy certificate is requested from the landlord.",
+        "ms": 37083
+      },
+      {
+        "caption": "When it arrives, enter the file or link and press Received.",
+        "ms": 43166
+      },
+      {
+        "caption": "Received is not verified. After checking the original, say how you verified it and press Verify.",
+        "ms": 50642
+      },
+      {
+        "caption": "Request another document: type, title, who is responsible and when it is due.",
+        "ms": 57746
+      }
+    ]
+  },
+  {
+    "slug": "tx-stakeholders",
+    "title": "Stakeholders and their pending actions",
+    "category": "Deal toolkit",
+    "seconds": 55,
+    "learn": "List everyone involved — internal and external — with their role, decision authority, pending actions, issues and approvals, and whether they are blocking. Assign actions as tasks; external people are never messaged automatically.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3606
+      },
+      {
+        "caption": "Section 8, Stakeholders.",
+        "ms": 10272
+      },
+      {
+        "caption": "Each person: organisation, internal or external, role, decision authority, pending actions, issues, approvals and whether they block.",
+        "ms": 16191
+      },
+      {
+        "caption": "Rohan, the landlord's leasing representative, is blocking: he owns an overdue issue and has an action pending.",
+        "ms": 19349
+      },
+      {
+        "caption": "Add a stakeholder: name, category — here the client's decision maker — and organisation.",
+        "ms": 22556
+      },
+      {
+        "caption": "Add it.",
+        "ms": 32044
+      },
+      {
+        "caption": "Assign an action to a stakeholder. It becomes a task for you to chase — nothing is sent to them.",
+        "ms": 36807
+      },
+      {
+        "caption": "Neha now shows one pending action. External messages are drafts only — you send them yourself.",
+        "ms": 48273
+      }
+    ]
+  },
+  {
+    "slug": "tx-loi-points",
+    "title": "LOI, term sheet and agreed commercial points",
+    "category": "Deal toolkit",
+    "seconds": 59,
+    "learn": "Add LOI and term-sheet versions (numbered clauses). Each version is checked against the agreed points and differences are listed. Move document status from draft to agreed and signed.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3635
+      },
+      {
+        "caption": "Section 10, LOI and term sheet. LOI v1 is a draft, unsigned.",
+        "ms": 11892
+      },
+      {
+        "caption": "It is checked against the agreed terms: lease duration was agreed at 60 months but is not in the LOI.",
+        "ms": 17574
+      },
+      {
+        "caption": "Add a version: an updated LOI with the duration clause.",
+        "ms": 20924
+      },
+      {
+        "caption": "Save version. The same title makes it version 2 of the same document; v1 is kept.",
+        "ms": 30863
+      },
+      {
+        "caption": "LOI v2 is compared with v1 — clauses added, removed or changed — and with the agreed terms.",
+        "ms": 36375
+      },
+      {
+        "caption": "Move its status along: draft, submitted, client review, counterparty review, agreed, signed, executed.",
+        "ms": 39863
+      },
+      {
+        "caption": "A term sheet is added the same way — choose term sheet as the type.",
+        "ms": 46298
+      },
+      {
+        "caption": "The point tracker (section 5) holds the agreed values these documents are checked against.",
+        "ms": 49520
+      }
+    ]
+  },
+  {
+    "slug": "tx-agreement-approvals",
+    "title": "Agreement versions, clause changes and approvals",
+    "category": "Deal toolkit",
+    "seconds": 57,
+    "learn": "Agreement versions get a clause-by-clause diff and a check against agreed terms. Approvals are tied to the exact version: a new version invalidates the old approval and opens a reassessment. Only the assigned reviewer decides; legal approval only by the legal reviewer.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3665
+      },
+      {
+        "caption": "Section 11: the Leave & licence agreement has two versions.",
+        "ms": 11039
+      },
+      {
+        "caption": "v2 against v1: one clause added, one removed, one modified — and financial terms changed.",
+        "ms": 16479
+      },
+      {
+        "caption": "Differs from agreed terms: rent is ₹100 in the document, though nothing at ₹100 was agreed; lock-in is missing.",
+        "ms": 19689
+      },
+      {
+        "caption": "Clause changes shows each clause before (red) and after.",
+        "ms": 22989
+      },
+      {
+        "caption": "Section 9, Approvals. The legal approval of v1 was invalidated when v2 arrived — it no longer counts.",
+        "ms": 27553
+      },
+      {
+        "caption": "A reassessment was opened on v2, assigned to you as legal reviewer. Each approval stores the version's fingerprint.",
+        "ms": 32935
+      },
+      {
+        "caption": "Decide: ask for changes, with a comment.",
+        "ms": 36122
+      },
+      {
+        "caption": "Request another approval: choose its category — client commercial, financial, legal, landlord and more — and what it covers.",
+        "ms": 45885
+      },
+      {
+        "caption": "Messages stating commercial terms need a live client approval of the current position. They are saved as drafts — you send them.",
+        "ms": 51061
+      }
+    ]
+  },
+  {
+    "slug": "tx-execution-handover",
+    "title": "Deposits, execution, possession and handover",
+    "category": "Deal toolkit",
+    "seconds": 85,
+    "learn": "Track each deposit stage separately (approved, due, paid with evidence, acknowledged with a receipt). Record execution milestones — agreed, legally approved, signed, executed, possession, occupied and handover are separate facts with evidence — then fit-out and the handover checklist.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3604
+      },
+      {
+        "caption": "Section 12, deposits: the security deposit is approved and due, but not paid.",
+        "ms": 9529
+      },
+      {
+        "caption": "Record payment: stage paid, the date and the evidence — the bank reference. Paid without evidence is refused.",
+        "ms": 15476
+      },
+      {
+        "caption": "Paid — acknowledgement still needs the landlord's receipt.",
+        "ms": 23661
+      },
+      {
+        "caption": "Section 13, Execution milestones: each one has its own date and evidence. Nothing is inferred from another.",
+        "ms": 26927
+      },
+      {
+        "caption": "Record 'commercially agreed' with today's date and the evidence.",
+        "ms": 32810
+      },
+      {
+        "caption": "Executed needs an executed agreement document. When it is recorded, the lease is handed to Leases automatically.",
+        "ms": 41086
+      },
+      {
+        "caption": "Section 14, Possession and fit-out: scope, contractor, dates, progress and approvals.",
+        "ms": 44443
+      },
+      {
+        "caption": "Section 15, Handover: generate the checklist when possession approaches.",
+        "ms": 56708
+      },
+      {
+        "caption": "Each item is open until closed with evidence. Add defects too — seepage near the pantry, for the landlord to fix.",
+        "ms": 64661
+      },
+      {
+        "caption": "Close an item with its evidence and who acknowledged it.",
+        "ms": 73940
+      }
+    ]
+  },
+  {
+    "slug": "tx-closure",
+    "title": "Closure pack, completion and the lease hand-off",
+    "category": "Deal toolkit",
+    "seconds": 42,
+    "learn": "Generate the closure pack (Word) at any time. Completion stays blocked while issues, approvals, documents, deposits or handover items are open. When the agreement is executed, the lease is handed to Leases so its dates are tracked.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3606
+      },
+      {
+        "caption": "Closure blockers at the top counts what still stops completion.",
+        "ms": 9772
+      },
+      {
+        "caption": "Section 16, Closure pack. 'Completion blocked' lists every reason: open issues, pending approvals, unverified documents, unpaid deposits, handover not completed.",
+        "ms": 13137
+      },
+      {
+        "caption": "Mark transaction complete stays disabled until the list is empty.",
+        "ms": 19052
+      },
+      {
+        "caption": "Generate closure pack (.docx): terms, milestones, approvals, documents and open items, as they stand.",
+        "ms": 22234
+      },
+      {
+        "caption": "The pack appears as a link with its version and date. Generate again later for a new version — old ones are kept.",
+        "ms": 26991
+      },
+      {
+        "caption": "Execution milestones show the Lease Lifecycle hand-off once the executed agreement is recorded — the lease then appears under Leases.",
+        "ms": 30199
+      },
+      {
+        "caption": "The timeline at the bottom is append-only: every offer, change, approval and milestone with its time.",
+        "ms": 35694
+      }
+    ]
+  },
+  {
+    "slug": "tx-command-view",
+    "title": "The transaction command view",
+    "category": "Deal toolkit",
+    "seconds": 45,
+    "learn": "The top of a transaction: agreed and disputed terms, open, overdue and blocking issues, pending approvals, outstanding documents and closure blockers; next actions with reasons and due dates; the route to completion, dependencies and upcoming deadlines.",
+    "tryRoute": "/transactions",
+    "featured": false,
+    "steps": [
+      {
+        "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+        "ms": 3606
+      },
+      {
+        "caption": "The header: name, code, type, status, current stage and links to the deal and requirement.",
+        "ms": 9841
+      },
+      {
+        "caption": "Agreed terms, with how many are still disputed.",
+        "ms": 13259
+      },
+      {
+        "caption": "Open issues, with how many are overdue and blocking.",
+        "ms": 16572
+      },
+      {
+        "caption": "Pending approvals, outstanding documents and closure blockers.",
+        "ms": 19851
+      },
+      {
+        "caption": "The red line names what is blocking right now.",
+        "ms": 23080
+      },
+      {
+        "caption": "Next actions: blocking and overdue first, each with why and when it is due.",
+        "ms": 26320
+      },
+      {
+        "caption": "Open Route to completion: every remaining step, the dependencies between items and the upcoming deadlines.",
+        "ms": 29560
+      },
+      {
+        "caption": "Each of the 16 sections below holds the detail; the timeline keeps the full history.",
+        "ms": 34637
+      },
+      {
+        "caption": "You can also ask Ask AI, for example: what is the latest agreed rent? Answers come from these records.",
+        "ms": 37885
+      }
+    ]
+  },
+  {
+    "slug": "tour-v2",
     "title": "How CRE OS fits together (full tour)",
     "category": "Start here",
-    "seconds": 154,
+    "seconds": 162,
     "learn": "Every sidebar area and the overall flow: information comes in → Review → records → you act.",
     "tryRoute": "/today",
     "featured": true,
     "steps": [
       {
         "caption": "The sidebar on the left is the map of the whole app, grouped into main, Records, Work and More.",
-        "ms": 3606
+        "ms": 3647
       },
       {
         "caption": "Today is your start page: everything that needs you today, in one place.",
-        "ms": 6907
+        "ms": 7879
       },
       {
         "caption": "Recommended next actions: lease dates and overdue tasks, most urgent first.",
-        "ms": 11645
+        "ms": 13421
       },
       {
-        "caption": "Meetings in the next three days, each with a link to its preparation brief.",
-        "ms": 14947
+        "caption": "Today's schedule: every meeting with time, place and whether its brief is ready.",
+        "ms": 16769
       },
       {
         "caption": "Priority accounts: the companies most worth your time, with 'See why' for the reasons.",
-        "ms": 18341
+        "ms": 20079
       },
       {
         "caption": "New signals, follow-ups that are due and approvals waiting for you.",
-        "ms": 21796
+        "ms": 23371
       },
       {
-        "caption": "Lease events: expiries, notice deadlines and lock-ins coming up in 12, 6 and 3 months.",
-        "ms": 25452
+        "caption": "Active transactions: deals in offers, approvals or execution, with what is blocking each.",
+        "ms": 26890
       },
       {
-        "caption": "Day plan turns all of this into an ordered plan for today; Re-plan rebuilds it.",
-        "ms": 28772
+        "caption": "Important lease events and lease alerts: lease dates coming up and alerts from Leases.",
+        "ms": 30191
       },
       {
         "caption": "Today also has tabs at the top: Overview, Tasks and Calendar.",
-        "ms": 32558
+        "ms": 33402
       },
       {
         "caption": "Ask AI answers questions about your own data and shows where each answer came from.",
-        "ms": 36366
+        "ms": 36693
       },
       {
         "caption": "Ready-made questions get you started; or type your own in the box.",
-        "ms": 41146
+        "ms": 41007
       },
       {
         "caption": "Step 1 of the flow — information comes in. Capture is where you add notes, voice, photos and files.",
-        "ms": 44689
+        "ms": 44287
       },
       {
         "caption": "Speak, Type or Photo: three ways to record what happened after a call or visit.",
-        "ms": 49923
+        "ms": 48885
       },
       {
         "caption": "Recent captures lists what you saved and how many changes each one is proposing.",
-        "ms": 53669
+        "ms": 52150
       },
       {
         "caption": "Step 2 — Review. Nothing changes your records until you approve it here.",
-        "ms": 57162
+        "ms": 55417
       },
       {
         "caption": "Changes from captures, imports and automations wait here, each with its evidence.",
-        "ms": 62573
+        "ms": 59650
       },
       {
         "caption": "You can approve, edit, ask to clarify or reject each proposed change.",
-        "ms": 67461
+        "ms": 63052
       },
       {
         "caption": "Step 3 — Records. Companies is every account you track.",
-        "ms": 70727
+        "ms": 66769
       },
       {
         "caption": "Filter by name, or add a company by hand.",
-        "ms": 76166
+        "ms": 71283
       },
       {
         "caption": "People: the contacts at those companies.",
-        "ms": 79690
+        "ms": 74620
       },
       {
         "caption": "Buildings: campuses, towers and the space in them.",
-        "ms": 84644
+        "ms": 78925
+      },
+      {
+        "caption": "Supply: available space, operators and matching it to requirements.",
+        "ms": 82905
       },
       {
         "caption": "Requirements: what each client is looking for — size, place, dates. Filter by status.",
-        "ms": 89102
+        "ms": 86834
       },
       {
         "caption": "Deals: every opportunity as a pipeline, from research to fee collected.",
-        "ms": 93291
+        "ms": 90811
       },
       {
         "caption": "Each column is a stage; the Deals tabs also hold Financials, Documents and Fees.",
-        "ms": 97845
+        "ms": 94898
       },
       {
         "caption": "Step 4 — Act. Outreach: who to contact today and drafts of what to say.",
-        "ms": 101079
+        "ms": 98072
       },
       {
         "caption": "Drafts only — you always send from your own mail or WhatsApp. CRE OS never sends.",
-        "ms": 105349
+        "ms": 102014
       },
       {
         "caption": "Meetings: prepare a brief before each meeting and log what happened after.",
-        "ms": 108522
+        "ms": 105185
+      },
+      {
+        "caption": "Transactions: offers, approvals, execution and handover for a confirmed requirement.",
+        "ms": 109026
+      },
+      {
+        "caption": "Leases: every lease, its dates, renewals and obligations — the radar is a tab inside.",
+        "ms": 112937
       },
       {
         "caption": "Deal toolkit: compare buildings, cost a lease, stay-or-move and make client packs.",
-        "ms": 113302
+        "ms": 116847
       },
       {
         "caption": "Signals: news and events that may mean a company needs space — checked before you trust them.",
-        "ms": 117470
+        "ms": 120851
       },
       {
         "caption": "More holds the less-used screens. Open it.",
-        "ms": 121775
+        "ms": 125991
       },
       {
         "caption": "Scores rank who to focus on first; Find contacts finds and verifies decision-makers.",
-        "ms": 126157
+        "ms": 131095
       },
       {
-        "caption": "Research looks into one company; Lease radar lists leases coming up for renewal.",
-        "ms": 129355
+        "caption": "Research looks into one company and builds a dossier with sources.",
+        "ms": 134405
       },
       {
         "caption": "Market & reports: market data, network, legal, content and reports.",
-        "ms": 132536
+        "ms": 137623
       },
       {
-        "caption": "Automations: chains that run on their own, like turning a lease date into a requirement.",
-        "ms": 135886
+        "caption": "Intelligence: what changed, what to do next, history and memory quality.",
+        "ms": 140993
+      },
+      {
+        "caption": "Automation: what runs in the background, schedules, chains and failures.",
+        "ms": 144308
       },
       {
         "caption": "Imports bring in spreadsheets; Database and Places are for browsing and setup.",
-        "ms": 139457
+        "ms": 147653
       },
       {
         "caption": "Tutorials: these videos, any time.",
-        "ms": 142769
+        "ms": 150888
       },
       {
         "caption": "The whole loop: things come in → you Review → records update → Today tells you what to act on.",
-        "ms": 146051
+        "ms": 154240
       }
     ]
   },
   {
-    "slug": "capture-v2",
+    "slug": "capture-v3",
     "title": "Capture a meeting note and approve it",
     "category": "Records & data",
-    "seconds": 95,
+    "seconds": 101,
     "learn": "Every part of Capture (speak, type, photo, files, links), the questions it asks, Reviewed, and where the result appears.",
     "tryRoute": "/capture",
     "featured": false,
     "steps": [
       {
         "caption": "Open Capture after any call, meeting or site visit.",
-        "ms": 3605
+        "ms": 3603
       },
       {
         "caption": "New capture: three ways in. Speak — words appear as you talk.",
-        "ms": 7602
+        "ms": 8270
       },
       {
         "caption": "Photo — snap a visiting card or a whiteboard; the text is read from it.",
-        "ms": 10781
+        "ms": 11642
       },
       {
         "caption": "Language: English, Hindi / Hinglish or Marathi — pick what you'll speak or write.",
-        "ms": 13964
+        "ms": 15009
       },
       {
         "caption": "More options lets you set when it actually happened, if it wasn't just now.",
-        "ms": 17135
+        "ms": 18242
       },
       {
         "caption": "Add files: upload documents such as a lease, LOI or floor plan.",
-        "ms": 20317
+        "ms": 21445
       },
       {
-        "caption": "Link to a record ties the file to a company, person, building or requirement.",
-        "ms": 23495
+        "caption": "Link to a record ties the file to a company, person, building, requirement, meeting, lease or transaction.",
+        "ms": 24640
       },
       {
         "caption": "Recent captures lists earlier notes, with their status and how many changes they propose.",
-        "ms": 26667
+        "ms": 28015
       },
       {
         "caption": "Now choose Type to write or paste a note.",
-        "ms": 29829
+        "ms": 31322
       },
       {
         "caption": "Write what happened, in plain words.",
-        "ms": 33750
+        "ms": 35644
       },
       {
         "caption": "Save it. Nothing in your records changes yet.",
-        "ms": 40926
+        "ms": 45423
       },
       {
         "caption": "CRE OS read the note. The receipt lists what it saved, matched and scheduled.",
-        "ms": 44788
+        "ms": 49790
       },
       {
         "caption": "'By March' is a target, not a contract date: the year stays unknown instead of being guessed.",
-        "ms": 48009
+        "ms": 53248
       },
       {
         "caption": "'Friday' became a task due this Friday — no question needed.",
-        "ms": 51233
+        "ms": 56603
       },
       {
         "caption": "This box lists exactly what will be added: a meeting log, requirement details and a task.",
-        "ms": 54453
+        "ms": 59944
       },
       {
         "caption": "Each line shows the company or person it belongs to — check the names and numbers.",
-        "ms": 57721
+        "ms": 63266
       },
       {
         "caption": "Looks right? Press Reviewed — now it goes to your records.",
-        "ms": 60919
+        "ms": 66720
       },
       {
         "caption": "Facts for approval: important changes are listed with where they came from.",
-        "ms": 64810
+        "ms": 71033
       },
       {
         "caption": "Each one can be checked and undone later from Review → History & undo.",
-        "ms": 68006
+        "ms": 74362
       },
       {
         "caption": "The capture's status now reads Reviewed.",
-        "ms": 71327
+        "ms": 77899
       },
       {
         "caption": "Open the company to see the result.",
-        "ms": 74533
+        "ms": 81120
       },
       {
         "caption": "The Requirements tab shows the 25,000 sq ft need in Kharadi.",
-        "ms": 78449
+        "ms": 84974
       },
       {
         "caption": "Timeline holds the meeting log from your note.",
-        "ms": 82336
+        "ms": 88867
       },
       {
         "caption": "And the follow-up task is waiting in Today → Tasks.",
-        "ms": 86216
+        "ms": 92754
       },
       {
         "caption": "Review in the sidebar is where any change still waiting for you shows up.",
-        "ms": 88526
+        "ms": 95063
       }
     ]
   },

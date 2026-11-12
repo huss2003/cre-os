@@ -1,0 +1,42 @@
+{
+  "durationMs": 62657,
+  "steps": [
+    {
+      "caption": "Open the Lumen Harbour Tech lease from Leases.",
+      "ms": 3609
+    },
+    {
+      "caption": "Obligations: each one shows the category, the clause text, the responsible party, the deadline, the status and the source page.",
+      "ms": 15510
+    },
+    {
+      "caption": "They were read from the deed: insurance, structural repairs, no sub-letting, restoring the premises. Unclear responsibility is shown as unclear.",
+      "ms": 18730
+    },
+    {
+      "caption": "Mark one Done with the evidence — for example the insurance policy number.",
+      "ms": 21973
+    },
+    {
+      "caption": "Add an obligation by hand: category, what must be done, who is responsible and the deadline.",
+      "ms": 29545
+    },
+    {
+      "caption": "Now open the Obligations tab: every lease's obligations in one tracker.",
+      "ms": 40610
+    },
+    {
+      "caption": "Source-linked summaries — not legal advice. Filter by status and by party: tenant, landlord, shared or unclear.",
+      "ms": 44678
+    },
+    {
+      "caption": "Filter.",
+      "ms": 49445
+    },
+    {
+      "caption": "The list shows the open tenant obligations, with the lease each belongs to.",
+      "ms": 56176
+    }
+  ],
+  "bytes": 804203
+}

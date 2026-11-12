@@ -1,74 +1,74 @@
 {
-  "durationMs": 82686,
+  "durationMs": 74405,
   "steps": [
     {
       "caption": "Open Ask AI from the sidebar.",
-      "ms": 3616
+      "ms": 3605
     },
     {
       "caption": "Start a new conversation.",
-      "ms": 7828
+      "ms": 7650
     },
     {
       "caption": "Press the paper-clip to attach a file: PDF, Word, TXT, CSV or MD, up to 15 MB.",
-      "ms": 12432
+      "ms": 11650
     },
     {
       "caption": "The lease PDF is attached (× removes it).",
-      "ms": 16450
+      "ms": 14905
     },
     {
       "caption": "Ask it to extract the lease terms.",
-      "ms": 19655
+      "ms": 18074
     },
     {
       "caption": "A table of terms: value, page number, the exact quote and a check mark.",
-      "ms": 30247
+      "ms": 26284
     },
     {
       "caption": "Area, rent and dates are parsed by code from the quote — not invented by the AI.",
-      "ms": 33738
+      "ms": 29468
     },
     {
       "caption": "'verified on page' means the quote really is on that page.",
-      "ms": 37053
+      "ms": 32632
     },
     {
       "caption": "Terms not in the document stay 'unknown' — e.g. CAM and fit-out.",
-      "ms": 40309
+      "ms": 35802
     },
     {
       "caption": "Now attach the terms to a lease record. Search by tenant name.",
-      "ms": 43660
+      "ms": 38968
     },
     {
       "caption": "Pick Zentrix's lease at Kharadi Tech Park.",
-      "ms": 50036
+      "ms": 44262
     },
     {
       "caption": "Tick to also store the PDF on the lease.",
-      "ms": 54188
+      "ms": 48112
     },
     {
       "caption": "Press Attach to lease record. Nothing is saved yet.",
-      "ms": 57396
+      "ms": 51282
     },
     {
       "caption": "An approval card shows every field: what it is now, what it would become, and the page it came from.",
-      "ms": 62124
+      "ms": 55276
     },
     {
       "caption": "Here the area changes from 18,000 to 18,500 sq ft (page 1).",
-      "ms": 65607
+      "ms": 58462
     },
     {
       "caption": "Approve change. Material lease fields go on to Review for a second check.",
-      "ms": 68888
+      "ms": 61638
     },
     {
       "caption": "Done — the proposal now waits in Review.",
-      "ms": 73549
+      "ms": 65510
     }
   ],
-  "bytes": 942551
+  "bytes": 939798
 }

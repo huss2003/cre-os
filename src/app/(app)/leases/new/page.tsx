@@ -2,7 +2,7 @@ import { requirePageContext } from "@/lib/auth/context";
 import { Button, Card, Field, Input, MoreFields, PageHeader, Select } from "@/components/ui";
 import { createLeaseAction } from "@/modules/leases/actions";
 import { CATEGORY_LABEL } from "@/modules/leases/status";
-import { Flash, LeaseTabs } from "@/modules/leases/ui";
+import { Flash } from "@/modules/leases/ui";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
@@ -16,7 +16,6 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   const orgOpts = (orgs.data ?? []).map((o) => <option key={o.id} value={o.id}>{o.display_name}</option>);
   return (
     <div className="space-y-4">
-      <LeaseTabs active="dashboard" />
       <PageHeader title="New lease" subtitle="Leases start as draft / negotiation. Executed and active need evidence (signed agreement, confirmed dates)." />
       <Flash sp={sp} />
       <Card>

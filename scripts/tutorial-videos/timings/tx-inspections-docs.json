@@ -1,0 +1,50 @@
+{
+  "durationMs": 66990,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3605
+    },
+    {
+      "caption": "Section 6, Technical inspections & clarifications.",
+      "ms": 10626
+    },
+    {
+      "caption": "The MEP walk-through: date, findings and the concern still open — the fire NOC copy.",
+      "ms": 16404
+    },
+    {
+      "caption": "Clarifications are checked against the client's requirement: 150 kVA was needed, 120 kVA offered — a discrepancy.",
+      "ms": 19678
+    },
+    {
+      "caption": "Answer the parking question: the landlord says 40 car parks.",
+      "ms": 23071
+    },
+    {
+      "caption": "40 matches the requirement, so it is accepted.",
+      "ms": 29176
+    },
+    {
+      "caption": "Record inspection / request clarification holds both forms.",
+      "ms": 32426
+    },
+    {
+      "caption": "Section 11 lists document requests. The occupancy certificate is requested from the landlord.",
+      "ms": 37083
+    },
+    {
+      "caption": "When it arrives, enter the file or link and press Received.",
+      "ms": 43166
+    },
+    {
+      "caption": "Received is not verified. After checking the original, say how you verified it and press Verify.",
+      "ms": 50642
+    },
+    {
+      "caption": "Request another document: type, title, who is responsible and when it is due.",
+      "ms": 57746
+    }
+  ],
+  "bytes": 749590
+}

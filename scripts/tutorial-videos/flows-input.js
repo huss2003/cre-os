@@ -175,7 +175,7 @@ const FLOWS = [
       await t.step("The fields: name, title, company, email, phones, website and address — copied exactly as on the card.", () => t.point(card(p, "What CRE OS found")));
       await t.step("Phones are typed: mobile from 'M:'. The 'Ph:' number could be direct or switchboard, so it is marked unknown.", () => t.point(main(p).getByText(/\(mobile\)/).first()));
       await t.step("Check these: uncertain fields — the unlabelled phone, and an email domain that differs from the website.", () => t.point(main(p).getByText(/^Check /).first()));
-      await t.step("No existing contact matches, so a new contact is suggested.", () => t.point(main(p).getByText(/no existing contact/).first()));
+      await t.step("No existing contact matches, so a new contact is suggested.", () => t.point(main(p).getByText(/no existing contact/i).first()));
       await t.step("Proposals: a new person and a new company — they wait for your approval in Review.", () => t.point(main(p).getByText(/Proposals \(/).first()));
       await t.step("After you approve the person, press Process again to propose the emails and phones.", () => soft(t, main(p).getByText(/Approve the new person/)));
       await t.step("Now a card for someone you already know: Anil Deshmukh. Back to Capture.", async () => { await side(t, "Capture"); await t.scroll(700); });
@@ -189,7 +189,7 @@ const FLOWS = [
           await t.moveAndClick(main(p).getByRole("button", { name: "Process again" })); await sleep(5000); await p.reload(); await sleep(800);
         });
       }
-      await t.step("High-confidence match: the same email already belongs to Anil Deshmukh, so no new person is created.", () => t.point(main(p).getByText(/high confidence match/).first()));
+      await t.step("High-confidence match: the same email already belongs to Anil Deshmukh, so no new person is created.", () => t.point(main(p).getByText(/high confidence match/i).first()));
       await t.step("Only the new mobile number is proposed for his record. Same name alone would be a suggestion, never a merge.", () => t.point(main(p).getByText(/Proposals \(/).first()));
       await t.step("The company on the card looks like Marigold Loop Technologies — pick it in the link picker if it is the same.", () => soft(t, main(p).getByText(/Possible existing company/)));
       await t.outro("scanned two cards: one new contact and one matched to an existing contact.", "upload a quote, brochure or lease.");

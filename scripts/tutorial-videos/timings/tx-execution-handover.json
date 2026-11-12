@@ -1,0 +1,50 @@
+{
+  "durationMs": 85265,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3604
+    },
+    {
+      "caption": "Section 12, deposits: the security deposit is approved and due, but not paid.",
+      "ms": 9529
+    },
+    {
+      "caption": "Record payment: stage paid, the date and the evidence — the bank reference. Paid without evidence is refused.",
+      "ms": 15476
+    },
+    {
+      "caption": "Paid — acknowledgement still needs the landlord's receipt.",
+      "ms": 23661
+    },
+    {
+      "caption": "Section 13, Execution milestones: each one has its own date and evidence. Nothing is inferred from another.",
+      "ms": 26927
+    },
+    {
+      "caption": "Record 'commercially agreed' with today's date and the evidence.",
+      "ms": 32810
+    },
+    {
+      "caption": "Executed needs an executed agreement document. When it is recorded, the lease is handed to Leases automatically.",
+      "ms": 41086
+    },
+    {
+      "caption": "Section 14, Possession and fit-out: scope, contractor, dates, progress and approvals.",
+      "ms": 44443
+    },
+    {
+      "caption": "Section 15, Handover: generate the checklist when possession approaches.",
+      "ms": 56708
+    },
+    {
+      "caption": "Each item is open until closed with evidence. Add defects too — seepage near the pantry, for the landlord to fix.",
+      "ms": 64661
+    },
+    {
+      "caption": "Close an item with its evidence and who acknowledged it.",
+      "ms": 73940
+    }
+  ],
+  "bytes": 932427
+}

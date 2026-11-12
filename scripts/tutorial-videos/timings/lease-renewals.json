@@ -1,0 +1,46 @@
+{
+  "durationMs": 58109,
+  "steps": [
+    {
+      "caption": "Open Leases, then the Renewals tab.",
+      "ms": 3606
+    },
+    {
+      "caption": "Upcoming renewals: leases that expire within 12 months and have no renewal record yet. Peregrine Loom Studios expires on 30 June 2027.",
+      "ms": 11716
+    },
+    {
+      "caption": "Open it.",
+      "ms": 15079
+    },
+    {
+      "caption": "The renewal notice deadline is 30 December 2026 — six months before expiry, from clause 4.2 on page 3.",
+      "ms": 19357
+    },
+    {
+      "caption": "In the Renewal section press Start renewal review. A review task is created for you.",
+      "ms": 22586
+    },
+    {
+      "caption": "The review starts at stage upcoming. Record the stage, the tenant's and the landlord's responses and a note.",
+      "ms": 27450
+    },
+    {
+      "caption": "Update. Every change is logged with the date.",
+      "ms": 34977
+    },
+    {
+      "caption": "When your recorded supply has similar spaces, 'Possible alternatives' appears here too — useful if the client may relocate.",
+      "ms": 40182
+    },
+    {
+      "caption": "Back on Renewals, the lease now sits in the Discussion column. Other columns: proposals pending, negotiation, agreed, completed and at risk.",
+      "ms": 43441
+    },
+    {
+      "caption": "To compare staying with moving, open Deal toolkit → Stay or move: rent, overlap, moving costs and deposits, worked out by fixed formulas.",
+      "ms": 49678
+    }
+  ],
+  "bytes": 958690
+}

@@ -38,7 +38,7 @@ async function main() {
   for (const o of olds) await admin.from("signal").update({ archived_at: now, dedupe_key: `${o.dedupe_key}:retired:${RUN}` }).eq("workspace_id", WS).eq("id", o.id);
   // items: setup pastes and the texts the videos paste (same idempotency key would otherwise return the old, archived signal)
   const items = ((await admin.from("signal_source_item").select("id, content_hash, idempotency_key, raw_text").eq("workspace_id", WS)
-    .or("idempotency_key.like.manual_paste:tutorial:%,raw_text.ilike.%Lumen Harbour Tech (demo)%,raw_text.ilike.%Quillstone Labs (demo)%,raw_text.ilike.%Peregrine Loom Studios (demo)%,raw_text.ilike.%Ottervale%")).data ?? []) as Row[];
+    .or('idempotency_key.like.manual_paste:tutorial:%,raw_text.ilike."%Lumen Harbour Tech (demo)%",raw_text.ilike."%Quillstone Labs (demo)%",raw_text.ilike."%Peregrine Loom Studios (demo)%",raw_text.ilike.%Ottervale%')).data ?? []) as Row[];
   for (const it of items) {
     if (String(it.idempotency_key).includes(":retired:")) continue;
     await admin.from("signal_source_item").update({ idempotency_key: `${it.idempotency_key}:retired:${RUN}`, content_hash: it.content_hash ? `${it.content_hash}:retired:${RUN}` : null }).eq("workspace_id", WS).eq("id", it.id);

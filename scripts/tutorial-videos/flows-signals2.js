@@ -91,7 +91,7 @@ const FLOWS = [
       await t.step("8. Related contacts and 9. Existing requirements.", async () => { await openSection(t, 8); await openSection(t, 9); });
       await t.step("10. Counter-evidence and 11. Missing information — what is unknown is said, never filled in.", async () => { await openSection(t, 10); await openSection(t, 11); });
       await t.step("12. Suggested next steps.", () => openSection(t, 12));
-      await t.step("On the right: the same points sorted into Fact, Inference, Hypothesis and Unknown, and Priority — why, with each point added or taken away.", () => soft(t, card(p, "Priority — why")));
+      await t.step("Below the sections: the same points sorted into Fact, Inference, Hypothesis and Unknown, and Priority — why, with each point added or taken away.", () => soft(t, card(p, "Priority — why")));
       await t.step("History records every decision and re-assessment.", () => soft(t, card(p, "History")));
       await t.outro("pasted news and read every section of the signal card.", "add counter-evidence.");
     },

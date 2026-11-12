@@ -1,0 +1,46 @@
+{
+  "durationMs": 57447,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3665
+    },
+    {
+      "caption": "Section 11: the Leave & licence agreement has two versions.",
+      "ms": 11039
+    },
+    {
+      "caption": "v2 against v1: one clause added, one removed, one modified — and financial terms changed.",
+      "ms": 16479
+    },
+    {
+      "caption": "Differs from agreed terms: rent is ₹100 in the document, though nothing at ₹100 was agreed; lock-in is missing.",
+      "ms": 19689
+    },
+    {
+      "caption": "Clause changes shows each clause before (red) and after.",
+      "ms": 22989
+    },
+    {
+      "caption": "Section 9, Approvals. The legal approval of v1 was invalidated when v2 arrived — it no longer counts.",
+      "ms": 27553
+    },
+    {
+      "caption": "A reassessment was opened on v2, assigned to you as legal reviewer. Each approval stores the version's fingerprint.",
+      "ms": 32935
+    },
+    {
+      "caption": "Decide: ask for changes, with a comment.",
+      "ms": 36122
+    },
+    {
+      "caption": "Request another approval: choose its category — client commercial, financial, legal, landlord and more — and what it covers.",
+      "ms": 45885
+    },
+    {
+      "caption": "Messages stating commercial terms need a live client approval of the current position. They are saved as drafts — you send them.",
+      "ms": 51061
+    }
+  ],
+  "bytes": 722256
+}

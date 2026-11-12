@@ -1,0 +1,58 @@
+{
+  "durationMs": 56812,
+  "steps": [
+    {
+      "caption": "Open Settings at the bottom of the sidebar, then the AI use tab.",
+      "ms": 3611
+    },
+    {
+      "caption": "The summary: how many features use AI, how many run on code only, and how many AI calls were avoided this month.",
+      "ms": 11479
+    },
+    {
+      "caption": "Off = code only. Backup = code first, AI only when code can't read the input. On = AI first, code if AI fails. Nothing is lost when a feature is Off.",
+      "ms": 14984
+    },
+    {
+      "caption": "Runs on code: rules and templates do these well — morning brief, daily plan, score explanations, outreach drafts and more. AI is off by default.",
+      "ms": 18238
+    },
+    {
+      "caption": "Each feature says what it does and whether it is on its default.",
+      "ms": 21481
+    },
+    {
+      "caption": "Code first, AI as backup: capture fields, lease terms, quotes, legal clauses and reading text from photos. Code tries first.",
+      "ms": 24757
+    },
+    {
+      "caption": "Needs AI: voice transcription, web research, signal discovery and open writing — code can't do these well.",
+      "ms": 28569
+    },
+    {
+      "caption": "Each switch has three positions. Off, Backup or On — hover a position to see what it means.",
+      "ms": 31877
+    },
+    {
+      "caption": "A changed feature says so, with its default. Here 'Reading text from images & scans' is set to Off — code only.",
+      "ms": 35323
+    },
+    {
+      "caption": "To change a switch: pick the position, then press Save at the bottom. Reset to defaults puts every feature back (you confirm first).",
+      "ms": 38586
+    },
+    {
+      "caption": "For the workspace owner, saving needs two-step sign-in first. The note links to Settings → Security, where you turn it on.",
+      "ms": 42293
+    },
+    {
+      "caption": "Open Security & MFA to see the two-step sign-in set-up.",
+      "ms": 45636
+    },
+    {
+      "caption": "After setting it up, come back to AI use: the switches can be changed and saved. When a feature is Off, CRE OS makes no AI call at all.",
+      "ms": 50249
+    }
+  ],
+  "bytes": 776030
+}

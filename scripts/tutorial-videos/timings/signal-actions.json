@@ -1,0 +1,50 @@
+{
+  "durationMs": 83958,
+  "steps": [
+    {
+      "caption": "Open the Peregrine Loom Studios signal from Signals.",
+      "ms": 3620
+    },
+    {
+      "caption": "Decide: Approve + task, Investigate, Assign to me, Already known and Re-assess.",
+      "ms": 15354
+    },
+    {
+      "caption": "Approve + task: the signal is approved and a follow-up task is created in Tasks.",
+      "ms": 18518
+    },
+    {
+      "caption": "The status changes and History records the decision and the new follow-up task.",
+      "ms": 23472
+    },
+    {
+      "caption": "Task: create another task with your own title. Opportunity: link an existing deal, or propose a new one — it goes to Review for approval.",
+      "ms": 26761
+    },
+    {
+      "caption": "Now the Quillstone Labs funding signal. Funding alone is not an office requirement, so it is ranked low.",
+      "ms": 30153
+    },
+    {
+      "caption": "Override priority: choose Medium, give the reason and a date to review it.",
+      "ms": 46033
+    },
+    {
+      "caption": "Save override. The priority shows it was overridden, and Clear override undoes it.",
+      "ms": 53257
+    },
+    {
+      "caption": "Snooze until a date — it comes back on its own then.",
+      "ms": 58229
+    },
+    {
+      "caption": "Dismiss or Reject needs a reason. Dismiss the Quillstone expansion: the hires are remote.",
+      "ms": 64229
+    },
+    {
+      "caption": "Dismissed and snoozed signals move to their own view — nothing is deleted. Reopen brings one back.",
+      "ms": 73968
+    }
+  ],
+  "bytes": 1207545
+}

@@ -1,0 +1,38 @@
+{
+  "durationMs": 42175,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3606
+    },
+    {
+      "caption": "Closure blockers at the top counts what still stops completion.",
+      "ms": 9772
+    },
+    {
+      "caption": "Section 16, Closure pack. 'Completion blocked' lists every reason: open issues, pending approvals, unverified documents, unpaid deposits, handover not completed.",
+      "ms": 13137
+    },
+    {
+      "caption": "Mark transaction complete stays disabled until the list is empty.",
+      "ms": 19052
+    },
+    {
+      "caption": "Generate closure pack (.docx): terms, milestones, approvals, documents and open items, as they stand.",
+      "ms": 22234
+    },
+    {
+      "caption": "The pack appears as a link with its version and date. Generate again later for a new version — old ones are kept.",
+      "ms": 26991
+    },
+    {
+      "caption": "Execution milestones show the Lease Lifecycle hand-off once the executed agreement is recorded — the lease then appears under Leases.",
+      "ms": 30199
+    },
+    {
+      "caption": "The timeline at the bottom is append-only: every offer, change, approval and milestone with its time.",
+      "ms": 35694
+    }
+  ],
+  "bytes": 642743
+}

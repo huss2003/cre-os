@@ -7,7 +7,7 @@ import { todayFor } from "@/modules/brief/context";
 import { loadSettings } from "@/modules/brief/db";
 import { inWindow, landlordConcentration, WINDOW_LABEL, type DatedFact, type RadarItem, type RadarWindow } from "@/modules/brief/lease-radar";
 import { loadRadar } from "@/modules/brief/radar-data";
-import { LeaseTabs } from "@/modules/leases/ui";
+
 import { STATUS_LABEL as LEASE_STATUS_LABEL, isLeaseStatus } from "@/modules/leases/status";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
@@ -52,7 +52,6 @@ async function Body({ searchParams }: { searchParams: SP }) {
 
   return (
     <div className="space-y-4">
-      <LeaseTabs active="radar" />
       <PageHeader title="Leases — radar" subtitle={`${items.length} leases · expiry, lock-in, notice, break, rent escalation and options are separate event types · dates as of ${today}`} />
       <p className="text-xs text-ink-soft">
         <Badge tone="ok">Contractual / confirmed</Badge> dates are verified; <Badge tone="neutral">Calculated by radar</Badge> dates are reproducible calculations

@@ -7,7 +7,7 @@ import { Badge, ButtonLink, Card, EmptyState, Input, PageHeader, Select, Skeleto
 import { addDays } from "@/modules/leases/dates";
 import { overdue, portfolioView, upcomingDates } from "@/modules/leases/service";
 import { CATEGORY_LABEL, LEASE_STATUSES, STATUS_LABEL, type LeaseStatus } from "@/modules/leases/status";
-import { DATE_TYPE_LABEL, Flash, LeaseTabs, VerificationBadge } from "@/modules/leases/ui";
+import { DATE_TYPE_LABEL, Flash, VerificationBadge } from "@/modules/leases/ui";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
@@ -36,11 +36,10 @@ async function Body({ searchParams }: { searchParams: SP }) {
   const leaseIds = new Set(pv.leases.map((l) => l.id));
   const upcoming = soon.filter((d) => leaseIds.has(d.lease_id));
   const attention = pv.portfolio.incomplete.slice(0, 12);
-  const name = (id: string) => pv.leases.find((l) => l.id === id)?.tenant_name ?? "Lease";
+  const name = (id: string) => pv.leases.find((l) => l.id === id)?.label ?? "Lease";
 
   return (
     <div className="space-y-4">
-      <LeaseTabs active="dashboard" />
       <PageHeader title="Leases" subtitle={`Lease lifecycle · dates as of ${today}. Only human-reviewed dates are confirmed contractual deadlines.`} actions={<ButtonLink href="/leases/new">New lease</ButtonLink>} />
       <Flash sp={sp} />
       {pv.leases.length === 0 && !filt.q && !filt.status ? (
@@ -88,7 +87,7 @@ async function Body({ searchParams }: { searchParams: SP }) {
                   <tr key={d.id}>
                     <Td className="whitespace-nowrap">{d.calculated_date}</Td>
                     <Td>{DATE_TYPE_LABEL[d.date_type] ?? d.date_type}</Td>
-                    <Td><Link className="text-brand" href={`/leases/${d.lease_id}`}>{d.lease.tenant_name ?? "—"}</Link><div className="text-xs text-ink-soft">{d.lease.asset_name ?? ""}</div></Td>
+                    <Td><Link className="text-brand" href={`/leases/${d.lease_id}`}>{d.lease.label}</Link><div className="text-xs text-ink-soft">{d.lease.asset_name ?? ""}</div></Td>
                     <Td><VerificationBadge status={d.verification_status} /></Td>
                     <Td className="text-xs">{d.page ? `p.${d.page}` : d.method}</Td>
                   </tr>
@@ -101,7 +100,7 @@ async function Body({ searchParams }: { searchParams: SP }) {
             <Table head={["Tenant", "Property", "Category", "Status", "Needs"]}>
               {pv.leases.slice(0, 200).map((l) => (
                 <tr key={l.id}>
-                  <Td><Link className="text-brand" href={`/leases/${l.id}`}>{l.tenant_name ?? "Tenant unknown"}</Link>{l.reference ? <div className="text-xs text-ink-soft">{l.reference}</div> : null}</Td>
+                  <Td><Link className="text-brand" href={`/leases/${l.id}`}>{l.label}</Link>{l.reference ? <div className="text-xs text-ink-soft">{l.reference}</div> : null}</Td>
                   <Td>{l.asset_name ?? "—"}{l.micro_market ? <div className="text-xs text-ink-soft">{l.micro_market}</div> : null}</Td>
                   <Td className="text-xs">{CATEGORY_LABEL[l.category as keyof typeof CATEGORY_LABEL] ?? l.category}</Td>
                   <Td><Badge>{STATUS_LABEL[l.lifecycle_status as LeaseStatus] ?? l.lifecycle_status}</Badge></Td>

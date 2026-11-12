@@ -1,0 +1,62 @@
+{
+  "durationMs": 76866,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3629
+    },
+    {
+      "caption": "Section 4, Offers and counteroffers.",
+      "ms": 11238
+    },
+    {
+      "caption": "v1 came from the landlord; v2 is the client's counter with its reason; v3 is the landlord's counter. Each version answers the one before.",
+      "ms": 17633
+    },
+    {
+      "caption": "Responses: v1 and v2 are countered; v3 is pending. An offer past its valid-until date is marked expired.",
+      "ms": 20812
+    },
+    {
+      "caption": "Changes between versions: what got better or worse from one version to the next.",
+      "ms": 24034
+    },
+    {
+      "caption": "Compare two versions as whole packages: choose v1 as A and v3 as B.",
+      "ms": 28421
+    },
+    {
+      "caption": "Compare packages.",
+      "ms": 33183
+    },
+    {
+      "caption": "The verdict. Lower headline rent alone never wins — if inputs like commencement or a discount rate are missing, it says it cannot determine.",
+      "ms": 39363
+    },
+    {
+      "caption": "Better in B, worse in B, what is missing, the assumptions and what is not modelled.",
+      "ms": 42583
+    },
+    {
+      "caption": "Record the client's answer: open Record offer / counteroffer.",
+      "ms": 45820
+    },
+    {
+      "caption": "Counter to v3, from the client, with the reason for the change.",
+      "ms": 50248
+    },
+    {
+      "caption": "Enter the terms that change. Blank stays unknown — never zero.",
+      "ms": 57339
+    },
+    {
+      "caption": "Save new version. v4 appears; v3 becomes countered.",
+      "ms": 64238
+    },
+    {
+      "caption": "Intake: paste a proposal, LOI or report. Terms are extracted for your review before anything becomes a record.",
+      "ms": 70222
+    }
+  ],
+  "bytes": 1068458
+}

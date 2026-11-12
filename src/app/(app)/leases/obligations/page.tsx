@@ -4,7 +4,7 @@ import { localDate } from "@/lib/util/time";
 import { Badge, Card, EmptyState, Input, PageHeader, Select, Table, Td } from "@/components/ui";
 import { obligationAction } from "@/modules/leases/actions";
 import { obligationTracker } from "@/modules/leases/service";
-import { Flash, LeaseTabs } from "@/modules/leases/ui";
+import { Flash } from "@/modules/leases/ui";
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
@@ -17,7 +17,6 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
   const rows = await obligationTracker({ db: ctx.db, ws: ctx.workspaceId, userId: ctx.userId }, { status: str("status") || undefined, responsible: str("responsible") || undefined });
   return (
     <div className="space-y-4">
-      <LeaseTabs active="obligations" />
       <PageHeader title="Obligation tracker" subtitle="Source-linked summaries of lease obligations. Not legal advice." />
       <Flash sp={sp} />
       <form action="/leases/obligations" className="flex flex-wrap gap-2">
@@ -31,7 +30,7 @@ export default async function Page({ searchParams }: { searchParams: SP }) {
             {rows.map((o) => (
               <tr key={o.id}>
                 <Td>{o.category.replace(/_/g, " ")}<div className="text-xs text-ink-soft">{o.description.slice(0, 140)}</div></Td>
-                <Td><Link className="text-brand" href={`/leases/${o.lease_id}#obligations`}>{o.lease?.tenant_name ?? "Lease"}</Link></Td>
+                <Td><Link className="text-brand" href={`/leases/${o.lease_id}#obligations`}>{o.lease?.label ?? "Lease"}</Link></Td>
                 <Td>{o.responsible === "unclear" ? <Badge tone="warn">unclear</Badge> : o.responsible}</Td>
                 <Td>{o.deadline ?? "—"}{o.deadline && o.deadline < today && ["open", "in_progress"].includes(o.status) ? <Badge tone="bad">overdue</Badge> : null}</Td>
                 <Td>{o.status}</Td>

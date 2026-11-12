@@ -1,0 +1,50 @@
+{
+  "durationMs": 65377,
+  "steps": [
+    {
+      "caption": "Open Buildings, then Supply.",
+      "ms": 3629
+    },
+    {
+      "caption": "Choose the Operators view.",
+      "ms": 11194
+    },
+    {
+      "caption": "NestWorks Kharadi Hub, a managed office: 140 of 600 seats available, 12 private offices, ₹11,000–14,500 a seat.",
+      "ms": 16016
+    },
+    {
+      "caption": "Its services, and extra charges listed separately — car parks and meeting rooms beyond 10 hours.",
+      "ms": 19237
+    },
+    {
+      "caption": "Brokerage terms and the date it was verified.",
+      "ms": 22506
+    },
+    {
+      "caption": "LoopDesk, a coworking centre: seats available is unknown and the top price is '?' — missing stays missing.",
+      "ms": 25870
+    },
+    {
+      "caption": "Add centre: operator, centre name and type — managed office or coworking.",
+      "ms": 29122
+    },
+    {
+      "caption": "Capacity, seats available, private offices and the price range per seat.",
+      "ms": 36323
+    },
+    {
+      "caption": "Services, amenities, brokerage, the source and when you verified it.",
+      "ms": 45876
+    },
+    {
+      "caption": "Save centre. Seats available can never be more than capacity.",
+      "ms": 53834
+    },
+    {
+      "caption": "The new centre is in the list.",
+      "ms": 58975
+    }
+  ],
+  "bytes": 687514
+}

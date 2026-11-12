@@ -1,0 +1,34 @@
+{
+  "durationMs": 39821,
+  "steps": [
+    {
+      "caption": "Open Buildings → Supply → Match and choose the Lumen Harbour Tech requirement.",
+      "ms": 3612
+    },
+    {
+      "caption": "The yellow line lists shortlisted properties that need reconfirmation, and why: stale availability, outdated pricing, missing technical details.",
+      "ms": 15073
+    },
+    {
+      "caption": "Choose what you are preparing for: a client presentation or a site visit.",
+      "ms": 18289
+    },
+    {
+      "caption": "Press Check ready to present.",
+      "ms": 21772
+    },
+    {
+      "caption": "The answer lists every option that is not ready and what to recheck. Nothing is presented until they are reconfirmed.",
+      "ms": 26842
+    },
+    {
+      "caption": "To reconfirm, call or email the landlord and update the availability with today's date and the source — the confidence goes up.",
+      "ms": 30194
+    },
+    {
+      "caption": "Old quotes stay in the history and are never used as current pricing.",
+      "ms": 33398
+    }
+  ],
+  "bytes": 708431
+}

@@ -1,0 +1,50 @@
+{
+  "durationMs": 65434,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3605
+    },
+    {
+      "caption": "Section 2 compares the three positions for each term.",
+      "ms": 11460
+    },
+    {
+      "caption": "Rent: the client requires ₹92, you recommend ₹94, the landlord proposes ₹95. Agreed stays blank — a proposal is never an agreed term.",
+      "ms": 16867
+    },
+    {
+      "caption": "Area, lock-in and duration are agreed — they were confirmed with evidence.",
+      "ms": 20095
+    },
+    {
+      "caption": "Record a position: choose whose position it is and the term.",
+      "ms": 23280
+    },
+    {
+      "caption": "The value, and the source — every position needs one.",
+      "ms": 28297
+    },
+    {
+      "caption": "Record.",
+      "ms": 35114
+    },
+    {
+      "caption": "Section 5, the point tracker: each term's value and status — proposed, under negotiation, agreed, documented, verified.",
+      "ms": 40005
+    },
+    {
+      "caption": "Agreed is not the same as documented or verified against the executed agreement. Agreeing needs evidence.",
+      "ms": 46228
+    },
+    {
+      "caption": "Mark rent-free as Agreed, with the evidence.",
+      "ms": 49714
+    },
+    {
+      "caption": "Rent-free is now agreed. An agreed value is never overwritten — a change creates a new version.",
+      "ms": 57986
+    }
+  ],
+  "bytes": 669776
+}

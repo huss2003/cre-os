@@ -23,7 +23,11 @@ const nextConfig: NextConfig = {
   // `npm run fast` on low-memory PCs skips the build-time type check (run `npx tsc --noEmit` separately). Vercel still checks.
   typescript: { ignoreBuildErrors: process.env.SKIP_TYPECHECK === "1" },
   // LinkedIn Connections.csv uploads go through a server action (up to 5 MB).
-  experimental: { serverActions: { bodySizeLimit: "6mb" } },
+  experimental: {
+    serverActions: { bodySizeLimit: "6mb" },
+    // Small build hosts (Render free) get OOM-killed with one worker per CPU.
+    ...(process.env.RENDER ? { cpus: 2, workerThreads: false } : {}),
+  },
   turbopack: {
     rules: {
       "*.css": {

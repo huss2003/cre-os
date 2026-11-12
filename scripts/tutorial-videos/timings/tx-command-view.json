@@ -1,0 +1,46 @@
+{
+  "durationMs": 44596,
+  "steps": [
+    {
+      "caption": "Open Transactions and the Lumen Harbour Tech transaction.",
+      "ms": 3606
+    },
+    {
+      "caption": "The header: name, code, type, status, current stage and links to the deal and requirement.",
+      "ms": 9841
+    },
+    {
+      "caption": "Agreed terms, with how many are still disputed.",
+      "ms": 13259
+    },
+    {
+      "caption": "Open issues, with how many are overdue and blocking.",
+      "ms": 16572
+    },
+    {
+      "caption": "Pending approvals, outstanding documents and closure blockers.",
+      "ms": 19851
+    },
+    {
+      "caption": "The red line names what is blocking right now.",
+      "ms": 23080
+    },
+    {
+      "caption": "Next actions: blocking and overdue first, each with why and when it is due.",
+      "ms": 26320
+    },
+    {
+      "caption": "Open Route to completion: every remaining step, the dependencies between items and the upcoming deadlines.",
+      "ms": 29560
+    },
+    {
+      "caption": "Each of the 16 sections below holds the detail; the timeline keeps the full history.",
+      "ms": 34637
+    },
+    {
+      "caption": "You can also ask Ask AI, for example: what is the latest agreed rent? Answers come from these records.",
+      "ms": 37885
+    }
+  ],
+  "bytes": 494382
+}

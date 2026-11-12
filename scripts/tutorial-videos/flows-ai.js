@@ -356,8 +356,9 @@ const FLOWS = [
       await t.step("Captures to review: notes and files from Capture. Open one, check it, press Reviewed.", () => t.point(main(p).getByText(/Captures to review/)));
       await t.step("Tabs split the rest. Record changes first.", () => t.moveAndClick(main(p).getByRole("link", { name: "Record changes" })));
       p.on("dialog", (d) => d.accept().catch(() => {}));
-      const req = main(p).locator("article").filter({ hasText: "Max budget" }).first();
-      const lease = main(p).locator("article").filter({ hasText: /^lease:|Area/ }).filter({ hasText: "18500" }).filter({ has: p.getByText("proposed", { exact: true }) }).first();
+      const req = main(p).locator("article").filter({ hasText: "Max budget" }).filter({ hasText: /Awaiting review/ }).first();
+      // State badges are humanised now ("Awaiting review", not "proposed"); prefer a fresh lease card over a stale/clarify one.
+      const lease = main(p).locator("article").filter({ hasText: /Update lease|Area/ }).filter({ hasText: "18500" }).filter({ hasText: /Awaiting review/ }).first();
       await t.step("Each card: the record, 'Material' tag, now vs proposed, and the evidence quote.", () => t.point(main(p).getByText("Max budget").first()));
       await t.step("'why do we believe this?' opens the source behind the proposal.", () => t.point(main(p).getByText("why do we believe this?").first()));
       await t.step("Buttons: Approve & apply, Approve only (apply later), Ask to clarify, Reject; or Edit proposed values.", () => t.point(req.getByRole("button", { name: "Approve only" })));
@@ -369,7 +370,7 @@ const FLOWS = [
         await t.type(more.getByPlaceholder(/What's missing/), "Need the signed lease page with the area", 25);
         await t.moveAndClick(more.getByRole("button", { name: "Ask", exact: true }));
       });
-      await t.step("The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.", () => t.moveAndClick(main(p).locator("article").filter({ hasText: "Max budget" }).first().getByRole("button", { name: "Approve & apply" })));
+      await t.step("The notes change (budget ₹90, move-in June 2027) looks right: Approve & apply.", () => t.moveAndClick(main(p).locator("article").filter({ hasText: "Max budget" }).filter({ hasText: /Rs 90 per sq ft/ }).filter({ hasText: /Awaiting review/ }).first().getByRole("button", { name: "Approve & apply" })));
       await t.step("Applied — it leaves the queue and appears in History & undo.", () => t.point(main(p).getByRole("link", { name: "History & undo" })));
       await t.step("Identity merges: duplicate companies, people or buildings — never merged silently.", async () => { await t.moveAndClick(main(p).getByRole("link", { name: "Identity merges" })); await sleep(800); await t.point(main(p).getByRole("link", { name: "Identity merges" })); await t.scroll(250); });
       await t.step("External drafts: outreach drafts waiting to be checked and sent by you.", async () => { await t.moveAndClick(main(p).getByRole("link", { name: "External drafts" })); await sleep(800); await t.point(main(p).getByRole("link", { name: "External drafts" })); await t.scroll(250); });
