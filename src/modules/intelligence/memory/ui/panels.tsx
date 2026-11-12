@@ -113,7 +113,7 @@ async function Extras({ ctx, entityType, entityId, rec, back, kind, facts, unkno
   return (
     <>
       {summary && !summary.error && summary.text ? (
-        <div className="rounded-lg bg-canvas p-2 text-sm"><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">AI summary{summary.mock ? " · rule-based (AI off)" : ""}</p><p className="break-words">{summary.text}</p><p className="text-xs text-ink-soft">Generated from the records below; check sources before relying on it.</p></div>
+        <div className="rounded-lg bg-canvas p-2 text-sm"><p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">{summary.aiGenerated ? `AI summary${summary.mock ? " · rule-based (AI off)" : ""}` : "Summary"}</p><p className="break-words">{summary.text}</p><p className="text-xs text-ink-soft">Generated from the records below; check sources before relying on it.</p></div>
       ) : null}
       <Sec title="Important changes" count={changes?.length ?? 0} empty={changes === null ? "Couldn't load changes — reload to retry." : "No changes detected yet."}>{changes ? <Changes xs={changes} /> : null}</Sec>
       <Sec title="Recommendations" count={recs?.length ?? 0} empty={recs === null ? "Couldn't load recommendations — reload to retry." : "No recommendations right now."}>{recs ? <Recs xs={recs} back={back} /> : null}</Sec>

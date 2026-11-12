@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
 import { sha256 } from "@/lib/util/crypto";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
 import type { AiCall } from "../common";
 import { CLAUSE_TYPES, ENGINE_VERSION, LEGAL_DISCLAIMER, compareClauses, documentRedline, exposureChecklist, extractClauses, validateClauses, type DocRef, type ExtractedClause, type SegmentOptions } from "./clauses";
 
@@ -45,23 +46,38 @@ const ClauseSchema = z.object({
   })),
 });
 
-/** Extract clauses via the gateway (luna). Mock / fallback = deterministic heading+regex extractor. Model output is validated against the source. */
-export async function extractWithGateway(workspaceId: string, text: string, ai: AiCall = callStructured as AiCall, seg: SegmentOptions = {}): Promise<{ clauses: ExtractedClause[]; method: "heuristic" | "model"; rejected: number }> {
+/** Clause types whose presence makes a heading/keyword pass trustworthy for a lease/LOI. */
+const CORE_CLAUSES = new Set(["rent", "term", "lock_in", "escalation", "deposit", "notice"]);
+/** Code's clauses are enough (no AI) when at least 2 core commercial clauses were found (or 1 in a short text). */
+export function legalAccept(text: string, clauses: ExtractedClause[]): boolean {
+  const core = new Set(clauses.filter((c) => CORE_CLAUSES.has(c.clause_type)).map((c) => c.clause_type)).size;
+  return core >= 2 || (core >= 1 && text.length < 1500);
+}
+
+/**
+ * Code first (docs/ai-policy.md, feature legal.extract): heading + keyword extractor; the gateway (luna) is called only
+ * when legalAccept fails and the workspace mode allows it. Model output is validated against the source.
+ */
+export async function extractWithGateway(workspaceId: string, text: string, ai: AiCall = callStructured as AiCall, seg: SegmentOptions = {}, mode: AiMode = "backup"): Promise<{ clauses: ExtractedClause[]; method: "heuristic" | "model"; rejected: number }> {
   const heuristic = extractClauses(text, seg);
-  try {
-    const res = await ai({
-      workspaceId, workflow: "legal.extract", tier: "luna",
-      system: "Extract lease/LOI clauses (rent, escalation, lock-in, notice, term, renewal, deposit, CAM, fit-out, possession/commencement dates, reinstatement, termination/break, indemnity, obligations, permitted use, assignment, insurance, force majeure, disputes, parking, taxes). Quote the COMPLETE source wording of each clause exactly; give line/char locators. Only report values stated in the clause. Do not give legal advice.",
-      input: "Return clauses found in the evidence document.", evidence: text.slice(0, 60_000),
-      schema: ClauseSchema, schemaName: "clauses", maxOutputTokens: 4000, mock: () => ({ clauses: heuristic }),
-    });
-    if (res.mocked) return { clauses: heuristic, method: "heuristic", rejected: 0 };
-    const v = validateClauses(text, res.data.clauses as ExtractedClause[], seg);
-    return v.clauses.length ? { clauses: v.clauses, method: "model", rejected: v.rejected.length } : { clauses: heuristic, method: "heuristic", rejected: v.rejected.length };
-  } catch (e) {
-    if (e instanceof AiUnavailableError) return { clauses: heuristic, method: "heuristic", rejected: 0 };
-    throw e;
-  }
+  type R = { clauses: ExtractedClause[]; method: "heuristic" | "model"; rejected: number };
+  const code = (): R => ({ clauses: heuristic, method: "heuristic", rejected: 0 });
+  const out = await runWithPolicy<R>({
+    mode, code, accept: (r) => legalAccept(text, r.clauses),
+    ai: async () => {
+      const res = await ai({
+        workspaceId, workflow: "legal.extract", tier: "luna",
+        system: "Extract lease/LOI clauses (rent, escalation, lock-in, notice, term, renewal, deposit, CAM, fit-out, possession/commencement dates, reinstatement, termination/break, indemnity, obligations, permitted use, assignment, insurance, force majeure, disputes, parking, taxes). Quote the COMPLETE source wording of each clause exactly; give line/char locators. Only report values stated in the clause. Do not give legal advice.",
+        input: "Return clauses found in the evidence document.", evidence: text.slice(0, 60_000),
+        schema: ClauseSchema, schemaName: "clauses", maxOutputTokens: 4000, mock: () => ({ clauses: heuristic }),
+      });
+      if (res.mocked) return code();
+      const v = validateClauses(text, res.data.clauses as ExtractedClause[], seg);
+      return v.clauses.length ? { clauses: v.clauses, method: "model", rejected: v.rejected.length } : { clauses: heuristic, method: "heuristic", rejected: v.rejected.length };
+    },
+  });
+  if (out.aiError && !(out.aiError instanceof AiUnavailableError) && (out.aiError as { reason?: string })?.reason !== "ai_disabled" && mode === "on") throw out.aiError;
+  return out.value ?? code();
 }
 
 export function familyKeyFor(title: string, explicit?: string | null): string {
@@ -97,7 +113,8 @@ export async function addLegalDocument(db: Db, workspaceId: string, raw: z.input
   if (error) throw error;
   if (ocrNeeded) return { document: doc, duplicate: false, clauseCount: 0, method: "heuristic" as const, ocrNeeded: true };
   const seg: SegmentOptions = { paged: opts.file?.fileKind === "pdf" };
-  const { clauses, method } = await extractWithGateway(workspaceId, input.text, opts.ai, seg);
+  const mode = await getAiMode(db, workspaceId, "legal.extract");
+  const { clauses, method } = await extractWithGateway(workspaceId, input.text, opts.ai, seg, mode);
   if (clauses.length) {
     const { error: e2 } = await db.from("clause_extract").insert(clauses.map((c) => ({
       workspace_id: workspaceId, document_id: doc.id, clause_type: c.clause_type, heading: c.heading, clause_text: c.clause_text, locator: c.locator,

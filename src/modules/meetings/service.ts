@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
 import { proposeChange } from "@/lib/services/changes";
 import { contactValueHash } from "@/lib/services/drafts";
 import * as R from "./rules";
@@ -256,7 +257,7 @@ function factsFrom(x: Intel): { company: Item[]; history: Item[]; unknowns: stri
   return { company: c, history: h, unknowns: u };
 }
 
-export async function generateBrief(db: Db, ws: string, userId: string, prepId: string, ai: Ai = callStructured) {
+export async function generateBrief(db: Db, ws: string, userId: string, prepId: string, ai: Ai = callStructured, mode?: AiMode) {
   await db.from("meeting_prep").update({ status: "researching", brief_error: null }).eq("id", prepId);
   try {
     const x = await gather(db, ws, prepId);
@@ -280,25 +281,34 @@ export async function generateBrief(db: Db, ws: string, userId: string, prepId: 
       `Objection bank to adapt (speculative, not said by attendees): ${objBank.map((o) => o.objection).join("; ")}.`,
       `Desired outcome template: ${t.outcome}`,
     ].join("\n\n");
+    const missingReq = x.requirement ? ([["seats_target", "seats"], ["area_target_sf", "area"], ["budget_max", "budget"], ["occupation_date", "move-in date"]] as const).filter(([k]) => x.requirement![k] == null).map(([, l]) => l) : ["area", "seats", "budget", "move-in date", "decision process"];
     const mock = (): BriefGen => ({
       purpose: { why: x.prep.purpose ?? t.purpose, trigger: x.signals[0] ? `${x.signals[0].title}${x.signals[0].verification === "fact" ? "" : " (reported)"}` : x.leases.length ? "Upcoming lease events on record" : "No specific trigger on record", they_may_want: x.requirement ? "Options that fit their stated requirement" : "To understand what the market offers — unconfirmed", we_want: t.outcome },
       company_summary: f.company.slice(0, 5).map((c) => ({ text: c.text, kind: c.kind as "fact" })),
       attendee_notes: x.attendees.map((a) => ({ name: a.name, why_matters: a.role === "unknown" ? `${a.title ?? "Role"} — decision role not yet known; confirm in the meeting.` : `${a.title ?? ""} — recorded as ${a.role.replace(/_/g, " ")}.` })),
       strategy: [
-        { stage: "opening", point: x.interactions.length ? "Recap the last conversation and confirm today's agenda" : "Introduce yourself briefly and agree the meeting's purpose", why: "Sets a shared objective", obtain: "Their priorities for today", outcome: "Agreed agenda" },
-        { stage: "discovery", point: "Ask the essential questions before presenting anything", why: "Avoids pitching the wrong options", obtain: "Area, timing, budget, decision process", outcome: "Clear requirement picture" },
+        { stage: "opening", point: x.interactions.length
+            ? `Recap the ${x.interactions[x.interactions.length - 1].occurred_at.slice(0, 10)} ${x.interactions[x.interactions.length - 1].channel}${commitments.length ? ` and report back on: ${commitments.slice(-2).map((c) => c.text).join("; ")}` : ""}, then confirm today's agenda`.slice(0, 300)
+            : "Introduce yourself briefly and agree the meeting's purpose", why: commitments.length ? "Closing open promises first builds trust" : "Sets a shared objective", obtain: "Their priorities for today", outcome: "Agreed agenda" },
+        { stage: "discovery", point: missingReq.length ? `Confirm what is still unknown: ${missingReq.join(", ")}` : "Check the recorded requirement is still current before presenting anything", why: "Avoids pitching the wrong options", obtain: missingReq.length ? missingReq.join(", ") : "Any change to area, timing or budget", outcome: "Clear requirement picture" },
         { stage: "value", point: "Share relevant market context for their micro-market", why: "Shows expertise without pressure", obtain: "Reaction to market levels", outcome: "Credibility" },
         { stage: "discussion", point: x.properties.length ? "Walk through matches and gaps per property" : "Discuss options at a high level", why: "Ties options to their needs", obtain: "Preferences and deal-breakers", outcome: "Shortlist direction" },
         { stage: "closing", point: "Agree one concrete next step with a date", why: "Keeps momentum", obtain: "Owner and date", outcome: t.outcome },
       ],
-      avoid: ["Assuming they need space because of a reported signal", "Quoting unverified availability as confirmed"],
+      avoid: [
+        "Assuming they need space because of a reported signal", "Quoting unverified availability as confirmed",
+        ...objectionsRaised.slice(-2).map((o) => `Re-pitching without addressing their earlier concern (${o.date}): ${o.text}`.slice(0, 240)),
+        ...x.properties.filter((pp) => !pp.verified).slice(0, 1).map((pp) => `Presenting ${pp.name} as available before availability is verified`),
+      ],
       objections: objBank,
       outcome: { ideal: t.outcome, acceptable: ["A follow-up call booked", "Permission to send a short market note"] },
       next_steps: ["Send a meeting follow-up with agreed actions", "Update the requirement with anything confirmed", "Create tasks for our commitments"],
     });
-    const r = await ai({ workspaceId: ws, workflow: "meetings.brief", tier: "luna", schema: Gen, schemaName: "meeting_brief", maxOutputTokens: 3000, classification: "corporate_confidential", mock,
+    const pol = await runWithPolicy<{ data: BriefGen; model: string; mocked: boolean }>({ mode: mode ?? await getAiMode(db, ws, "meetings.brief"), code: () => ({ data: mock(), model: "rules", mocked: false }), ai: () => ai({ workspaceId: ws, workflow: "meetings.brief", tier: "luna", schema: Gen, schemaName: "meeting_brief", maxOutputTokens: 3000, classification: "corporate_confidential", mock,
       system: "You prepare a commercial real-estate adviser (Pune, India) for a meeting. Use ONLY the facts given. Never invent past conversations, commitments, attendee authority or property availability. Reported signals are inferences, not needs. Objections are anticipated possibilities, never things the attendee said. No manipulative tactics. Keep each item one or two sentences.",
-      input });
+      input }) });
+    if (!pol.value) throw pol.aiError ?? new Error("Brief generation failed");
+    const r = pol.value;
     const g = r.data;
     const content = {
       generated_at: new Date().toISOString(), model: r.model, type: x.prep.meeting_type,
@@ -502,7 +512,7 @@ export function mockOutcome(all: string, ctx: { properties: string[]; attendees:
     clarifications_needed: clar, contact_updates, company_notes: [], new_stakeholders,
   };
 }
-export async function structureOutcome(db: Db, ws: string, userId: string, prepId: string, text: string, ai: Ai = callStructured) {
+export async function structureOutcome(db: Db, ws: string, userId: string, prepId: string, text: string, ai: Ai = callStructured, mode?: AiMode) {
   const { data: p } = await db.from("meeting_prep").select("asset_ids, meeting:meeting_visit_id(start_at), meeting_prep_attendee(raw_name, person:person_id(full_name))").eq("workspace_id", ws).eq("id", prepId).maybeSingle();
   if (!p) throw new MeetingError("Meeting not found.");
   const startAt = (p.meeting as Row | null)?.start_at as string | undefined;
@@ -518,7 +528,8 @@ export async function structureOutcome(db: Db, ws: string, userId: string, prepI
   if (!all.trim() && !feedback.length) throw new MeetingError("Add notes first.");
   const attendees = ((p.meeting_prep_attendee ?? []) as Row[]).map((a) => a.person?.full_name ?? a.raw_name).filter(Boolean) as string[];
   const evidence = [all, feedback.length ? `Structured site-visit feedback (entered by the adviser):\n${feedback.map((f) => `- ${f.text}`).join("\n")}` : ""].filter(Boolean).join("\n\n");
-  const r = await ai({ workspaceId: ws, workflow: "meetings.outcome", tier: "luna", schema: Out, schemaName: "meeting_outcome", maxOutputTokens: 2500,
+  const codeOut = () => mockOutcome(evidence, { properties: ((assets ?? []) as Row[]).map((a) => a.name), attendees, feedback, meetingDate });
+  const pol = await runWithPolicy<{ data: Outcome }>({ mode: mode ?? await getAiMode(db, ws, "meetings.brief"), code: () => ({ data: codeOut() }), ai: () => ai({ workspaceId: ws, workflow: "meetings.outcome", tier: "luna", schema: Out, schemaName: "meeting_outcome", maxOutputTokens: 2500,
     system: [
       "Structure a commercial real-estate adviser's meeting notes (Pune, India).",
       "Notes may be in English, Hindi (Devanagari) or Hinglish (Hindi in Latin script mixed with English, e.g. 'unko 300 seats chahiye', 'Baner wala pasand nahi aaya'). Understand all three; write summary and fields in English; keep every quote verbatim in the original language.",
@@ -529,7 +540,9 @@ export async function structureOutcome(db: Db, ws: string, userId: string, prepI
       "confidence_notes: short notes on what is uncertain.",
     ].join(" "),
     input: `Meeting date (IST): ${meetingDate} — resolve "by Friday"/"within nine months" relative to it; commitments by a client attendee are who "them". Lease tenure goes in requirement_updates as lease_tenure_months. Structure these notes. Attendees on record: ${attendees.join(", ") || "none"}. Properties discussed: ${((assets ?? []) as Row[]).map((a) => a.name).join(", ") || "none"}.`, evidence,
-    mock: () => mockOutcome(evidence, { properties: ((assets ?? []) as Row[]).map((a) => a.name), attendees, feedback, meetingDate }) });
+    mock: codeOut }) });
+  if (!pol.value) throw pol.aiError ?? new MeetingError("Could not structure the notes.");
+  const r = pol.value;
   await db.from("meeting_prep").update({ outcome: { proposed: r.data, notes_text: text.slice(0, 8000), structured_at: new Date().toISOString(), applied: null, clarifications: {} } }).eq("id", prepId);
   return r.data;
 }

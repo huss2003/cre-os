@@ -123,7 +123,13 @@ export async function findDuplicates(db: Client, ws: string, table: EntityTable,
     const form = legalForm(row.legal_name ?? row.display_name);
     const first = key.split(" ")[0];
     if (first) {
-      const { data } = await db.from("organisation").select("id, display_name, legal_name").eq("workspace_id", ws).is("archived_at", null).ilike("display_name", `%${first}%`).limit(200);
+      // Narrow by every word of the normalised name (not just the first), so a common first word can't push the match out of the result cap.
+      const pattern = `%${key.split(" ").filter(Boolean).map((w) => w.replace(/[%_\\]/g, "")).join("%")}%`;
+      const [{ data: d1 }, { data: d2 }] = await Promise.all([
+        db.from("organisation").select("id, display_name, legal_name").eq("workspace_id", ws).is("archived_at", null).ilike("display_name", pattern).order("created_at", { ascending: true }).limit(200),
+        db.from("organisation").select("id, display_name, legal_name").eq("workspace_id", ws).is("archived_at", null).ilike("legal_name", pattern).order("created_at", { ascending: true }).limit(200),
+      ]);
+      const data = [...(d1 ?? []), ...(d2 ?? [])];
       for (const o of data ?? []) {
         for (const n of [o.display_name, o.legal_name]) {
           if (!n || orgNameKey(n) !== key) continue;

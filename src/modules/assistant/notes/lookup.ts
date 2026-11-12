@@ -6,7 +6,7 @@
 import { format } from "date-fns";
 import { containsLike } from "@/lib/util/like";
 
-export type LookupKind = "company" | "requirement" | "meeting" | "person";
+export type LookupKind = "company" | "requirement" | "meeting" | "person" | "lease" | "transaction";
 export interface LookupItem { id: string; label: string; context?: string; orgId?: string | null }
 export interface LookupCtx { db: any; workspaceId: string }
 
@@ -27,6 +27,16 @@ const PERSON_SEL = "id, full_name, employment(title, is_current, archived_at, or
 function reqItem(r: any): LookupItem {
   const org = one(r.org) as any;
   return { id: r.id, label: r.title || `${org?.display_name ?? "Company"} requirement`, context: [org?.display_name, r.status?.replace(/_/g, " ")].filter(Boolean).join(" · "), orgId: r.org_id ?? null };
+}
+
+const LEASE_SEL = "id, tenant_name_raw, tenant_org_id, contractual_expiry, org:tenant_org_id(display_name), asset:asset_id(name)";
+function leaseItem(l: any): LookupItem {
+  const org = one(l.org) as any; const asset = one(l.asset) as any;
+  return { id: l.id, label: `${l.tenant_name_raw || org?.display_name || "Lease"}${asset?.name ? ` — ${asset.name}` : ""}`, context: l.contractual_expiry ? `Expiry ${l.contractual_expiry}` : undefined, orgId: l.tenant_org_id ?? null };
+}
+const TX_SEL = "id, code, name, status, client_org_id";
+function txItem(t: any): LookupItem {
+  return { id: t.id, label: `${t.code}${t.name ? ` — ${t.name}` : ""}`, context: t.status ? String(t.status).replace(/_/g, " ") : undefined, orgId: t.client_org_id ?? null };
 }
 
 /** Search one entity kind. `q` needs 2+ characters, except requirements scoped to a company (lists its open ones). */
@@ -62,6 +72,28 @@ export async function lookupEntities(c: LookupCtx, kind: LookupKind, q: string, 
     if (error) throw error;
     return (data ?? []).map(personItem);
   }
+  if (kind === "lease") {
+    if (term.length < 2) return [];
+    // tenant name on the lease, the tenant company, or the building
+    const [{ data: orgs }, { data: assets }] = await Promise.all([
+      c.db.from("organisation").select("id").eq("workspace_id", c.workspaceId).ilike("display_name", containsLike(term)).limit(50),
+      c.db.from("asset").select("id").eq("workspace_id", c.workspaceId).ilike("name", containsLike(term)).limit(50),
+    ]);
+    const ors = [`tenant_name_raw.ilike.%${term}%`];
+    if (orgs?.length) ors.push(`tenant_org_id.in.(${orgs.map((o: any) => o.id).join(",")})`);
+    if (assets?.length) ors.push(`asset_id.in.(${assets.map((a: any) => a.id).join(",")})`);
+    const { data, error } = await c.db.from("lease").select(LEASE_SEL).eq("workspace_id", c.workspaceId).is("archived_at", null)
+      .or(ors.join(",")).order("updated_at", { ascending: false }).order("id").limit(limit);
+    if (error) throw error;
+    return (data ?? []).map(leaseItem);
+  }
+  if (kind === "transaction") {
+    if (term.length < 2) return [];
+    const { data, error } = await c.db.from("tx_transaction").select(TX_SEL).eq("workspace_id", c.workspaceId).is("archived_at", null)
+      .or(`code.ilike.%${term}%,name.ilike.%${term}%`).order("updated_at", { ascending: false }).order("id").limit(limit);
+    if (error) throw error;
+    return (data ?? []).map(txItem);
+  }
   // meetings: meeting_visit title (+ prep's company), newest first
   if (term.length < 2) return [];
   const { data, error } = await c.db.from("meeting_visit").select("id, title, start_at, linked_entity_type, linked_entity_id")
@@ -84,6 +116,14 @@ export async function lookupById(c: LookupCtx, kind: LookupKind, id: string): Pr
   if (kind === "person") {
     const { data } = await c.db.from("person").select(PERSON_SEL).eq("workspace_id", c.workspaceId).eq("id", id).maybeSingle();
     return data ? personItem(data) : null;
+  }
+  if (kind === "lease") {
+    const { data } = await c.db.from("lease").select(LEASE_SEL).eq("workspace_id", c.workspaceId).eq("id", id).maybeSingle();
+    return data ? leaseItem(data) : null;
+  }
+  if (kind === "transaction") {
+    const { data } = await c.db.from("tx_transaction").select(TX_SEL).eq("workspace_id", c.workspaceId).eq("id", id).maybeSingle();
+    return data ? txItem(data) : null;
   }
   const { data: m } = await c.db.from("meeting_visit").select("id, title, start_at").eq("workspace_id", c.workspaceId).eq("id", id).maybeSingle();
   if (m) return { id: m.id, label: m.title || "Untitled meeting", context: when(m.start_at) };

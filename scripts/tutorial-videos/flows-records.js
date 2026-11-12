@@ -299,7 +299,7 @@ const FLOWS = [
     },
   },
   {
-    slug: "deal-pipeline", category: "Records & data", title: "Move a deal through stages",
+    slug: "deal-pipeline-v2", category: "Records & data", title: "Move a deal through stages",
     learn: "Move an opportunity to its next stage with a reason, and see what blocks a stage (an unconfirmed requirement, checklist items).", tryRoute: "/deals",
     async run(t) {
       const p = t.page;
@@ -333,19 +333,19 @@ const FLOWS = [
       await t.step("Open the requirement to confirm its facts with the client first.", () => t.moveAndClick(main(p).getByRole("link", { name: DEAL }).first()));
       await say(t, "Client confirmation lists what the client still has to confirm.", main(p).getByText("Client confirmation").first());
       await t.step("Changes from captures, imports or the official CRM wait in Review for your OK.", () => t.moveAndClick(navLink(p, "Review")));
-      await t.outro("moved a deal to its next stage with evidence and saw what can block a stage.", "check the lease radar.");
+      await t.outro("moved a deal to its next stage with evidence and saw what can block a stage.", "check lease dates under Leases.");
     },
   },
   {
-    slug: "lease-radar", category: "Records & data", title: "Lease radar: expiries, lock-ins and notice deadlines",
-    learn: "See which leases expire soon, when lock-ins end and by when notice must be given.", tryRoute: "/leases",
+    slug: "lease-radar-v2", category: "Records & data", title: "Lease radar tab: expiries, lock-ins and notice deadlines",
+    learn: "See which leases expire soon, when lock-ins end and by when notice must be given.", tryRoute: "/leases/radar",
     async run(t) {
       const p = t.page;
       await t.goto("/today");
       await t.title("Lease radar", "Upcoming expiries, lock-ins and notice deadlines — the moments to call a client.");
-      await t.step("Open More in the sidebar, then Lease radar.", async () => {
-        await t.moveAndClick(nav(p).getByRole("button", { name: /More/ }));
-        await t.moveAndClick(navLink(p, "Lease radar"));
+      await t.step("Open Leases (under Work), then the Radar tab.", async () => {
+        await t.moveAndClick(navLink(p, "Leases"));
+        await t.moveAndClick(p.getByRole("link", { name: "Radar", exact: true }).filter({ visible: true }).first());
       });
       await say(t, "Verified dates come from the lease; 'calculated by radar' dates are formulas, never treated as verified.", main(p).getByText(/Contractual \/ confirmed dates/));
       await say(t, "Buckets: needs review, notice in 90 days, expiring in 0–3, 3–12, 12–24 months…", main(p).getByRole("link", { name: /Expiring in 3–12 months/ }));
@@ -360,7 +360,7 @@ const FLOWS = [
         await t.type(main(p).getByPlaceholder("Tenant, building or landlord"), "Zentrix"); await p.keyboard.press("Enter");
       });
       await say(t, "Click the tenant to open the company and act on it.", main(p).getByRole("link", { name: "Zentrix Analytics" }).first());
-      await t.outro("checked upcoming expiries, lock-ins and notice deadlines.", "search everything.");
+      await t.outro("checked upcoming expiries, lock-ins and notice deadlines on the Radar tab.", "the Leases dashboard video, or search everything.");
     },
   },
   {

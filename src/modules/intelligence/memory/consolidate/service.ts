@@ -6,6 +6,7 @@
 import "server-only";
 import { z } from "zod";
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
 import type { MemCtx, Row, SourceRef } from "../types";
 import { commitmentsFrom, interactionsFor, interactionSource, objectionsFrom, q } from "../data";
 import { consolidate, consolidateMeetingNotes, kindOf, type Obs, type NoteIn } from "./consolidate";
@@ -58,7 +59,7 @@ export async function consolidateEntity(ctx: MemCtx, s: Scope) {
 }
 
 /** Meeting notes of a company / contact consolidated (§17.18). Originals and links kept; optional AI summary is labelled. */
-export async function consolidateMeetings(ctx: MemCtx, s: Scope, opts: { ai?: boolean } = {}) {
+export async function consolidateMeetings(ctx: MemCtx, s: Scope, opts: { ai?: boolean; mode?: AiMode } = {}) {
   const ws = ctx.workspaceId;
   const ints = [
     ...(s.orgId ? await interactionsFor(ctx, "organisation", [s.orgId]) : []),
@@ -80,15 +81,28 @@ export async function consolidateMeetings(ctx: MemCtx, s: Scope, opts: { ai?: bo
   }
   const c = consolidateMeetingNotes(notes);
   const facts = consolidate((await loadObservations(ctx, s)));
-  let summary: { text: string; aiGenerated: true; model: string; mock: boolean } | null = null;
+  let summary: { text: string; aiGenerated: boolean; source: "code" | "ai"; model: string; mock: boolean } | null = null;
   if (opts.ai && notes.length) {
     const Out = z.object({ summary: z.string().max(1500) });
-    const r = await callStructured({ workspaceId: ws, workflow: "intelligence.memory_consolidate", tier: "luna", schema: Out, schemaName: "consolidated_history", maxOutputTokens: 600,
+    const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    const code = () => {
+      const latest = c.timeline[c.timeline.length - 1];
+      const parts = [`${plural(notes.length, "meeting note")} from ${c.from?.slice(0, 10)} to ${c.to?.slice(0, 10)}.`];
+      if (c.commitments.length) parts.push(`${plural(c.commitments.length, "commitment")} recorded${c.commitments[0] ? `, e.g. “${String(c.commitments[0].text).slice(0, 100)}”` : ""}.`);
+      if (c.objections.length) parts.push(`${plural(c.objections.length, "objection")} raised${c.objections[0] ? `, e.g. “${String(c.objections[0].text).slice(0, 100)}”` : ""}.`);
+      const rec = facts.recurring.filter((i) => i.kind === "preference");
+      if (rec.length) parts.push(`Recurring preferences (not confirmed requirements): ${rec.slice(0, 3).map((i) => String((i as Row).text ?? (i as Row).value ?? (i as Row).label ?? "")).filter(Boolean).join("; ") || plural(rec.length, "item")}.`);
+      if (latest) parts.push(`Latest: ${latest.title}${latest.excerpt ? ` — ${String(latest.excerpt).slice(0, 140)}` : ""}.`);
+      return { summary: parts.join(" ").slice(0, 1500) };
+    };
+    let meta = { model: "rules", mock: false };
+    const pol = await runWithPolicy({ mode: opts.mode ?? await getAiMode(ctx.db, ws, "intelligence.memory"), code, ai: async () => { const r = await callStructured({ workspaceId: ws, workflow: "intelligence.memory_consolidate", tier: "luna", schema: Out, schemaName: "consolidated_history", maxOutputTokens: 600,
       system: "Summarise a commercial-real-estate relationship history from the meeting notes provided as evidence. Use only the evidence; never invent conversations, commitments or preferences; say 'unknown' where the notes are silent; recurring preferences are preferences, not confirmed requirements.",
       input: `Summarise ${notes.length} meeting notes from ${c.from?.slice(0, 10)} to ${c.to?.slice(0, 10)} in at most 6 short sentences.`,
       evidence: c.timeline.map((t) => `${t.at.slice(0, 10)} ${t.title}: ${t.excerpt}`).join("\n"),
-      mock: () => ({ summary: `${notes.length} meeting note${notes.length === 1 ? "" : "s"} from ${c.from?.slice(0, 10)} to ${c.to?.slice(0, 10)}. ${c.commitments.length} commitment${c.commitments.length === 1 ? "" : "s"} and ${c.objections.length} objection${c.objections.length === 1 ? "" : "s"} recorded. Latest: ${c.timeline[c.timeline.length - 1]?.title ?? "—"}.` }) });
-    summary = { text: r.data.summary, aiGenerated: true, model: r.model, mock: r.mocked };
+      mock: code }); meta = { model: r.model, mock: r.mocked }; return r.data; } });
+    const v = pol.value ?? code();
+    summary = pol.source === "ai" ? { text: v.summary, aiGenerated: true, source: "ai", model: meta.model, mock: meta.mock } : { text: v.summary, aiGenerated: false, source: "code", model: "rules", mock: false };
   }
   return { ...c, recurringPreferences: facts.recurring.filter((i) => i.kind === "preference"), repeatedObjections: facts.items.filter((i) => i.kind === "objection" && i.recurring), conflicts: facts.conflicts, summary,
     sources: notes.map((n) => n.source) as SourceRef[] };

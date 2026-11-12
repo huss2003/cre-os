@@ -22,6 +22,10 @@ export async function affectedOrgs(db: Db, ws: string, entity: string, id: strin
     const { data } = await db.from("lease").select("tenant_org_id, landlord_org_id").eq("workspace_id", ws).eq("id", id).maybeSingle();
     return [data?.tenant_org_id, data?.landlord_org_id].filter(Boolean) as string[];
   }
+  if (entity === "transaction") {
+    const { data } = await db.from("tx_transaction").select("client_org_id").eq("workspace_id", ws).eq("id", id).maybeSingle();
+    return [data?.client_org_id].filter(Boolean) as string[];
+  }
   if (entity === "person") {
     const { data } = await db.from("employment").select("org_id").eq("workspace_id", ws).eq("person_id", id).eq("is_current", true).limit(10);
     return [...new Set(((data ?? []) as Row[]).map((e) => e.org_id).filter(Boolean))];
@@ -32,7 +36,7 @@ export async function affectedOrgs(db: Db, ws: string, entity: string, id: strin
 registerWorkflow({
   key: RECORD_CHANGED, name: "New or changed record — update dependants", module: "orchestrator",
   description: "When a company, contact, contact detail or lease is added or changed: re-scores the affected companies (Scoring Engine) and flags analyses that used a changed lease for refresh. Skips when nothing depends on it.",
-  trigger: { type: "event", events: ["company.created", "company.updated", "contact.created", "contact.info_added", "lease.created", "lease.changed"] },
+  trigger: { type: "event", events: ["company.created", "company.updated", "contact.created", "contact.info_added", "lease.created", "lease.changed", "transaction.stage_changed", "transaction.material_term_changed", "transaction.executed", "transaction.approval_pending", "transaction.issue_overdue"] },
   priority: 45, timeoutMs: 15 * 60_000, inputs: ["entity", "entityId", "eventType", "changed", "eventId"],
   steps: [
     { key: "identify", label: "Find affected companies", module: "database", run: async (c) => {

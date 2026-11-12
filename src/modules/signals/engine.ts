@@ -3,7 +3,7 @@
  * confidence, priority (configurable weights, reasons always shown) and next-action generation.
  * Rule S5/S6: no arithmetic by a model, unknown stays unknown, no invented area / budget / move-in date.
  */
-export const RULE_VERSION = "signals-1";
+export const RULE_VERSION = "signals-2";
 
 export type Category = "expansion" | "restructuring" | "lease" | "commercial" | "leadership" | "infrastructure" | "macro";
 export type Confidence = "high" | "medium" | "low" | "insufficient";
@@ -79,6 +79,14 @@ export function leaseSignal(e: LeaseEventIn, today: string): LeaseSignalSpec | n
 export interface CounterInput {
   category: Category; kind: string; texts: string[]; focusCities: string[]; sourceCount: number;
   latestEvidenceOn: string | null; today: string; hasOccupancyInFocus: boolean; personFunction?: string | null;
+  /** Independent evidence groups among the sources (repeats of one announcement count once). */
+  independentCount?: number;
+  /** Lease-derived signal whose lease event is past or superseded. */
+  leaseOutdated?: boolean;
+  /** Commercial signal whose compared availability is no longer available. */
+  propertyUnavailable?: boolean;
+  /** Infrastructure signal with no recorded property / occupier in the affected micro-market. */
+  infraNoTarget?: boolean;
 }
 const REMOTE = /\b(remote(?:ly)?|remote[- ]first|work(?:ing)? from home|wfh|hybrid[- ]remote|distributed team)\b/i;
 const EXISTING = /\b(existing (?:office|campus|facility|premises|centre|center)|current (?:office|campus|premises))\b/i;
@@ -110,7 +118,12 @@ export function counterEvidence(i: CounterInput): string[] {
   if (i.category === "restructuring" && /layoff|workforce|reduction/.test(i.kind + all.toLowerCase()))
     out.push("Workforce reductions do not automatically mean office-space reduction.");
   if (i.category === "expansion" && i.hasOccupancyInFocus) out.push("Company already occupies space in the focus market; spare capacity is unverified.");
-  if (i.sourceCount > 1) out.push(`${i.sourceCount} sources may all refer to one announcement — counted once.`);
+  if (i.sourceCount > 1 && (i.independentCount ?? i.sourceCount) < i.sourceCount)
+    out.push(`${i.sourceCount} sources refer to ${i.independentCount ?? 1} underlying announcement${(i.independentCount ?? 1) === 1 ? "" : "s"} — repeats are not independent confirmation.`);
+  else if (i.sourceCount > 1 && i.independentCount == null) out.push(`${i.sourceCount} sources may all refer to one announcement — counted once.`);
+  if (i.leaseOutdated) out.push("The lease event is outdated (date passed) — the lease may already have been renewed, extended or vacated.");
+  if (i.propertyUnavailable) out.push("The compared property is no longer listed as available.");
+  if (i.infraNoTarget) out.push("No recorded property or occupier in the affected micro-market — the development may have no material effect on your targets.");
   if (i.latestEvidenceOn && daysBetween(i.latestEvidenceOn, i.today) > 180) out.push(`Latest evidence is from ${i.latestEvidenceOn} (over 6 months old).`);
   if (i.category === "leadership" && i.personFunction != null && !CRE_ROLE.test(i.personFunction))
     out.push("The role may not influence real-estate decisions.");
@@ -153,6 +166,8 @@ const RELEVANCE: Record<Category, number> = { lease: 1, expansion: 0.9, restruct
 export interface PriorityInput {
   category: Category; daysAway: number | null; confidence: Confidence; inFocusGeo: boolean; hasContact: boolean;
   hasOpenOpportunity: boolean; hasRequirement: boolean; leaseWithin18m: boolean; freshnessDays: number | null; needsVerification: boolean;
+  /** Counter-evidence items recorded against the signal (pasted or added by a user) — each lowers priority. */
+  counterItems?: number;
 }
 export function priorityOf(p: PriorityInput, w: PriorityWeights = DEFAULT_WEIGHTS): { score: number; band: Band; reasons: string[] } {
   const r: string[] = [];
@@ -170,6 +185,7 @@ export function priorityOf(p: PriorityInput, w: PriorityWeights = DEFAULT_WEIGHT
   if (com > 0) { s += w.commercial * com; r.push(`Commercial context: ${[p.leaseWithin18m && "lease event ≤18 months", p.hasRequirement && "requirement", p.hasOpenOpportunity && "open deal"].filter(Boolean).join(", ")} (+${Math.round(w.commercial * com)}).`); }
   if (p.freshnessDays != null && p.freshnessDays <= 30) { s += w.freshness; r.push(`Fresh evidence (+${w.freshness}).`); }
   if (p.needsVerification) { s -= w.verificationPenalty; r.push(`Needs verification (−${w.verificationPenalty}).`); }
+  if (p.counterItems && p.counterItems > 0) { const pen = Math.min(30, 12 * p.counterItems); s -= pen; r.push(`Counter-evidence recorded (−${pen}).`); }
   const score = Math.max(0, Math.min(100, Math.round(s)));
   let band: Band = score >= w.highAt ? "high" : score >= w.mediumAt ? "medium" : "low";
   // Evidence strength alone never makes a signal high priority: needs timing, access or commercial context too.
@@ -204,7 +220,10 @@ export function missingInfo(category: Category, c: ContextFacts): string[] {
   }
   if (!c.hasLease && category !== "macro" && category !== "infrastructure") m.push("No lease on record.");
   if (!c.hasContact && category !== "macro" && category !== "infrastructure") m.push("No real-estate / facilities contact on record.");
-  if (category === "commercial") m.push("Comparable rent basis (carpet vs chargeable, warm-shell vs fitted) to be confirmed.");
+  if (category === "commercial") m.push("Comparable rent basis (carpet vs chargeable, warm-shell vs fitted) to be confirmed.",
+    "CAM, deposit, escalation, rent-free and fit-out on both sides (total occupancy cost).", "Required area, configuration and amenities.", "Relocation / exit costs and lease constraints (lock-in, notice).");
+  if (category === "infrastructure") m.push("Confirmed status vs forecast (completion date, approvals) to be verified.", "Which recorded properties / occupiers are affected.");
+  if (category === "leadership") m.push("Employment change unverified until confirmed — record stays an observation.", "The person's actual responsibility for real-estate decisions.");
   return m;
 }
 

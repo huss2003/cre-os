@@ -178,3 +178,33 @@ export function MoreFields({ children, label = "More details (optional)" }: { ch
     </details>
   );
 }
+
+/**
+ * Subtle loading placeholder shaped like the page it stands in for (no bare "Loading…" flash).
+ * `list` = header + rows (queues, tables); `detail` = header + summary card + sections; `cards` = card grid.
+ */
+export function Skeleton({ variant = "list", rows = 4, label = "Loading" }: { variant?: "list" | "detail" | "cards"; rows?: number; label?: string }) {
+  const bar = "rounded bg-line/60";
+  return (
+    <div role="status" aria-busy="true" aria-live="polite" className="animate-pulse space-y-4 motion-reduce:animate-none">
+      <span className="sr-only">{label}…</span>
+      <div aria-hidden className="space-y-2"><div className={`h-6 w-48 ${bar}`} /><div className={`h-4 w-72 max-w-full ${bar} opacity-70`} /></div>
+      {variant === "cards" ? (
+        <div aria-hidden className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: Math.max(rows, 3) }, (_, i) => <div key={i} className="h-28 rounded-xl border border-line bg-surface" />)}
+        </div>
+      ) : variant === "detail" ? (
+        <div aria-hidden className="space-y-3">
+          <div className="space-y-2 rounded-xl border border-line bg-surface p-4"><div className={`h-4 w-1/3 ${bar}`} /><div className={`h-3 w-2/3 ${bar} opacity-70`} /><div className={`h-3 w-1/2 ${bar} opacity-70`} /></div>
+          {Array.from({ length: Math.max(1, rows - 2) }, (_, i) => <div key={i} className="h-32 rounded-xl border border-line bg-surface" />)}
+        </div>
+      ) : (
+        <div aria-hidden className="divide-y divide-line rounded-xl border border-line bg-surface">
+          {Array.from({ length: rows }, (_, i) => (
+            <div key={i} className="flex items-center gap-3 p-4"><div className={`h-4 flex-1 ${bar}`} /><div className={`h-4 w-20 ${bar} opacity-70`} /></div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

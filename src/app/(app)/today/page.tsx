@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { requirePageContext, hasRole, type AppContext } from "@/lib/auth/context";
-import { Card, StaleBanner } from "@/components/ui";
+import { Card, StaleBanner, Skeleton } from "@/components/ui";
 import { atLocal, fmt } from "@/lib/util/time";
 import { buildBrief } from "@/modules/brief/builder";
 import { gatherBriefInputs, latestBrief } from "@/modules/brief/brief-service";
@@ -13,6 +13,7 @@ import { loadOrchSettings } from "@/modules/orchestrator/schedule/settings-db";
 import { loadCapacity } from "@/modules/orchestrator/capacity/service";
 import { buildPlannerView, type PlannerItem, type PlannerSection, type PlannerView } from "@/modules/orchestrator/ui/planner";
 import { plannerRecommendations } from "@/modules/intelligence/memory/integrate";
+import { activeTransactionsSection, leaseEventsSection } from "@/modules/orchestrator/ui/integration-sections";
 import { GettingStarted } from "./getting-started";
 import { completePlannerTask } from "./actions-planner";
 
@@ -20,7 +21,7 @@ type SP = Promise<Record<string, string | string[] | undefined>>;
 const TASK_LIMIT = 50;
 
 export default function Page({ searchParams }: { searchParams: SP }) {
-  return <Suspense fallback={<div className="p-6 text-sm text-ink-soft">Loading your day…</div>}><Body searchParams={searchParams} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="cards" label="Loading your day" />}><Body searchParams={searchParams} /></Suspense>;
 }
 
 async function loadView(ctx: AppContext, date: string, today: string): Promise<PlannerView> {
@@ -78,7 +79,11 @@ async function Body({ searchParams }: { searchParams: SP }) {
   const today = todayFor(ctx);
   const date = typeof sp.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
   const canEdit = hasRole(ctx, "editor");
-  const v = await loadView(ctx, date, today);
+  const [v, txSection, leaseSection] = await Promise.all([
+    loadView(ctx, date, today),
+    activeTransactionsSection({ db: ctx.db, workspaceId: ctx.workspaceId, userId: ctx.userId }, date),
+    leaseEventsSection({ db: ctx.db, workspaceId: ctx.workspaceId }, date),
+  ]);
   const byKey = Object.fromEntries(v.sections.map((s) => [s.key, s]));
   const dayHref = (d: string) => (d === today ? "/today" : `/today?date=${d}`);
   const label = fmt(atLocal(date, "12:00", tz), "EEEE, d MMMM", tz);
@@ -132,6 +137,7 @@ async function Body({ searchParams }: { searchParams: SP }) {
           <SectionCard s={byKey.overdue} />
           <SectionCard s={byKey.prep} />
           <SectionCard s={byKey.next} numbered />
+          <SectionCard s={txSection} />
         </div>
         <div className="min-w-0 space-y-4">
           <Card title="Capacity" help={null}>
@@ -146,6 +152,7 @@ async function Body({ searchParams }: { searchParams: SP }) {
           </Card>
           <SectionCard s={byKey.approvals} />
           <SectionCard s={byKey.signals} />
+          <SectionCard s={leaseSection} />
           <SectionCard s={byKey.leases} />
           <SectionCard s={byKey.deals} />
           <SectionCard s={byKey.accounts} />

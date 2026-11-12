@@ -32,7 +32,7 @@ export default async function DealDetail({ params, searchParams }: { params: Pro
       <PageHeader title={o.name} subtitle={<>{(o.organisation as { display_name?: string } | null)?.display_name ?? "—"} · {STAGE_LABEL[o.stage]} · outcome {String(o.outcome)}</>} />
       <Flash sp={sp} />
       {req ? <Suspense fallback={null}><RequirementIntelligence ctx={app} requirementId={req.id} opportunityId={id} /></Suspense> : null}
-      <p className="text-xs"><Link className="text-brand underline" href={`/intelligence/timeline?opportunity=${id}`}>Deal timeline (intelligence)</Link></p>
+      <p className="text-xs"><Link className="text-brand underline" href={`/intelligence/timeline?opportunity=${id}`}>Deal timeline (intelligence)</Link> · <Link className="text-brand underline" href={`/transactions?opportunity=${id}`}>Transaction workspace (offers, approvals, execution)</Link></p>
       {d.feeIssues.length > 0 && <StaleBanner>Fee protection: {d.feeIssues.map((i) => i.issue).join(" · ")}</StaleBanner>}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Expected gross fee" value={inr(o.expected_fee as number, { compact: true })} hint={o.credit_share != null ? `credit ${Number(o.credit_share) * 100}%` : "credit share unknown"} />

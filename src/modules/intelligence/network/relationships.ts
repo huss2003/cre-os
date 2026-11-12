@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { createDraft } from "@/lib/services/drafts";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
 import { type AiCall, isoDate } from "../common";
 import { nameMap } from "../research/service";
 import { consentIsActive, type ConsentLite } from "./consent";
@@ -170,7 +171,7 @@ const IntroSchema = z.object({ subject: z.string(), body: z.string() });
  * Draft (never send) a message asking the introducer for an introduction. Requires an ACTIVE introduction consent on the
  * introducer → target edge. Content: names and the target's current employer only — no deal context from any company.
  */
-export async function draftIntroRequest(db: Db, workspaceId: string, input: { edgeId: string; userId: string; ai?: AiCall }) {
+export async function draftIntroRequest(db: Db, workspaceId: string, input: { edgeId: string; userId: string; ai?: AiCall; mode?: AiMode }) {
   const today = isoDate(new Date())!;
   const { data: edge, error } = await db.from("relationship_edge").select("id, from_person_id, from_user_id, to_person_id").eq("workspace_id", workspaceId).eq("id", input.edgeId).is("archived_at", null).maybeSingle();
   if (error) throw error;
@@ -186,18 +187,21 @@ export async function draftIntroRequest(db: Db, workspaceId: string, input: { ed
   const introducer = names.get(String(edge.from_person_id)) ?? "there";
   const target = names.get(String(edge.to_person_id)) ?? "your contact";
   const first = introducer.split(/\s+/)[0];
+  const targetFirst = /^\(/.test(target) ? null : target.split(/\s+/)[0];
+  const who = targetFirst ? target : "the person we discussed";
+  const at = orgName ? ` at ${orgName}` : "";
   const mock = () => ({
-    subject: `Introduction to ${target}`,
-    body: `Hi ${first},\n\nThank you again for offering to introduce me to ${target}${orgName ? ` at ${orgName}` : ""}. Whenever convenient, a short note connecting us would be much appreciated — I'm happy to send a two-line blurb you can forward.\n\nBest,`,
+    subject: targetFirst ? `Introduction to ${target}${at}` : "The introduction we discussed",
+    body: `Hi ${/^\(/.test(first) ? "there" : first},\n\nThank you again for offering to introduce me to ${who}${at}. Whenever convenient, a short note connecting us would be much appreciated.\n\nIf it helps, here is a two-line blurb you can forward:\n"I'd like to introduce you to a Pune office-space adviser I know. ${targetFirst ? `${targetFirst}, ` : ""}they would welcome a short conversation about how your team is thinking about workspace${orgName ? ` at ${orgName}` : ""} — no obligation."\n\nThanks again,`,
   });
   let draft = mock();
   try {
-    const res = await (input.ai ?? (callStructured as AiCall))({
+    const pol = await runWithPolicy({ mode: input.mode ?? await getAiMode(db, workspaceId, "network.intro_request"), code: mock, ai: async () => (await (input.ai ?? (callStructured as AiCall))({
       workspaceId, workflow: "network.intro_request", tier: "luna", classification: "permitted_personal",
       system: "Write a short, courteous note asking a contact (who has already agreed) to make an introduction. No deal details, prices or confidential information about any company. No invented facts.",
       input: `Introducer first name: ${first}\nPerson to be introduced to: ${target}\nTheir employer: ${orgName ?? "unknown"}`, schema: IntroSchema, schemaName: "intro_request", maxOutputTokens: 400, mock,
-    });
-    draft = res.data;
+    })).data as { subject: string; body: string } });
+    draft = pol.value ?? draft;
   } catch (e) {
     if (!(e instanceof AiUnavailableError)) throw e;
   }

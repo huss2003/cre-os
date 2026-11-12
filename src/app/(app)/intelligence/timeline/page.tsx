@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Badge, Button, EmptyState, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Badge, Button, EmptyState, Field, Input, PageHeader, Select, Skeleton } from "@/components/ui";
 import { EntityPicker } from "@/components/ui/entity-picker";
 import { requirePageContext } from "@/lib/auth/context";
 import { getTimeline } from "@/modules/intelligence/memory/context/timeline";
@@ -59,5 +59,5 @@ async function Body({ sp }: { sp: SP }) {
 
 export default async function Page({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
-  return <Suspense fallback={<p className="text-sm text-ink-soft">Loading timeline…</p>}><Body sp={sp} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" label="Loading timeline" />}><Body sp={sp} /></Suspense>;
 }

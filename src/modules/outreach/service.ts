@@ -4,6 +4,8 @@ import { learnFromDraftEdit } from "@/modules/assistant/engine/learn";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
+import { classifyReply, type ReplyClass } from "./reply-classifier";
 import { createDraft, updateDraft, approveDraft, openDraftForSend, markDraftSent, getDraft, setDraftPaused, assertNotSuppressed, SuppressedRecipientError, } from "@/lib/services/drafts";
 import { proposeChange } from "@/lib/services/changes";
 import * as R from "./rules";
@@ -165,7 +167,7 @@ async function styleNotes(db: Db, ws: string, userId: string, channel: string): 
   return mine.length ? `\nThe user approved these as examples of their style (match tone and length, not content):\n${mine.map((v) => `---\n${String(v.body).slice(0, 600)}`).join("\n")}` : "";
 }
 
-async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string }; mock?: () => GenOut; styleHint?: string }, ai: Ai): Promise<{ out: GenOut; mocked: boolean; model: string }> {
+async function generate(db: Db, ws: string, userId: string, c: Context, a: { channel: R.Channel; scenario: R.Scenario; reason: string; lang: R.Lang; via?: Row | null; sender: string; instruction?: string; current?: { subject: string | null; body: string }; mock?: () => GenOut; styleHint?: string; mode?: AiMode }, ai: Ai): Promise<{ out: GenOut; mocked: boolean; model: string }> {
   const tpl = R.templateDraft({ channel: a.channel, scenario: a.scenario, first: c.first, company: c.org?.display_name ?? "your company", level: c.level, reason: a.reason, roleKey: c.roleKey, sender: a.sender, via: a.via?.full_name?.split(/\s+/)[0] ?? null, lang: a.lang, facts: c.facts });
   const focus = R.ROLE_FOCUS[c.roleKey] ?? R.ROLE_FOCUS.other;
   const input = [
@@ -181,7 +183,13 @@ async function generate(db: Db, ws: string, userId: string, c: Context, a: { cha
     a.current ? `Rewrite this draft — instruction: ${a.instruction}\nSubject: ${a.current.subject ?? ""}\n${a.current.body}` : `Suggest up to 3 discovery questions from: ${R.SCENARIOS[a.scenario].questions.join(" | ")}`,
   ].filter(Boolean).join("\n\n") + await styleNotes(db, ws, userId, a.channel) + (a.styleHint ? `\n\nUser writing style (tone/length only, not content): ${a.styleHint.slice(0, 800)}` : "");
   const mock = a.mock ?? ((): GenOut => a.current ? mockEdit(a.current, a.instruction ?? "", tpl) : { ...tpl, value_prop: R.SCENARIOS[a.scenario].value, assumptions: c.unknowns.map((u) => `Unknown: ${u}`), questions: R.SCENARIOS[a.scenario].questions.slice(0, 3) });
-  const r = await ai({ workspaceId: ws, workflow: "outreach.draft", tier: "luna", system: SYSTEM, input, schema: Gen, schemaName: "outreach_draft", maxOutputTokens: 2500, classification: "corporate_confidential", mock });
+  const pol = await runWithPolicy<{ data: GenOut; mocked: boolean; model: string }>({
+    mode: a.mode ?? await getAiMode(db, ws, "outreach.draft"),
+    code: () => ({ data: R.noPlaceholders(mock(), a.sender), mocked: false, model: "rules" }),
+    ai: () => ai({ workspaceId: ws, workflow: "outreach.draft", tier: "luna", system: SYSTEM, input, schema: Gen, schemaName: "outreach_draft", maxOutputTokens: 2500, classification: "corporate_confidential", mock }),
+  });
+  if (!pol.value) throw pol.aiError ?? new OutreachError("Could not prepare the draft.");
+  const r = pol.value;
   const out = r.data;
   if (a.channel !== "email" && a.channel !== "meeting_followup" && a.channel !== "introduction") out.subject = null;
   return { out, mocked: r.mocked, model: r.model };
@@ -194,7 +202,9 @@ function mockEdit(cur: { subject: string | null; body: string }, op: string, tpl
   if (o.startsWith("shorten")) body = body.split(/(?<=[.?!])\s+/).filter((s, i, a) => i === 0 || i >= a.length - 2).join(" ");
   else if (o.startsWith("expand")) body = `${body}\n\nHappy to share a short comparison of options and recent transactions in the area if useful.`;
   else if (o.includes("less sales") || o.includes("reduce")) body = body.replace(/Would a 15-minute call[^?]*\?/, "No pressure at all — happy to share a view whenever useful.");
-  else if (o.includes("hinglish")) body = `Hi! ${body.replace(/^Hi [^,]+,\s*/, "")} Aapke liye ek quick call set kar sakte hain?`;
+  else if (o.includes("formal") || o.includes("professional")) body = body.replace(/^Hi ([^,\s]+)/, "Dear $1").replace(/\bHappy to\b/g, "I would be glad to").replace(/\bThanks\b/g, "Thank you");
+  else if (o.includes("friendl") || o.includes("warm") || o.includes("casual")) body = body.replace(/^Dear ([^,\s]+)/, "Hi $1").replace(/\bI would be glad to\b/g, "Happy to");
+  else if (o.includes("hinglish")) body = `Hi! ${body.replace(/^(?:Hi|Dear) [^,]+,\s*/, "")} Aapke liye ek quick call set kar sakte hain?`;
   else if (o.includes("hindi")) body = `नमस्ते, ${body}`;
   return { subject: cur.subject, body, value_prop: "", assumptions: [], questions: [], opening_alternatives: tpl.opening_alternatives, cta_alternatives: tpl.cta_alternatives, call_script: tpl.call_script, forwardable: tpl.forwardable };
 }
@@ -312,6 +322,7 @@ export async function aiEdit(db: Db, ws: string, userId: string, id: string, op:
   const lang: R.Lang = op === "hindi" ? "hi" : op === "hinglish" ? "hinglish" : op === "english" ? "en" : it.language;
   const g = await generate(db, ws, userId, c, { channel: it.channel, scenario: it.scenario, reason: it.reason, lang, via, sender: await senderName(db, ws), instruction: AI_OPS[op] ?? op, current: op === "regenerate" ? undefined : { subject: d.subject, body: d.body } }, ai);
   if (g.mocked && String(g.model).startsWith("fallback:")) throw new OutreachError("The AI couldn't rewrite it this time — nothing was changed. Please try again.");
+  if (g.model === "rules" && op !== "regenerate" && g.out.body === d.body) throw new OutreachError("This rewrite needs AI — turn on “Outreach drafts” in AI settings, or edit the text directly. Nothing was changed.");
   if (g.mocked && op !== "regenerate" && g.out.body === d.body) throw new OutreachError("AI is off (no key loaded), so this option can't change the text. Restart the app after adding the key.");
   if (lang !== it.language) await db.from("outreach_item").update({ language: lang }).eq("id", id);
   await db.from("outreach_item").update({ script: { ...(it.script ?? {}), openings: g.out.opening_alternatives, ctas: g.out.cta_alternatives } }).eq("id", id);
@@ -437,7 +448,13 @@ async function sweepOne(db: Db, ws: string, it: Row): Promise<string | null> {
 }
 /** Daily job + on-demand: never let a sequence continue just because its date arrived. */
 export async function sweep(db: Db, ws: string) {
-  const { data } = await db.from("outreach_item").select("*").eq("workspace_id", ws).is("archived_at", null).in("status", ["planned", "draft", "pending_approval", "approved"]).limit(500);
+  // Every open item (paged): an unsorted .limit(500) skipped items once the workspace grew, so suppressions were missed.
+  const data: Row[] = [];
+  for (let from = 0; from < 50_000; from += 1000) {
+    const { data: page } = await db.from("outreach_item").select("*").eq("workspace_id", ws).is("archived_at", null).in("status", ["planned", "draft", "pending_approval", "approved"]).order("id").range(from, from + 999);
+    data.push(...((page ?? []) as Row[]));
+    if ((page ?? []).length < 1000) break;
+  }
   let paused = 0; let tasks = 0;
   const day = today();
   for (const it of (data ?? []) as Row[]) {
@@ -483,16 +500,21 @@ export const OUTCOME_LABEL: Record<RespOut["outcome"], string> = { interested: "
 export function mockResponse(text: string, day = today()): RespOut {
   const t = text.toLowerCase();
   const ex = R.extractReply(text);
-  const outcome: RespOut["outcome"] = /do not contact|unsubscribe|stop messag/.test(t) ? "do_not_contact" : /not interested|no thanks|no need/.test(t) ? "declined"
-    : ex.unavailable ? "unavailable" : ex.referred ? "referred"
-    : /meet|call on|tuesday|monday|wednesday|thursday|friday|tomorrow/.test(t) ? "meeting_scheduled" : /send|share|details|brochure/.test(t) ? "info_requested" : /later|next quarter|not now/.test(t) ? "not_now" : "interested";
+  const cls = classifyReply(text);
+  const MAP: Record<ReplyClass, RespOut["outcome"]> = { unsubscribe: "do_not_contact", out_of_office: "unavailable", wrong_person: ex.referred ? "referred" : "other", not_interested: "declined", not_now: "not_now", info_requested: "info_requested", meeting: "meeting_scheduled", interested: "interested", unclear: "other" };
+  let outcome: RespOut["outcome"] = MAP[cls.label];
+  if (cls.label === "unclear") outcome = ex.unavailable ? "unavailable" : ex.referred ? "referred" : /\b(?:monday|tuesday|wednesday|thursday|friday|tomorrow)\b/.test(t) ? "meeting_scheduled" : "other";
+  else if (ex.referred && (outcome === "interested" || outcome === "other")) outcome = "referred";
+  else if (ex.unavailable && outcome !== "do_not_contact") outcome = "unavailable";
   const resume = outcome === "unavailable" ? R.resumeDateFrom(text, day) : null;
   // "options in Kharadi" / "space near Baner" → the place they asked about (capitalised word(s) after in/near/around).
   const place = /\b(?:in|near|around|at)\s+([A-Z][A-Za-z]+(?:\s[A-Z][A-Za-z]+)?)/.exec(text)?.[1] ?? null;
-  return { outcome, summary: text.slice(0, 200), objection: outcome === "declined" ? text.slice(0, 120) : null,
+  const LABEL: Partial<Record<RespOut["outcome"], string>> = { do_not_contact: "Asked not to be contacted", unavailable: "Out of office", referred: `Pointed us to ${ex.referred?.name ?? "someone else"}`, declined: "Not interested", not_now: "Not now — check back later", info_requested: `Asked for details${place ? ` (${place})` : ""}`, meeting_scheduled: "Wants to meet / talk", interested: "Positive reply", other: cls.label === "wrong_person" ? "Says we have the wrong person" : "Reply received" };
+  const firstLine = text.replace(/\s+/g, " ").trim().slice(0, 160);
+  return { outcome, summary: `${LABEL[outcome]}: “${firstLine}${text.length > 160 ? "…" : ""}”`.slice(0, 220), objection: outcome === "declined" ? text.slice(0, 120) : null,
     commitments: outcome === "info_requested" ? [{ who: "us", what: "Send the requested details", due: null }] : outcome === "meeting_scheduled" ? [{ who: "us", what: "Prepare for the meeting", due: null }]
       : outcome === "referred" && ex.referred ? [{ who: "us", what: `Contact ${ex.referred.name} (referred)`, due: null }] : [],
-    next_action: outcome === "declined" || outcome === "do_not_contact" ? "Close this conversation" : outcome === "not_now" ? "Check back later" : outcome === "unavailable" ? `Follow up after they're back (${resume})` : outcome === "referred" ? `Reach out to ${ex.referred?.name}, mentioning the referral` : "Reply and confirm next step",
+    next_action: cls.label === "wrong_person" && outcome === "other" ? "Find the right contact at the company" : outcome === "declined" || outcome === "do_not_contact" ? "Close this conversation" : outcome === "not_now" ? "Check back later" : outcome === "unavailable" ? `Follow up after they're back (${resume})` : outcome === "referred" ? `Reach out to ${ex.referred?.name}, mentioning the referral` : "Reply and confirm next step",
     next_action_days: outcome === "not_now" ? 60 : outcome === "unavailable" ? R.daysBetween(day, resume!) + 1 : 2,
     crm_updates: outcome === "meeting_scheduled" || outcome === "interested" ? [{ field: "stage", value: "engaged", reason: "Prospect replied positively to outreach" }]
       : outcome === "info_requested" ? [{ field: "stage", value: "engaged", reason: "Prospect asked for information" }, { field: "next_action", value: `Send the requested details${place ? ` (${place})` : ""}`, reason: "Prospect asked for information" }] : [],
@@ -502,13 +524,14 @@ export function mockResponse(text: string, day = today()): RespOut {
 }
 
 /** Spec §13: a reply improves the record — interaction, commitments → tasks, proposed CRM/contact/company updates, pause or replan follow-ups. */
-export async function recordResponse(db: Db, ws: string, userId: string, id: string, text: string, ai: Ai = callStructured) {
+export async function recordResponse(db: Db, ws: string, userId: string, id: string, text: string, ai: Ai = callStructured, mode?: AiMode) {
   const it = await loadItem(db, ws, id);
   if (!text.trim()) throw new OutreachError("Paste or type the reply.");
-  const r = await ai({ workspaceId: ws, workflow: "outreach.response", tier: "luna", schema: Resp, schemaName: "outreach_response", maxOutputTokens: 1100,
+  const pol = await runWithPolicy<{ data: RespOut }>({ mode: mode ?? await getAiMode(db, ws, "outreach.response"), code: () => ({ data: mockResponse(text) }), ai: () => ai({ workspaceId: ws, workflow: "outreach.response", tier: "luna", schema: Resp, schemaName: "outreach_response", maxOutputTokens: 1100,
     system: "Classify a reply to a commercial real-estate outreach message. Extract only what the reply says. Dates as YYYY-MM-DD only if stated. 'stage' updates may only be one of: engaged, qualified_discussion. outcome 'referred' = they point us to another person (fill referred with the name and an email only if written). 'unavailable' = out of office / on leave (fill resume_on if a return date is stated). contact_updates only for a new title/email/phone the sender states for themselves. company_note only for a factual company update they state. requirement_updates.preferred_micro_market only when they name a location/micro-market they want options in.",
-    input: `Our message reason: ${it.reason}. Opportunity: ${it.opportunity_id ? "linked" : "none"}. Today: ${today()}.`, evidence: text, mock: () => mockResponse(text) });
-  const x = r.data;
+    input: `Our message reason: ${it.reason}. Opportunity: ${it.opportunity_id ? "linked" : "none"}. Today: ${today()}.`, evidence: text, mock: () => mockResponse(text) }) });
+  if (!pol.value) throw pol.aiError ?? new OutreachError("Could not read the reply.");
+  const x = pol.value.data;
   const now = new Date().toISOString();
   const away = x.outcome === "unavailable";
   const resumeOn = away ? (x.resume_on && /^\d{4}-\d{2}-\d{2}$/.test(x.resume_on) && x.resume_on > today() ? x.resume_on : R.resumeDateFrom(text, today())) : null;
@@ -584,7 +607,7 @@ export async function recordResponse(db: Db, ws: string, userId: string, id: str
     referred = { ...x.referred, proposalId: (p as Row | null)?.id ?? null };
     if (p) proposalKinds.push("referred contact");
   }
-  return { outcome: x.outcome, status, tasks, proposals, proposalKinds, referred, resumeOn, replanned, mocked: r.mocked, nextAction: x.next_action };
+  return { outcome: x.outcome, status, tasks, proposals, proposalKinds, referred, resumeOn, replanned, mocked: (pol.value as { mocked?: boolean }).mocked ?? false, source: pol.source, nextAction: x.next_action };
 }
 
 /** Plan (or move) the next follow-up of this conversation to a date. Only a plan — drafted when the user asks. */
@@ -777,7 +800,6 @@ export async function propertySuggestions(db: Db, ws: string, orgId: string | nu
   const { data: sl } = await db.from("shortlist_option").select(`fit_score, eligible, option_status, availability:availability_id(${AV})`).eq("workspace_id", ws).eq("requirement_id", req.id).neq("option_status", "rejected").is("archived_at", null).order("fit_score", { ascending: false, nullsFirst: false }).limit(limit);
   const out: PropertyOption[] = ((sl ?? []) as Row[]).filter((o) => o.availability && o.eligible !== false).map((o) => toOpt(o.availability, o.fit_score, "shortlist"));
   if (out.length >= limit) return { requirement: req, options: out.slice(0, limit) };
-  const { data: av } = await db.from("availability").select(AV).eq("workspace_id", ws).in("status", ["available", "unverified"]).is("archived_at", null).gte("as_of", addDays(day, -180)).order("as_of", { ascending: false }).order("created_at", { ascending: false }).limit(300); // newest snapshot first on same-day ties
   const lo = Number(req.area_min_sf ?? (req.area_target_sf ? req.area_target_sf * 0.8 : 0)); const hi = Number(req.area_max_sf ?? (req.area_target_sf ? req.area_target_sf * 1.25 : 1e12));
   const geos = (req.preferred_geography_ids ?? []) as string[];
   const { data: assetsInGeo } = geos.length ? await db.from("asset").select("id").eq("workspace_id", ws).or(`micro_market_id.in.(${geos.join(",")}),locality_id.in.(${geos.join(",")})`).limit(1000) : { data: null };
@@ -785,13 +807,21 @@ export async function propertySuggestions(db: Db, ws: string, orgId: string | nu
   const { data: spaces } = inGeo ? await db.from("space").select("id, asset_id").eq("workspace_id", ws).in("asset_id", [...inGeo].slice(0, 500)) : { data: null };
   const okSpace = spaces ? new Set(((spaces ?? []) as Row[]).map((x) => x.id)) : null;
   const seen = new Set(out.map((o) => o.spaceId));
-  for (const a of (av ?? []) as Row[]) {
-    if (out.length >= limit) break;
-    if (seen.has(a.space_id)) continue; seen.add(a.space_id);   // latest snapshot per space only
-    if (okSpace && !okSpace.has(a.space_id)) continue;
-    const area = Number(a.space?.chargeable_sf ?? a.space?.carpet_sf ?? NaN);
-    if ((lo || hi < 1e12) && (Number.isNaN(area) || area < lo || area > hi)) continue;
-    out.push(toOpt(a, null, "search"));
+  // Page through newest snapshots (size/geo filters run in code), so a busy workspace can't hide fitting options behind one page cap.
+  const PAGE = 300;
+  for (let page = 0; page < 10 && out.length < limit; page++) {
+    const { data: av } = await db.from("availability").select(AV).eq("workspace_id", ws).in("status", ["available", "unverified"]).is("archived_at", null).gte("as_of", addDays(day, -180))
+      .order("as_of", { ascending: false }).order("created_at", { ascending: false }).order("id").range(page * PAGE, page * PAGE + PAGE - 1); // newest snapshot first on same-day ties
+    const rows = (av ?? []) as Row[];
+    for (const a of rows) {
+      if (out.length >= limit) break;
+      if (seen.has(a.space_id)) continue; seen.add(a.space_id);   // latest snapshot per space only
+      if (okSpace && !okSpace.has(a.space_id)) continue;
+      const area = Number(a.space?.chargeable_sf ?? a.space?.carpet_sf ?? NaN);
+      if ((lo || hi < 1e12) && (Number.isNaN(area) || area < lo || area > hi)) continue;
+      out.push(toOpt(a, null, "search"));
+    }
+    if (rows.length < PAGE) break;
   }
   return { requirement: req, options: out };
 }

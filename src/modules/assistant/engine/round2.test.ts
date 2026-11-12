@@ -1,6 +1,7 @@
 // Round 2 engine: live streaming (provider SSE accumulator + mock chunked stream event order), answer cache, learning from corrections.
 import { describe, it, expect, beforeAll } from "vitest";
-import { userClient, WS1, USERS, tag } from "../../../../tests/helpers";
+import { userClient, adminClient, WS1, USERS, tag } from "../../../../tests/helpers";
+import { afterAll } from "vitest";
 import type { AppContext } from "@/lib/auth/context";
 import type { Block, StreamEvent } from "../types";
 import { runAssistant } from "./run";
@@ -28,6 +29,8 @@ const ins = async (table: string, row: Row) => {
   return data as Row;
 };
 let org: Row, person: Row;
+const scratch: string[] = [];
+afterAll(async () => { for (const id of scratch) await adminClient().from("workspace").delete().eq("id", id); });
 
 beforeAll(async () => {
   db = await userClient("owner");
@@ -102,6 +105,17 @@ describe("answer cache", () => {
   });
 
   it("miss → hit (reused label, no tools) → invalidated by a data change → fresh bypass", async () => {
+    // The fingerprint is workspace-wide (any change invalidates), so other test files writing to the shared WS1 in
+    // parallel would invalidate the cache between asks. Run this one in a private scratch workspace.
+    const admin = adminClient(); const slug = tag("r2c").toLowerCase();
+    const { data: w, error: we } = await admin.from("workspace").insert({ name: `Cache ${slug}`, slug }).select("id").single();
+    if (we) throw we;
+    scratch.push(w!.id);
+    const { error: me } = await admin.from("membership").insert({ workspace_id: w!.id, user_id: USERS.owner.id, role: "owner", see_all_accounts: true, allowed_classifications: ["public", "permitted_personal", "corporate_confidential"] });
+    if (me) throw me;
+    const shared = ctx; ctx = { ...ctx, workspaceId: w!.id, workspaceName: "Cache scratch" };
+    try {
+    const org = (await db.from("organisation").insert({ workspace_id: w!.id, owner_user_id: USERS.owner.id, display_name: `Zeta${T}`, sector: "IT services" }).select("*").single()).data as Row;
     const q = `Give me everything important about Zeta${T} please`;
     const first = await ask(q);
     expect(first.status).toBe("completed");
@@ -122,6 +136,7 @@ describe("answer cache", () => {
     expect(fourth.events.some((e) => e.type === "step")).toBe(true);
     const fifth = await ask(q);
     expect(fifth.msg.model).toBe("cache");
+    } finally { ctx = shared; }
   });
 });
 

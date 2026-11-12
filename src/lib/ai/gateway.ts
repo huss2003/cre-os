@@ -4,6 +4,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { z, type ZodType } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PRICING, PRICING_VERSION, MODELS, type ModelTier } from "./pricing";
+import { featureForWorkflow, getAiMode, type FeatureKey } from "./policy";
 
 /**
  * Single AI gateway (spec Part III "Recommended implementation"):
@@ -17,9 +18,33 @@ import { PRICING, PRICING_VERSION, MODELS, type ModelTier } from "./pricing";
  */
 
 export class AiUnavailableError extends Error {
-  constructor(public reason: "no_api_key" | "paused" | "budget_exceeded" | "provider_error", message?: string) {
+  constructor(public reason: "no_api_key" | "paused" | "budget_exceeded" | "provider_error" | "ai_disabled", message?: string) {
     super(message ?? reason);
   }
+}
+
+/** The workflow's feature is set to "off" (code only) in /settings/ai. No network call, no model_usage row. */
+export class AiDisabledError extends AiUnavailableError {
+  constructor(public workflow: string, public feature: FeatureKey | null) {
+    super("ai_disabled", `ai_disabled: ${feature ?? workflow} is set to code only`);
+  }
+}
+
+/**
+ * AI policy gate. Returns true when the workflow's feature is "off" for this workspace; also counts the avoided call
+ * in resource_usage (module 'ai', unit 'calls_saved'). Never throws (a policy read failure means "not off").
+ */
+async function aiOff(workspaceId: string | null, workflow: string): Promise<boolean> {
+  if (!workspaceId || !featureForWorkflow(workflow)) return false;
+  let mode;
+  try { mode = await getAiMode(createAdminClient(), workspaceId, workflow); } catch { return false; }
+  if (mode !== "off") return false;
+  try {
+    await createAdminClient().from("resource_usage").insert({
+      workspace_id: workspaceId, resource: "ai_call_avoided", provider: "internal", module: "ai", workflow, units: 1, unit: "calls_saved",
+    });
+  } catch { /* counting must never break the workflow */ }
+  return true;
 }
 
 let client: OpenAI | null = null;
@@ -65,6 +90,8 @@ export interface StructuredCall<S extends ZodType> {
 export interface StructuredResult<T> {
   data: T;
   mocked: boolean;
+  /** True when the AI policy is "off" for this workflow and the deterministic `mock` result was returned. */
+  disabled?: boolean;
   model: string;
   usage: { input: number; output: number; usd: number };
   /** Web search trail (Claude path): what was searched and which pages came back. */
@@ -74,6 +101,11 @@ export interface StructuredResult<T> {
 export async function callStructured<S extends ZodType>(call: StructuredCall<S>): Promise<StructuredResult<z.infer<S>>> {
   const tier = call.tier ?? "luna";
   const model = MODELS[tier];
+  if (await aiOff(call.workspaceId, call.workflow)) {
+    // Same deterministic branch as mock mode, but labelled "code" and never logged as model usage.
+    if (call.mock) return { data: call.schema.parse(call.mock()), mocked: true, disabled: true, model: "code", usage: { input: 0, output: 0, usd: 0 } };
+    throw new AiDisabledError(call.workflow, featureForWorkflow(call.workflow));
+  }
   await guard(call.workspaceId);
   await assertProcessingAllowed(call.workspaceId, call.classification ?? "corporate_confidential", call.licensedSourceIds ?? []);
 
@@ -127,7 +159,11 @@ export async function transcribe(opts: {
   languageHint?: string;
   durationSeconds?: number;
   mockText?: string;
-}): Promise<{ text: string; mocked: boolean }> {
+}): Promise<{ text: string; mocked: boolean; disabled?: boolean }> {
+  if (await aiOff(opts.workspaceId, "transcribe")) {
+    if (opts.mockText !== undefined) return { text: opts.mockText, mocked: true, disabled: true };
+    throw new AiDisabledError("transcribe", "transcribe");
+  }
   await guard(opts.workspaceId);
   const api = openai();
   if (!api) {
@@ -161,9 +197,10 @@ export async function extractImageText(opts: {
   classification?: StructuredCall<ZodType>["classification"];
   mock?: () => string;
   maxOutputTokens?: number;
-}): Promise<{ text: string; mocked: boolean; model: string }> {
+}): Promise<{ text: string; mocked: boolean; model: string; disabled?: boolean }> {
   const workflow = opts.workflow ?? "capture.ocr";
   const model = MODELS.luna;
+  if (await aiOff(opts.workspaceId, workflow)) return { text: opts.mock ? opts.mock() : "", mocked: true, disabled: true, model: "code" };
   await guard(opts.workspaceId);
   await assertProcessingAllowed(opts.workspaceId, opts.classification ?? "corporate_confidential", []);
   if (!/^image\/(png|jpe?g|webp|gif|heic|heif)$/i.test(opts.mimeType)) throw new AiUnavailableError("provider_error", `unsupported image type ${opts.mimeType}`);

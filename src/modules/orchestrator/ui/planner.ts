@@ -3,6 +3,7 @@
  * plan has been generated yet, the same sections computed live — plus live tasks (with row_version so they can be
  * completed), exact approval counts and capacity. No AI wording; counts are never silently capped.
  */
+import { codeLabel } from "@/lib/util/labels";
 
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${n} ${n === 1 ? one : many}`;
@@ -96,7 +97,7 @@ export function buildPlannerView(i: PlannerInput): PlannerView {
     mk("accounts", "Priority accounts", sec(i, "priority_accounts"), (a) => ({ key: `a:${a.orgId}`, title: a.name, href: a.href, meta: a.why ? `Score ${a.score} · ${a.why}` : `Score ${a.score}` }), "No priority accounts yet — import companies or leases to score them.", { link: { href: "/companies", label: "Companies" } }),
     { ...mk("signals", "New signals", signals, (s) => ({ key: `s:${s.id}`, title: s.title, href: s.href, meta: `${s.confidence} confidence · ${s.verification}` }), "No new signals since yesterday.", { cap: 3, capped: signalsCapped, link: { href: "/signals", label: "All signals" } }), count: signalCount, countText: countLabel(signalCount, signalsCapped) },
     mk("leases", "Lease alerts", lease, (l) => ({ key: `l:${l.leaseId}:${l.kind}`, title: `${l.tenant} — ${l.kind}`, href: l.href, meta: `${l.date} · ${plural(l.days, "day")} away`, tone: l.days <= 30 ? "bad" : "warn" }), "No lease dates in the next 90 days.", { link: { href: "/leases", label: "Leases" } }),
-    mk("deals", "Deals needing attention", sec(i, "deals_attention"), (d) => ({ key: `d:${d.id}`, title: d.name, href: d.href, meta: `${d.stage} · ${d.reason}` }), "All open deals are on track.", { link: { href: "/deals", label: "Deals" } }),
+    mk("deals", "Deals needing attention", sec(i, "deals_attention"), (d) => ({ key: `d:${d.id}`, title: d.name, href: d.href, meta: `${codeLabel(d.stage)} · ${d.reason}` }), "All open deals are on track.", { link: { href: "/deals", label: "Deals" } }),
     {
       key: "approvals", title: "Pending approvals", count: approvalsTotal ?? 0, countText: String(approvalsTotal ?? 0),
       items: i.approvals && approvalsTotal ? [{ key: "approvals", title: [i.approvals.changes ? plural(i.approvals.changes, "record change") : null, i.approvals.drafts ? plural(i.approvals.drafts, "draft") : null].filter(Boolean).join(" and ") + " to review", href: "/approvals" }] : [],

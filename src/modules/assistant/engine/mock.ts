@@ -20,7 +20,7 @@ type Slots = {
 };
 
 /** Per intent: ordered tool "needs" (preferred ids, then a regex over ids). Each need contributes at most one call. */
-type Need = { ids: string[]; re?: RegExp; needs?: (keyof Slots)[]; unless?: (keyof Slots)[]; input?: (s: Slots) => Record<string, unknown> | null; when?: RegExp };
+type Need = { ids: string[]; re?: RegExp; needs?: (keyof Slots)[]; unless?: (keyof Slots)[]; input?: (s: Slots) => Record<string, unknown> | null; when?: RegExp; whenNot?: RegExp };
 const companyScore = (s: Slots) => (s.company ? { entityType: "company", entityId: s.company.id } : null);
 /** Everything a full account picture needs once the company is known (M2 signals, M3 score, M4 people, M5 outreach, M7 meetings). */
 const ACCOUNT_PICTURE: Need[] = [
@@ -38,6 +38,8 @@ const PROFILE: Need[] = [
   { ids: ["get_property_details"], needs: ["assets"], unless: ["company", "person", "requirement", "opportunity"] },
   { ids: ["search_companies"], unless: ["company", "person", "requirement", "opportunity", "assets"] },
 ];
+/** "When does the lease for X expire?" — one company's lease, not a list. */
+const ONE_LEASE = /\b(when does|when will|the lease (for|of)|\w+'s lease)\b/i;
 const PLANS: Record<Intent, Need[]> = {
   company_summary: [
     ...PROFILE.slice(0, 1), ...ACCOUNT_PICTURE,
@@ -49,7 +51,7 @@ const PLANS: Record<Intent, Need[]> = {
     { ids: ["get_person_context"], needs: ["person"], when: /\bknow before\b/i },
     { ids: ["get_company_context"], needs: ["company"], unless: ["person"], when: /\bknow before\b/i },
     { ids: ["generate_meeting_brief"], needs: ["meeting"] },
-    { ids: ["get_upcoming_meetings"], unless: ["meeting"] },
+    { ids: ["get_upcoming_meetings"], unless: ["meeting"], input: (s) => meetingWindow(s.request, s.company?.id) },
     { ids: ["get_company_profile"], needs: ["company"] },
     { ids: ["get_commitments"], needs: ["company"] },
   ],
@@ -58,7 +60,11 @@ const PLANS: Record<Intent, Need[]> = {
     { ids: ["get_requirement_details"], needs: ["requirement"], unless: ["assets"] },
     { ids: ["search_properties"], unless: ["assets", "requirement"] },
   ],
-  leases_expiring: [{ ids: ["find_leases_expiring"] }],
+  leases_expiring: [
+    // a named company → Module 15 grounded answer for that company's lease (G17); otherwise the workspace window
+    { ids: ["lease_question"], needs: ["company"], when: ONE_LEASE, input: (s) => (s.company ? { question: s.request, companyId: s.company.id } : null) },
+    { ids: ["find_leases_expiring"], whenNot: ONE_LEASE },
+  ],
   rejected_options: [
     { ids: ["get_requirement_history"], needs: ["requirement"] },
     { ids: ["get_requirement_history"], needs: ["company"], unless: ["requirement"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
@@ -116,7 +122,24 @@ const PLANS: Record<Intent, Need[]> = {
     { ids: ["list_workflow_runs"], when: /\b(running|background|jobs?|tasks?|workflows?|automation|failed)\b/i, unless: [], input: (s) => (/\b(prepare|prep)\b.*\bmeetings?\b/i.test(s.request) ? null : { status: /failed/i.test(s.request) ? "failed" : "active" }) },
   ],
   requirement_correction: [{ ids: ["update_requirement_record"], needs: ["requirement"], input: (s) => correctionInput(s) }],
+  available_space: [
+    { ids: ["match_requirement_supply"], needs: ["requirement"] },
+    { ids: ["search_properties"], unless: ["requirement"], input: (s) => spaceInput(s) },
+  ],
+  transactions: [{ ids: ["transaction_blockers"], input: () => ({}) }],
+  intro_paths: [
+    { ids: ["find_intro_paths"], needs: ["company"], input: (s) => (s.company ? { companyId: s.company.id } : null) },
+    { ids: ["search_companies"], unless: ["company"] },
+  ],
 };
+
+/** "20,000 SF offices in Kharadi" → place + minimum area (the stated figure, no arithmetic). */
+export function spaceInput(s: Slots): Record<string, unknown> {
+  const m = s.request.match(/(\d[\d,.]*)\s*(k\b)?\s*(?:sf|sq\.?\s?ft|sqft|square feet)\b/i);
+  const area = m ? Number(m[1].replace(/,/g, "")) * (m[2] ? 1000 : 1) : null;
+  const place = placeIn(s.request);
+  return { ...(place ? { place } : {}), ...(area && Number.isFinite(area) ? { minAreaSf: area } : {}), status: "available" };
+}
 
 function draftInput(s: Slots) {
   if (!s.person) return null;
@@ -289,6 +312,13 @@ function infraOf(p: ContextPackage) {
   return r ? { name: String(r.name ?? "Infrastructure"), lat: Number(r.lat), lon: Number(r.lon) } : undefined;
 }
 
+/** "tomorrow" / "today" → that IST day only; otherwise the tool's default window (today + 7 days). */
+export function meetingWindow(request: string, companyId?: string, now = new Date()) {
+  const ist = (d: Date) => new Date(d.getTime() + 330 * 60_000).toISOString().slice(0, 10);
+  const day = /\btomorrow('s)?\b/i.test(request) ? ist(new Date(now.getTime() + 86_400_000)) : /\btoday('s)?\b/i.test(request) ? ist(now) : null;
+  return { ...(day ? { from: day, to: day } : {}), ...(companyId ? { companyId } : {}) };
+}
+
 const UPCOMING = /\b(next|upcoming|tomorrow|today|coming|later)\b/i;
 function slotsFrom(p: ContextPackage): Slots {
   const first = (t: EntityType) => (p.focus?.type === t ? p.focus : p.resolved.find((r) => r.type === t));
@@ -320,6 +350,7 @@ const HEADINGS: Record<Intent, string> = {
   research_why: "Why this account is an opportunity", decision_makers: "People to speak to", history: "What was said",
   outreach_draft: "Follow-up draft", requirement_correction: "Requirement correction", automation: "Background work",
   requirement_change: "Requirement history", similar_requirements: "Similar requirements", what_changed: "What changed",
+  available_space: "Available space", transactions: "Active transactions", intro_paths: "Introduction paths",
 };
 
 export const MOCK_CHUNK = 24;
@@ -378,7 +409,7 @@ export class MockProvider implements ModelProvider {
       return true;
     };
     for (const need of needs) {
-      if (need.needs?.some(empty) || need.unless?.some((n) => !empty(n)) || (need.when && !need.when.test(this.pkg.request))) continue;
+      if (need.needs?.some(empty) || need.unless?.some((n) => !empty(n)) || (need.when && !need.when.test(this.pkg.request)) || (need.whenNot && need.whenNot.test(this.pkg.request))) continue;
       const tool = findTool(need.ids, need.re);
       if (!tool || (calls.some((c) => c.name === tool.id) && !need.input)) continue;
       add(tool, need.input ? need.input(s) : fillInput(tool.input, s));

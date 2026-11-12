@@ -105,7 +105,7 @@ describe("Brief delivery (job mode, admin client + member access)", () => {
   it("model outage => fallback_no_ai brief with notice; access filter hides owner-only rows; one notification per user/date", async () => {
     const m = await jobCtx(COL, D1);
     const outage: StructuredCaller = async () => { throw Object.assign(new Error("down"), { reason: "provider_error" }); };
-    const r = await generateDailyBrief(m.c, m.settings, { date: D1, now: NOW, caller: outage });
+    const r = await generateDailyBrief(m.c, m.settings, { date: D1, now: NOW, caller: outage, mode: "on" });
     // same deterministic content as the user-generated version => reused (better synthesis kept)
     expect(r.created).toBe(false);
     expect(r.brief.content.deadlines.items.some((d) => d.leaseId === ids.hiddenLease)).toBe(false);
@@ -126,8 +126,10 @@ describe("Brief delivery (job mode, admin client + member access)", () => {
     const r = await preBriefCheck(admin as never, m.c, m.settings, D3, new Date("2031-01-17T02:25:00Z"));
     expect(r.action).toBe("fallback_generated");
     const b = await latestBrief(admin as never, WS1, COL, D3);
-    expect(b!.synthesis_status).toBe("fallback_no_ai");
-    expect((b!.content as any).synthesis.notice).toMatch(/watchdog/);
+    // AI policy off (default): the code summary is the real synthesis — no "missing AI" notice
+    expect(b!.synthesis_status).toBe("ok");
+    expect((b!.content as any).synthesis.source).toBe("code");
+    expect((b!.content as any).synthesis.notice).toBeNull();
     const { data: hr } = await admin.from("brief_health_run").select("check_kind, action_taken, brief_present").eq("workspace_id", WS1).eq("user_id", COL).eq("run_date", D3);
     expect(hr).toEqual([{ check_kind: "pre_brief", action_taken: "fallback_generated", brief_present: true }]);
     const again = await preBriefCheck(admin as never, m.c, m.settings, D3, new Date("2031-01-17T02:25:00Z"));

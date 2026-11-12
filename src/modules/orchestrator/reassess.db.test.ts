@@ -113,6 +113,31 @@ describe("Test 5 — requirement change 25,000 → 30,000 SF", () => {
   }, 60_000);
 });
 
+describe("Spec 6.3 — requirement change marks linked open transactions", () => {
+  it("marks + timeline + notifies the owner, never changes agreed terms; re-processing doesn't duplicate", async () => {
+    const t = tag("orch63");
+    const { createTransaction } = await import("@/modules/transactions/service");
+    const org = (await db.from("organisation").insert({ workspace_id: WS1, display_name: `Reqtx ${t}` }).select("id").single()).data!.id as string;
+    const req = (await db.from("requirement").insert({ workspace_id: WS1, org_id: org, title: `Reqtx ${t}`, area_target_sf: 20000, area_basis: "chargeable", owner_user_id: ME }).select("id").single()).data!.id as string;
+    const tx = await createTransaction({ db: db as never, workspaceId: WS1, userId: ME }, { name: `Reqtx ${t}`, txType: "conventional_leasing", clientOrgId: org, requirementId: req } as never);
+    const before = (await db.from("tx_transaction").select("*").eq("id", tx.id).single()).data!;
+    const p = await proposeChange(db, WS1, { targetType: "requirement", targetId: req, patch: [{ op: "replace", path: "/area_target_sf", value: 24000 }], reason: `Client said 24k ${t}`, idempotencyKey: `orch63:${t}` });
+    await approveAndApply(db, (p as Row).id ?? (p as Row).proposal_id ?? p, {});
+    const e = await eventFor("commercial.requirement_changed", req);
+    await processEvents(db, WS1, { eventIds: [e.id] });
+    await processEvents(db, WS1, { eventIds: [e.id] });
+    const marks = (await db.from("reassessment_mark").select("mark, reason").eq("workspace_id", WS1).eq("entity_type", "tx_transaction").eq("entity_id", tx.id)).data ?? [];
+    expect(marks.map((m: Row) => m.mark)).toEqual(["review"]);
+    expect(marks[0].reason).toMatch(/requirement .* changed/i);
+    const tl = (await db.from("tx_event").select("kind").eq("workspace_id", WS1).eq("transaction_id", tx.id).eq("kind", "requirement_changed")).data ?? [];
+    expect(tl).toHaveLength(1);
+    const notes = (await db.from("notification_state").select("title").eq("workspace_id", WS1).eq("record_type", "tx_transaction").eq("record_id", tx.id)).data ?? [];
+    expect(notes.map((n: Row) => n.title)).toContain(`${tx.code}: client requirement changed`);
+    const after = (await db.from("tx_transaction").select("*").eq("id", tx.id).single()).data!;
+    for (const k of Object.keys(before)) if (!["updated_at", "row_version"].includes(k)) expect(after[k], k).toEqual(before[k]);
+  }, 60_000);
+});
+
 describe("Test 3 — cancelled meeting", () => {
   it("cancels reminders and queued jobs; keeps meeting history and unrelated commitments", async () => {
     const t = tag("orch3");

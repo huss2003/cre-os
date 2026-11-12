@@ -68,7 +68,7 @@ describe("Journey M2 — Signal Engine", () => {
   it("TC2.3 lease expiry (structured lease date): scan creates prioritised renewal/relocation signal linked to lease", async () => {
     const in300 = new Date(Date.now() + 300 * 86_400_000).toISOString().slice(0, 10);
     ids.ev = await one("lease_event", { lease_id: ids.lease, event_type: "expiry", event_date: in300, date_basis: "reported", confirmed: false });
-    await scanWorkspace(db, WS1);
+    await scanWorkspace(db, WS1, { orgIds: [ids.org] }); // scoped to this test's company (shared WS1 holds thousands of lease events)
     const rows = (await listSignals(db, WS1, { view: "lease", q: ABC })).filter((s) => s.lease_event_id === ids.ev);
     const d = rows[0] ? (await signalDetail(db, WS1, rows[0].id))! : null;
     log("2.3-scan", { n: rows.length, kind: d?.signal.kind, lease: d?.signal.lease_id, priority: d?.signal.priority, band: d?.signal.priority_band, reasons: d?.signal.priority_reasons, action: d?.signal.recommended_action });

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import clsx from "clsx";
 import { hasRole, requirePageContext } from "@/lib/auth/context";
-import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select } from "@/components/ui";
+import { Badge, Button, Card, EmptyState, Field, Input, PageHeader, Select, Skeleton } from "@/components/ui";
 import { fmt } from "@/lib/util/time";
 import { loadSettings } from "@/modules/brief/db";
 import { listTasks, taskFilterSchema, TASK_STATES, type TaskRow } from "@/modules/brief/tasks-service";
@@ -14,7 +14,7 @@ const STATE_LABEL: Record<string, string> = { open: "Open", overdue: "Overdue", 
 const STATE_TONE: Record<TaskRow["state"], "neutral" | "bad" | "accent" | "warn" | "ok"> = { open: "neutral", overdue: "bad", snoozed: "accent", stale: "warn", done: "ok", cancelled: "neutral" };
 
 const EMPTY: Record<string, string> = {
-  open: "No open tasks. Tasks are created from captures, the lease radar (missing dates, notice deadlines), today's targets, or manually below.",
+  open: "No open tasks. Tasks are created from captures, Leases (missing dates, notice deadlines), today's targets, or manually below.",
   overdue: "Nothing overdue.",
   snoozed: "No snoozed tasks. Snoozed tasks come back automatically when the snooze ends.",
   stale: "No stale tasks. Tasks overdue for longer than the stale threshold land here instead of silently disappearing.",
@@ -25,7 +25,7 @@ const EMPTY: Record<string, string> = {
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default function Page({ searchParams }: { searchParams: SP }) {
-  return <Suspense fallback={<div className="p-6 text-sm text-ink-soft">Loading…</div>}><Body searchParams={searchParams} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" />}><Body searchParams={searchParams} /></Suspense>;
 }
 
 async function Body({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -63,7 +63,7 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
         <Input name="q" aria-label="Search tasks" defaultValue={f.q ?? ""} placeholder="Search titles" />
         <Select name="scope" aria-label="Whose tasks" defaultValue={f.scope} className="sm:w-44"><option value="mine">Mine</option><option value="all">Everyone</option></Select>
         <Select name="source" aria-label="Task source" defaultValue={f.source ?? ""} className="sm:w-44">
-          <option value="">Any source</option><option value="brief">Brief / targets</option><option value="workflow">Lease radar / relationships</option><option value="capture">Capture</option><option value="manual">Manual</option><option value="import">Import</option>
+          <option value="">Any source</option><option value="brief">Brief / targets</option><option value="workflow">Leases / relationships</option><option value="capture">Capture</option><option value="manual">Manual</option><option value="import">Import</option>
         </Select>
         <Button type="submit" variant="secondary">Filter</Button>
       </form>

@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase rows are untyped */
 import { z } from "zod";
-import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
+import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode } from "@/lib/ai/policy";
 import { proposeChange, type PatchOp } from "@/lib/services/changes";
 import { addLegalDocument } from "@/modules/intelligence/legal/service";
 import type { ApprovalPlan, Block, ToolContext } from "../types";
 import {
-  FIELD_LABEL, ModelTermsSchema, displayNormalised, finaliseTerms, heuristicTerms, leasePatchFromTerms, pagesForPrompt,
+  FIELD_LABEL, ModelTermsSchema, codeFirstLeaseTerms, displayNormalised, heuristicTerms, leasePatchFromTerms, pagesForPrompt,
   type ExtractedTerm,
 } from "../documents/lease-terms";
 import { HREF, db, defineTool, denied, errMsg, failed, ilikeSafe, isUuid, logDenied, ref, ws, type Row } from "./shared";
@@ -52,20 +53,14 @@ const extractLeaseTerms = defineTool({
     if (!a) return denied(t, "extract_lease_terms", { entity: "assistant_attachment", id: i.attachmentId });
     const pages = attachmentPages(a);
     if (!pages.some((p) => p.trim())) return { ok: false, error: "no_text", summary: `${a.file_name}: no text could be extracted (scanned PDF?) — nothing extracted, nothing guessed.`, missing: ["Document text (OCR needed)"] };
-    let model = "heuristic"; let mocked = true; let raw;
-    try {
-      const r = await callStructured({
-        workspaceId: ws(t), workflow: "assistant.lease_terms", tier: "luna", system: SYSTEM,
-        input: `Document kind: ${i.docKind ?? "unknown"}. Pages are wrapped in <page n="…"> tags. Return fields with page + verbatim snippet (≤25 words).`,
-        evidence: pagesForPrompt(pages), schema: ModelTermsSchema, schemaName: "lease_terms", maxOutputTokens: 3000,
-        mock: () => heuristicTerms(pages), requestId: t.runId,
-      });
-      raw = r.data; model = r.model; mocked = r.mocked;
-    } catch (e) {
-      if (!(e instanceof AiUnavailableError)) throw e;
-      raw = heuristicTerms(pages);
-    }
-    const terms = finaliseTerms(raw, pages);
+    // Code first (docs/ai-policy.md, feature capture.lease_terms): AI only when rent/area can't be read by patterns.
+    const mode = await getAiMode(db(t), ws(t), "assistant.lease_terms");
+    const { terms, model, mocked } = await codeFirstLeaseTerms(pages, mode, () => callStructured({
+      workspaceId: ws(t), workflow: "assistant.lease_terms", tier: "luna", system: SYSTEM,
+      input: `Document kind: ${i.docKind ?? "unknown"}. Pages are wrapped in <page n="…"> tags. Return fields with page + verbatim snippet (≤25 words).`,
+      evidence: pagesForPrompt(pages), schema: ModelTermsSchema, schemaName: "lease_terms", maxOutputTokens: 3000,
+      mock: () => heuristicTerms(pages), requestId: t.runId,
+    }));
     const flags = terms.filter((x) => x.flag).map((x) => ({ field: x.field, flag: x.flag }));
     const { data: saved, error } = await db(t).from("assistant_lease_extraction").insert({
       workspace_id: ws(t), owner_user_id: t.ctx.userId, attachment_id: a.id, doc_kind: i.docKind ?? null,

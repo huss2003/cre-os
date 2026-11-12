@@ -94,7 +94,7 @@ describe("Test 1 — Daily plan", () => {
 describe("Test 7 — AI provider unavailable", () => {
   it("still produces the basic plan from tasks/meetings; AI part delayed + retried later", async () => {
     const now = new Date("2032-03-11T02:30:00Z");
-    const r: any = await runDailyPlan(admin, WS1, COL, { now, ai: downAi, notify: false });
+    const r: any = await runDailyPlan(admin, WS1, COL, { now, ai: downAi, notify: false, mode: "on" });
     expect(r.aiStatus).toBe("delayed");
     const { data: plan } = await admin.from("orch_plan").select("*").eq("workspace_id", WS1).eq("user_id", COL).eq("kind", "daily").eq("period_key", "2032-03-11").single();
     expect(plan.ai_summary.delayed).toBe(true);
@@ -105,8 +105,8 @@ describe("Test 7 — AI provider unavailable", () => {
     const { data: retry } = await admin.from("job").select("id, due_at").eq("dedupe_key", `orchestrator.plan_ai:${WS1}:${COL}:2032-03-11`);
     expect(retry).toHaveLength(1);
     jobKeys.push(`orchestrator.plan_ai:${WS1}:${COL}:2032-03-11`);
-    await expect(retryPlanAi(admin, WS1, COL, "2032-03-11", downAi)).rejects.toThrow(); // still down → queue backs off
-    await retryPlanAi(admin, WS1, COL, "2032-03-11", mockAi);
+    await expect(retryPlanAi(admin, WS1, COL, "2032-03-11", downAi, "on")).rejects.toThrow(); // still down → queue backs off
+    await retryPlanAi(admin, WS1, COL, "2032-03-11", mockAi, "on");
     const { data: after } = await admin.from("orch_plan").select("ai_status").eq("id", plan.id).single();
     expect(after.ai_status).toBe("ok");
   });

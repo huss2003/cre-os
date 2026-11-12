@@ -13,6 +13,7 @@ import { dealsNeedingAttention, loadOpenDeals, loadOverdueCommitments, loadSigna
 import { weeklyRecommendations, type SectionOut } from "./plan-builder";
 import { loadOrchSettings } from "./settings-db";
 import { memberLoadCtx, savePlan } from "./daily-plan";
+import { weeklySummary } from "./summaries";
 
 const must = (r: { data: any; error: any }) => { if (r.error) throw r.error; return (r.data ?? []) as any[]; };
 const filt = (c: LoadCtx, rows: any[], t: string) => (c.access ? visible(c.access, rows, t) : rows);
@@ -66,7 +67,7 @@ export async function runWeeklyReview(admin: Db, ws: string, userId: string, opt
   const date = localDate(now, s.timezone);
   const week = isoWeekKey(date);
   const sections = await buildWeeklySections(c, date, now);
-  const { plan, changed } = await savePlan(admin, ws, userId, { kind: "weekly", period: week, tz: s.timezone, briefId: null, sections, recommended: sections.recommended_next_week.items, aiStatus: "not_used", aiSummary: null });
+  const { plan, changed } = await savePlan(admin, ws, userId, { kind: "weekly", period: week, tz: s.timezone, briefId: null, sections, recommended: sections.recommended_next_week.items, aiStatus: "ok", aiSummary: { ...weeklySummary(sections), source: "code" } });
   if (opts.notify !== false) await notifyUser(admin, ws, { userId, category: "weekly_review", eventKey: `weekly_review:${userId}:${week}`, title: `Weekly review ${week} is ready`, record: { type: "orch_plan", id: plan.id }, href: "/automation?view=weekly", settings: s, now });
   return { planId: plan.id, week, changed };
 }

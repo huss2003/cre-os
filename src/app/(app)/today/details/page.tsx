@@ -1,8 +1,9 @@
+import { codeLabel } from "@/lib/util/labels";
 import { Suspense } from "react";
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { GettingStarted } from "../getting-started";
-import { Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Select, StaleBanner, Stat, inr } from "@/components/ui";
+import { Badge, Button, ButtonLink, Card, EmptyState, Input, PageHeader, Select, StaleBanner, Stat, inr, Skeleton } from "@/components/ui";
 import { fmt } from "@/lib/util/time";
 import { buildBrief, type BriefContent, type TargetView } from "@/modules/brief/builder";
 import { gatherBriefInputs, latestBrief, type StoredBrief } from "@/modules/brief/brief-service";
@@ -29,7 +30,7 @@ const tierTone: Record<string, "ok" | "warn" | "neutral" | "bad"> = { act_this_w
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
 export default function Page({ searchParams }: { searchParams: SP }) {
-  return <Suspense fallback={<div className="p-6 text-sm text-ink-soft">Loading…</div>}><Body searchParams={searchParams} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" />}><Body searchParams={searchParams} /></Suspense>;
 }
 
 async function Body({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -101,7 +102,7 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
       ) : null}
 
       {synthesis?.status === "ok" && synthesis.synthesis ? (
-        <Card title={<>Summary <Badge tone="accent">{synthesis.mocked ? "AI (mock)" : "AI"}</Badge></>}>
+        <Card title={<>Summary {synthesis.source === "code" ? null : <Badge tone="accent">{synthesis.mocked ? "AI (mock)" : "AI"}</Badge>}</>}>
           <p className="text-sm">{synthesis.synthesis.headline}</p>
         </Card>
       ) : null}
@@ -205,7 +206,7 @@ async function Body({ searchParams }: { searchParams: Promise<Record<string, str
 
       {typeof sp.meeting === "string" && preMeeting.get(sp.meeting) ? <PreMeetingCard b={preMeeting.get(sp.meeting)!} tz={tz} /> : null}
 
-      <Card title="Expiry, notice, escalation & options (next 90 days)" actions={<Link href="/leases" className="text-sm text-brand">Lease radar</Link>}>
+      <Card title="Expiry, notice, escalation & options (next 90 days)" actions={<Link href="/leases" className="text-sm text-brand">Leases</Link>}>
         {content.deadlines.items.length ? (
           <ul className="space-y-2 text-sm">
             {content.deadlines.items.slice(0, 10).map((d) => (
@@ -344,7 +345,7 @@ function PreMeetingCard({ b, tz }: { b: PreMeetingBrief; tz: string }) {
     <Card title={`Pre-meeting: ${c.meeting?.title ?? "Meeting"} · ${fmt(c.meeting?.startAt, "HH:mm", tz)}`}>
       <div className="space-y-2 text-sm">
         {c.org ? <div><span className="font-medium">{c.org.name}</span>{c.score ? <> — {c.score.total}/100 ({TIER_LABEL[c.score.tier as Tier] ?? c.score.tier})</> : null}</div> : <p className="text-ink-soft">Meeting not linked to a company.</p>}
-        {c.opportunity ? <div>Deal: {c.opportunity.name} · {c.opportunity.stage.replace(/_/g, " ")}{c.opportunity.nextAction ? ` · next: ${c.opportunity.nextAction}` : ""}</div> : null}
+        {c.opportunity ? <div>Deal: {c.opportunity.name} · {codeLabel(c.opportunity.stage)}{c.opportunity.nextAction ? ` · next: ${c.opportunity.nextAction}` : ""}</div> : null}
         {c.questions?.length ? <div><div className="font-medium">Questions to confirm</div><ul className="ml-4 list-disc">{c.questions.map((q: string) => <li key={q}>{q}</li>)}</ul></div> : null}
         {c.leases?.length ? <div><div className="font-medium">Leases</div><ul className="ml-4 list-disc">{c.leases.map((l: any) => <li key={l.leaseId}>{l.asset ?? "Unknown building"} — expiry {l.expiry ?? "unknown"}{l.basis ? ` (${l.basis})` : ""}{l.notice ? ` · notice ${l.notice}` : ""}</li>)}</ul></div> : null}
         {c.recent?.length ? <div><div className="font-medium">Recent interactions</div><ul className="ml-4 list-disc">{c.recent.map((r: any, i: number) => <li key={i}>{fmt(r.occurredAt, "dd MMM", tz)} {r.channel}: {r.subject ?? r.summary ?? ""}</li>)}</ul></div> : null}

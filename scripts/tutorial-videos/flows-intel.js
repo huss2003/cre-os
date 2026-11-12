@@ -51,9 +51,12 @@ async function prepare() {
     "Rohan,Kulkarni,,rohan.kulkarni@zentrix.example,Zentrix Analytics,Head of Facilities & Workplace,01 Oct 2026\n");
 }
 
+/** First link to a signal card (not the Sources / lookup pages linked from the header). */
+const signalLink = (p) => main(p).locator("a[href^='/signals/']:not([href^='/signals/sources']):not([href^='/signals/lookup'])").first();
+
 const FLOWS = [
   {
-    slug: "signal-paste-v2", category: CAT, title: "Turn pasted news into a signal",
+    slug: "signal-paste-v3", category: CAT, title: "Turn pasted news into a signal",
     learn: "Paste an article or a note; CRE OS finds the event in it and adds an unverified signal you can review.", tryRoute: "/signals",
     async run(t) {
       const p = t.page;
@@ -68,20 +71,27 @@ const FLOWS = [
         "Tamarind Stack Labs is expanding in Pune: it plans a new office in Kharadi and is hiring 400 engineers next year.", 14));
       await t.step("Press Find signals.", () => t.moveAndClick(main(p).getByRole("button", { name: "Find signals" })));
       await t.step("The result line says how many signals were found and how many are new — the same news pasted twice is not added twice.", () => soft(t, main(p).getByText(/signal\(s\) found/)));
-      await t.step("The signal is listed, marked Unverified until you check it.", () => t.point(main(p).getByText(/Tamarind Stack Labs/).first()));
+      await t.step("The signal is listed, marked Unverified until you check it.", () => soft(t, main(p).getByRole("link", { name: /Tamarind Stack Labs/ })));
       await t.step("Below the paste box: the 12-month strip of dated events, like lease expiries, month by month.", () => soft(t, main(p).getByText("Next 12 months")));
       await t.step("Filters: by type (expansion, lease events, leadership…), Unverified, and Dismissed & snoozed.", () => soft(t, main(p).getByRole("link", { name: /^Unverified/ })));
       await t.step("Each card: type, headline, company, source and status. The bars show how strong the evidence is.", () => soft(t, main(p).getByText(/Tamarind Stack Labs: possible/).first()));
-      await t.step("Open it to see the evidence and decide what to do.", () => t.moveAndClick(main(p).getByRole("link", { name: /Tamarind Stack Labs/ }).first()));
-      await t.step("'What happened' quotes the event; the source is your pasted text.", () => t.point(main(p).getByText("1. What happened?")));
+      await t.step("Open it to see the evidence and decide what to do.", async () => {
+        const tamLink = main(p).getByRole("link", { name: /Tamarind Stack Labs/ }).first();
+        if (await tamLink.isVisible().catch(() => false)) return t.moveAndClick(tamLink);
+        await t.moveAndClick(main(p).getByRole("link", { name: /^Unverified/ })); // pasted on an earlier run: open it from the Unverified view
+        const again = main(p).getByRole("link", { name: /Tamarind Stack Labs/ }).first();
+        await t.moveAndClick((await again.isVisible().catch(() => false)) ? again : signalLink(p));
+      });
+      await t.step("'What happened' quotes the event; the source is your pasted text.", () => t.point(main(p).locator("summary", { hasText: /^1\. What happened/ }).first()));
       await t.outro("pasted a news item and got an unverified signal for Tamarind Stack Labs.", "review a signal and decide what to do with it.");
     },
   },
   {
-    slug: "signals-review", category: CAT, title: "Review a new signal and decide",
+    slug: "signals-review-v2", category: CAT, title: "Review a new signal and decide",
     learn: "Every part of a signal page: the 12 evidence sections, priority and history, and each decision — approve, investigate, dismiss, snooze, task, deal, research, evidence, override.", tryRoute: "/signals",
     async run(t) {
       const p = t.page;
+      await p.context().addCookies([{ name: "cre_ws", value: WS, url: t.BASE }]);
       await t.goto("/today");
       await t.title("Review a new signal", "A signal is a hint, not a fact. Check the evidence, then decide what to do with it.",
         ["Read the 12 sections", "Add supporting or counter evidence", "Approve, investigate, dismiss or snooze", "Link it to a task or deal"]);
@@ -89,25 +99,25 @@ const FLOWS = [
       await t.step("Unverified lists signals nobody has checked yet.", () => t.moveAndClick(main(p).getByRole("link", { name: /^Unverified/ })));
       const tam = main(p).getByRole("link", { name: /Tamarind Stack Labs/ }).first();
       const isTam = (await tam.count()) > 0;
-      await t.step("Open one to review it.", () => t.moveAndClick(isTam ? tam : main(p).locator("a[href^='/signals/']").first()));
+      await t.step("Open one to review it.", () => t.moveAndClick(isTam ? tam : signalLink(p)));
       await t.step("Header: type, company, and badges — urgency, evidence strength, Unverified and New.", () => soft(t, main(p).getByText("Unverified").first()));
-      await t.step("1. What happened — the event, quoted from the source.", () => soft(t, main(p).getByText("1. What happened?")));
+      await t.step("1. What happened — the event, quoted from the source.", () => soft(t, main(p).locator("summary", { hasText: /^1\. What happened/ }).first()));
       await t.step("2. Why it matters — CRE OS's reading of it, labelled as interpretation, not fact.", () => soft(t, main(p).getByText("2. Why it matters")));
       await t.step("3. Supporting evidence: every source behind the signal.", () => soft(t, main(p).getByText("3. Supporting evidence")));
       await t.step("4–9: what you already know — company records, offices, occupancy, leases, contacts, requirements.", () => soft(t, main(p).getByText("7. Relevant lease events")));
       await t.step("10. Counter-evidence: 'none found yet' does not mean there is none.", () => soft(t, main(p).getByText("10. Counter-evidence")));
-      await t.step("11. Missing information and 12. Suggested next step.", () => soft(t, main(p).getByText("12. Suggested next step")));
+      await t.step("11. Missing information and 12. Suggested next steps.", () => soft(t, main(p).getByText(/^12\. Suggested next step/).first()));
       await t.step("Priority — why: the reasons behind its urgency. History: every decision made on it.", () => soft(t, main(p).getByText("Priority — why")));
       await t.step("Know something? Add it as evidence, with its source.", async () => {
         await t.type(main(p).locator("textarea[name=text]").last(), "Their Pune HR head confirmed the hiring plan on a call.", 22);
       });
-      await t.step("'Add supporting' backs the signal; 'Add counter' records evidence against it.", async () => {
-        await t.point(main(p).getByRole("button", { name: "Add counter" }));
+      await t.step("'Add supporting' backs the signal; 'Add counter-evidence' records evidence against it.", async () => {
+        await t.point(main(p).getByRole("button", { name: /^Add counter/ }));
         await t.moveAndClick(main(p).getByRole("button", { name: "Add supporting" }));
       });
       await t.step("Wrong company matched? Correct it here.", () => soft(t, main(p).getByRole("button", { name: "Save company" })));
       await t.step("Research this company searches the web for recent news (needs an AI key).", () => soft(t, main(p).getByRole("button", { name: "Research this company" })));
-      await t.step("Link it to an existing deal, or propose a new deal from it.", () => soft(t, main(p).getByRole("button", { name: "Propose deal" })));
+      await t.step("Link it to an existing deal, or propose a new opportunity — it goes to Review for approval.", () => soft(t, main(p).getByRole("button", { name: "Propose opportunity" })));
       await t.step("Override the priority with a reason and a review date — it comes back for review then.", () => soft(t, main(p).getByRole("button", { name: "Save override" })));
       await t.step("Or just create a follow-up task from it.", () => soft(t, main(p).getByRole("button", { name: "Create task" })));
       await t.step("Decide: write a short reason first — it is kept in History.", () => t.type(main(p).locator("input[name=reason]").first(), "Hiring plan confirmed on a call", 22));
@@ -345,7 +355,7 @@ const FLOWS = [
     },
   },
   {
-    slug: "market-reports", category: CAT, title: "Market & reports: a tour of all five tabs",
+    slug: "market-reports-v2", category: CAT, title: "Market & reports: a tour of all five tabs",
     learn: "Five tabs: market figures with their source, network moves and intro paths, the legal desk, content planning and pipeline reports.", tryRoute: "/market",
     async run(t) {
       const p = t.page;
@@ -361,7 +371,7 @@ const FLOWS = [
       await t.step("Recent job moves are unverified until you confirm them.", () => soft(t, main(p).getByText("Recent job moves")));
       await t.step("Legal: for LOIs, term sheets and leases — for the tenant's lawyers, not legal advice.", () => t.moveAndClick(pageTab(p, "Legal")));
       await t.step("Upload a PDF or Word file; add a later version with the same family key to get a redline.", () => soft(t, main(p).getByText(/Upload a document/).first()));
-      await t.step("Link it to a lease so Lease radar can use its clauses (notice dates, break options).", () => soft(t, main(p).getByText(/Related to/).first()));
+      await t.step("Link it to a lease so Leases (and its Radar tab) can use its clauses (notice dates, break options).", () => soft(t, main(p).getByText(/Related to/).first()));
       await t.step("Content: LinkedIn posts and market notes in your voice. You publish them yourself.", () => t.moveAndClick(pageTab(p, "Content")));
       await t.step("'Plan this week' suggests two post ideas and a market-note slot (it also runs every Monday).", () => soft(t, main(p).getByRole("button", { name: "Plan this week" })));
       await t.step("Drafts are checked against the evidence and confidentiality rules before they can be approved.", async () => { await t.scroll(500); });

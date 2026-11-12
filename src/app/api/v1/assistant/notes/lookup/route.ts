@@ -4,13 +4,13 @@ import { route } from "@/lib/util/http";
 import { lookupEntities, lookupById } from "@/modules/assistant/notes/lookup";
 
 const Q = z.object({
-  kind: z.enum(["company", "requirement", "meeting", "person"]),
+  kind: z.enum(["company", "requirement", "meeting", "person", "lease", "transaction"]),
   q: z.string().max(100).default(""),
   orgId: z.string().uuid().optional(),
   id: z.string().uuid().optional(),
 });
 
-/** GET /api/v1/assistant/notes/lookup?kind=company|requirement|meeting|person&q=&orgId=&id= — picker search (RLS + workspace filter). */
+/** GET /api/v1/assistant/notes/lookup?kind=company|requirement|meeting|person|lease|transaction&q=&orgId=&id= — picker search (RLS + workspace filter). */
 export const GET = route(async (req) => {
   const ctx = await requireContext();
   const sp = req.nextUrl.searchParams;

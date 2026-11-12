@@ -17,12 +17,19 @@ async function loadBadges(ctx: AppContext): Promise<Badges> {
   const count = async (q: PromiseLike<{ count: number | null; error: unknown }>) => {
     try { const r = await q; return r.error ? undefined : r.count ?? undefined; } catch { return undefined; }
   };
-  const [review, outreach, meetings] = await Promise.all([
-    count(ctx.db.from("change_proposal").select("id", { count: "exact", head: true }).eq("workspace_id", ws).eq("state", "proposed").is("archived_at", null)),
+  const head = { count: "exact" as const, head: true };
+  const [proposals, txApprovals, leaseDates, leaseTerms, outreach, meetings] = await Promise.all([
+    count(ctx.db.from("change_proposal").select("id", head).eq("workspace_id", ws).eq("state", "proposed").is("archived_at", null)),
+    // Same filters as the Review page's integration sections (orchestrator/ui/integration-sections.ts reviewIntegrationSections).
+    count(ctx.db.from("tx_approval").select("id, tx_transaction!inner(archived_at)", head).eq("workspace_id", ws).eq("reviewer_user_id", ctx.userId).is("invalidated_at", null).is("archived_at", null).is("tx_transaction.archived_at", null).in("status", ["pending", "under_review", "changes_requested"])),
+    count(ctx.db.from("lease_date").select("id", head).eq("workspace_id", ws).is("archived_at", null).is("superseded_by", null).in("verification_status", ["needs_review", "conflicting"])),
+    count(ctx.db.from("lease_term_version").select("id", head).eq("workspace_id", ws).is("archived_at", null).eq("status", "proposed")),
     count(ctx.db.from("outreach_item").select("id", { count: "exact", head: true }).eq("workspace_id", ws).in("status", ["draft", "pending_approval"]).is("archived_at", null)),
     count(ctx.db.from("meeting_visit").select("id", { count: "exact", head: true }).eq("workspace_id", ws).is("archived_at", null)
       .gte("start_at", start.toISOString()).lt("start_at", end.toISOString())),
   ]);
+  const parts = [proposals, txApprovals, leaseDates, leaseTerms].filter((n): n is number => n !== undefined);
+  const review = parts.length ? parts.reduce((a, b) => a + b, 0) : undefined;
   return { review, outreach, meetings };
 }
 

@@ -2,7 +2,7 @@ import { FOCUS_MODE } from "@/lib/nav";
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, ButtonLink, Card, EmptyState, PageHeader, StaleBanner, Textarea } from "@/components/ui";
+import { Badge, ButtonLink, Card, EmptyState, PageHeader, StaleBanner, Textarea, Skeleton } from "@/components/ui";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
 import { ChangeError } from "@/lib/services/changes";
@@ -37,7 +37,7 @@ async function Body({ params }: Props) {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Review capture" subtitle={<span className="flex flex-wrap items-center gap-2"><StatusBadge status={c.status} /><Badge>{captureKindLabel(c.kind)}</Badge>{lang ? <Badge tone="neutral" title="Language of the note">{lang}</Badge> : null}{fmt(c.source_at)}{r.mocked ? <Badge tone="accent" title="OPENAI_API_KEY not set: deterministic rule extractor">rule extractor</Badge> : null}</span>}
+      <PageHeader title="Review capture" subtitle={<span className="flex flex-wrap items-center gap-2"><StatusBadge status={c.status} /><Badge>{captureKindLabel(c.kind)}</Badge>{lang ? <Badge tone="neutral" title="Language of the note">{lang}</Badge> : null}{fmt(c.source_at)}{r.mocked ? <Badge tone="accent" title="Read by pattern rules (no AI used) — check each value">rule extractor</Badge> : null}</span>}
         actions={<ButtonLink variant="secondary" href="/capture">New capture</ButtonLink>} />
       {c.status === "failed" ? <StaleBanner>Processing failed: {c.error}. Correct the note below and save to retry.</StaleBanner> : null}
       {c.error && c.status !== "failed" ? <StaleBanner>{c.error}</StaleBanner> : null}
@@ -190,5 +190,5 @@ async function Body({ params }: Props) {
 const FIELD_LABEL: Record<string, string> = { area_target_sf: "Area needed (sq ft)", seats_target: "Seats", budget_max: "Budget (max)", occupation_date: "Move-in date", decision_date: "Decision date", preferred_geography: "Preferred location" };
 
 export default function Page(props: Props) {
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body {...props} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="detail" />}><Body {...props} /></Suspense>;
 }

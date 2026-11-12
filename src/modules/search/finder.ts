@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase rows are untyped */
 import { callStructured } from "@/lib/ai/gateway";
 import { localDate } from "@/lib/util/time";
-import { accountFilterSchema, resolveWindow, type AccountFilter } from "./filter";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
+import { accountFilterSchema, isEmptyFilter, resolveWindow, type AccountFilter } from "./filter";
 import { parseAccountQuery, type Place } from "./parse";
 
 type Db = any;
@@ -81,35 +82,45 @@ export async function findAccounts(db: Db, ws: string, input: AccountFilter, opt
 }
 
 /**
- * Natural language → typed filter. Deterministic parser first; then the gateway may only FILL fields the parser left
- * empty (typed output, validated by zod; the query is passed as evidence, never executed). Mock returns nothing extra.
+ * Natural language → typed filter. The deterministic parser (parse.ts) is the default (AI policy "off").
+ * backup: the model runs only when the parser understood nothing. on: the model may FILL fields the parser left empty
+ * (typed output, validated by zod; the query is passed as evidence, never executed).
  */
-export async function nlToFilter(db: Db, ws: string, text: string, opts: { today?: string; useModel?: boolean } = {}): Promise<{ filter: AccountFilter; understood: string[]; modelFilled: string[]; mocked: boolean | null }> {
+export async function nlToFilter(db: Db, ws: string, text: string, opts: { today?: string; useModel?: boolean; mode?: AiMode } = {}): Promise<{ filter: AccountFilter; understood: string[]; notFiltered?: string[]; modelFilled: string[]; mocked: boolean | null }> {
   const today = opts.today ?? localDate();
   const places = await loadPlaces(db, ws);
   const det = parseAccountQuery(text.slice(0, 500), places, today);
   if (opts.useModel === false) return { ...det, modelFilled: [], mocked: null };
-  let modelFilled: string[] = []; let mocked: boolean | null = null;
-  try {
-    const r = await callStructured({
-      workspaceId: ws, workflow: "search.nl_filter", tier: "luna",
-      system: "You convert a commercial-real-estate account search request into a typed filter. Only fill fields the request clearly states. Never invent places, numbers or dates. Leave everything else out.",
-      input: `Today is ${today}. Fields already understood (do not repeat): ${JSON.stringify(det.filter)}. Known places: ${places.slice(0, 200).map((p) => p.name).join(", ")}.`,
-      evidence: text.slice(0, 500),
-      schema: accountFilterSchema, schemaName: "account_filter", maxOutputTokens: 400,
-      mock: () => ({}),
-    });
-    mocked = r.mocked;
-    const extra = accountFilterSchema.parse(r.data);
-    for (const [k, v] of Object.entries(extra) as [keyof AccountFilter, unknown][]) {
-      if (v === undefined || (det.filter as any)[k] !== undefined) continue;
-      if (k === "places") {  // only places that really exist in the workspace
-        const ok = (v as string[]).filter((n) => resolvePlaceIds([n], places).ids.length);
-        if (!ok.length) continue;
-        (det.filter as any)[k] = ok;
-      } else (det.filter as any)[k] = v;
-      modelFilled.push(k);
-    }
-  } catch { modelFilled = []; /* AI unavailable/paused → deterministic result stands (visible: modelFilled empty) */ }
-  return { ...det, modelFilled, mocked };
+  const mode = opts.mode ?? await getAiMode(db, ws, "search.nl_filter");
+  let mocked: boolean | null = null;
+  const out = await runWithPolicy<{ filter: AccountFilter; modelFilled: string[] }>({
+    mode,
+    code: () => ({ filter: det.filter, modelFilled: [] }),
+    accept: (r) => !isEmptyFilter(r.filter),
+    ai: async () => {
+      const r = await callStructured({
+        workspaceId: ws, workflow: "search.nl_filter", tier: "luna",
+        system: "You convert a commercial-real-estate account search request into a typed filter. Only fill fields the request clearly states. Never invent places, numbers or dates. Leave everything else out.",
+        input: `Today is ${today}. Fields already understood (do not repeat): ${JSON.stringify(det.filter)}. Known places: ${places.slice(0, 200).map((p) => p.name).join(", ")}.`,
+        evidence: text.slice(0, 500),
+        schema: accountFilterSchema, schemaName: "account_filter", maxOutputTokens: 400,
+        mock: () => ({}),
+      });
+      mocked = r.mocked;
+      const extra = accountFilterSchema.parse(r.data);
+      const filter: any = { ...det.filter }; const filled: string[] = [];
+      for (const [k, v] of Object.entries(extra) as [keyof AccountFilter, unknown][]) {
+        if (v === undefined || filter[k] !== undefined) continue;
+        if (k === "places") {  // only places that really exist in the workspace
+          const ok = (v as string[]).filter((n) => resolvePlaceIds([n], places).ids.length);
+          if (!ok.length) continue;
+          filter[k] = ok;
+        } else filter[k] = v;
+        filled.push(k);
+      }
+      return { filter, modelFilled: filled };
+    },
+  });
+  const v = out.value ?? { filter: det.filter, modelFilled: [] };
+  return { ...det, filter: v.filter, modelFilled: v.modelFilled, mocked: out.source === "ai" ? mocked : null };
 }

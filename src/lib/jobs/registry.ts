@@ -17,9 +17,11 @@ import * as tutorials from "@/modules/tutorials/jobs";
 import * as assistant from "@/modules/assistant/jobs";
 import * as orchestrator from "@/modules/orchestrator/jobs";
 import * as orchestratorSchedule from "@/modules/orchestrator/schedule/jobs";
+import * as transactions from "@/modules/transactions/jobs";
+import * as leases from "@/modules/leases/jobs";
 import { guardHandlers } from "@/modules/orchestrator/budget/service";
 
-const modules = [imports, capture, brief, deals, integrations, intelligence, admin, signals, scoring, contacts, outreach, meetings, assistant, workflows, tutorials, orchestrator, orchestratorSchedule];
+const modules = [imports, capture, brief, deals, integrations, intelligence, admin, signals, scoring, contacts, outreach, meetings, assistant, workflows, tutorials, orchestrator, orchestratorSchedule, transactions, leases];
 
 /** Budget guard (spec §12): budgeted non-critical job types pause when their budget is exhausted; others pass through. */
 export const handlers: Record<string, JobHandler> = guardHandlers(Object.assign({}, ...modules.map((m) => m.handlers)));

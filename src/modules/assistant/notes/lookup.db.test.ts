@@ -19,6 +19,21 @@ describe("notes link lookup", () => {
     c = { db: await userClient("owner"), workspaceId: WS1 };
   });
 
+  it("leases (by tenant company or building) and transactions (by code/name) for the capture link pickers", async () => {
+    const admin = adminClient(); const own = { workspace_id: WS1, owner_user_id: USERS.owner.id };
+    const asset = (await admin.from("asset").insert({ ...own, name: `Lkbldg ${t}` }).select("id").single()).data!.id;
+    const lease = (await admin.from("lease").insert({ ...own, tenant_org_id: orgId, asset_id: asset }).select("id").single()).data!.id;
+    expect((await lookupEntities(c, "lease", name)).map((h) => h.id)).toEqual([lease]);
+    const byBldg = await lookupEntities(c, "lease", `Lkbldg ${t}`);
+    expect(byBldg[0]).toMatchObject({ id: lease, orgId }); expect(byBldg[0].label).toContain(`Lkbldg ${t}`);
+    const { createTransaction } = await import("@/modules/transactions/service");
+    const tx = await createTransaction({ db: c.db, workspaceId: WS1, userId: USERS.owner.id }, { name: `Lktx ${t}`, txType: "conventional_leasing", clientOrgId: orgId } as never);
+    const hits = await lookupEntities(c, "transaction", `Lktx ${t}`);
+    expect(hits.map((h) => h.id)).toEqual([tx.id]); expect(hits[0].label).toContain(tx.code);
+    expect((await lookupById(c, "transaction", tx.id))?.id).toBe(tx.id);
+    expect((await lookupById(c, "lease", lease))?.id).toBe(lease);
+  });
+
   it("needs 2+ chars, finds companies in this workspace only", async () => {
     expect(await lookupEntities(c, "company", "z")).toEqual([]);
     const hits = await lookupEntities(c, "company", name);

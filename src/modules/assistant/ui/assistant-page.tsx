@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
+import { Skeleton } from "@/components/ui";
 import { api, type ConversationItem, type SavedCommand } from "./api";
 import { Composer, Thread, exportMarkdown, useAssistantChat } from "./chat";
 import { GENERAL_PROMPTS } from "./focus";
@@ -131,7 +132,7 @@ function ConversationRail({ items, error, q, setQ, activeId, onOpen, onChanged, 
       <input id="conv-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search conversations"
         className="mb-3 min-h-11 w-full rounded-lg border border-line bg-canvas px-3 text-sm focus:border-brand focus:bg-surface focus:outline-none focus:ring-2 focus:ring-brand/20" />
       {error ? <p role="alert" className="px-1 text-sm text-bad">{error}</p> : null}
-      {items === null ? <p className="px-1 text-sm text-ink-soft">Loading…</p> : !sorted.length && !error ? (
+      {items === null ? <Skeleton variant="list" rows={3} label="Loading notes" /> : !sorted.length && !error ? (
         <p className="px-1 text-sm text-ink-soft">{q ? "No conversations match." : "No conversations yet. Ask a question to start one."}</p>
       ) : null}
       <ul className="-mx-1 flex-1 space-y-0.5 overflow-y-auto">

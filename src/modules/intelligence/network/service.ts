@@ -4,6 +4,7 @@ import type { Db } from "@/lib/supabase/server";
 import { proposeChange } from "@/lib/services/changes";
 import { createDraft } from "@/lib/services/drafts";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
 import { type AiCall, isoDate, expiryFor } from "../common";
 import { detectThreadingGaps, type ThreadingGap, stageIndex } from "./graph";
 import { introPathSummaries, nameMap } from "../research/service";
@@ -181,7 +182,7 @@ const ReconnectSchema = z.object({ subject: z.string(), body: z.string() });
  * Personal reconnect DRAFT (never sent). Uses only the person's name, new employer and title — no notes from the old
  * company, no scraped private context. Blocked if the person is suppressed.
  */
-export async function draftReconnect(db: Db, workspaceId: string, input: { personId: string; orgId: string; channel?: "email" | "linkedin"; ai?: AiCall; userId?: string | null }) {
+export async function draftReconnect(db: Db, workspaceId: string, input: { personId: string; orgId: string; channel?: "email" | "linkedin"; ai?: AiCall; userId?: string | null; mode?: AiMode }) {
   const [{ data: person }, { data: org }, { data: emp }] = await Promise.all([
     db.from("person").select("id, full_name").eq("workspace_id", workspaceId).eq("id", input.personId).single(),
     db.from("organisation").select("id, display_name").eq("workspace_id", workspaceId).eq("id", input.orgId).single(),
@@ -190,18 +191,21 @@ export async function draftReconnect(db: Db, workspaceId: string, input: { perso
   if (!person || !org) throw new Error("person or organisation not visible");
   const first = String(person.full_name).split(/\s+/)[0];
   const title = emp?.title ? String(emp.title) : null;
-  const mock = () => ({
+  const mock = () => input.channel === "linkedin" ? ({
+    subject: `Congratulations on the move to ${org.display_name}`,
+    body: `Hi ${first}, congratulations on the new role${title ? ` as ${title}` : ""} at ${org.display_name}! Would be good to stay in touch — happy to share what we're seeing in the Pune office market whenever useful.`,
+  }) : ({
     subject: `Congratulations on the move to ${org.display_name}`,
     body: `Hi ${first},\n\nCongratulations on your new role${title ? ` as ${title}` : ""} at ${org.display_name}. Hope the first weeks are going well.\n\nIf workplace or office plans in Pune come up as you settle in, I'd be glad to share what we're seeing in the market — no agenda, happy to just catch up.\n\nBest,`,
   });
   let draft = mock();
   try {
-    const res = await (input.ai ?? (callStructured as AiCall))({
+    const pol = await runWithPolicy({ mode: input.mode ?? await getAiMode(db, workspaceId, "network.reconnect"), code: mock, ai: async () => (await (input.ai ?? (callStructured as AiCall))({
       workspaceId, workflow: "network.reconnect", tier: "luna",
       system: "Write a short, personal, non-salesy congratulation note from a Pune commercial-real-estate adviser. Do not mention any previous employer's confidential matters, prices or deals. No invented facts.",
       input: `First name: ${first}\nNew employer: ${org.display_name}\nTitle: ${title ?? "unknown"}`, schema: ReconnectSchema, schemaName: "reconnect", maxOutputTokens: 400, mock,
-    });
-    draft = res.data;
+    })).data as { subject: string; body: string } });
+    draft = pol.value ?? draft;
   } catch (e) {
     if (!(e instanceof AiUnavailableError)) throw e; // fall back to the template
   }

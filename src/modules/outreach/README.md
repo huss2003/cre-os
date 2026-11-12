@@ -117,3 +117,8 @@ Run with `npx vitest run src/modules/outreach`.
 ## Rollback
 Drop `outreach_event`, `outreach_version` and `outreach_item`, in that order, and remove `outreach` from `src/lib/jobs/registry.ts`.
 Drafts and interactions created by outreach stay as normal records.
+
+## AI policy (Nov 2026)
+- `outreach.draft` and `outreach.response` default to **off**: drafts come from `rules.templateDraft` (+ `noPlaceholders`, which guarantees no `[placeholder]` is left) and replies are classified by `reply-classifier.ts` (`classifyReply`, English/Hindi/Hinglish; labels interested, meeting, info_requested, not_now, not_interested, out_of_office, wrong_person, unsubscribe, unclear).
+- `classifyReply` is a pure exported function; `integrations/triage.ts` also uses it.
+- AI rewrites ("more formal" etc.) not covered by the offline editor say so instead of silently doing nothing.

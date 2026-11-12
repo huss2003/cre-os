@@ -87,7 +87,17 @@ export function matchTier(label: string, phrase: string): number {
   if (!p) return 0;
   if (l === p) return 3;
   if (l.startsWith(p) && !/[\w]/.test(l[p.length] ?? " ")) return 2;
-  return l.includes(p) ? 1 : 0;
+  if (l.includes(p)) return 1;
+  return tokensInOrder(l, p) ? 1 : 0;
+}
+/** "Northwind GCC" ~ "Northwind Halberd GCC India": every word of a 2+ word phrase appears in the label as a whole word, in order. */
+export function tokensInOrder(label: string, phrase: string): boolean {
+  const ws = phrase.toLowerCase().split(/\s+/).filter(Boolean);
+  if (ws.length < 2) return false;
+  const lw = label.toLowerCase().split(/[^\w&-]+/).filter(Boolean);
+  let i = 0;
+  for (const w of lw) if (i < ws.length && w === ws[i]) i++;
+  return i === ws.length;
 }
 /** Score a label: the best phrase match (exact > prefix > contains, then longer phrase). Single-word prefix/contains matches are weak. */
 export function scoreLabel(label: string, phrases: string[]): { score: number; strong: boolean } {
@@ -175,6 +185,12 @@ export async function searchEntitiesRanked(ctx: AppContext, text: string, types:
       rows.push(...((exact.data ?? []) as unknown as Record<string, unknown>[]));
       const { data } = await ctx.db.from(src.table).select(src.cols).eq("workspace_id", ctx.workspaceId).is("archived_at", null).ilike(src.label, containsLike(p)).limit(CAP_PER_TYPE * 2);
       rows.push(...((data ?? []) as unknown as Record<string, unknown>[]));
+      // partial multi-word name ("Northwind GCC" → "Northwind Halberd GCC India"): all words, in order
+      if (/\s/.test(p)) {
+        const pat = `%${p.split(/\s+/).map((w) => w.replace(/[%_\\]/g, "")).join("%")}%`;
+        const part = await ctx.db.from(src.table).select(src.cols).eq("workspace_id", ctx.workspaceId).is("archived_at", null).ilike(src.label, pat).limit(CAP_PER_TYPE * 2);
+        rows.push(...((part.data ?? []) as unknown as Record<string, unknown>[]));
+      }
     }
     for (const r of rows) {
       const label = String(r[src.label] ?? "");

@@ -1,0 +1,50 @@
+{
+  "durationMs": 57084,
+  "steps": [
+    {
+      "caption": "Open the Lumen Harbour Tech lease from Leases.",
+      "ms": 3611
+    },
+    {
+      "caption": "In Important dates, each escalation shows its date and the expected new rent: 15% every 36 months on the last paid rent.",
+      "ms": 15174
+    },
+    {
+      "caption": "Commercial terms: current values next to the original version 1. Unknown terms are simply not listed.",
+      "ms": 18363
+    },
+    {
+      "caption": "Version 2 was extracted from the deed and is Proposed: it adds the escalation, the term and the lock-in.",
+      "ms": 21652
+    },
+    {
+      "caption": "Nothing extracted replaces the terms by itself. After checking, press Confirm as current.",
+      "ms": 29982
+    },
+    {
+      "caption": "Version 2 is now current; version 1 is kept as history.",
+      "ms": 34664
+    },
+    {
+      "caption": "Financials: rent, CAM, parking and other costs a month. Unknown items say unknown — they are not counted as zero.",
+      "ms": 37853
+    },
+    {
+      "caption": "The escalation table: each step, its effective date, the expected rent, the actual rent recorded and a check.",
+      "ms": 41076
+    },
+    {
+      "caption": "Step 1 matches: ₹13.8 lakh was recorded after January 2027. A different amount would show a discrepancy.",
+      "ms": 44307
+    },
+    {
+      "caption": "Record a payment or actual value adds rent or CAM paid. Payment status comes only from these records.",
+      "ms": 47487
+    },
+    {
+      "caption": "Record an amendment adds new terms with an effective date — the old terms stay in the history.",
+      "ms": 50698
+    }
+  ],
+  "bytes": 765125
+}

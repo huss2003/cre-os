@@ -4,6 +4,7 @@
  * Unknown / unreadable ids render as "Unknown record" — never the raw id.
  */
 import { format, parseISO, isValid } from "date-fns";
+import { codeLabel, looksLikeCode } from "@/lib/util/labels";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = Record<string, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,7 +37,7 @@ export const refTable = (f: string) => TABLE_BY_FIELD.find(([re]) => re.test(f))
 const humanise = (k: string) => { const s = k.replace(/_ids?$/, "").replace(/_/g, " ").replace(/\bsf\b/, "(sf)").trim(); return s.charAt(0).toUpperCase() + s.slice(1); };
 export function fieldLabel(path: string): string {
   const f = path.replace(/^\//, "").split("/")[0];
-  return FIELD_LABELS[f] ?? humanise(f);
+  return FIELD_LABELS[f] ?? (/_ids?$/.test(f) ? humanise(f) : codeLabel(f));
 }
 
 /**
@@ -82,6 +83,7 @@ function fmtScalar(v: unknown): string {
   if (typeof v === "string") {
     if (ISO_DATE.test(v)) { const d = parseISO(v); if (isValid(d)) return format(d, "d MMM yyyy"); }
     if (ISO_TS.test(v)) { const d = parseISO(v); if (isValid(d)) return format(d, "d MMM yyyy, HH:mm"); }
+    if (looksLikeCode(v)) return codeLabel(v);
     return cleanText(v) || UNKNOWN;
   }
   return String(v);

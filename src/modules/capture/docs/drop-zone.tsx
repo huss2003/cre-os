@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { Badge, Button, Field, Input, MoreFields, Select } from "@/components/ui";
+import { EntityPicker } from "@/components/ui/entity-picker";
 import { intakeAction, type IntakeState } from "./actions";
 import { DOC_TYPES, TYPE_LABEL } from "./detect";
 
@@ -72,6 +73,9 @@ export function DropZone({ workspaceId, options }: { workspaceId: string; option
             </Select>
           </Field>
         ))}
+        {/* Lease-family documents linked to a lease go to Leases (dates stay unconfirmed); linked to a transaction they go to its intake for review. */}
+        <EntityPicker name="lease_id" kind="lease" label="Lease" placeholder="Search tenant, company or building…" />
+        <EntityPicker name="transaction_id" kind="transaction" label="Transaction" placeholder="Search code or name…" />
         <Field label="What is it?" hint="Leave on Detect unless the guess is wrong.">
           <Select name="doc_type" defaultValue="">
             <option value="">Detect automatically</option>

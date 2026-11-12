@@ -132,7 +132,7 @@ export async function raiseRadarTasks(db: Db, workspaceId: string, load: RadarLo
     for (const e of it.enrichment) {
       todo.push({
         key: `brief.radar:${it.leaseId}:${e.key}`, title: e.reason,
-        description: `${it.issues.join(" ") || "Lease radar enrichment."} Do not invent a date — record the source when found.`,
+        description: `${it.issues.join(" ") || "Lease date enrichment (Leases)."} Do not invent a date — record the source when found.`,
         priority: e.key === "expired_status" ? 60 : 40, dueAt: null, leaseId: it.leaseId, area: it.areaSf ?? 0, group: "enrich",
       });
     }

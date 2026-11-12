@@ -35,10 +35,19 @@ const getUpcomingMeetings = defineTool({
   }),
   async run(i, t) {
     const tz = t.ctx.timezone || "Asia/Kolkata";
-    const from = i.from ?? today();
+    const from = i.from ?? today(tz);
     const to = i.to ?? new Date(Date.parse(from) + 7 * 86_400_000).toISOString().slice(0, 10);
     const startIso = fromZonedTime(`${from}T00:00:00`, tz).toISOString(); const endIso = fromZonedTime(`${to}T23:59:59`, tz).toISOString();
-    const { data } = await db(t).from("meeting_visit").select("id, title, start_at, end_at, location, status, kind, linked_entity_type, linked_entity_id, opportunity_id, lat, lon").eq("workspace_id", ws(t)).is("archived_at", null).gte("start_at", startIso).lte("start_at", endIso).order("start_at").limit(200);
+    let q = db(t).from("meeting_visit").select("id, title, start_at, end_at, location, status, kind, linked_entity_type, linked_entity_id, opportunity_id, lat, lon").eq("workspace_id", ws(t)).is("archived_at", null).gte("start_at", startIso).lte("start_at", endIso);
+    if (i.companyId && !/^[0-9a-f-]{36}$/i.test(i.companyId)) return NA;
+    if (i.companyId) {
+      // Scope by company in the query (not after the row cap), else a busy week hides the company's meetings.
+      const { data: cp } = await db(t).from("meeting_prep").select("meeting_visit_id").eq("workspace_id", ws(t)).eq("org_id", i.companyId).limit(1000);
+      const ids = [...new Set(((cp ?? []) as Row[]).map((r) => String(r.meeting_visit_id)))];
+      const orgClause = `and(linked_entity_type.eq.organisation,linked_entity_id.eq.${i.companyId})`;
+      q = q.or(ids.length ? `id.in.(${ids.join(",")}),${orgClause}` : orgClause);
+    }
+    const { data } = await q.order("start_at").order("id").limit(200);
     let rows = ((data ?? []) as Row[]).filter((m) => m.status !== "cancelled");
     const preps = await prepsFor(t, rows.map((m) => m.id));
     if (i.companyId) rows = rows.filter((m) => preps.get(m.id)?.org_id === i.companyId || (m.linked_entity_type === "organisation" && m.linked_entity_id === i.companyId));
@@ -57,7 +66,7 @@ const getUpcomingMeetings = defineTool({
       ok: true, summary: i.atTime ? (items.length === 1 ? `Found: ${items[0].title} at ${items[0].local}` : `${items.length} meetings near ${i.atTime}`) : `${rows.length} meeting(s) ${from} → ${to}`,
       data: { from, to, total: rows.length, items, ambiguous: !!i.atTime && items.length > 1 }, entities,
       coverage: { checked: rows.length, withData: items.filter((x) => x.prepId).length, note: "withData = meetings with a prep record" },
-      blocks: items.length ? [{ kind: "table", title: "Meetings", columns: ["When", "Meeting", "Company", "Prep", "Readiness"], rows: items.map((x) => [x.local, x.title, x.company, x.prepStatus, x.readiness]) }] : [{ kind: "text", markdown: `No meetings found ${from} → ${to}${i.atTime ? ` around ${i.atTime}` : ""}.` }],
+      blocks: items.length ? [{ kind: "table", title: "Meetings", columns: ["When", "Meeting", "Company", "Prep", "Readiness"], rows: items.map((x) => [x.local, x.title, x.company, String(x.prepStatus).replace(/_/g, " "), x.readiness ? String(x.readiness).replace(/_/g, " ") : "not assessed"]) }] : [{ kind: "text", markdown: `No meetings found ${from} → ${to}${i.atTime ? ` around ${i.atTime}` : ""}.` }],
     };
   },
 });
@@ -140,7 +149,7 @@ const getCommitments = defineTool({
     const oRows = ((await oq).data ?? []) as Row[];
     const pn = await namesById(t, "person", oRows.map((o) => o.person_id));
     for (const o of oRows) out.push({ what: `Follow up with ${pn.get(o.person_id) ?? "contact"} (${o.channel})`, due: o.planned_on, who: "us", source: "Planned outreach follow-up", status: o.planned_on < now ? "overdue" : "open", company: null, href: HREF.outreach(o.id) });
-    let mq = db(t).from("meeting_note").select("prep_id, text, created_at").eq("workspace_id", ws(t)).eq("kind", "commitment").gte("created_at", `${from}T00:00:00Z`).limit(200);
+    let mq = db(t).from("meeting_note").select("prep_id, text, created_at").eq("workspace_id", ws(t)).eq("kind", "commitment").gte("created_at", `${from}T00:00:00Z`).order("created_at", { ascending: false }).limit(200);
     if (i.companyId) {
       const preps = (((await db(t).from("meeting_prep").select("id").eq("workspace_id", ws(t)).eq("org_id", i.companyId)).data ?? []) as Row[]).map((p) => p.id);
       mq = preps.length ? mq.in("prep_id", preps) : mq.eq("prep_id", "00000000-0000-0000-0000-000000000000");

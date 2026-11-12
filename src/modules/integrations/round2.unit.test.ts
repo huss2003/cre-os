@@ -175,3 +175,13 @@ describe("14 visit checklist", () => {
     expect(checklistFor("call", [])).toEqual([]);
   });
 });
+
+import { mockTriage as triageCode } from "./triage";
+describe("integrations.triage code path — Hinglish and reply classes", () => {
+  const t = (body: string, subject = "Re: Office options") => triageCode({ fromName: "Anil Mehta", subject, body });
+  it("out of office → low urgency, no draft", () => { const r = t("I am out of office until 20 Nov."); expect(r.category).toBe("other"); expect(r.summary).toMatch(/Out-of-office.*until 20 Nov/); expect(r.draft_reply).toBeNull(); });
+  it("Hinglish opt-out", () => expect(t("Please message mat bhejo").category).toBe("opt_out"));
+  it("Hinglish not now → contrary wrong_timing", () => expect(t("Abhi koi requirement nahi, agle quarter dekhte hain").contrary_info?.kind).toBe("wrong_timing"));
+  it("Hinglish info request", () => { const r = t("Baner ke options aur rates bhej do"); expect(r.next_actions[0]).toBe("Send the requested details"); expect(r.draft_reply).toMatch(/^Hi Anil,/); });
+  it("wrong person", () => expect(t("Main ye nahi dekhta, Rahul se unse baat karo").category).toBe("wrong_contact"));
+});

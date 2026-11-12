@@ -1,7 +1,8 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { requireContext } from "@/lib/auth/context";
-import { actOnSignal, ingestText, scanWorkspace, SignalError, type SignalAction } from "./service";
+import { actOnSignal, ingestText, scanWorkspace, SignalError } from "./service";
+import { runSignalForm, FormProblem, ACTION_MESSAGE, counterMessage } from "./ui-data";
 import { errorMessage } from "@/modules/admin/http";
 import type { ActionState } from "@/modules/admin/ui/client";
 import { escapeLike } from "@/lib/util/like";
@@ -10,15 +11,62 @@ const str = (f: FormData, k: string) => { const v = f.get(k); return typeof v ==
 
 export async function signalAction(id: string, _prev: ActionState, form: FormData): Promise<ActionState> {
   try {
-    const ctx = await requireContext("editor");
-    const action = String(form.get("action") ?? "") as SignalAction;
-    const data: Record<string, string | undefined> = {};
-    for (const k of ["reason", "until", "title", "opportunity_id", "name", "text", "source", "url", "published_on", "org_id", "band", "review_on"]) data[k] = str(form, k);
-    await actOnSignal(ctx.db, ctx.workspaceId, ctx.userId, id, action, data);
+    const ctx = await requireContext("viewer");
+    const { action } = await runSignalForm(ctx, id, form, actOnSignal as never);
     revalidatePath("/signals"); revalidatePath(`/signals/${id}`);
-    const msg: Partial<Record<SignalAction, string>> = { approve: "Approved — follow-up task created.", create_task: "Task created.", propose_opportunity: "Opportunity proposal sent to Review.", snooze: "Snoozed.", dismiss: "Dismissed.", reject: "Rejected." };
-    return { ok: true, message: msg[action] ?? "Saved." };
-  } catch (e) { return { error: e instanceof SignalError ? e.message : errorMessage(e) }; }
+    return { ok: true, message: ACTION_MESSAGE[action] ?? "Saved." };
+  } catch (e) { return { error: e instanceof SignalError || e instanceof FormProblem ? e.message : errorMessage(e) }; }
+}
+
+/** Sources page: pause / resume / reconnect / manual refresh. Admins manage sources; editors may refresh. */
+export async function sourceAction(registryId: string, _prev: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const op = String(form.get("op") ?? "");
+    const ctx = await requireContext(op === "refresh" ? "editor" : "admin");
+    const src = await import("./sources");
+    if (op === "pause" || op === "resume") { await src.setSourcePaused(ctx.db, ctx.workspaceId, registryId, op === "pause"); }
+    else if (op === "reconnect") {
+      const r = await src.reconnectSource(ctx.db, ctx.workspaceId, registryId) as { connectionStatus?: string; message?: string } | undefined;
+      revalidatePath("/signals/sources");
+      if (r?.connectionStatus === "needs_access") return { error: r.message ?? "This source still needs access." };
+    } else throw new FormProblem("Unknown source action.");
+    revalidatePath("/signals/sources");
+    return { ok: true, message: op === "pause" ? "Paused." : op === "resume" ? "Resumed." : "Reconnected." };
+  } catch (e) { return { error: e instanceof FormProblem ? e.message : errorMessage(e) }; }
+}
+
+export async function refreshNowAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { refreshNow } = await import("./refresh");
+    const orgId = str(form, "org_id");
+    const r = await refreshNow(ctx.db, ctx.workspaceId, { orgId, actorUserId: ctx.userId }) as Record<string, unknown>;
+    revalidatePath("/signals"); revalidatePath("/signals/sources");
+    const n = Object.entries(r ?? {}).filter(([, v]) => typeof v === "number").map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`).join(", ");
+    return { ok: true, message: `Refresh done${n ? ` — ${n}` : ""}.` };
+  } catch (e) { return { error: errorMessage(e) }; }
+}
+
+export async function retryItemAction(itemId: string, _prev: ActionState): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("editor");
+    const { retrySourceItem } = await import("./pipeline");
+    await retrySourceItem(ctx.db, ctx.workspaceId, itemId);
+    revalidatePath("/signals/sources"); revalidatePath("/signals");
+    return { ok: true, message: "Retried." };
+  } catch (e) { return { error: errorMessage(e) }; }
+}
+
+export async function universeAction(_prev: ActionState, form: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireContext("admin");
+    const cap = Number(form.get("cap"));
+    if (!Number.isInteger(cap) || cap < 50 || cap > 8000) return { error: "Enter a whole number between 50 and 8,000." };
+    const { setUniverseCap } = await import("./refresh");
+    await setUniverseCap(ctx.db, ctx.workspaceId, cap);
+    revalidatePath("/signals/sources");
+    return { ok: true, message: `Research universe capped at ${cap.toLocaleString("en-IN")} companies.` };
+  } catch (e) { return { error: errorMessage(e) }; }
 }
 
 export async function ingestAction(_prev: ActionState, form: FormData): Promise<ActionState> {
@@ -26,12 +74,14 @@ export async function ingestAction(_prev: ActionState, form: FormData): Promise<
     const ctx = await requireContext("editor");
     const r = await ingestText(ctx.db, ctx.workspaceId, {
       text: String(form.get("text") ?? ""), companyName: str(form, "company"), orgId: str(form, "org_id"), sourceName: str(form, "source"),
-      sourceUrl: str(form, "url"), publishedOn: str(form, "published_on"), actorUserId: ctx.userId,
+      sourceUrl: str(form, "url"), publishedOn: str(form, "published_on"), actorUserId: ctx.userId, signalId: str(form, "signal_id"),
     });
     revalidatePath("/signals");
+    for (const u of r.counterFor) revalidatePath(`/signals/${u.id}`);
+    if (r.counterFor.length) return { ok: true, message: counterMessage(r.counterFor) };
     if (!r.detected) return { ok: true, message: "No CRE signal found in that text. Nothing was created." };
     const unresolved = r.resolution && !r.resolution.orgId
-      ? ` Company not matched${r.resolution.candidates.length ? ` (maybe: ${r.resolution.candidates.map((c) => c.name).join(", ")})` : ""} — fix it on the signal.` : "";
+      ? ` Company “${r.rawName ?? "unknown"}” not matched${r.resolution.candidates.length ? ` (maybe: ${r.resolution.candidates.map((c) => c.name).join(", ")})` : ""} — confirm it or add it as a new company on the signal.` : "";
     return { ok: true, message: `${r.detected} signal(s) found, ${r.signals.filter((s) => s.created).length} new.${unresolved}` };
   } catch (e) { return { error: e instanceof SignalError ? e.message : errorMessage(e) }; }
 }

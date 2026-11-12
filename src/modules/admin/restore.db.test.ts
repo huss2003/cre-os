@@ -68,7 +68,9 @@ describe("real restore test (monthly restore sample)", () => {
     const queue = [...tables];
     await Promise.all(Array.from({ length: RESTORE_TEST.concurrency }, async () => {
       for (let t = queue.shift(); t !== undefined; t = queue.shift()) {
-        const data = await fetchTableRows(admin, WS1, t);
+        // The restore check restores RESTORE_TEST.rowsPerTable rows per table; reading the whole (ever-growing shared) WS1 table
+        // just to sample it measured the test DB size, not restore speed. Read exactly the rows the restore check restores.
+        const data = await fetchTableRows(admin, WS1, t, { maxRows: RESTORE_TEST.rowsPerTable });
         results.push(await restoreTableSample(admin, WS1, t, JSON.parse(JSON.stringify(data)))); // same JSON round trip as a stored export
       }
     }));

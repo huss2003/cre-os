@@ -8,6 +8,7 @@
  */
 import { z } from "zod";
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
 import { proposeChange } from "@/lib/services/changes";
 import { type DealsCtx, DealsError, dbError, must } from "@/modules/deals/ctx";
 import { createQuote, reviseQuote } from "@/modules/deals/quotes/service";
@@ -108,6 +109,31 @@ const months = (s: string | null): number | null => {
   return /year|yr/i.test(s) && !/month/i.test(s) ? n * 12 : n;
 };
 
+/** "Rs 2.5 lakh" → 250000, "₹1.2 crore" → 12000000, "85" → 85. Multipliers only when written (never assumed). */
+export function inrAmount(s: string | null): number | null {
+  if (!s) return null;
+  const m = s.match(/(\d[\d,]*(?:\.\d+)?)\s*(lakhs?|lacs?|lac|crores?|cr\b|k\b)?/i);
+  if (!m) return null;
+  const v = num(m[1]); if (v === null) return null;
+  const u = (m[2] ?? "").toLowerCase();
+  const mul = /^c/.test(u) ? 10_000_000 : /^la/.test(u) ? 100_000 : u === "k" ? 1_000 : 1;
+  return Math.round(v * mul * 100) / 100;
+}
+const WORD_N: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12 };
+/** First "N months/years" (digits or words, "three (3) years") in a phrase → months. */
+function periodMonths(s: string | null | undefined): number | null {
+  if (!s) return null;
+  const m = s.match(/\(?\b(\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b\)?\s*(?:\(\d+\)\s*)?(months?|mths?|years?|yrs?)\b/i);
+  if (!m) return null;
+  const n = /^\d/.test(m[1]) ? Number(m[1]) : WORD_N[m[1].toLowerCase()];
+  return /^y/i.test(m[2]) ? n * 12 : n;
+}
+/** Sentence-level search anywhere in the text (for quotes written as prose, not "Label: value" lines). */
+function sentence(text: string, re: RegExp): string | null {
+  for (const s of text.split(/(?<=[.;])\s+|\r?\n/)) if (re.test(s)) return s.trim();
+  return null;
+}
+
 /** Deterministic regex extraction (mock mode + fallback). Missing terms stay null — nothing is invented. */
 export function regexExtract(text: string): QuoteTerms {
   const t = emptyTerms();
@@ -119,7 +145,7 @@ export function regexExtract(text: string): QuoteTerms {
 
   const rent = line(text, L("rent|base rent|monthly rent|lease rental|rental|seat price|price per seat|per seat"));
   if (rent) {
-    t.rent = firstNum(rent);
+    t.rent = inrAmount(rent);
     t.rent_basis = /seat|workstation/i.test(rent) ? "seat" : /carpet/i.test(rent) ? "carpet" : /chargeable|super|built/i.test(rent) ? "chargeable" : null;
     t.rent_periodicity = /annum|annual|year|p\.?a\.?\b/i.test(rent) ? "annual" : /month|p\.?m\.?\b/i.test(rent) ? "monthly" : null;
   }
@@ -128,7 +154,7 @@ export function regexExtract(text: string): QuoteTerms {
     if (/includ/i.test(cam) && firstNum(cam) === null) t.cam_included = true;
     else { t.cam_per_sf = firstNum(cam); t.cam_included = /includ/i.test(cam) ? true : t.cam_per_sf !== null ? false : null; }
   }
-  t.parking_per_slot = firstNum(line(text, L("car parking|parking")));
+  t.parking_per_slot = inrAmount(line(text, L("car parking|parking")));
   t.deposit_months = months(line(text, L("security deposit|deposit|refundable deposit")));
   const esc = line(text, L("escalation|rent escalation"));
   if (esc) {
@@ -138,7 +164,7 @@ export function regexExtract(text: string): QuoteTerms {
   }
   t.rent_free_months = months(line(text, L("rent[- ]free|rent free period|fit-?out period|rent holiday")));
   t.fitout = line(text, L("fit-?out|handover|handover condition|condition"));
-  t.capex_support = firstNum(line(text, L("capex|fit-?out contribution|fit-?out support|landlord contribution|tenant improvement")));
+  t.capex_support = inrAmount(line(text, L("capex|fit-?out contribution|fit-?out support|landlord contribution|tenant improvement")));
   t.lockin_months = months(line(text, L("lock-?in|lock in period")));
   t.notice_months = months(line(text, L("notice|notice period")));
   t.tenure_months = months(line(text, L("tenure|term|lease term|lease tenure")));
@@ -147,7 +173,47 @@ export function regexExtract(text: string): QuoteTerms {
   t.inclusions = line(text, L("inclusions|included|includes"));
   t.exclusions = line(text, L("exclusions|excluded|excludes|not included"));
   t.assumptions = line(text, L("assumptions|notes|conditions|terms and conditions"));
+  proseFallbacks(text, t);
   return QuoteExtraction.parse(t);
+}
+
+/** Terms written in sentences ("The rent is Rs 85 per sq ft per month", "15% escalation every 3 years"). Fills nulls only. */
+function proseFallbacks(text: string, t: QuoteTerms) {
+  if (t.rent === null) {
+    const s = sentence(text, /\b(rent|rental|seat price|per seat)\b[^.\n]{0,60}?(₹|rs\.?|inr)\s*\d/i);
+    const m = s?.match(/(?:₹|rs\.?|inr)\s*(\d[\d,]*(?:\.\d+)?\s*(?:lakhs?|lacs?|crores?|cr\b)?)/i);
+    if (s && m) {
+      t.rent = inrAmount(m[1]);
+      t.rent_basis ??= /seat|workstation/i.test(s) ? "seat" : /carpet/i.test(s) ? "carpet" : /chargeable|super|built/i.test(s) ? "chargeable" : null;
+      t.rent_periodicity ??= /annum|annual|per year|p\.a\.?/i.test(s) ? "annual" : /month|p\.m\.?\b/i.test(s) ? "monthly" : null;
+    }
+  }
+  if (t.escalation_pct === null) {
+    const s = sentence(text, /escalat|increase/i);
+    const m = s?.match(/(\d+(?:\.\d+)?)\s*(?:%|per\s*cent|percent)/i);
+    if (s && m) {
+      t.escalation_pct = num(m[1]);
+      const every = s.match(/(?:every|after|each)\s+(\d+|one|two|three|four|five)\s*(years?|yrs?|months?)/i);
+      t.escalation_every_months ??= every ? (/^\d/.test(every[1]) ? +every[1] : WORD_N[every[1].toLowerCase()]) * (/^y/i.test(every[2]) ? 12 : 1) : /annual|every year|per annum|yearly/i.test(s) ? 12 : null;
+    }
+  }
+  if (t.deposit_months === null) t.deposit_months = periodMonths(sentence(text, /\b(security\s+)?deposit\b[^.\n]*\bmonths?\b|\bmonths?'?\s+(?:of\s+)?(?:rent\s+as\s+)?(?:security\s+)?deposit/i));
+  if (t.lockin_months === null) { const s = sentence(text, /lock[- ]?in/i); t.lockin_months = periodMonths(s?.slice(s.search(/lock[- ]?in/i)) ?? null); }
+  if (t.notice_months === null) { const s = sentence(text, /\bnotice\b/i); t.notice_months = periodMonths(s?.slice(s.search(/\bnotice\b/i)) ?? null); }
+  if (t.rent_free_months === null) { const s = sentence(text, /rent[- ]free|rent holiday/i); t.rent_free_months = periodMonths(s?.slice(s.search(/rent[- ]free|rent holiday/i)) ?? null); }
+  if (t.tenure_months === null) { const s = sentence(text, /\b(lease\s+)?(term|tenure)\b(?!.*lock)/i); t.tenure_months = periodMonths(s?.slice(s.search(/\b(term|tenure)\b/i)) ?? null); }
+  if (t.cam_per_sf === null && t.cam_included === null) {
+    const s = sentence(text, /\bCAM\b|common area maintenance|maintenance charges?/i);
+    if (s) { const m = s.match(/(?:₹|rs\.?|inr)\s*(\d[\d,]*(?:\.\d+)?)/i); t.cam_per_sf = m ? num(m[1]) : null; t.cam_included = /includ/i.test(s) ? true : t.cam_per_sf !== null ? false : null; }
+  }
+  if (t.valid_until === null) { const s = sentence(text, /valid (?:until|till|up to)|validity|expires/i); t.valid_until = parseDate(s); }
+}
+
+/** Code's extraction is good enough (no AI) when rent + its periodicity and at least two other commercial terms are read. */
+export function quoteAccept(t: QuoteTerms): boolean {
+  if (t.rent === null || t.rent_periodicity === null) return false;
+  const others = [t.deposit_months, t.escalation_pct, t.lockin_months, t.tenure_months, t.cam_per_sf ?? t.cam_included, t.valid_until, t.notice_months];
+  return others.filter((v) => v !== null && v !== undefined).length >= 2;
 }
 
 /** Map stored quote (terms_json + valid_until column) back to the intake shape for comparison. */
@@ -236,16 +302,32 @@ export async function quoteFileText(fileName: string, bytes: Uint8Array): Promis
   throw new DealsError(400, "Unsupported file: upload a PDF, a Word .docx or a .txt file — or paste the text.");
 }
 
-/** AI extraction. The quote text is untrusted evidence; mock mode = deterministic regex extraction. */
-export async function extractQuoteTerms(workspaceId: string, text: string, partyKind: PartyKind) {
-  const r = await callStructured({
-    workspaceId, workflow: "toolkit.quote_intake", tier: "luna", schema: QuoteExtraction, schemaName: "quote_terms",
-    system: "You extract commercial terms from an Indian commercial real-estate quotation (landlord, managed-office operator or fit-out partner). Copy values as stated; convert dates to ISO yyyy-mm-dd; months as numbers. Use null for anything not stated. Do not compute or derive amounts.",
-    input: `Party type: ${partyKind}. Extract every field of the schema from the quotation in the evidence.`,
-    evidence: text.slice(0, 60_000),
-    mock: () => regexExtract(text),
+/**
+ * Code first (docs/ai-policy.md, feature toolkit.quote_intake): regex/sentence extraction; the AI gateway is called only
+ * when quoteAccept fails and the workspace mode allows it. The quote text is untrusted evidence. AI values win; code fills
+ * fields the AI left null.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function extractQuoteTerms(workspaceId: string, text: string, partyKind: PartyKind, opts: { db?: { from: (t: string) => any }; mode?: AiMode } = {}) {
+  const mode = opts.mode ?? (opts.db ? await getAiMode(opts.db, workspaceId, "toolkit.quote_intake") : "backup");
+  const code = regexExtract(text);
+  const out = await runWithPolicy<{ terms: QuoteTerms; model: string | null; mocked: boolean }>({
+    mode, code: () => ({ terms: code, model: "rules", mocked: true }), accept: (r) => quoteAccept(r.terms),
+    ai: async () => {
+      const r = await callStructured({
+        workspaceId, workflow: "toolkit.quote_intake", tier: "luna", schema: QuoteExtraction, schemaName: "quote_terms",
+        system: "You extract commercial terms from an Indian commercial real-estate quotation (landlord, managed-office operator or fit-out partner). Copy values as stated; convert dates to ISO yyyy-mm-dd; months as numbers. Use null for anything not stated. Do not compute or derive amounts.",
+        input: `Party type: ${partyKind}. Extract every field of the schema from the quotation in the evidence.`,
+        evidence: text.slice(0, 60_000),
+        mock: () => code,
+      });
+      const merged = { ...r.data } as Record<string, unknown>;
+      for (const [k, v] of Object.entries(code)) if (merged[k] === null || merged[k] === undefined) merged[k] = v;
+      return { terms: QuoteExtraction.parse(merged), model: r.model, mocked: r.mocked };
+    },
   });
-  return { terms: r.data, model: r.model, mocked: r.mocked };
+  const v = out.value ?? { terms: code, model: "rules", mocked: true };
+  return { ...v, source: out.source };
 }
 
 export async function createIntake(ctx: DealsCtx, i: { requirementId: string | null; quoteId: string | null; spaceId?: string | null; partyKind: PartyKind; storagePath: string | null; fileName: string | null; text: string; notes?: string[] }) {
@@ -260,9 +342,9 @@ export async function createIntake(ctx: DealsCtx, i: { requirementId: string | n
   }
   if (!requirementId) throw new DealsError(400, "Choose the requirement this quote is for (or an existing quote to update).");
   const notes = [...(i.notes ?? [])];
-  const ext = i.text.trim() ? await extractQuoteTerms(ctx.workspaceId, i.text, i.partyKind) : { terms: emptyTerms(), model: null, mocked: false };
+  const ext = i.text.trim() ? await extractQuoteTerms(ctx.workspaceId, i.text, i.partyKind, { db: ctx.db }) : { terms: emptyTerms(), model: null, mocked: false, source: "none" as const };
   if (!i.text.trim()) notes.push("No text to extract from — fill the terms in by hand.");
-  if (ext.mocked) notes.push("AI is not configured: terms were extracted with simple pattern matching. Check every field.");
+  if (ext.source !== "none" && ext.mocked) notes.push(ext.source === "ai" ? "AI is not configured: terms were extracted with simple pattern matching. Check every field." : "Terms were read with pattern matching (no AI). Check every field.");
   const r = await ctx.db.from("quote_intake").insert({
     workspace_id: ctx.workspaceId, owner_user_id: ctx.userId, requirement_id: requirementId, quote_id: i.quoteId, space_id: i.quoteId ? null : i.spaceId ?? null, party_kind: i.partyKind,
     storage_path: i.storagePath, file_name: i.fileName, source_text: i.text.slice(0, 200_000), extracted: ext.terms, extraction_model: ext.model, notes,

@@ -47,8 +47,8 @@ describe("Module 2 — signal engine", () => {
   });
 
   it("lease scan creates a distinct notice-deadline signal, idempotently", async () => {
-    await scanWorkspace(db, WS1);
-    await scanWorkspace(db, WS1);
+    await scanWorkspace(db, WS1, { orgIds: [ids.org] }); // scoped to this test's company (shared WS1 holds thousands of lease events)
+    await scanWorkspace(db, WS1, { orgIds: [ids.org] }); // scoped to this test's company (shared WS1 holds thousands of lease events)
     const rows = (await listSignals(db, WS1, { view: "lease", q: `Zeta ${t}` })).filter((r) => r.lease_event_id === ids.ev);
     expect(rows).toHaveLength(1);
     expect(rows[0].kind).toBe("lease_notice_deadline");

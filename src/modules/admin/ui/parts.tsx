@@ -1,13 +1,13 @@
 import { Help } from "@/components/ui";
 import { helpFor } from "@/components/ui/help-text";
 import type { ReactNode } from "react";
-import { Badge, FactBadge } from "@/components/ui";
+import { Badge, FactBadge, Skeleton } from "@/components/ui";
 import type { TrailItem } from "../entities";
 
 /* Server-renderable display helpers shared by admin pages. */
 
-export function Loading({ label = "Loading…" }: { label?: string }) {
-  return <div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">{label}</div>;
+export function Loading({ label = "Loading", variant = "list" }: { label?: string; variant?: "list" | "detail" | "cards" }) {
+  return <Skeleton variant={variant} label={label.replace(/…$/, "")} />;
 }
 
 const CLASS_LABEL: Record<string, [string, "neutral" | "brand" | "warn" | "bad"]> = {
@@ -21,9 +21,20 @@ export function ClassBadge({ value }: { value?: string | null }) {
   return <Badge tone={tone} title="Classification">{label}</Badge>;
 }
 
+const TIER_LABEL: Record<string, string> = {
+  documentary_current: "Backed by a current document", credible_reported: "Reported by a credible source", corroborated_public: "Confirmed by several public sources",
+  single_unverified: "One source, not yet verified", inference: "Inferred — not stated by a source",
+};
 export function TierBadge({ tier }: { tier?: string | null }) {
   if (!tier) return null;
-  return <Badge tone="brand" title="Evidence tier">Tier {tier}</Badge>;
+  return <Badge tone="brand" title="How strong the evidence is">{TIER_LABEL[tier] ?? plainWords(tier)}</Badge>;
+}
+
+const KIND_LABEL: Record<string, string> = { signal: "Signal", employment: "Job change", lease: "Lease", audit: "Change", interaction: "Interaction", capture: "Capture", import: "Import" };
+/** snake_case codes → plain words ("expansion — expansion_terms" → "Expansion — expansion terms"). */
+export function plainWords(v: string): string {
+  const s = v.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
 export function fmtDate(v?: string | null, withTime = false) {
@@ -61,11 +72,11 @@ export function EvidenceTrail({ items, asOf }: { items: TrailItem[]; asOf?: stri
         <li key={i} className="border-l-2 border-line pl-3">
           <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-soft">
             <span>{fmtDate(t.at, t.kind === "audit" || t.kind === "interaction")}</span>
-            <Badge>{t.kind}</Badge>
+            <Badge>{KIND_LABEL[t.kind] ?? plainWords(t.kind)}</Badge>
             {t.factStatus ? <FactBadge status={t.factStatus} /> : null}
             <TierBadge tier={t.evidenceTier} />
           </div>
-          <div className="text-sm font-medium">{t.href ? <a className="text-brand underline" href={t.href}>{t.title}</a> : t.title}</div>
+          <div className="text-sm font-medium">{t.href ? <a className="text-brand underline" href={t.href}>{plainWords(t.title)}</a> : plainWords(t.title)}</div>
           {t.detail ? <p className="text-sm text-ink-soft">{t.detail}</p> : null}
           {t.source ? <p className="truncate text-xs text-ink-soft">Source: {/^https?:\/\//.test(t.source) ? <a className="underline" href={t.source} rel="noreferrer noopener" target="_blank">{t.source}</a> : t.source}</p> : null}
         </li>

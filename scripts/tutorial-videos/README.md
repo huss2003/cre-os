@@ -12,6 +12,19 @@ caption bar, title and outro cards). They are shown on `/tutorials` and `/tutori
 | `setup-demo.ts` | Idempotent demo data in the synthetic demo workspace (Zentrix Analytics, Ananya Rao, Kharadi/Hinjewadi buildings, a lease expiring in ~10 months, a 25,000 sf Kharadi requirement, a Pune-expansion signal). |
 | `workflow-demo.ts` | Resets and runs the Zentrix "lease → renewal / relocation" automation (used by the `automation` video). |
 
+### Module groups added 2026-11-12 (prepared, not yet recorded)
+
+| Group (`--group`) | Flows file | Demo data (run by the group's `prepare`) | Slugs |
+|---|---|---|---|
+| `leases` | `flows-leases.js` | `setup-leases.ts` (TUT-LEASE-A/B/C rebuilt each run) | leases-dashboard, lease-add, lease-critical-dates, lease-escalation, lease-renewals, lease-termination, lease-obligations, lease-calendar, lease-portfolio |
+| `transactions` | `flows-transactions.js` | `setup-transactions.ts` ("… (tutorial)" transactions archived + rebuilt) | tx-create, tx-offers, tx-positions, tx-issues, tx-inspections-docs, tx-stakeholders, tx-loi-points, tx-agreement-approvals, tx-execution-handover, tx-closure, tx-command-view |
+| `supply` | `flows-supply.js` | `setup-supply.ts` | supply-inventory, supply-operators, supply-matching, supply-reconfirmation, supply-feedback |
+| `signals2` | `flows-signals2.js` | `setup-signals2.ts` (needs `setup-leases.ts` companies) | signals-dashboard-v2, signal-card-v2, signal-counter-evidence, signal-unresolved-company, signal-actions, signals-sources |
+| `ai-settings` | `flows-ai-settings.js` | `setup-ai-settings.ts` (resets AI modes; card PNG in /tmp/tutorial-ai) | ai-use-settings, local-ocr-business-card |
+
+Shared helpers for these groups: `new-modules-common.js` (`SOFT_LOG=1` prints optional pointers that were not found during a dry run).
+Existing videos broken by recent UI changes, with step fixes: `RERECORD.md`.
+
 ## Re-record everything (one command)
 
 With the local Supabase stack and the app running on port 3100 (`npx next build && PORT=3100 npx next start -p 3100`):

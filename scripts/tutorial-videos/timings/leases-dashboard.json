@@ -1,0 +1,66 @@
+{
+  "durationMs": 71158,
+  "steps": [
+    {
+      "caption": "Open Leases from the sidebar, under Work.",
+      "ms": 3607
+    },
+    {
+      "caption": "The tabs: Leases (this dashboard), Calendar, Renewals, Obligations, Portfolio and Radar — the old lease radar now lives here.",
+      "ms": 7730
+    },
+    {
+      "caption": "The headline counts: active leases, expiries in the next 12 months, renewal deadlines, escalations, lock-in completions, break options and pending obligations.",
+      "ms": 11220
+    },
+    {
+      "caption": "They count only confirmed dates. Dates awaiting review are counted separately because they are not yet contractual deadlines.",
+      "ms": 14488
+    },
+    {
+      "caption": "Filter by lifecycle status: draft, under negotiation, executed, active, renewal under discussion, termination notice served, expired and more.",
+      "ms": 17699
+    },
+    {
+      "caption": "Filter by category: conventional office, managed office, coworking, retail or industrial.",
+      "ms": 21165
+    },
+    {
+      "caption": "Filter by event type and time window — for example lock-in completions in the next 90 days.",
+      "ms": 24410
+    },
+    {
+      "caption": "Press Filter.",
+      "ms": 29294
+    },
+    {
+      "caption": "Upcoming milestones lists each confirmed date with the lease and how many days are left.",
+      "ms": 35334
+    },
+    {
+      "caption": "Widen the window to the next 365 days and clear the event filter to see everything coming up.",
+      "ms": 38555
+    },
+    {
+      "caption": "The milestones now include expiries and renewal notice deadlines for the demo leases.",
+      "ms": 46879
+    },
+    {
+      "caption": "Below is every lease: tenant, property, category, status and what it still Needs — for example rent or a confirmed expiry.",
+      "ms": 50116
+    },
+    {
+      "caption": "Search finds a lease by tenant, landlord or building.",
+      "ms": 53372
+    },
+    {
+      "caption": "Filter, then open the lease to see its details.",
+      "ms": 57211
+    },
+    {
+      "caption": "The lease page: overview, important dates, terms, financials, documents, obligations, renewal, termination, reminders and history.",
+      "ms": 64739
+    }
+  ],
+  "bytes": 839855
+}

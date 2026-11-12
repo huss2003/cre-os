@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Card, Field, PageHeader, Select, Textarea, StaleBanner } from "@/components/ui";
+import { Badge, Card, Field, PageHeader, Select, Textarea, StaleBanner, Skeleton } from "@/components/ui";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
 import { ActionForm, Submit } from "@/modules/changes/ui/client";
@@ -67,8 +67,8 @@ async function Body({ params }: Props) {
         {r.contact_methods_pending ? <p className="mt-2 text-xs text-ink-soft">{r.contact_methods_pending}</p> : null}
         {r.person_match ? (
           <p className="mt-2 text-xs">
-            <Badge tone={r.person_match.tier === "high" ? "ok" : r.person_match.tier === "none" ? "neutral" : "warn"}>{r.person_match.tier === "none" ? "no existing contact" : `${r.person_match.tier} confidence match`}</Badge>{" "}
-            {r.person_match.reason}{(r.person_match.candidates as Row[] | undefined)?.length ? <> — {(r.person_match.candidates as Row[]).map((c) => <Link key={c.id} className="text-brand underline" href={`/people/${c.id}`}>{c.label} </Link>)}</> : null}
+            <Badge tone={r.person_match.tier === "high" ? "ok" : r.person_match.tier === "none" ? "neutral" : "warn"}>{r.person_match.tier === "none" ? "No existing contact" : `${r.person_match.tier} confidence match`}</Badge>{" "}
+            {r.person_match.tier === "none" ? String(r.person_match.reason ?? "").replace(/^no existing contact\s*[—-]\s*/i, "").replace(/^./, (c: string) => c.toUpperCase()) : r.person_match.reason}{(r.person_match.candidates as Row[] | undefined)?.length ? <> — {(r.person_match.candidates as Row[]).map((c) => <Link key={c.id} className="text-brand underline" href={`/people/${c.id}`}>{c.label} </Link>)}</> : null}
             {r.person_match.tier === "medium" || r.person_match.tier === "low" ? " If it is the same person, pick them in the link picker and press Process again; nothing is merged automatically." : null}
           </p>
         ) : null}
@@ -113,7 +113,7 @@ async function Body({ params }: Props) {
         {proposals.length === 0 ? <p className="text-sm text-ink-soft">No record changes proposed from this file.</p> : (
           <ul className="divide-y divide-line">{proposals.map((p) => (
             <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-              <span className="min-w-0"><StateBadge state={p.state} /> {p.operation} {p.target_type}<span className="block truncate text-xs text-ink-soft">{p.reason}</span></span>
+              <span className="min-w-0"><StateBadge state={p.state} /> {proposalLabel(p.operation, p.target_type)}<span className="block truncate text-xs text-ink-soft">{p.reason}</span></span>
               <Link className="shrink-0 text-brand underline" href="/approvals?tab=records">Review</Link>
             </li>
           ))}</ul>
@@ -152,5 +152,12 @@ async function Body({ params }: Props) {
 }
 
 export default function Page(props: Props) {
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body {...props} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="detail" />}><Body {...props} /></Suspense>;
+}
+
+const OP_LABEL: Record<string, string> = { create: "New", update: "Update", merge: "Merge", link: "Link", archive: "Archive", delete: "Remove" };
+const TARGET_LABEL: Record<string, string> = { organisation: "company", person: "contact", contact_method: "contact detail", employment: "job / employment", interaction: "interaction", task: "task", requirement: "requirement", lease: "lease", asset: "building", availability: "availability" };
+/** Plain proposal label, e.g. "New company" instead of "create organisation" (B11). */
+function proposalLabel(op: string, target: string) {
+  return `${OP_LABEL[op] ?? (op ? op.charAt(0).toUpperCase() + op.slice(1).replace(/_/g, " ") : "Change")} ${TARGET_LABEL[target] ?? String(target ?? "").replace(/_/g, " ")}`;
 }

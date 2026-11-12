@@ -53,14 +53,14 @@ export function ActionResult({ state }: { state: ActionState }) {
   );
 }
 
-export function Submit({ children, variant = "primary", confirm, className, name, value, dataTour }: {
-  children: ReactNode; variant?: "primary" | "secondary" | "danger" | "ghost"; confirm?: string; className?: string; name?: string; value?: string; dataTour?: string;
+export function Submit({ children, variant = "primary", confirm, className, name, value, dataTour, disabled }: {
+  children: ReactNode; variant?: "primary" | "secondary" | "danger" | "ghost"; confirm?: string; className?: string; name?: string; value?: string; dataTour?: string; disabled?: boolean;
 }) {
   const ctxPending = useContext(PendingCtx);
   const { pending: formPending } = useFormStatus();
   const pending = ctxPending ?? formPending;
   return (
-    <Button type="submit" variant={variant} disabled={pending} className={className} name={name} value={value} data-tour={dataTour}
+    <Button type="submit" variant={variant} disabled={pending || disabled} className={className} name={name} value={value} data-tour={dataTour}
       onClick={confirm ? (e) => { if (!window.confirm(confirm)) e.preventDefault(); } : undefined}>
       {pending ? "Working…" : children}
     </Button>

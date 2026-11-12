@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Skeleton } from "@/components/ui";
 import { hasRole, requirePageContext } from "@/lib/auth/context";
 import { failedJobCount, listFailedJobs } from "@/modules/capture/docs/review";
 import { FailedJobsQueue } from "@/modules/capture/docs/failed-jobs";
@@ -23,5 +23,5 @@ async function Body() {
 }
 
 export default function Page() {
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" />}><Body /></Suspense>;
 }

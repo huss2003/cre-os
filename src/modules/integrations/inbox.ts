@@ -1,6 +1,7 @@
 import "server-only";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
 import { sha256 } from "@/lib/util/crypto";
 import { contactValueHash, createDraft, SuppressedRecipientError } from "@/lib/services/drafts";
 import { createTask } from "@/lib/services/tasks";
@@ -86,16 +87,18 @@ export async function ingestMessage(db: Db, ws: string, p: {
 }
 
 /** Run the (mock-able) model triage on sanitised evidence, then apply deterministic safety rules. */
-export async function runTriage(ws: string, row: Pick<InboundRow, "from_name" | "from_address" | "subject" | "body_excerpt" | "received_at">): Promise<Triage> {
+export async function runTriage(ws: string, row: Pick<InboundRow, "from_name" | "from_address" | "subject" | "body_excerpt" | "received_at">, opts: { db?: Db; mode?: AiMode } = {}): Promise<Triage> {
   const body = row.body_excerpt ?? "";
-  const res = await callStructured({
+  const code = () => mockTriage({ fromName: row.from_name, subject: row.subject, body });
+  const mode = opts.mode ?? (opts.db ? await getAiMode(opts.db, ws, "integrations.triage") : "off");
+  const pol = await runWithPolicy<Triage>({ mode, code, ai: async () => (await callStructured({
     workspaceId: ws, workflow: "integrations.triage", tier: "luna", system: TRIAGE_SYSTEM,
     input: JSON.stringify({ from_name: row.from_name, from_domain: row.from_address?.split("@")[1] ?? null, received_at: row.received_at }),
     evidence: `Subject: ${row.subject ?? ""}\n\n${body}`,
     schema: TriageSchema, schemaName: "inbox_triage", maxOutputTokens: 900,
-    mock: () => mockTriage({ fromName: row.from_name, subject: row.subject, body }),
-  });
-  return enforceTriageSafety(res.data, `${row.subject ?? ""}\n${body}`);
+    mock: code,
+  })).data });
+  return enforceTriageSafety(pol.value ?? code(), `${row.subject ?? ""}\n${body}`);
 }
 
 const ACTIONABLE = new Set(["near_term_visit", "commercial_decision", "expiring_offer", "critical_deadline", "new_requirement"]);
@@ -127,7 +130,7 @@ export async function processMessage(db: Db, ws: string, row: InboundRow, opts: 
 
 async function applyEffects(db: Db, ws: string, row: InboundRow, opts: { now?: Date; tz?: string; allowAlerts?: boolean }, out: TriageEffects): Promise<TriageEffects> {
   const key = messageKey(row);
-  const triage = row.triage ?? (await runTriage(ws, row));
+  const triage = row.triage ?? (await runTriage(ws, row, { db }));
   if (!row.triage) {
     await db.from("inbound_message").update({ triage, triage_status: "triaged", triage_error: null }).eq("workspace_id", ws).eq("id", row.id);
   }

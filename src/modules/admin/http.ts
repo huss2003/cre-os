@@ -19,8 +19,11 @@ export function errorMessage(e: unknown): string {
       .map((i) => (i.path.length ? `${i.path.join(".")}: ${i.message}` : i.message)).join("; ");
   }
   const raw = e instanceof Error ? e.message : e && typeof e === "object" && "message" in e ? String((e as { message: unknown }).message) : String(e);
+  if (/^mfa_enrolment_required/.test(raw)) return "To change these settings, first turn on two-step sign-in in Settings → Security (/settings/security).";
+  if (/^mfa_required/.test(raw)) return "To change these settings, first confirm your two-step sign-in code in Settings → Security (/settings/security).";
   return friendlyDbError(raw);
 }
+
 
 /** Database errors in words a non-technical user can act on. Unknown messages pass through unchanged. */
 export function friendlyDbError(raw: string): string {

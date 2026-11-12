@@ -3,6 +3,7 @@ import { z } from "zod";
 import { HttpError, type AppContext } from "@/lib/auth/context";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
+import { getAiMode } from "@/lib/ai/policy";
 import { assertAssistantBudget } from "../usage/service";
 import { enqueue } from "@/lib/jobs/queue";
 import type { Block, EntityRef, RunStatus, SourceRef, StreamEvent, ToolContext } from "../types";
@@ -192,7 +193,11 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
   try {
     await assertAssistantBudget(ctx.workspaceId);
     const pkg = await buildContext({ ctx, request, focus: opts.focus, conversation: conv, attachmentIds: opts.attachmentIds, runId });
-    const provider = opts.provider ?? defaultProvider() ?? new MockProvider(pkg, route.intent);
+    // AI policy: rules router + deterministic planner by default ("assistant.routing" off/backup when rules found an
+    // intent); free-form ("general") questions follow "assistant.answer" (default on). No provider call when off.
+    const routingMode = await getAiMode(ctx.db, ctx.workspaceId, "assistant.routing");
+    const useModel = route.intent === "general" ? (await getAiMode(ctx.db, ctx.workspaceId, "assistant.answer")) !== "off" : routingMode === "on";
+    const provider = opts.provider ?? (useModel ? defaultProvider() : null) ?? new MockProvider(pkg, route.intent);
     const isMock = provider instanceof MockProvider;
     const tctx: ToolContext = { ctx, runId, conversationId, focus: pkg.focus };
 
@@ -308,7 +313,7 @@ export async function runAssistant(opts: RunOptions): Promise<RunResult> {
           status.blocked.push(o.result.error === "not_found_or_no_access" ? "A requested record was not found or you do not have access to it." : o.result.summary);
         } else {
           anyError = true;
-          status.blocked.push(`${tool.id}: ${o.result.summary}`);
+          status.blocked.push(`${plainToolName(tool.id)}: ${o.result.summary}`);
         }
         results.push({ type: "tool_result", tool_use_id: u.id, content: resultForModel(o.result), is_error: !o.result.ok });
       }
@@ -403,4 +408,10 @@ export async function maybeSummarise(ctx: AppContext, conversationId: string) {
     decisions: [...((c.decisions as string[]) ?? []), ...res.data.decisions].slice(-20),
     open_questions: res.data.open_questions.slice(0, 10),
   }).eq("workspace_id", ctx.workspaceId).eq("id", conversationId);
+}
+
+/** "generate_meeting_brief" → "Meeting brief" style wording for status lines (no raw tool codes in the UI). */
+export function plainToolName(id: string): string {
+  const w = id.replace(/^(get|generate|find|search|list|create|update|calculate|run|start)_/, "").replace(/_/g, " ");
+  return w.charAt(0).toUpperCase() + w.slice(1);
 }

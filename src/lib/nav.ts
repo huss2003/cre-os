@@ -31,6 +31,7 @@ export const NAV_GROUPS: NavGroup[] = [
     one("companies", "Companies", "Every company you track", "/companies"),
     one("people", "People", "Contacts at those companies", "/people"),
     one("buildings", "Buildings", "Campuses, towers and space", "/buildings"),
+    one("supply", "Supply", "Available space, operators and matching", "/buildings/supply"),
     one("requirements", "Requirements", "What each client is looking for", "/requirements"),
     { key: "deals", label: "Deals", hint: "Opportunities in progress", href: "/deals", tabs: [
       { href: "/deals", label: "Pipeline" }, { href: "/finance", label: "Financials" }, { href: "/documents", label: "Documents" }, { href: "/fees", label: "Fees" }] },
@@ -39,6 +40,10 @@ export const NAV_GROUPS: NavGroup[] = [
     { key: "outreach", label: "Outreach", hint: "Who to contact and what to say", href: "/outreach", badge: "outreach", tabs: [
       { href: "/outreach", label: "Outreach" }, { href: "/drafts", label: "Drafts & messages" }] },
     one("meetings", "Meetings", "Prepare for every meeting", "/meetings", { badge: "meetings" }),
+    one("transactions", "Transactions", "Offers, approvals, execution and handover", "/transactions"),
+    { key: "leases", label: "Leases", hint: "Lease dates, renewals and obligations", href: "/leases", tabs: [
+      { href: "/leases", label: "Leases" }, { href: "/leases/calendar", label: "Calendar" }, { href: "/leases/renewals", label: "Renewals" },
+      { href: "/leases/obligations", label: "Obligations" }, { href: "/leases/portfolio", label: "Portfolio" }, { href: "/leases/radar", label: "Radar" }] },
     one("toolkit", "Deal toolkit", "Compare, cost and recommend", "/toolkit"),
     one("signals", "Signals", "Events that may need action", "/signals"),
   ]},
@@ -46,7 +51,6 @@ export const NAV_GROUPS: NavGroup[] = [
     one("scoring", "Scores", "Who to focus on first", "/scoring"),
     one("contacts", "Find contacts", "Find and verify decision-makers", "/contacts"),
     one("research", "Research", "Look into a company", "/research"),
-    one("leases", "Lease radar", "Leases coming up for renewal", "/leases"),
     { key: "intel", label: "Market & reports", hint: "Market, network, legal, content", href: "/market", tabs: [
       { href: "/market", label: "Market" }, { href: "/network", label: "Network" }, { href: "/legal", label: "Legal" },
       { href: "/content", label: "Content" }, { href: "/insights", label: "Reports" } ] },

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
 
-export type PickerKind = "company" | "requirement" | "meeting" | "person";
+export type PickerKind = "company" | "requirement" | "meeting" | "person" | "lease" | "transaction";
 export interface PickerItem { id: string; label: string; context?: string; orgId?: string | null }
 
 /**

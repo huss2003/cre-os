@@ -4,7 +4,7 @@ import { analyseLease } from "../lease-radar";
 import { computeCapacity, selectTargets, type Candidate } from "../priority";
 import { BRIEF_DEFAULTS } from "../settings";
 import { computeSourceHealth } from "../source-health";
-import { mockSynthesis, synthesise, type StructuredCaller } from "../synthesis";
+import { codeSynthesis, mockSynthesis, synthesise, type StructuredCaller } from "../synthesis";
 
 const NOW = "2026-11-02T02:10:00.000Z"; // 07:40 IST Monday
 const DATE = "2026-11-02";
@@ -144,14 +144,14 @@ describe("AI synthesis fallback (Spend cap / model outage acceptance)", () => {
 
   it("mock caller => ok, deterministic headline", async () => {
     const caller: StructuredCaller = async (c) => ({ data: c.mock(), mocked: true, model: "mock:x" });
-    const r = await synthesise(content, "ws", caller);
-    expect(r).toMatchObject({ status: "ok", mocked: true });
+    const r = await synthesise(content, "ws", caller, "on");
+    expect(r).toMatchObject({ status: "ok", mocked: true, source: "ai" });
     expect(r.synthesis).toEqual(mockSynthesis(content));
   });
 
   it.each([["budget_exceeded", /monthly AI budget reached/], ["paused", /kill switch/], ["provider_error", /AI provider error/]])("%s => fallback_no_ai with notice; deterministic text intact", async (reason, re) => {
     const caller: StructuredCaller = async () => { throw Object.assign(new Error(reason), { reason }); };
-    const r = await synthesise(content, "ws", caller);
+    const r = await synthesise(content, "ws", caller, "on");
     expect(r.status).toBe("fallback_no_ai");
     expect(r.notice).toMatch(re);
     expect(content.fallbackText).toMatch(/Top actions:/);
@@ -159,10 +159,29 @@ describe("AI synthesis fallback (Spend cap / model outage acceptance)", () => {
 
   it("untrusted reply text goes to evidence, not instructions; numbers only from computed facts", async () => {
     let seen: { input: string; evidence?: string } | null = null;
-    await synthesise(content, "ws", async (c) => { seen = c; return { data: c.mock(), mocked: true, model: "m" }; });
+    await synthesise(content, "ws", async (c) => { seen = c; return { data: c.mock(), mocked: true, model: "m" }; }, "on");
     expect(seen!.evidence).toMatch(/Can we see two sites Thursday/);
     expect(seen!.input).not.toMatch(/Can we see two sites/);
     expect(seen!.input).toMatch(/never compute new ones/);
+  });
+});
+
+describe("brief.synthesis code path (AI policy off — default)", () => {
+  it("writes a readable headline from counts and top items without calling AI", async () => {
+    const content = buildBrief(inputs({ replies: [reply] }));
+    let called = false;
+    const r = await synthesise(content, "ws", async (c) => { called = true; return { data: c.mock(), mocked: true, model: "m" }; });
+    expect(called).toBe(false);
+    expect(r).toMatchObject({ status: "ok", source: "code", model: null, mocked: false, notice: null });
+    expect(r.synthesis!.headline).toMatch(/^[A-Z].*\.$/);
+    expect(r.synthesis!.headline).not.toMatch(/undefined|null|\{|\}/);
+    if (content.actions[0]) expect(r.synthesis!.headline).toContain(content.actions[0].title);
+    expect(r.synthesis!.focus.length).toBeLessThanOrEqual(3);
+  });
+  it("empty day => calm default line", () => {
+    const content = buildBrief(inputs({}));
+    const s = codeSynthesis({ ...content, actions: [], overdue: { ...content.overdue, items: [] }, deadlines: { ...content.deadlines, items: [] }, meetings: { ...content.meetings, clusters: [] }, staleSections: [] });
+    expect(s.headline).toMatch(/nothing urgent|No urgent items/);
   });
 });
 

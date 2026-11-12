@@ -87,7 +87,10 @@ export function segment(text: string, opts: SegmentOptions = {}): Segment[] {
     }
     if (prevBlank) para++;
     prevBlank = false;
-    const h = line.match(HEADING_NUM) ?? (line.trim().length <= 60 ? line.match(HEADING_CAPS) : null);
+    // "36 months." / "6 years" are values, not numbered headings (HEADING_NUM allows "1 Rent" without a dot).
+    const hn = line.match(HEADING_NUM);
+    const valueLine = !!hn && !/^\s*(?:clause|article|section)?\s*\d{1,2}(?:\.\d{1,2})*[.)]/i.test(line) && /^(?:months?|years?|yrs?|days?|weeks?|sq|sft|per|lakhs?|crores?|percent)\b/i.test(hn[2]);
+    const h = (valueLine ? null : hn) ?? (line.trim().length <= 60 ? line.match(HEADING_CAPS) : null);
     const inline = line.match(INLINE_LABEL);
     const numbered = line.match(NUMBERED_PARA);
     if (h) {

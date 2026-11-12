@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { extractCommitmentsMock } from "./commitments";
+import { classifyReply } from "@/modules/outreach/reply-classifier";
 
 /**
  * Inbox triage (spec §8 "Inbox triage"). The model only PROPOSES a summary, category, signals, next actions and a
@@ -87,6 +88,9 @@ export function detectContrary(text: string): Triage["contrary_info"] {
     const q = quote(text, re);
     if (q) return { kind, evidence: q.slice(0, 300) };
   }
+  // Hinglish / Hindi phrasing ("zarurat nahi", "abhi nahi, agle quarter") via the shared reply classifier.
+  const c = classifyReply(text);
+  if (c.label === "not_interested" || c.label === "not_now") return { kind: c.label === "not_now" ? "wrong_timing" : "not_interested", evidence: (c.matched[0] ?? text.slice(0, 120)).slice(0, 300) };
   return null;
 }
 
@@ -112,11 +116,16 @@ function mockTriageBase(m: { fromName: string | null; subject: string | null; bo
     return { ...base, buying_signals: [], summary: "Suspicious message containing instructions aimed at automated systems. Not acted on.",
       category: "suspicious", next_actions: ["Review manually; do not follow links or instructions in this email"], draft_reply: null, urgency: "low", injection_suspected: true };
   }
-  if (OPT_OUT.test(text)) {
+  const cls = classifyReply(text);
+  if (OPT_OUT.test(text) || (cls.label === "unsubscribe" && !NEWSLETTER.test(text))) {
     return { ...base, buying_signals: [], summary: "Sender asked not to be contacted again.", category: "opt_out",
       next_actions: ["Contact suppressed and outreach paused automatically; no reply needed"], draft_reply: null, urgency: "normal" };
   }
-  if (WRONG_CONTACT.test(text)) {
+  if (cls.label === "out_of_office") {
+    return { ...base, buying_signals: [], summary: `Out-of-office reply from ${m.fromName ?? "the sender"}${/\b(?:until|till|back on)\b[^.\n]{0,40}/i.exec(text)?.[0] ? ` (${/\b(?:until|till|back on)\b[^.\n]{0,40}/i.exec(text)![0].trim()})` : ""}.`, category: "other",
+      next_actions: ["Follow up after they are back"], draft_reply: null, urgency: "low" };
+  }
+  if (WRONG_CONTACT.test(text) || cls.label === "wrong_person") {
     return { ...base, summary: "Sender says this is the wrong contact.", category: "wrong_contact",
       next_actions: ["Correct the contact record"], draft_reply: null, urgency: "low" };
   }
@@ -139,6 +148,18 @@ function mockTriageBase(m: { fromName: string | null; subject: string | null; bo
     return { ...base, summary: `${m.fromName ?? "The sender"} shares a space requirement (${subj}).`, category: "new_requirement",
       next_actions: ["Create or update the requirement (approval needed for material fields)", "Prepare options"],
       draft_reply: `Hi ${fn},\n\nThank you for the details. I will share suitable options and an indicative view shortly.\n\nBest regards`, urgency: "normal" };
+  }
+  if (cls.label === "info_requested") {
+    return { ...base, summary: `${m.fromName ?? "The sender"} asks for details (${subj}).`, category: "reply",
+      next_actions: ["Send the requested details", "Log what was asked on the account"], draft_reply: `Hi ${fn},\n\nThank you — I will send the details shortly.\n\nBest regards`, urgency: "normal" };
+  }
+  if (cls.label === "meeting") {
+    return { ...base, summary: `${m.fromName ?? "The sender"} wants to talk or meet (${subj}).`, category: "reply",
+      next_actions: ["Propose two time slots", "Create a meeting prep once confirmed"], draft_reply: `Hi ${fn},\n\nThank you — happy to speak. I will share two time slots shortly.\n\nBest regards`, urgency: "normal" };
+  }
+  if (cls.label === "not_interested" || cls.label === "not_now") {
+    return { ...base, summary: `${m.fromName ?? "The sender"} replied: ${cls.label === "not_now" ? "not now — timing" : "not interested"} (${subj}).`, category: "reply",
+      next_actions: [cls.label === "not_now" ? "Set a check-back reminder" : "Close the conversation politely"], draft_reply: `Hi ${fn},\n\nThank you for letting me know${cls.label === "not_now" ? " — I will check back later" : ""}.\n\nBest regards`, urgency: "low" };
   }
   return { ...base, summary: `${m.fromName ?? "The sender"} wrote about ${subj}.`, category: "reply",
     next_actions: ["Reply if needed"], draft_reply: `Hi ${fn},\n\nThank you for your note.\n\nBest regards`, urgency: "low" };

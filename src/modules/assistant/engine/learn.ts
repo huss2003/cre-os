@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { AppContext } from "@/lib/auth/context";
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, type AiMode } from "@/lib/ai/policy";
 import { saveMemory, MemoryError, type MemCtx, type MemoryRow } from "../memory/service";
 import type { EntityRef } from "../types";
 
@@ -72,6 +73,14 @@ export function heuristicPreference(before: string, after: string): string | nul
   if ((b.match(/!/g)?.length ?? 0) > 0 && (a.match(/!/g)?.length ?? 0) === 0) notes.push("avoids exclamation marks");
   const signB = b.split(/\n/).slice(-2).join(" ").trim(), signA = a.split(/\n/).slice(-2).join(" ").trim();
   if (signA !== signB && signA.length <= 80 && /(regards|thanks|best|cheers|sincerely)/i.test(signA)) notes.push(`signs off with "${signA}"`);
+  const count = (s: string, re: RegExp) => s.match(re)?.length ?? 0;
+  const CONTR = /\b\w+'(?:s|re|ll|ve|d|m|t)\b/gi, POLITE = /\b(please|kindly|would you|could you)\b/gi;
+  const cb = count(b, CONTR), ca = count(a, CONTR);
+  if (cb >= 2 && ca === 0) notes.push("avoids contractions (more formal)");
+  else if (cb === 0 && ca >= 2) notes.push("uses contractions (more conversational)");
+  if (count(a, POLITE) > count(b, POLITE) + 1) notes.push("adds polite phrasing (please/kindly)");
+  const sl = (s: string) => { const n = Math.max(1, (s.match(/[.!?](\s|$)/g) ?? []).length); return words(s) / n; };
+  if (words(b) >= 20 && sl(a) <= sl(b) * 0.7) notes.push("prefers shorter sentences");
   return notes.length ? `Writing style: ${notes.join("; ")}.` : null;
 }
 
@@ -81,7 +90,7 @@ const Extract = z.object({ preference: z.string().max(400).nullable() });
  * Hook for draft saves. Call after a user edit of a draft is stored. Only model/job-generated drafts are learned from.
  * Never throws for business reasons; returns { saved: null, reason } when nothing is learned.
  */
-export async function learnFromDraftEdit(ctx: MemCtx, p: { draftId: string; before: { subject?: string | null; body: string }; after: { subject?: string | null; body: string } }): Promise<LearnOutcome> {
+export async function learnFromDraftEdit(ctx: MemCtx, p: { draftId: string; before: { subject?: string | null; body: string }; after: { subject?: string | null; body: string }; mode?: AiMode }): Promise<LearnOutcome> {
   const { data: d } = await ctx.db.from("draft").select("id, created_by_kind, recipient_person_id, org_id").eq("workspace_id", ctx.workspaceId).eq("id", p.draftId).maybeSingle();
   if (!d) return { saved: null, reason: "draft not found" };
   if (d.created_by_kind === "user") return { saved: null, reason: "draft was written by the user, not generated" };
@@ -90,7 +99,8 @@ export async function learnFromDraftEdit(ctx: MemCtx, p: { draftId: string; befo
   if (!target) return { saved: null, reason: "draft has no recipient person or company" };
 
   const mock = heuristicPreference(p.before.body, p.after.body);
-  const res = await callStructured({
+  const mode = p.mode ?? await getAiMode(ctx.db, ctx.workspaceId, "assistant.learn_draft_edit");
+  const res = mode === "off" || (mode === "backup" && mock) ? { data: { preference: mock } } : await callStructured({
     workspaceId: ctx.workspaceId, workflow: "assistant.learn_draft_edit", tier: "luna", schema: Extract, schemaName: "draft_edit_preference",
     system: "Compare a generated outreach draft (GENERATED) with the user's edited version (EDITED). If the edit reveals a durable, reusable writing preference for this recipient (tone, length, greeting, sign-off, formality, things to avoid), state it in one short sentence starting 'Writing style:'. If the edit only fixes facts or is one-off, return null. Never include personal data beyond style.",
     input: "Extract the writing preference, if any.",

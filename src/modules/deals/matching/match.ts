@@ -38,6 +38,7 @@ export interface AssetData {
   certifications?: { name?: string; level?: string; verified_on?: string | null }[] | null;
   specs?: Record<string, unknown> | null;
   total_area_sf?: number | string | null;
+  category?: string | null;
 }
 export interface AvailabilityData {
   id: string; as_of: string; status: "available" | "under_offer" | "leased" | "unverified" | "withdrawn";
@@ -45,6 +46,10 @@ export interface AvailabilityData {
   asking_rent_min?: number | string | null; asking_rent_max?: number | string | null;
   rent_basis?: "carpet" | "chargeable" | "seat" | null;
   fitout_basis?: string | null; valid_until?: string | null; fact_status?: string | null;
+  /** Module 14 detailed status (null → derived from `status`). */
+  supply_status?: string | null;
+  cam_psf_month?: number | string | null;
+  last_verified_on?: string | null;
 }
 export interface QuoteTerms { rent?: number | string; rent_basis?: string; cam_per_sf?: number | string | null; cam_included?: boolean; lockin_months?: number; tenure_months?: number; [k: string]: unknown }
 export interface QuoteData { id: string; version: number; valid_until?: string | null; superseded_by?: string | null; terms_json?: QuoteTerms | null }
@@ -188,6 +193,12 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
     else if (av.status === "under_offer") verify.push(`Under offer (as of ${av.as_of})`, "under_offer");
     else if (av.status === "unverified") { vacancyUnverified = true; verify.push(`Vacancy unverified (as of ${av.as_of})`, "vacancy_unverified"); }
     if (av.fact_status && av.fact_status !== "currently_confirmed" && av.status === "available") vacancyUnverified = true;
+    // Module 14 detailed status refines the coarse one (never loosens it).
+    const ss = av.supply_status ?? null;
+    if (ss === "occupied" && av.status !== "leased" && av.status !== "withdrawn") disq.push(`Availability status: occupied (as of ${av.as_of})`);
+    else if (ss === "under_negotiation" || ss === "tentatively_held") verify.push(`${ss === "under_negotiation" ? "Under negotiation with another party" : "Tentatively held"} (as of ${av.as_of})`, ss);
+    else if (ss === "unconfirmed" && av.status === "available") { vacancyUnverified = true; verify.push(`Vacancy unconfirmed (as of ${av.as_of})`, "vacancy_unverified"); }
+    else if (ss === "future_available" && !av.available_from) verify.push("Future availability: available-from date unknown (not immediately available)", "available_from_unknown");
     if (av.status === "available") qualifies.push(`Space snapshot: available as of ${av.as_of}${av.fact_status && av.fact_status !== "currently_confirmed" ? ` (${av.fact_status}, not currently confirmed)` : " (currently confirmed)"}`);
     stale = isStale(av, opts.asOf, decay);
     need(!stale);
@@ -222,13 +233,13 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
       const a1 = spaceArea(c.space, "carpet").value, a2 = spaceArea(c.space, "chargeable").value;
       const inR = (v: number | null) => v !== null && (lo === null || v >= lo) && (hi === null || v <= hi);
       if (a1 === null && a2 === null) verify.push("Space area unknown", "area_unknown");
-      else if (!inR(a1) && !inR(a2)) disq.push(`Space area outside ${lo ?? "–"}–${hi ?? "–"} SF on any basis`);
+      else if (!inR(a1) && !inR(a2)) disq.push(`Space area outside ${fmtSf(lo)}–${fmtSf(hi)} SF on any basis`);
       else verify.push("Requirement area basis not confirmed (carpet vs chargeable)", "area_basis_unconfirmed");
     } else if (area.value === null) verify.push(`Space ${basis} area unknown`, "area_unknown");
     else if ((lo !== null && area.value < lo) || (hi !== null && area.value > hi))
-      disq.push(`Space ${basis} area ${area.value} SF outside ${lo !== null ? Math.round(lo) : "–"}–${hi !== null ? Math.round(hi) : "–"} SF`);
+      disq.push(`Space ${basis} area ${fmtSf(area.value)} SF outside ${fmtSf(lo)}–${fmtSf(hi)} SF`);
     else {
-      qualifies.push(`Area ${area.value} SF ${basis} within ${lo !== null ? Math.round(lo) : "–"}–${hi !== null ? Math.round(hi) : "–"} SF${area.derived ? " (derived from efficiency)" : ""}`);
+      qualifies.push(`Area ${fmtSf(area.value)} SF ${basis} within ${fmtSf(lo)}–${fmtSf(hi)} SF${area.derived ? " (derived from efficiency)" : ""}`);
       if (area.derived) verify.push(`${basis} area derived from efficiency — confirm`, "area_derived");
     }
   }
@@ -302,8 +313,11 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
     const useQuote = quote && !quoteExpired && quote.terms_json?.rent !== undefined;
     const rent = useQuote ? num(quote!.terms_json!.rent) : (num(av?.asking_rent_max) ?? num(av?.asking_rent_min));
     const rentBasis = useQuote ? (quote!.terms_json!.rent_basis ?? av?.rent_basis ?? null) : (av?.rent_basis ?? null);
-    const camKnown = useQuote && (quote!.terms_json!.cam_included === true || num(quote!.terms_json!.cam_per_sf) !== null);
-    const cam = camKnown ? (quote!.terms_json!.cam_included ? 0 : num(quote!.terms_json!.cam_per_sf) ?? 0) : 0;
+    const avCam = useQuote ? null : num(av?.cam_psf_month);
+    const camKnown = useQuote ? (quote!.terms_json!.cam_included === true || num(quote!.terms_json!.cam_per_sf) !== null) : avCam !== null;
+    // Missing CAM is never 0: when unknown, cost is rent-only and credit is capped (below).
+    const cam = !camKnown ? 0 : useQuote ? (quote!.terms_json!.cam_included ? 0 : num(quote!.terms_json!.cam_per_sf) ?? 0) : avCam!;
+    if (!useQuote && rent !== null && av?.fact_status === "historical_observed") verify.push(`Asking rent is historical (observed ${av.as_of}), not current pricing`, "pricing_historical");
     need(rent !== null);
     need(!!camKnown);
     if (bmax === null || !bb) set("cost", "not_applicable", null, "no budget set on requirement");
@@ -385,7 +399,7 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
     if (growthNeeded !== null || req.constraints?.values?.expansion) {
       const ex = c.expansionSf ?? null;
       const needSf = growthNeeded ?? 0;
-      subs.push(ex === null ? { s: null, d: "expansion space unknown" } : { s: needSf ? Math.min(1, ex / needSf) : ex > 0 ? 1 : 0, d: `${Math.round(ex)} SF other availability in building` });
+      subs.push(ex === null ? { s: null, d: "expansion space unknown" } : { s: needSf ? Math.min(1, ex / needSf) : ex > 0 ? 1 : 0, d: `${fmtSf(ex)} SF other availability in building` });
     }
     const lockMax = num(req.constraints?.values?.lockin_months);
     if (lockMax !== null) {
@@ -415,7 +429,7 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
   const completenessScore = needed ? round2((known / needed) * 100) : 0;
   const verifyText = verification.map((v) => v.text);
   const eligibility: Eligibility = disq.length ? "ineligible" : verification.length ? "needs_verification" : "eligible";
-  const label = [c.asset.name, c.space.floor_text ? `Floor ${c.space.floor_text}` : null, c.space.unit ? `Unit ${c.space.unit}` : null].filter(Boolean).join(" · ");
+  const label = [c.asset.name, floorLabel(c.space.floor_text), unitLabel(c.space.unit)].filter(Boolean).join(" · ");
   return {
     spaceId: c.space.id, assetId: c.asset.id, availabilityId: av?.id ?? null, quoteId: quote?.id ?? null, label,
     eligibility, disqualifiers: disq, verificationNeeded: verifyText, verification, qualifies, fitScore, completenessScore, criteria: crit,
@@ -423,6 +437,18 @@ export function evaluateOption(req: RequirementRow, c: Candidate, opts: MatchOpt
     flags: { vacancyUnverified, availabilityStale: stale, quoteExpired, clientReleaseBlocked: eligibility !== "eligible" || vacancyUnverified || stale || quoteExpired },
   };
 }
+
+/** "13" → "Floor 13"; "Floor 13" / "Floors 5–6" kept as written (no "Floor Floor"). */
+export function floorLabel(f: string | null | undefined): string | null {
+  const t = f?.trim(); if (!t) return null;
+  return /^(floor|floors|level|levels|ground|basement|terrace|lg|ug|gf)\b/i.test(t) ? t.charAt(0).toUpperCase() + t.slice(1) : `Floor ${t}`;
+}
+export function unitLabel(u: string | null | undefined): string | null {
+  const t = u?.trim(); if (!t) return null;
+  return /^(unit|units|wing|suite)\b/i.test(t) ? t.charAt(0).toUpperCase() + t.slice(1) : `Unit ${t}`;
+}
+/** Indian-grouped whole square feet for explanation text ("40,618"); "–" when unknown. */
+export const fmtSf = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? "–" : Math.round(v).toLocaleString("en-IN"));
 
 const TIER: Record<Eligibility, number> = { eligible: 0, needs_verification: 1, ineligible: 2 };
 

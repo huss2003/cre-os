@@ -1,7 +1,7 @@
 import { FOCUS_MODE } from "@/lib/nav";
 import { Suspense } from "react";
 import Link from "next/link";
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui";
 import { hasRole, requirePageContext } from "@/lib/auth/context";
 import { fmtDate } from "@/lib/util/time";
 import { listStale, loadWindows } from "@/modules/changes/steward";
@@ -53,5 +53,5 @@ async function Body() {
 }
 
 export default function Page() {
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" />}><Body /></Suspense>;
 }

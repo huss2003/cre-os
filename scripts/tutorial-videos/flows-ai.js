@@ -19,6 +19,8 @@ const nav = (p) => p.getByRole("navigation", { name: "Main" }).first();
 const navLink = (p, name) => nav(p).getByRole("link", { name: new RegExp(`^${name}`) });
 const main = (p) => p.locator("main");
 /** Section tab above the page (e.g. Ask AI → Memory). */
+/** Point at something if it is on screen; otherwise just let the caption play. */
+async function optPoint(t, loc) { const l = loc.filter({ visible: true }).first(); if (await l.isVisible().catch(() => false)) await t.point(l); else console.log("    [miss] optional pointer"); }
 const tab = (p, name) => p.getByRole("link", { name, exact: true });
 
 /** Demo memories (reset every run so correct / verify / restrict / forget always have something to act on). */
@@ -334,7 +336,7 @@ const FLOWS = [
   },
   // ------------------------------------------------------------------ Review & settings
   {
-    slug: "review-queues-v2", category: "Review & settings", title: "Review — what waits for you, approve, reject, ask for more info",
+    slug: "review-queues-v3", category: "Review & settings", title: "Review — what waits for you, approve, reject, ask for more info",
     learn: "Review holds everything waiting for your OK: unverified contacts, captures, record changes, merges, drafts, documents. Approve, reject, edit or request more info.", tryRoute: "/approvals",
     async run(t) {
       const p = t.page;
@@ -347,6 +349,9 @@ const FLOWS = [
       await t.title("Review — what waits for you", "Nothing material changes your records until you approve it here.");
       await t.step("Open Review. The badge counts what's waiting.", () => t.moveAndClick(navLink(p, "Review")));
       await t.step("At the top: quick counts — files needing input, needs more info, unverified contact details, outreach drafts and failed jobs.", () => t.point(main(p).getByRole("link", { name: /Unverified contact details/ }).first()));
+      await t.step("New sections above the tabs: transaction approvals waiting for you…", () => optPoint(t, main(p).getByText(/Transaction approvals waiting for you/)));
+      await t.step("…lease dates needing review and lease terms to confirm — decisions from Transactions and Leases also wait here.", () => optPoint(t, main(p).getByText(/Lease dates needing review|Lease terms to confirm/)));
+      await t.step("Imports to review: spreadsheet rows waiting for your check.", () => optPoint(t, main(p).getByText(/Imports to review/)));
       await t.step("Unverified contact details: emails and phones nobody has checked yet. Open the person to verify.", () => t.point(main(p).getByText(/Unverified contact details \(/)));
       await t.step("Captures to review: notes and files from Capture. Open one, check it, press Reviewed.", () => t.point(main(p).getByText(/Captures to review/)));
       await t.step("Tabs split the rest. Record changes first.", () => t.moveAndClick(main(p).getByRole("link", { name: "Record changes" })));
@@ -395,7 +400,7 @@ const FLOWS = [
     },
   },
   {
-    slug: "capture-files-v2", category: "Review & settings", title: "Capture any file — quote, business card, photo → proposals",
+    slug: "capture-files-v3", category: "Review & settings", title: "Capture any file — quote, business card, photo → proposals",
     learn: "Drop quotes, leases, notes, cards, photos or spreadsheets into Capture. CRE OS says what it found, page by page, and turns it into proposals you review.", tryRoute: "/capture",
     async run(t) {
       const p = t.page;
@@ -403,7 +408,7 @@ const FLOWS = [
       await t.title("Capture a file → proposals", "Quotes, leases, business cards, photos, layouts, spreadsheets, voice notes.");
       await t.step("Open Capture.", () => t.moveAndClick(navLink(p, "Capture")));
       await t.step("'Add files' takes almost anything, up to 25 MB each.", () => t.point(main(p).getByText("Drop files here")));
-      await t.step("Optional: link it to a record first — company, person, building, requirement or meeting.", () => t.moveAndClick(main(p).getByText(/Link to a record/).last()));
+      await t.step("Optional: link it to a record first — company, person, building, requirement, meeting, lease or transaction.", () => t.moveAndClick(main(p).getByText(/Link to a record/).last()));
       await t.step("This quote is for Zentrix's requirement.", async () => {
         const s = main(p).locator("select[name=requirement_id]").last(); await t.point(s); await s.selectOption({ label: "Zentrix Analytics — 25,000 sf in Kharadi" });
       });

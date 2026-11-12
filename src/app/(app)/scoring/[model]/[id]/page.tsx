@@ -74,15 +74,15 @@ export default async function Page({ params }: { params: Promise<{ model: string
 
       <section className="rounded-2xl border border-line bg-surface p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold">AI summary<HelpFor k="AI summary" /></h2>
-          {editor ? <ActionForm action={explainAction.bind(null, key, id, cur.id)}><Submit variant="secondary">{ex.ai ? "Rewrite summary" : "Summarise with AI"}</Submit></ActionForm> : null}
+          <h2 className="font-semibold">Summary<HelpFor k="AI summary" /></h2>
+          {editor ? <ActionForm action={explainAction.bind(null, key, id, cur.id)}><Submit variant="secondary">{ex.ai ? "Rewrite summary" : "Summarise"}</Submit></ActionForm> : null}
         </div>
         {ex.ai ? (
           <div className="mt-3 space-y-3 text-sm">
             <p>{ex.ai.summary}</p>
             {ex.ai.risks?.length ? <div><p className="font-medium">Risks</p><ul className="list-disc pl-5">{(ex.ai.risks as string[]).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
             {ex.ai.questions?.length ? <div><p className="font-medium">Questions to ask</p><ul className="list-disc pl-5">{(ex.ai.questions as string[]).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
-            <p className="text-xs text-ink-soft">Written by {String(ex.ai.model).replace(/^mock:.*/, "rules (AI not connected)")} on {new Date(ex.ai.at).toLocaleDateString("en-IN", { dateStyle: "medium" })}. It explains the score; it does not change it.</p>
+            <p className="text-xs text-ink-soft">Written by {ex.ai.source === "code" || ex.ai.model === "rules" ? "score rules" : String(ex.ai.model).replace(/^mock:.*/, "rules (AI not connected)")} on {new Date(ex.ai.at).toLocaleDateString("en-IN", { dateStyle: "medium" })}. It explains the score; it does not change it.</p>
           </div>
         ) : <p className="mt-2 text-sm text-ink-soft">A plain-English read of this score, its risks and what to ask next.</p>}
       </section>

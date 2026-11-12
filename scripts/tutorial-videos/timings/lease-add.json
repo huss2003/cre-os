@@ -1,0 +1,66 @@
+{
+  "durationMs": 72611,
+  "steps": [
+    {
+      "caption": "Open Leases from the sidebar.",
+      "ms": 3608
+    },
+    {
+      "caption": "Press New lease.",
+      "ms": 7896
+    },
+    {
+      "caption": "New leases always start as draft or negotiation. Executed and active need evidence: a signed agreement and confirmed dates.",
+      "ms": 11811
+    },
+    {
+      "caption": "Choose the tenant company. If it is not a company record yet, type its name in the box below instead.",
+      "ms": 14981
+    },
+    {
+      "caption": "Choose the landlord and the property. Unknown is allowed — nothing is guessed.",
+      "ms": 18751
+    },
+    {
+      "caption": "Category and status: a conventional office lease, under negotiation.",
+      "ms": 23410
+    },
+    {
+      "caption": "Monthly rent and area, if you know them. Leave a field blank when unknown — it is never treated as zero.",
+      "ms": 28193
+    },
+    {
+      "caption": "More details (optional): reference, micro-market, floor, unit, dates, area basis, CAM, parking, deposit, term, lock-in and escalation.",
+      "ms": 32878
+    },
+    {
+      "caption": "Create lease.",
+      "ms": 40674
+    },
+    {
+      "caption": "The lease page opens with status Under negotiation. No dates yet — they come from the agreement.",
+      "ms": 45471
+    },
+    {
+      "caption": "Documents: give the agreement a title and choose its type and execution state.",
+      "ms": 48645
+    },
+    {
+      "caption": "Paste the text (PDFs and scans go through Capture first). A draft is never treated as executed.",
+      "ms": 54953
+    },
+    {
+      "caption": "Attach & extract. Code reads the clauses — no AI is needed for dates.",
+      "ms": 58216
+    },
+    {
+      "caption": "Important dates now lists commencement, expiry and lock-in, each with the source clause and page.",
+      "ms": 62929
+    },
+    {
+      "caption": "Because the document is a draft, every date is marked Needs review — a person must check it before it counts.",
+      "ms": 66131
+    }
+  ],
+  "bytes": 774011
+}

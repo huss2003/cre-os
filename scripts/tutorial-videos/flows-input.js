@@ -64,6 +64,8 @@ async function dropFile(t, file) {
   await open.waitFor({ timeout: 120000 });
   return open;
 }
+/** True when the photo could not be read (OCR failed) — only then type the card text. */
+const notRead = (p) => main(p).getByText(/photo text not read/).first().isVisible().catch(() => false);
 async function moreLinks(t) { await t.moveAndClick(main(t.page).getByText(/Link to a record/).last()); await sleep(300); }
 
 function prepare() { console.log(tsx()); }
@@ -150,7 +152,7 @@ const FLOWS = [
   },
   // ------------------------------------------------------------------ 3. business cards
   {
-    slug: "capture-business-card", category: CAT, title: "Scan a business card",
+    slug: "capture-business-card-v2", category: CAT, title: "Scan a business card",
     learn: "Upload a card photo. CRE OS lists name, title, company, emails, phones (typed mobile/direct/switchboard), website and address, flags uncertain fields, and either matches an existing contact or proposes a new one for approval.",
     tryRoute: "/capture",
     async run(t) {
@@ -163,11 +165,13 @@ const FLOWS = [
       });
       await t.step("Choose the photo of Meera Joshi's card.", async () => { const o = await dropFile(t, "card-meera-joshi.png"); await t.point(o); });
       await t.step("Open it.", async () => { await t.moveAndClick(main(p).locator("li").filter({ hasText: "card-meera" }).getByRole("link", { name: "Open" }).first()); await p.waitForURL(/capture\/documents/); });
-      await t.step("Practice mode cannot read photos ('photo text not read'), so no name, email or phone was found yet.", () => soft(t, main(p).getByText(/photo text not read/)));
-      await t.step("Type the card text into 'Text (if the file couldn't be read)'. With AI set up this is read for you.", async () => {
-        await t.scroll(2000); const ta = main(p).locator("textarea[name=typed_text]"); await t.point(ta); await ta.fill(CARD_MEERA); await sleep(800);
-      });
-      await t.step("Process again.", async () => { await t.moveAndClick(main(p).getByRole("button", { name: "Process again" })); await sleep(5000); await p.reload(); await sleep(800); });
+      await t.step("The card was read on the server by local OCR — no AI call.", () => t.point(card(p, "What CRE OS found")));
+      if (await notRead(p)) {
+        await t.step("Photo unreadable? Type the card text into 'Text (if the file couldn't be read)' and Process again.", async () => {
+          await t.scroll(2000); const ta = main(p).locator("textarea[name=typed_text]"); await t.point(ta); await ta.fill(CARD_MEERA); await sleep(800);
+          await t.moveAndClick(main(p).getByRole("button", { name: "Process again" })); await sleep(5000); await p.reload(); await sleep(800);
+        });
+      }
       await t.step("The fields: name, title, company, email, phones, website and address — copied exactly as on the card.", () => t.point(card(p, "What CRE OS found")));
       await t.step("Phones are typed: mobile from 'M:'. The 'Ph:' number could be direct or switchboard, so it is marked unknown.", () => t.point(main(p).getByText(/\(mobile\)/).first()));
       await t.step("Check these: uncertain fields — the unlabelled phone, and an email domain that differs from the website.", () => t.point(main(p).getByText(/^Check /).first()));
@@ -179,10 +183,12 @@ const FLOWS = [
         await moreLinks(t); await main(p).locator("select[name=doc_type]").last().selectOption("business_card");
         await t.moveAndClick(await dropFile(t, "card-anil-deshmukh.png")); await p.waitForURL(/capture\/documents/);
       });
-      await t.step("Type the card text and Process again.", async () => {
-        await t.scroll(2000); const ta = main(p).locator("textarea[name=typed_text]"); await t.point(ta); await ta.fill(CARD_ANIL);
-        await t.moveAndClick(main(p).getByRole("button", { name: "Process again" })); await sleep(5000); await p.reload(); await sleep(800);
-      });
+      if (await notRead(p)) {
+        await t.step("Photo unreadable? Type the card text and Process again.", async () => {
+          await t.scroll(2000); const ta = main(p).locator("textarea[name=typed_text]"); await t.point(ta); await ta.fill(CARD_ANIL);
+          await t.moveAndClick(main(p).getByRole("button", { name: "Process again" })); await sleep(5000); await p.reload(); await sleep(800);
+        });
+      }
       await t.step("High-confidence match: the same email already belongs to Anil Deshmukh, so no new person is created.", () => t.point(main(p).getByText(/high confidence match/).first()));
       await t.step("Only the new mobile number is proposed for his record. Same name alone would be a suggestion, never a merge.", () => t.point(main(p).getByText(/Proposals \(/).first()));
       await t.step("The company on the card looks like Marigold Loop Technologies — pick it in the link picker if it is the same.", () => soft(t, main(p).getByText(/Possible existing company/)));

@@ -64,5 +64,5 @@ async function Body({ params }: { params: Promise<{ id: string }> }) {
 }
 
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
-  return <Suspense fallback={<Loading />}><Body params={params} /></Suspense>;
+  return <Suspense fallback={<Loading variant="detail" />}><Body params={params} /></Suspense>;
 }

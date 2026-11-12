@@ -187,7 +187,7 @@ describe("Module 5 — round 2 (db)", () => {
     const sp2 = (await db.from("space").insert({ workspace_id: WS1, asset_id: asset, chargeable_sf: 50000 }).select("id").single()).data!.id;
     const av = (await db.from("availability").insert({ workspace_id: WS1, space_id: sp1, as_of: new Date().toISOString().slice(0, 10), status: "available", fact_status: "currently_confirmed" }).select("id").single()).data!.id;
     await db.from("availability").insert({ workspace_id: WS1, space_id: sp2, as_of: new Date().toISOString().slice(0, 10), status: "available" });
-    const r = await S.propertySuggestions(db, WS1, org);
+    const r = await S.propertySuggestions(db, WS1, org, 50); // shared WS1: look past other tests' newer fixtures
     expect(r.requirement?.id).toBe(req.data!.id);
     const mine = r.options.filter((o) => o.asset === `Tower ${t}`);
     expect(mine.map((o) => o.spaceId)).toEqual([sp1]);                      // out-of-size space excluded

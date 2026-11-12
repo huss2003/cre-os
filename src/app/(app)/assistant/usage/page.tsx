@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
+import { callsAvoidedThisMonth } from "@/modules/admin/ai-policy";
 import { PageHeader, Card, Stat, EmptyState, Input, Badge } from "@/components/ui";
 import { ActionForm, Submit } from "@/modules/admin/ui/client";
 import { loadUsage } from "@/modules/assistant/usage/service";
@@ -18,6 +19,7 @@ export default async function Page() {
     return (<><PageHeader title="AI usage" /><EmptyState title="Only admins can see AI spend">Ask a workspace admin or the owner for the usage report.</EmptyState></>);
   }
   const u = await loadUsage(ctx.db, ctx.workspaceId);
+  const avoided = hasRole(ctx, "admin") ? await callsAvoidedThisMonth(ctx.db, ctx.workspaceId) : null;
   const owner = hasRole(ctx, "owner");
   const userLabel = (k: string) => (k === "system" ? "Other AI features / scheduled" : k === ctx.userId ? "You" : `Member ${k.slice(0, 8)}`);
   const empty = u.monthUsd === 0 && u.byDay.every((d) => d.usd === 0);
@@ -50,6 +52,7 @@ export default async function Page() {
         <Card title="By route"><SliceBars items={u.byRoute} labelFor={(k) => (k === "deep" ? "Deep (stronger model)" : k === "fast" ? "Fast" : k)} /></Card>
         <Card title="By person"><SliceBars items={u.byUser} labelFor={userLabel} /></Card>
         <Card title="By feature (workflow)"><SliceBars items={u.byWorkflow} /></Card>
+        {avoided !== null ? <Card title="AI calls avoided this month" help="Features set to code only in Settings → AI use. These calls were handled by code and cost nothing."><p className="text-2xl font-semibold">{avoided}</p><a href="/settings/ai" className="text-sm text-brand underline">Change AI use per feature</a></Card> : null}
         <Card title="Tokens this month">
           <dl className="grid grid-cols-2 gap-2 text-sm">
             <dt className="text-ink-soft">Input</dt><dd className="tabular-nums">{fmtN(u.tokens.input)}</dd>

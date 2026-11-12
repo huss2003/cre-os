@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase rows are untyped */
 import type { ZodType } from "zod";
+import { IST, localDate } from "@/lib/util/time";
 import type { Block, EntityRef, EntityType, SourceRef, ToolContext, ToolDef, ToolResult } from "../types";
 
 /**
@@ -20,7 +21,8 @@ export function defineTool<S extends ZodType>(d: ToolDef<S>): ToolDef {
 
 export const ws = (t: ToolContext) => t.ctx.workspaceId;
 export const db = (t: ToolContext) => t.ctx.db as any;
-export const today = () => new Date().toISOString().slice(0, 10);
+/** Calendar day in the workspace time zone (default IST) — not the UTC day, which is wrong after 18:30 UTC. */
+export const today = (tz: string = IST) => localDate(new Date(), tz);
 export const clampLimit = (n?: number | null) => Math.max(1, Math.min(MAX_LIMIT, Math.floor(n ?? 10)));
 
 /** In-app routes (checked against src/app/(app)). */
@@ -122,3 +124,12 @@ export function failed(summary: string, e: unknown): ToolResult {
 }
 
 export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
+
+/** Plain words for stored fact statuses (never show raw codes like historical_observed). */
+export const FACT_LABEL: Record<string, string> = {
+  currently_confirmed: "Confirmed", reported: "Reported", likely_valid: "Likely valid", historical_observed: "Seen earlier (historical)",
+  ai_inference: "AI inference — unverified", unverified: "Unverified", stale: "Possibly outdated", user_entered: "Entered by user",
+};
+export const factLabel = (s: string | null | undefined) => (s ? FACT_LABEL[s] ?? s.replace(/_/g, " ") : "Unknown");
+/** Area with Indian digit grouping, unit stated; null stays "unknown". */
+export const areaSf = (n: unknown) => (n == null || n === "" || !Number.isFinite(Number(n)) ? "unknown" : `${Number(n).toLocaleString("en-IN")} sq ft`);

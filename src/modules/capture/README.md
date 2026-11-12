@@ -170,3 +170,21 @@ Spreadsheet engine (§3), batch reports (§10) and the import dashboard (§13C) 
   `tieBreakOrg` (parent/subsidiary relation or HQ city breaks same-name company ties, medium at most), `questionable` (outlier bands).
 - **Known gaps**: see GAP.md "Remaining PARTIAL" (no OCR of scanned PDFs — page renderer `@napi-rs/canvas` not installed;
   no diarisation; layout drawings not interpreted). Legacy .doc/.ppt are best effort with an "Old format" note.
+
+## Code first, AI as backup (Nov 2026 — docs/ai-policy.md, group 2)
+Every extractor below runs deterministic code first and calls the AI gateway only through `runWithPolicy`
+(`src/lib/ai/policy.ts`) when the workspace mode for the feature allows it (`off` never, `backup` only when `accept` fails, `on` AI first).
+
+| Feature key | Code path | `accept()` (AI skipped when true) |
+|---|---|---|
+| `capture.extract` | `ruleExtract` + known names (`service.ts defaultExtractor`) | `captureAccept`: any fact/task/promise/mention/detail/objection found |
+| `capture.lease_terms` (+ `assistant.lease_terms`) | `heuristicTerms` → page-verified `finaliseTerms` (`assistant/documents/lease-terms.ts codeFirstLeaseTerms`) | `leaseTermsAccept`: rent and area verified + parsed |
+| `toolkit.quote_intake` | `regexExtract` (label lines + prose fallbacks, lakh/crore) | `quoteAccept`: rent + periodicity + ≥2 other terms |
+| `legal.extract` | `extractClauses` (headings/keywords) | `legalAccept`: ≥2 core clauses (≥1 in short texts) |
+| `capture.ocr` (+ `capture.document_ocr`) | local OCR `src/lib/ocr/local.ts` (tesseract.js, eng+hin, offline data) via `ocr.ts ocrWithPolicy` | text ≥3 chars and mean confidence ≥ 0.6 |
+
+Results from code carry `mocked: true, model: "rules"` (UI badge "rule extractor" / "pattern matching"); local OCR carries
+`model: "tesseract-local"`. AI results are merged over code (code fills fields the AI left empty) and still verified
+against the source text. Business cards: local OCR → `docs/card.ts parseBusinessCard` (no AI).
+Scanned PDFs: still ask the user for text (no page renderer — `@napi-rs/canvas` deliberately not added).
+Tests: `ocr.test.ts` (real OCR on `tests/fixtures/ocr/*.png`, policy modes), `extract-matrix.test.ts`.

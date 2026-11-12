@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import clsx from "clsx";
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui";
 import { requirePageContext, hasRole } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
 import { listQueue, type QueueTab } from "@/modules/changes/service";
@@ -11,6 +11,7 @@ import { ActionForm, Submit } from "@/modules/changes/ui/client";
 import { batchUndoAction } from "@/modules/changes/actions";
 import { attentionQueues, failedJobCount } from "@/modules/capture/docs/review";
 import { AttentionPanel, RequestInfo } from "@/modules/capture/docs/attention";
+import { reviewIntegrationSections } from "@/modules/orchestrator/ui/integration-sections";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRow = Record<string, any>;
 
@@ -43,6 +44,7 @@ async function Body({ searchParams }: Props) {
       .eq("status", "needs_review").is("archived_at", null).order("created_at", { ascending: false }).limit(50),
     attentionQueues(ctx.db, ctx.workspaceId, ctx.role),
   ]);
+  const integration = await reviewIntegrationSections({ db: ctx.db, workspaceId: ctx.workspaceId, userId: ctx.userId }).catch(() => []);
   // Drafts belonging to an outreach item open on that item's page; others in the Drafts queue (there is no /drafts/<id> page).
   const draftIds = ("drafts" in q && q.drafts ? q.drafts : []).map((d) => d.id as string);
   const { data: oItems } = draftIds.length ? await ctx.db.from("outreach_item").select("id, draft_id").eq("workspace_id", ctx.workspaceId).in("draft_id", draftIds) : { data: [] };
@@ -67,6 +69,17 @@ async function Body({ searchParams }: Props) {
       <PageHeader title="Review" subtitle="Everything waiting for your OK. Captures appear first — open one, check it, press Reviewed and it is added to the right sections." />
       </div>
       <AttentionPanel q={attention} editor={editor} />
+      {integration.filter((s) => s.count > 0 || s.unavailable).map((s) => (
+        <Card key={s.key} title={`${s.title} (${s.count})`} help={null} actions={s.link ? <Link href={s.link.href} className="text-sm text-brand">{s.link.label}</Link> : null}>
+          {s.unavailable ? <p role="alert" className="text-sm text-bad">{s.unavailable}</p> : (
+            <ul className="divide-y divide-line">
+              {s.items.map((it) => (
+                <li key={it.key} className="py-2"><Link href={it.href} className="block hover:underline"><span className="block break-words text-sm font-medium">{it.title}</span>{it.meta ? <span className="block break-words text-xs text-ink-soft">{it.meta}</span> : null}</Link></li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      ))}
       {importsWaiting.length ? (
         <Card title={`Imports to review (${importsWaiting.length})`} help="Large files are reviewed in one place: open the import to see what it contains, add all safe rows in one click, and check only the doubtful ones.">
           <ul className="divide-y divide-line">
@@ -169,5 +182,5 @@ function documentLabel(d: AnyRow): string {
 }
 
 export default function Page(props: Props) {
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body {...props} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" />}><Body {...props} /></Suspense>;
 }

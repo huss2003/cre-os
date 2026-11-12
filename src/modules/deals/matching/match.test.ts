@@ -49,7 +49,7 @@ describe(`property matching ${RUBRIC_VERSION} (acceptance test: Shortlist)`, () 
     const small = cand("small", { area: 8000, buildingTotal: 20000 });
     const r = evaluateOption(req(), small, { asOf: AS_OF });
     expect(r.eligibility).toBe("ineligible");
-    expect(r.disqualifiers[0]).toMatch(/chargeable area 8000 SF outside/);
+    expect(r.disqualifiers[0]).toMatch(/chargeable area 8,000 SF outside/);
     expect(r.area).toEqual({ value: 8000, basis: "chargeable", derived: false });
   });
 

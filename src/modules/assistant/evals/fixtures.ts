@@ -74,8 +74,10 @@ export async function seedWorld(db: Db, admin: Db): Promise<World> {
   const [orchid, kestrel, halcyon] = assets;
   await upsert(db, "infrastructure", { name: NAMES.metro }, { kind: "metro", status: "under_construction", lat: 18.5535, lon: 73.9435 }).catch(() => null);
 
-  const leaseQa = await upsert(db, "lease", { tenant_org_id: qa.id, asset_id: orchid.id }, { area_sf: 24000, contractual_expiry: d10(240), fact_status: "reported" });
-  const leaseMl = await upsert(db, "lease", { tenant_org_id: ml.id, asset_id: kestrel.id }, { area_sf: 12000, contractual_expiry: null, fact_status: "reported" });
+  // Fixture setup via the service client: the date-relative expiry differs on each day's re-run and contractual_expiry is a
+  // material field (user updates must go through a change proposal) — tests then read it back through RLS as usual.
+  const leaseQa = await upsert(admin, "lease", { tenant_org_id: qa.id, asset_id: orchid.id }, { area_sf: 24000, contractual_expiry: d10(240), fact_status: "reported" });
+  const leaseMl = await upsert(admin, "lease", { tenant_org_id: ml.id, asset_id: kestrel.id }, { area_sf: 12000, contractual_expiry: null, fact_status: "reported" });
 
   const req = await upsert(db, "requirement", { title: NAMES.req }, { org_id: qa.id, area_min_sf: 25000, area_max_sf: 35000, area_basis: "chargeable", status: "estimated" });
   await upsert(db, "shortlist_option", { requirement_id: req.id, asset_id: halcyon.id }, { option_status: "rejected", eligible: true, rubric_version: "eval", disqualifiers: [NAMES.rejectParking], version: 1 });

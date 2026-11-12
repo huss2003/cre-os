@@ -10,6 +10,7 @@ import type { Block, SourceRef, ToolContext, ToolResult } from "../types";
 import {
   HREF, NOT_FOUND, clampLimit, daysBetween, db, defineTool, denied, factToStatus, fmt, getOne, ilikeSafe, isUuid,
   missingBlock, namesById, ref, sourcesBlock, today, ws, type Row,
+  areaSf, factLabel,
 } from "./shared";
 
 const id = (what: string) => z.string().describe(`${what} id (uuid) from a previous search result`);
@@ -602,7 +603,7 @@ const findLeasesExpiring = defineTool({
       entities: items.map((x) => ref("company", x.companyId, x.company, x.href)),
       sources: items.slice(0, 10).map((x) => ({ label: `Lease — ${x.company}`, href: HREF.leases(), observedAt: null, status: x.status })),
       blocks: [
-        ...(items.length ? [{ kind: "table" as const, title: `Leases expiring ${from} → ${to}`, columns: ["Company", "Building", "Place", "Area SF", "Expiry", "Fact status"], rows: items.map((x) => [x.company, x.building, x.place, x.areaSf ?? null, x.expiry, x.factStatus ?? "unknown"]), note }] : [{ kind: "text" as const, markdown: `No recorded lease expiries in this window. ${note}` }]),
+        ...(items.length ? [{ kind: "table" as const, title: `Leases expiring ${from} → ${to}`, columns: ["Company", "Building", "Place", "Area", "Expiry", "How sure"], rows: items.map((x) => [x.company, x.building, x.place, areaSf(x.areaSf), x.expiry, factLabel(x.factStatus)]), note }] : [{ kind: "text" as const, markdown: `No recorded lease expiries in this window. ${note}` }]),
         ...missingBlock(missing),
       ],
     };

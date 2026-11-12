@@ -178,8 +178,9 @@ describe("§17.10–12, 18, 23 consolidation", () => {
     expect(comps.mentions).toBe(2);
     expect(m.objections.find((x) => /parking/i.test(x.text))!.mentions).toBe(2);
     expect(m.originals.length).toBe(m.meetings);
-    expect(m.summary?.aiGenerated).toBe(true);
-    expect(m.summary?.mock).toBe(true);
+    expect(m.summary?.aiGenerated).toBe(false); // AI policy off (default): templated summary, labelled neutral
+    expect(m.summary?.source).toBe("code");
+    expect(m.summary?.text).toMatch(/meeting notes from/);
     const q = await qualityReport(ctx);
     const a = q.checks.find((x) => x.key === "assumptions")!;
     expect(a.error).toBeNull();

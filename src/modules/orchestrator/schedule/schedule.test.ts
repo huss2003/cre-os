@@ -65,7 +65,7 @@ describe("daily plan sections (deterministic fallback)", () => {
   };
   it("has all ten sections; failed sources are labelled, not empty", () => {
     const s = buildDailySections(base);
-    expect(Object.keys(s)).toEqual(["todays_meetings", "meetings_needing_prep", "priority_accounts", "new_signals", "lease_alerts", "followups_due_today", "overdue_commitments", "deals_attention", "pending_approvals", "recommended_actions"]);
+    expect(Object.keys(s)).toEqual(["todays_meetings", "meetings_needing_prep", "priority_accounts", "new_signals", "lease_alerts", "followups_due_today", "overdue_commitments", "deals_attention", "transaction_blockers", "pending_approvals", "recommended_actions"]);
     expect(s.new_signals.state).toBe("unavailable");
     expect(s.priority_accounts.state).toBe("unavailable");
     expect(s.meetings_needing_prep.items[0].missing[0]).toMatch(/No preparation record/);

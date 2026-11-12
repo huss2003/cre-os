@@ -17,10 +17,12 @@ import { addDays, isoWeekKey } from "@/modules/brief/dates";
 import type { StructuredCaller } from "@/modules/brief/synthesis";
 import { notifyUser } from "../notify/service";
 import { loadCapacity } from "../capacity/service";
-import { dealsNeedingAttention, loadOpenDeals, loadOverdueCommitments, loadPrepStatus, loadSignals, section, type LoadCtx } from "./data";
+import { dealsNeedingAttention, loadOpenDeals, loadTransactionBlockers, loadOverdueCommitments, loadPrepStatus, loadSignals, section, type LoadCtx } from "./data";
 import { buildDailySections, planHash, type PlanMeeting } from "./plan-builder";
 import { loadOrchSettings } from "./settings-db";
 import type { OrchSettings } from "./settings";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
+import { dailyHeadline } from "./summaries";
 
 export type AiCaller = typeof callStructured;
 
@@ -71,10 +73,11 @@ export async function computeDailySections(c: LoadCtx, date: string, now: Date, 
     commitments: await section(async () => (await loadOverdueCommitments(c, date, { mineOnly: true })).map((x) => ({ id: x.id, title: x.title, due: x.due, href: x.href, kind: x.kind }))),
     deals: deals.state === "ok" ? { ...deals, items: dealsNeedingAttention(deals.items.filter((d: any) => !d.account_owner_user_id || d.account_owner_user_id === userId || d.owner_user_id === userId), date, now.toISOString()) } : deals as any,
     approvals: await loadApprovals(c).catch(() => null),
+    transactions: await section(async () => loadTransactionBlockers(c, date)),
   });
 }
 
-export async function runDailyPlan(admin: Db, ws: string, userId: string, opts: { now?: Date; ai?: AiCaller; notify?: boolean } = {}) {
+export async function runDailyPlan(admin: Db, ws: string, userId: string, opts: { now?: Date; ai?: AiCaller; notify?: boolean; mode?: AiMode } = {}) {
   const now = opts.now ?? new Date();
   const ai = opts.ai ?? callStructured;
   const s = await loadOrchSettings(admin, ws, userId);
@@ -86,30 +89,40 @@ export async function runDailyPlan(admin: Db, ws: string, userId: string, opts: 
   let brief: any = null, briefError: string | null = null;
   try {
     brief = await latestBrief(admin, ws, userId, date, "daily");
-    if (!brief) brief = (await generateDailyBrief(c, s.brief, { date, now, caller: ((call: any) => ai(call)) as unknown as StructuredCaller, generatedBy: "orchestrator" })).brief;
+    if (!brief) brief = (await generateDailyBrief(c, s.brief, { date, now, caller: ((call: any) => ai(call)) as unknown as StructuredCaller, generatedBy: "orchestrator", mode: opts.mode })).brief;
   } catch (e) { briefError = `Daily brief unavailable: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200); }
 
   // 2. deterministic sections from records
   const sections = await computeDailySections(c, date, now, brief, briefError);
   const capacity = await loadCapacity(c, s, date, now).catch((e) => ({ error: String(e?.message ?? e) }));
 
-  // 3. optional AI headline — never required
+  // 3. headline — sentence templates by default (AI policy "off"); AI only when the workspace turns it on
   let aiStatus: "ok" | "delayed" = "ok";
   let aiSummary: unknown;
   const recs = sections.recommended_actions.items;
-  try {
-    const r = await ai({
-      workspaceId: ws, workflow: "orchestrator.daily_plan", tier: "luna", schema: Headline, schemaName: "daily_plan_headline", maxOutputTokens: 300,
-      system: "Write a one-sentence headline and up to three focus points for a commercial real-estate adviser's day. Use only the items given; do not invent facts, people, numbers or dates.",
-      input: JSON.stringify({ meetings: sections.todays_meetings.items.length, recommended: recs.map((x) => x.title) }),
-      mock: () => ({ headline: recs.length ? `${recs.length} recommended action${recs.length === 1 ? "" : "s"} today; start with: ${recs[0].title}` : "No urgent items today.", focus: recs.slice(0, 3).map((x) => x.title) }),
-    });
-    aiSummary = { ...r.data, model: r.model, mocked: r.mocked };
-  } catch (e) {
+  const mode = opts.mode ?? await getAiMode(admin, ws, "orchestrator.daily_plan");
+  const code = dailyHeadline(sections as never, recs);
+  let meta: { model?: string; mocked?: boolean } = {};
+  const out = await runWithPolicy({
+    mode, code: () => code,
+    ai: async () => {
+      const r = await ai({
+        workspaceId: ws, workflow: "orchestrator.daily_plan", tier: "luna", schema: Headline, schemaName: "daily_plan_headline", maxOutputTokens: 300,
+        system: "Write a one-sentence headline and up to three focus points for a commercial real-estate adviser's day. Use only the items given; do not invent facts, people, numbers or dates.",
+        input: JSON.stringify({ meetings: sections.todays_meetings.items.length, recommended: recs.map((x) => x.title) }),
+        mock: () => code,
+      });
+      meta = { model: r.model, mocked: r.mocked };
+      return r.data;
+    },
+  });
+  if (out.source === "ai") aiSummary = { ...out.value, ...meta, source: "ai" };
+  else if (mode === "on" && out.aiError) {
     aiStatus = "delayed";
-    aiSummary = { delayed: true, reason: (e as any)?.reason ?? (e instanceof Error ? e.message : String(e)), retry: "queued" };
+    const e = out.aiError as any;
+    aiSummary = { ...code, source: "code", delayed: true, reason: e?.reason ?? (e instanceof Error ? e.message : String(e)), retry: "queued" };
     await enqueue({ workspaceId: ws, type: "orchestrator.plan_ai", payload: { userId, date }, dueAt: new Date(+now + 30 * 60_000), dedupeKey: `orchestrator.plan_ai:${ws}:${userId}:${date}`, maxAttempts: 4 }).catch(() => undefined);
-  }
+  } else aiSummary = { ...code, source: "code" };
 
   const { plan, changed } = await savePlan(admin, ws, userId, { kind: "daily", period: date, tz: s.timezone, briefId: brief?.id ?? null, sections: { ...sections, capacity }, recommended: recs, aiStatus, aiSummary });
   if (opts.notify !== false) {
@@ -123,14 +136,18 @@ export async function runDailyPlan(admin: Db, ws: string, userId: string, opts: 
 }
 
 /** Retry only the AI headline for an existing plan (job orchestrator.plan_ai). Throws while still unavailable so the queue backs off. */
-export async function retryPlanAi(admin: Db, ws: string, userId: string, date: string, ai: AiCaller = callStructured) {
+export async function retryPlanAi(admin: Db, ws: string, userId: string, date: string, ai: AiCaller = callStructured, mode?: AiMode) {
   const { data: plan } = await admin.from("orch_plan").select("*").eq("workspace_id", ws).eq("user_id", userId).eq("kind", "daily").eq("period_key", date).maybeSingle();
   if (!plan || plan.ai_status !== "delayed") return { skipped: "nothing delayed" };
+  if ((mode ?? await getAiMode(admin, ws, "orchestrator.daily_plan")) === "off") {
+    await admin.from("orch_plan").update({ ai_status: "ok", ai_summary: { ...dailyHeadline(plan.sections ?? {}, plan.recommended ?? []), source: "code" }, version: plan.version + 1 }).eq("workspace_id", ws).eq("id", plan.id);
+    return { updated: plan.id };
+  }
   const recs = (plan.recommended ?? []) as { title: string }[];
   const r = await ai({ workspaceId: ws, workflow: "orchestrator.daily_plan", tier: "luna", schema: Headline, schemaName: "daily_plan_headline", maxOutputTokens: 300,
     system: "Write a one-sentence headline and up to three focus points for a commercial real-estate adviser's day. Use only the items given.",
     input: JSON.stringify({ recommended: recs.map((x) => x.title) }),
     mock: () => ({ headline: recs.length ? `${recs.length} recommended actions today; start with: ${recs[0].title}` : "No urgent items today.", focus: recs.slice(0, 3).map((x) => x.title) }) });
-  await admin.from("orch_plan").update({ ai_status: "ok", ai_summary: { ...r.data, model: r.model, mocked: r.mocked }, version: plan.version + 1 }).eq("workspace_id", ws).eq("id", plan.id);
+  await admin.from("orch_plan").update({ ai_status: "ok", ai_summary: { ...r.data, model: r.model, mocked: r.mocked, source: "ai" }, version: plan.version + 1 }).eq("workspace_id", ws).eq("id", plan.id);
   return { updated: plan.id };
 }

@@ -102,7 +102,10 @@ export async function trackRouted(admin: Db, ws: string, now = new Date()) {
 /** Notify admins once per delayed run (after 60 min) — dedupe per run, so repeated ticks never repeat it. */
 export async function notifyDelayed(admin: Db, ws: string, now = new Date()) {
   const { data } = await admin.from("workflow_run").select("id, definition_key, summary, status, started_at, next_attempt_at, error").eq("workspace_id", ws).eq("kind", "orchestrated")
-    .in("status", ["queued", "waiting_dependency", "partially_completed"]).lt("started_at", new Date(+now - DELAY.notifyAfterMinutes * 60_000).toISOString()).limit(50);
+    .in("status", ["queued", "waiting_dependency", "partially_completed"]).lt("started_at", new Date(+now - DELAY.notifyAfterMinutes * 60_000).toISOString())
+    // Newest first + bounded window: an unordered capped read skipped fresh delays once >limit stale runs piled up
+    // (dedupe per run makes re-checking older ones a no-op).
+    .gte("started_at", new Date(+now - 7 * 864e5).toISOString()).order("started_at", { ascending: false }).limit(200);
   let sent = 0;
   for (const r of (data ?? []) as Row[]) {
     const why = delayReason(r, now);

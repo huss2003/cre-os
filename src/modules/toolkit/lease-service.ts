@@ -2,6 +2,8 @@ import "server-only";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
+import { codeTalkingPoints } from "./talking-points";
 import { saveAnalysis, getAnalysis } from "./store";
 import { compareLeaseOffers, leaseEconomics, occupancyEconomics, occupancySensitivity, LEASE_FORMULA, OCC_FORMULA, validateTerms, type Extras, type LeaseTerms, type SensitivityOverrides } from "./calc/lease";
 import { analyseNegotiation, appendOffer, NEGO_FORMULA, type ConcessionPackage, type OfferTerms, type OfferVersion, type NegotiationAnalysis } from "./calc/negotiation";
@@ -75,23 +77,20 @@ export async function setPackages(w: Who, id: string, packages: ConcessionPackag
 
 const Talking = z.object({ points: z.array(z.string()).max(8) });
 
-/** Optional wording help: AI phrases the deterministic strategy (never computes numbers, never decides). */
-export async function draftTalkingPoints(w: Who, id: string): Promise<{ points: string[]; mocked: boolean }> {
+/** Talking points: diff-based rules by default (AI policy off); AI may only re-phrase the deterministic strategy. */
+export async function draftTalkingPoints(w: Who, id: string, opts: { mode?: AiMode } = {}): Promise<{ points: string[]; mocked: boolean; source: "code" | "ai" }> {
   const a = await loadNegotiation(w, id);
   if (!a) throw new Error("Negotiation not found.");
   const st = a.outputs.strategy;
-  const mock = () => ({
-    points: [
-      `Ask for: ${st.preferredOutcome}`,
-      ...(st.acceptableAlternative ? [`Fallback: ${st.acceptableAlternative}`] : []),
-      ...st.unresolved.slice(0, 3).map((u) => `Still to agree: ${u}`),
-      ...st.risks.slice(0, 2).map((r) => `Watch: ${r}`),
-    ],
-  });
-  const r = await callStructured({
-    workspaceId: w.ws, workflow: "toolkit.negotiation_points", system:
-      "You turn a deterministic negotiation summary into short talking points for a commercial-real-estate adviser. Use only the numbers given; do not calculate, invent or recommend accepting/rejecting.",
-    input: "Rephrase as up to 6 concise talking points.", evidence: JSON.stringify(st), schema: Talking, schemaName: "talking_points", mock,
-  });
-  return { points: r.data.points, mocked: r.mocked };
+  const mock = () => ({ points: codeTalkingPoints(a.outputs) });
+  let mocked = false;
+  const pol = await runWithPolicy({ mode: opts.mode ?? await getAiMode(w.db, w.ws, "toolkit.negotiation_points"), code: mock, ai: async () => {
+    const r = await callStructured({
+      workspaceId: w.ws, workflow: "toolkit.negotiation_points", system:
+        "You turn a deterministic negotiation summary into short talking points for a commercial-real-estate adviser. Use only the numbers given; do not calculate, invent or recommend accepting/rejecting.",
+      input: "Rephrase as up to 6 concise talking points.", evidence: JSON.stringify(st), schema: Talking, schemaName: "talking_points", mock,
+    });
+    mocked = r.mocked; return r.data;
+  } });
+  return { points: (pol.value ?? mock()).points, mocked: pol.source === "ai" ? mocked : false, source: pol.source === "ai" ? "ai" : "code" };
 }

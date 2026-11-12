@@ -48,7 +48,7 @@ const openMore = async (t) => {
 
 const FLOWS = [
   {
-    slug: "tour", featured: true, category: "Start here", title: "How CRE OS fits together (full tour)",
+    slug: "tour-v2", featured: true, category: "Start here", title: "How CRE OS fits together (full tour)",
     learn: "Every sidebar area and the overall flow: information comes in → Review → records → you act.", tryRoute: "/today",
     async run(t) {
       const p = t.page;
@@ -58,11 +58,11 @@ const FLOWS = [
       await soft(t, "The sidebar on the left is the map of the whole app, grouped into main, Records, Work and More.", nav(p));
       await soft(t, "Today is your start page: everything that needs you today, in one place.", navLink(p, "Today"), { click: true });
       await soft(t, "Recommended next actions: lease dates and overdue tasks, most urgent first.", H(p, /Recommended next actions/));
-      await soft(t, "Meetings in the next three days, each with a link to its preparation brief.", H(p, /^Meetings — today/));
+      await soft(t, "Today's schedule: every meeting with time, place and whether its brief is ready.", H(p, /^Today's schedule/));
       await soft(t, "Priority accounts: the companies most worth your time, with 'See why' for the reasons.", H(p, /^Priority accounts/));
       await soft(t, "New signals, follow-ups that are due and approvals waiting for you.", H(p, /^New signals/));
-      await soft(t, "Lease events: expiries, notice deadlines and lock-ins coming up in 12, 6 and 3 months.", H(p, /^Lease events/));
-      await soft(t, "Day plan turns all of this into an ordered plan for today; Re-plan rebuilds it.", H(p, /^Day plan/));
+      await soft(t, "Active transactions: deals in offers, approvals or execution, with what is blocking each.", H(p, /^Active transactions/));
+      await soft(t, "Important lease events and lease alerts: lease dates coming up and alerts from Leases.", H(p, /^Important lease events/).or(H(p, /^Lease alerts/)));
       await soft(t, "Today also has tabs at the top: Overview, Tasks and Calendar.", p.getByRole("link", { name: "Tasks", exact: true }));
       await soft(t, "Ask AI answers questions about your own data and shows where each answer came from.", navLink(p, "Ask AI"), { click: true });
       await soft(t, "Ready-made questions get you started; or type your own in the box.", B(p, /Prepare me for my next meeting/));
@@ -76,19 +76,23 @@ const FLOWS = [
       await soft(t, "Filter by name, or add a company by hand.", main(p).getByPlaceholder(/Filter company names/));
       await soft(t, "People: the contacts at those companies.", navLink(p, "People"), { click: true });
       await soft(t, "Buildings: campuses, towers and the space in them.", navLink(p, "Buildings"), { click: true });
+      await soft(t, "Supply: available space, operators and matching it to requirements.", navLink(p, "Supply"), { click: true });
       await soft(t, "Requirements: what each client is looking for — size, place, dates. Filter by status.", navLink(p, "Requirements"), { click: true });
       await soft(t, "Deals: every opportunity as a pipeline, from research to fee collected.", navLink(p, "Deals"), { click: true });
       await soft(t, "Each column is a stage; the Deals tabs also hold Financials, Documents and Fees.", main(p).getByRole("heading", { name: /research/i }));
       await soft(t, "Step 4 — Act. Outreach: who to contact today and drafts of what to say.", navLink(p, "Outreach"), { click: true });
       await soft(t, "Drafts only — you always send from your own mail or WhatsApp. CRE OS never sends.", L(p, /^New outreach/));
       await soft(t, "Meetings: prepare a brief before each meeting and log what happened after.", navLink(p, "Meetings"), { click: true });
+      await soft(t, "Transactions: offers, approvals, execution and handover for a confirmed requirement.", navLink(p, "Transactions"), { click: true });
+      await soft(t, "Leases: every lease, its dates, renewals and obligations — the radar is a tab inside.", navLink(p, "Leases"), { click: true });
       await soft(t, "Deal toolkit: compare buildings, cost a lease, stay-or-move and make client packs.", navLink(p, "Deal toolkit"), { click: true });
       await soft(t, "Signals: news and events that may mean a company needs space — checked before you trust them.", navLink(p, "Signals"), { click: true });
       await t.step("More holds the less-used screens. Open it.", () => openMore(t));
       await soft(t, "Scores rank who to focus on first; Find contacts finds and verifies decision-makers.", navLink(p, "Scores"));
-      await soft(t, "Research looks into one company; Lease radar lists leases coming up for renewal.", navLink(p, "Lease radar"));
+      await soft(t, "Research looks into one company and builds a dossier with sources.", navLink(p, "Research"));
       await soft(t, "Market & reports: market data, network, legal, content and reports.", navLink(p, "Market & reports"));
-      await soft(t, "Automations: chains that run on their own, like turning a lease date into a requirement.", navLink(p, "Automations"));
+      await soft(t, "Intelligence: what changed, what to do next, history and memory quality.", navLink(p, "Intelligence"));
+      await soft(t, "Automation: what runs in the background, schedules, chains and failures.", navLink(p, "Automation"));
       await soft(t, "Imports bring in spreadsheets; Database and Places are for browsing and setup.", navLink(p, "Imports"));
       await soft(t, "Tutorials: these videos, any time.", navLink(p, "Tutorials"));
       await soft(t, "The whole loop: things come in → you Review → records update → Today tells you what to act on.", navLink(p, "Today"), { click: true });
@@ -97,7 +101,7 @@ const FLOWS = [
   },
 
   {
-    slug: "capture-v2", category: "Records & data", title: "Capture a meeting note and approve it",
+    slug: "capture-v3", category: "Records & data", title: "Capture a meeting note and approve it",
     learn: "Every part of Capture (speak, type, photo, files, links), the questions it asks, Reviewed, and where the result appears.", tryRoute: "/capture",
     async run(t) {
       const p = t.page;
@@ -109,7 +113,7 @@ const FLOWS = [
       await soft(t, "Language: English, Hindi / Hinglish or Marathi — pick what you'll speak or write.", main(p).getByLabel("Language").or(main(p).locator("select[name=language_hint]")));
       await soft(t, "More options lets you set when it actually happened, if it wasn't just now.", TX(p, /More options/));
       await soft(t, "Add files: upload documents such as a lease, LOI or floor plan.", B(p, /Choose files/));
-      await soft(t, "Link to a record ties the file to a company, person, building or requirement.", TX(p, /Link to a record/));
+      await soft(t, "Link to a record ties the file to a company, person, building, requirement, meeting, lease or transaction.", TX(p, /Link to a record/));
       await soft(t, "Recent captures lists earlier notes, with their status and how many changes they propose.", H(p, /^Recent captures/));
       await t.step("Now choose Type to write or paste a note.", () => t.moveAndClick(main(p).getByRole("radio", { name: /Type/ }).or(B(p, /^Type/))));
       await t.step("Write what happened, in plain words.", () => t.type(main(p).getByPlaceholder("English, Hindi or Hinglish is fine"),

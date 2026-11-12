@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Badge, Card, EmptyState, Field, Input, PageHeader, StaleBanner, Stat } from "@/components/ui";
+import { Badge, Card, EmptyState, Field, Input, PageHeader, StaleBanner, Stat, Skeleton } from "@/components/ui";
 import { hasRole, requirePageContext } from "@/lib/auth/context";
 import { JobBacklogBanner } from "@/modules/capture/docs/backlog-banner";
 import { fmt, localDate } from "@/lib/util/time";
@@ -225,5 +225,5 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ v
   const v = sp.view;
   const view: View = VIEWS.some(([k]) => k === v) ? (v as View) : "overview";
   const filter = (view === "history" ? sp.status : view === "jobs" ? sp.state : undefined)?.replace(/[^a-z_]/g, "");
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body view={view} filter={filter} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" />}><Body view={view} filter={filter} /></Suspense>;
 }

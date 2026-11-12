@@ -67,7 +67,14 @@ export function matchBuildings(text: string, assets: AssetRef[]): BuildingSugges
   out.forEach((s, i) => {
     if (rivalCount[i]) { s.confidence = Math.min(s.confidence, 0.35); s.tier = "low"; s.reason = `${rivalCount[i] + 1} buildings fit "${s.text}" — pick one`; }
   });
-  return out.sort((a, b) => a.start - b.start || b.confidence - a.confidence);
+  // A generic word that fits many buildings (e.g. "ABC" in a company name) is noise, not a suggestion:
+  // drop weak matches whose text fits more than 3 buildings, and never list more than 5 suggestions.
+  const crowd = (s: BuildingSuggestion) => out.filter((o) => nrm(o.text) === nrm(s.text)).length;
+  return out
+    .filter((s) => !(s.confidence < 0.7 && crowd(s) > 3))
+    .sort((a, b) => b.confidence - a.confidence || a.start - b.start)
+    .slice(0, 5)
+    .sort((a, b) => a.start - b.start || b.confidence - a.confidence);
 }
 
 // ------------------------------------------------------------------------------------------------ company tie-breakers

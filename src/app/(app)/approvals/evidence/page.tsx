@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, Card, PageHeader, StaleBanner } from "@/components/ui";
+import { Badge, Card, PageHeader, StaleBanner, Skeleton } from "@/components/ui";
 import { hasRole, requirePageContext } from "@/lib/auth/context";
 import { ChangeError } from "@/lib/services/changes";
 import { fmt } from "@/lib/util/time";
@@ -80,5 +80,5 @@ function Evidence({ items }: { items: { id: string; label: string; locator: stri
 }
 
 export default function Page(props: Props) {
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body {...props} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" />}><Body {...props} /></Suspense>;
 }

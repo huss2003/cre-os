@@ -26,3 +26,23 @@ describe("client score (deterministic)", () => {
     expect(score(many, [], ["Pune"]).score).toBe(100);
   });
 });
+
+import { codeAssessment, factorFor } from "./assess";
+describe("signals.assess code path (rules)", () => {
+  it("maps signal text to factors", () => {
+    expect(factorFor("", "Acme sets up GCC in Pune")).toBe("gcc");
+    expect(factorFor("", "Acme announces layoffs of 200")).toBe("layoffs");
+    expect(factorFor("job_move", "X joins as CFO")).toBe("leadership_change");
+    expect(factorFor("pune_expansion", "anything")).toBe("pune_expansion");
+  });
+  it("builds sourced facts from stored signals and discovery hints; unsourced signals are flagged", () => {
+    const o = codeAssessment("Acme", [
+      { kind: "hiring_local", title: "Acme hiring 300 engineers in Pune", summary: null, location_text: "Pune", event_date: null, latest_evidence_on: "2026-10-01", detected_at: "", confidence: "medium", evidence: [{ source_url: "https://et.example.com/a", source_name: "ET", published_on: "2026-10-01" }] },
+      { kind: "other", title: "Rumour", summary: null, location_text: null, event_date: null, latest_evidence_on: null, detected_at: "", confidence: "low", evidence: [] },
+    ], ["Pune"], ["Acme sets up GCC in Pune (https://news.example.com/x, 2026-11-05)"]);
+    expect(o.facts.map((f) => f.factor)).toEqual(["hiring_local", "gcc"]);
+    expect(o.facts[1].published_on).toBe("2026-11-05");
+    expect(o.summary).toMatch(/Acme has 3 known signals, 2 mentioning Pune/);
+    expect(o.unknowns[0]).toMatch(/source link/);
+  });
+});

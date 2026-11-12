@@ -20,6 +20,9 @@ async function login(browser, statePath) {
   await p.fill("input[name=email]", process.env.TUT_EMAIL || "owner@cre-os.local");
   await p.fill("input[name=password]", process.env.TUT_PASSWORD || "password123");
   await Promise.all([p.waitForURL((u) => !u.toString().includes("/login"), { timeout: 90000 }), p.press("input[name=password]", "Enter")]);
+  // Always record in the Demo workspace (the owner also belongs to test workspaces that sort first).
+  const host = new URL(BASE).hostname;
+  await ctx.addCookies([{ name: "cre_ws", value: process.env.TUT_WS || "de000000-0000-4000-8000-000000000001", domain: host, path: "/" }]);
   await ctx.storageState({ path: statePath });
   await ctx.close();
 }

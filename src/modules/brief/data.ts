@@ -29,6 +29,19 @@ function filt<T extends { id: string }>(c: LoadCtx, rows: T[] | null | undefined
   return c.access ? visible(c.access, rows as any, type) as T[] : (rows ?? []);
 }
 
+/**
+ * Job mode (service role): push the member's read scope into the query, so a row cap applies to rows the user can
+ * see rather than to the whole workspace (filtering after `.limit()` under-counted busy workspaces). `filt` still runs.
+ */
+function scoped(c: LoadCtx, q: any, type: string): any {
+  const m = c.access;
+  if (!m) return q;
+  q = q.in("classification", m.allowedClassifications.length ? m.allowedClassifications : ["__none__"]);
+  if (m.role === "owner" || m.role === "admin" || m.seeAllAccounts) return q;
+  const shared = [...m.shares].filter((k) => k.startsWith(`${type}:`)).map((k) => k.slice(type.length + 1)).filter((id) => /^[0-9a-f-]{36}$/i.test(id));
+  return q.or(shared.length ? `owner_user_id.eq.${m.userId},id.in.(${shared.join(",")})` : `owner_user_id.eq.${m.userId}`);
+}
+
 export async function loadSources(c: LoadCtx, settings: BriefSettings, now: Date): Promise<SourceStatus[]> {
   const { data: accounts } = await c.db.from("connector_account").select("id, provider, status, last_error")
     .eq("workspace_id", c.workspaceId).eq("user_id", c.userId);
@@ -73,12 +86,12 @@ export async function loadOpenTasks(c: LoadCtx): Promise<TaskLite[]> {
 
 export async function loadApprovals(c: LoadCtx): Promise<{ changes: number; drafts: number; oldestAt: string | null }> {
   const [{ data: cps }, { data: drafts }] = await Promise.all([
-    c.db.from("change_proposal").select(`id, created_at, ${VIS}`).eq("workspace_id", c.workspaceId).is("archived_at", null)
-      .in("state", ["proposed", "clarify"]).eq("approval_required", true).order("created_at").limit(1000),
+    scoped(c, c.db.from("change_proposal").select(`id, created_at, ${VIS}`).eq("workspace_id", c.workspaceId).is("archived_at", null)
+      .in("state", ["proposed", "clarify"]).eq("approval_required", true), "change_proposal").order("created_at").order("id").limit(1000),
     c.db.from("draft").select(`id, created_at, ${VIS}`).eq("workspace_id", c.workspaceId).is("archived_at", null)
       .eq("state", "drafted").eq("owner_user_id", c.userId).order("created_at").limit(1000),
   ]);
-  const ch = filt(c, cps, "change_proposal") as { created_at: string }[];
+  const ch = filt(c, cps as { id: string; created_at: string }[], "change_proposal");
   const dr = filt(c, drafts, "draft") as { created_at: string }[];
   const oldest = [...ch, ...dr].map((r) => r.created_at).sort()[0] ?? null;
   return { changes: ch.length, drafts: dr.length, oldestAt: oldest };

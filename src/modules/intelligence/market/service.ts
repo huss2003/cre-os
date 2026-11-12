@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured, AiUnavailableError } from "@/lib/ai/gateway";
+import { getAiMode, type AiMode } from "@/lib/ai/policy";
 import { proposeChange } from "@/lib/services/changes";
 import { notify } from "@/modules/brief/db";
 import type { AiCall } from "../common";
@@ -186,7 +187,7 @@ const Commentary = z.object({ commentary: z.string().max(2000) });
  * source and release date; sample size and "not comprehensive" caveats are always included. The commentary is AI-drafted
  * (or a deterministic template in mock / budget mode), labelled, descriptive only. Draft status — never published automatically.
  */
-export async function draftMarketNote(db: Db, workspaceId: string, raw: z.input<typeof MarketNoteInput>, opts: { userId: string; ai?: AiCall }) {
+export async function draftMarketNote(db: Db, workspaceId: string, raw: z.input<typeof MarketNoteInput>, opts: { userId: string; ai?: AiCall; mode?: AiMode }) {
   const input = MarketNoteInput.parse(raw);
   const overview = await marketOverview(db, workspaceId);
   const candidates = input.seriesKey ? overview.series.filter((x) => x.key === input.seriesKey)
@@ -199,9 +200,15 @@ export async function draftMarketNote(db: Db, workspaceId: string, raw: z.input<
   const gaps = s.points.filter((p) => p.value === null).map((p) => p.label);
   const notComparable = s.points.filter((p) => p.comparable_to_previous === false).map((p) => p.note ?? p.label);
   const caveats = caveatsFor(s);
+  const known = s.points.filter((p) => p.value !== null && Number.isFinite(Number(p.value)) && p.comparable_to_previous !== false);
+  const first = known[0], latest = known[known.length - 1];
+  const dir = first && latest && first !== latest ? (Number(latest.value) > Number(first.value) ? "higher than" : Number(latest.value) < Number(first.value) ? "lower than" : "the same as") : null;
+  const peak = known.length > 2 ? known.reduce((a, b) => (Number(b.value) > Number(a.value) ? b : a)) : null;
   const mock = () => ({
     commentary: [
       `This note describes ${s.metric.replace(/_/g, " ")} for ${s.geographyLabel} (${s.unit}, ${s.periodLabel}) from validated releases only.`,
+      latest ? `The latest recorded figure is ${latest.value} ${s.unit} for ${latest.label}${dir ? `, ${dir} the ${first.value} ${s.unit} recorded for ${first.label}` : ""}.` : "",
+      peak && peak !== latest ? `The highest figure in this series was ${peak.value} ${s.unit} (${peak.label}).` : "",
       gaps.length ? `No observation exists for ${gaps.join(", ")}; those periods are unknown, not zero.` : "",
       notComparable.length ? `Some periods are not directly comparable: ${notComparable.join(" ")}` : "",
       s.kind === "stock" ? "Stock is a point-in-time snapshot and is not added across years." : "",
@@ -210,10 +217,11 @@ export async function draftMarketNote(db: Db, workspaceId: string, raw: z.input<
   });
   let commentary = mock().commentary;
   const forecastWord = s.hasForecast ? "descriptive only; forecast points are the source's, labelled as forecasts" : "descriptive only, not a forecast";
-  let label = `Template commentary (AI not used) — ${forecastWord}. Verify before sharing.`;
+  let label = `Commentary from the recorded figures — ${forecastWord}. Verify before sharing.`;
+  const mode = opts.mode ?? await getAiMode(db, workspaceId, "market.note");
   const sourceRows = s.sources.map((x) => { const i = overview.sources.get(x.key); return { source_object_id: x.source_object_id, name: x.name, release_date: x.release_date, licensed_source_id: i?.licensed_source_id ?? null, licensed_name: i?.licensed_name ?? null, permits_publication: i?.permits_publication ?? true }; });
   const licensedIds = [...new Set(sourceRows.map((r) => r.licensed_source_id).filter((x): x is string => !!x))];
-  try {
+  if (mode !== "off") try {
     const res = await (opts.ai ?? (callStructured as AiCall))({
       workspaceId, workflow: "market.note", tier: "luna",
       system: "You write short, descriptive commentary on Pune office market data for a CRE adviser. Use ONLY the facts given; do not compute new numbers, do not forecast, label any source forecast as a forecast, do not infer vacancy from absorption, do not sum stock across years. State gaps as unknown. Do not imply the data is comprehensive.",
@@ -225,7 +233,7 @@ export async function draftMarketNote(db: Db, workspaceId: string, raw: z.input<
     if (!res.mocked) label = `AI-drafted commentary — ${forecastWord}. Verify before sharing.`;
   } catch (e) {
     if (!(e instanceof AiUnavailableError)) throw e;
-    label = `Template commentary (AI unavailable: ${e.reason}) — ${forecastWord}.`;
+    if (e.reason !== "ai_disabled") label = `Template commentary (AI unavailable: ${e.reason}) — ${forecastWord}.`;
   }
   const sourcesLine = `Sources: ${s.sources.map((x) => `${x.name} (released ${x.release_date ?? "date unknown"})`).join("; ")}.`;
   const body = [...facts.map((f) => `• ${f.text}`), "", commentary, "", sourcesLine, ...caveats.map((c) => `Note: ${c}`), "", marketDisclaimer(s.hasForecast)].join("\n");

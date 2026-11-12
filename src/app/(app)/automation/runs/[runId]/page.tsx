@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Badge, ButtonLink, Card, PageHeader, StaleBanner } from "@/components/ui";
+import { Badge, ButtonLink, Card, PageHeader, StaleBanner, Skeleton } from "@/components/ui";
 import { hasRole, requirePageContext } from "@/lib/auth/context";
 import { ActionForm, Submit } from "@/modules/changes/ui/client";
 import { runAction } from "@/modules/orchestrator/ui/actions";
@@ -117,5 +117,5 @@ async function Body({ params }: { params: Promise<{ runId: string }> }) {
 }
 
 export default function Page({ params }: { params: Promise<{ runId: string }> }) {
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body params={params} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="detail" />}><Body params={params} /></Suspense>;
 }

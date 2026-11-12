@@ -56,25 +56,25 @@ async function openMeetingFromList(t, title) {
 
 const FLOWS = [
   {
-    slug: "today-plan", category: CAT, title: "Plan your day from Today",
-    learn: "Read Today top to bottom: recommended next actions, meetings, priority accounts and follow-ups — then open what to do first.", tryRoute: "/today",
+    slug: "today-plan-v2", category: CAT, title: "Plan your day from Today",
+    learn: "Read Today top to bottom: schedule, priority tasks, overdue commitments, transactions and lease events — then open what to do first.", tryRoute: "/today",
     async run(t) {
       const p = t.page;
       await t.goto("/tasks");
-      await t.title("Plan your day from Today", "Today collects what needs you — lease dates, overdue tasks, meetings and follow-ups — most urgent first.");
+      await t.title("Plan your day from Today", "Today collects what needs you — meetings, tasks, transactions and lease dates — most urgent first.");
       await t.step("Open Today from the sidebar. It is your start page every morning.", () => t.moveAndClick(navLink(p, "Today")));
-      await t.step("The date line says whether this is the morning brief or a live preview. 'Generate brief now' prepares it on demand.", () => t.point(main(p).getByRole("button", { name: /Generate brief now|Refresh brief/ })));
-      await t.step("Getting started tracks the set-up steps still left, with a button for the next one.", () => t.point(main(p).getByText("Getting started")));
-      await t.step("Recommended next actions: the most urgent things first, each with the reason.", () => t.point(main(p).getByText("Recommended next actions")));
-      await t.step("Each action has a button that takes you straight to the work.", () => t.point(main(p).getByRole("link", { name: "Plan notice" }).first()));
-      await t.step("Meetings in the next three days, with their preparation status.", async () => { await t.scroll(500); await t.point(main(p).getByText(/^Meetings — today/)); });
-      await t.step("Priority accounts: the companies most worth calling, with their score and why.", async () => { await t.scroll(500); await t.point(main(p).getByText(/^Priority accounts/)); });
-      await t.step("Follow-ups and commitments due: overdue tasks and drafts waiting to be sent.", async () => { await t.scroll(900); await t.point(main(p).getByText(/^Follow-ups & commitments due/)); });
-      await t.step("Pending approvals: changes waiting in Review before they touch your records.", async () => { await t.scroll(300); await t.point(main(p).getByText(/^Pending approvals/).first()); });
-      await t.step("Lease events: notice deadlines and expiries coming up, so nothing is missed.", async () => { await t.scroll(500); await t.point(main(p).getByText(/^Lease events/)); });
-      await t.step("Back to the top: open the first task to start working on it.", async () => { await t.scroll(-4000); await t.moveAndClick(main(p).getByRole("link", { name: "Open task" }).first()); });
+      await t.step("Getting started tracks the set-up steps still left, with a button for the next one.", () => t.point(main(p).getByText("Getting started").first()));
+      await t.step("Today's schedule: every meeting with its time, place and whether the brief is ready.", () => t.point(main(p).getByText(/^Today's schedule/).first()));
+      await t.step("Priority tasks & follow-ups: what to do today, most urgent first.", async () => { await t.scroll(400); await t.point(main(p).getByText(/^Priority tasks & follow-ups/).first()); });
+      await t.step("Overdue commitments: promises that slipped past their date.", () => t.point(main(p).getByText(/^Overdue commitments/).first()));
+      await t.step("Recommended next actions: the most urgent things first, each with the reason.", async () => { await t.scroll(400); await t.point(main(p).getByText(/^Recommended next actions/).first()); });
+      await t.step("Active transactions: deals in offers, approvals or execution, and what blocks them.", async () => { await t.scroll(400); await t.point(main(p).getByText(/^Active transactions/).first()); });
+      await t.step("Pending approvals: changes waiting in Review before they touch your records.", async () => { await t.scroll(400); await t.point(main(p).getByText(/^Pending approvals/).first()); });
+      await t.step("Important lease events: notice deadlines and expiries coming up, so nothing is missed.", async () => { await t.scroll(400); await t.point(main(p).getByText(/^Important lease events/).first()); });
+      await t.step("Priority accounts: the companies most worth calling, with their score and why.", async () => { await t.scroll(600); await t.point(main(p).getByText(/^Priority accounts/).first()); });
+      await t.step("Open All tasks to start working through them.", async () => { await t.scroll(-6000); await t.moveAndClick(main(p).getByRole("link", { name: "All tasks" }).first()); });
       await t.step("It opens in Tasks, where you complete it, snooze it or see what it is linked to.", async () => { await p.waitForURL(/\/tasks/); await t.point(main(p).getByRole("heading", { name: "Tasks" })); });
-      await t.outro("read Today's sections and opened the most urgent task.", "manage tasks: add one, set a due date, mark it done.");
+      await t.outro("read Today's sections and opened your tasks.", "manage tasks: add one, set a due date, mark it done.");
     },
   },
 

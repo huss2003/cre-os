@@ -6,6 +6,7 @@ import "server-only";
  * user/date (dedupe key) — never an external message (S3).
  */
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, type AiMode } from "@/lib/ai/policy";
 import type { Db } from "@/lib/supabase/server";
 import { stableHash } from "@/lib/util/crypto";
 import { atLocal } from "@/lib/util/time";
@@ -97,14 +98,15 @@ export async function saveBriefVersion(db: Db, c: Pick<LoadCtx, "workspaceId" | 
   throw new Error("brief version conflict");
 }
 
-export interface GenerateOpts { date: string; now?: Date; caller?: StructuredCaller; generatedBy?: string }
+export interface GenerateOpts { date: string; now?: Date; caller?: StructuredCaller; generatedBy?: string; mode?: AiMode }
 
 /** Generate (or reuse) today's daily brief for the user in `c`. */
 export async function generateDailyBrief(c: LoadCtx, settings: BriefSettings, opts: GenerateOpts): Promise<{ brief: StoredBrief; created: boolean }> {
   const now = opts.now ?? new Date();
   const inputs = await gatherBriefInputs(c, settings, opts.date, now);
   const content = buildBrief(inputs);
-  const synth = await synthesise(content, c.workspaceId, opts.caller ?? gatewayCaller);
+  const mode = opts.mode ?? await getAiMode(c.db, c.workspaceId, "brief.synthesis");
+  const synth = await synthesise(content, c.workspaceId, opts.caller ?? gatewayCaller, mode);
   const hash = contentHash(content);
   const sourceHealth = Object.fromEntries(content.sources.map((s) => [s.key, { state: s.state, last_success_at: s.lastSuccessAt, error: s.error, stale: s.state !== "ok" }]));
   return saveBriefVersion(c.db, c, {

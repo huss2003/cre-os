@@ -69,7 +69,7 @@ export function DraftCard({ d, canEdit }: { d: DraftView; canEdit: boolean }) {
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone={STATE_TONE[d.state] ?? "neutral"}>{STATE_LABEL[d.state] ?? d.state}</Badge>
         <Badge>{d.channel.replace("_", " ")}</Badge>
-        {d.created_by_kind !== "user" ? <Badge tone="accent" title="Drafted by the assistant — review before approving">AI draft</Badge> : null}
+        {d.created_by_kind !== "user" ? <Badge tone="accent" title="Prepared for you from your records — review before approving">Prepared draft</Badge> : null}
         {d.state === "paused" && d.pause_reason ? <Badge tone="warn">{d.pause_reason.replace("_", " ")}</Badge> : null}
         <span className="ml-auto text-xs text-ink-soft">{d.updated_label}</span>
       </div>

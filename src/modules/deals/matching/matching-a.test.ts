@@ -66,7 +66,7 @@ describe("09 · each option explains why it qualifies; fit and completeness are 
     expect(o.qualifies).toEqual([
       "Space snapshot: available as of 2026-10-25 (currently confirmed)",
       "Not in an excluded location",
-      "Area 20000 SF chargeable within 15000–25000 SF",
+      "Area 20,000 SF chargeable within 15,000–25,000 SF",
       "Meets power ≥ 500 kVA (building: 800)",
     ]);
     expect(o.criteria.location.detail).toBe("in preferred area");

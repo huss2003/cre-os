@@ -3,7 +3,7 @@ import Link from "next/link";
 const LINKS: [string, string][] = [
   ["/settings", "General"], ["/settings/members", "Members"], ["/settings/partners", "Partners"], ["/settings/templates", "Templates"],
   ["/settings/sources", "Licensed sources"], ["/settings/lanes", "Data lanes"], ["/settings/retention", "Retention"],
-  ["/settings/security", "Security & MFA"], ["/settings/connections", "Connections"],
+  ["/settings/ai", "AI use"], ["/settings/security", "Security & MFA"], ["/settings/connections", "Connections"],
 ];
 
 export function SettingsNav({ current }: { current: string }) {

@@ -20,10 +20,16 @@ export interface ShortlistRun {
 const MAX_STORED = 200;
 
 export async function loadCandidates(ctx: DealsCtx, requirementId: string): Promise<Candidate[]> {
-  const spaces = await ctx.db.from("space").select("id, asset_id, floor_text, unit, carpet_sf, chargeable_sf, efficiency, seats, contiguous_group, configuration")
-    .eq("workspace_id", ctx.workspaceId).is("archived_at", null).limit(5000);
-  if (spaces.error) throw dbError(spaces.error, "spaces");
-  const sp = spaces.data ?? [];
+  // The API returns at most 1,000 rows per request (supabase max_rows): page in a stable order instead of one big .limit().
+  const PAGE = 1000;
+  const sp: Record<string, unknown>[] = [];
+  for (let from = 0; from < 20_000; from += PAGE) {
+    const spaces = await ctx.db.from("space").select("id, asset_id, floor_text, unit, carpet_sf, chargeable_sf, efficiency, seats, contiguous_group, configuration")
+      .eq("workspace_id", ctx.workspaceId).is("archived_at", null).order("id").range(from, from + PAGE - 1);
+    if (spaces.error) throw dbError(spaces.error, "spaces");
+    sp.push(...(spaces.data ?? []));
+    if ((spaces.data ?? []).length < PAGE) break;
+  }
   if (!sp.length) return [];
   const assetIds = [...new Set(sp.map((s) => s.asset_id as string))];
   const spaceIds = sp.map((s) => s.id as string);
@@ -31,16 +37,19 @@ export async function loadCandidates(ctx: DealsCtx, requirementId: string): Prom
   const chunk = <T,>(a: T[], n = 100) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
   const assets: Record<string, unknown>[] = [];
   for (const ids of chunk(assetIds)) {
-    const r = await ctx.db.from("asset").select("id, name, locality_id, micro_market_id, lat, lon, status, completion_date, certifications, specs, total_area_sf").eq("workspace_id", ctx.workspaceId).in("id", ids);
+    const r = await ctx.db.from("asset").select("id, name, locality_id, micro_market_id, lat, lon, status, completion_date, certifications, specs, total_area_sf, category").eq("workspace_id", ctx.workspaceId).in("id", ids);
     if (r.error) throw dbError(r.error, "assets");
     assets.push(...(r.data ?? []));
   }
   const avs: Record<string, unknown>[] = [];
   for (const ids of chunk(spaceIds)) {
-    const r = await ctx.db.from("availability").select("id, space_id, as_of, status, available_from, asking_rent_min, asking_rent_max, rent_basis, fitout_basis, valid_until, fact_status, created_at")
-      .eq("workspace_id", ctx.workspaceId).in("space_id", ids).is("archived_at", null).order("as_of", { ascending: false }).order("created_at", { ascending: false });
-    if (r.error) throw dbError(r.error, "availability");
-    avs.push(...(r.data ?? []));
+    for (let from = 0; from < 100_000; from += PAGE) {
+      const r = await ctx.db.from("availability").select("id, space_id, as_of, status, available_from, asking_rent_min, asking_rent_max, rent_basis, fitout_basis, valid_until, fact_status, supply_status, cam_psf_month, last_verified_on, deposit_months, escalation_pct, rent_free_months, lockin_months, lease_term_months, parking_charge_month, fitout_cost_psf, brokerage_terms, other_charges, created_at")
+        .eq("workspace_id", ctx.workspaceId).in("space_id", ids).is("archived_at", null).order("as_of", { ascending: false }).order("created_at", { ascending: false }).order("id").range(from, from + PAGE - 1);
+      if (r.error) throw dbError(r.error, "availability");
+      avs.push(...(r.data ?? []));
+      if ((r.data ?? []).length < PAGE) break;
+    }
   }
   const latest = new Map<string, AvailabilityData>();
   for (const a of avs) if (!latest.has(a.space_id as string)) latest.set(a.space_id as string, a as unknown as AvailabilityData);
@@ -51,7 +60,7 @@ export async function loadCandidates(ctx: DealsCtx, requirementId: string): Prom
   for (const x of q.data ?? []) if (x.space_id && !quoteBySpace.has(x.space_id as string)) quoteBySpace.set(x.space_id as string, x as unknown as QuoteData);
   const assetById = new Map(assets.map((a) => [a.id as string, a]));
   return sp.filter((s) => assetById.has(s.asset_id as string)).map((s) => ({
-    space: s as Candidate["space"],
+    space: s as unknown as Candidate["space"],
     asset: assetById.get(s.asset_id as string) as unknown as Candidate["asset"],
     availability: latest.get(s.id as string) ?? null,
     quote: quoteBySpace.get(s.id as string) ?? null,

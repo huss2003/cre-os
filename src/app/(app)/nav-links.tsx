@@ -17,6 +17,7 @@ export function SectionIcon({ k, className = "h-5 w-5" }: { k: string; className
     companies: <><rect x="4" y="4" width="10" height="16" rx="1" /><path d="M14 9h5a1 1 0 0 1 1 1v10H14M7 8h4M7 12h4M7 16h4" /></>,
     people: <><circle cx="9" cy="8" r="3.5" /><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 6.5a3 3 0 0 1 0 5.5M18 20c0-2.2-1-3.9-2.5-4.8" /></>,
     buildings: <><path d="M4 20V8l8-4 8 4v12" /><path d="M9 20v-6h6v6" /></>,
+    supply: <><path d="M3 10h18M5 10v10h14V10M8 14h3v6M14 14h3v3h-3z" /><path d="M12 3l9 7H3z" /></>,
     requirements: <><path d="M9 4h6v3H9zM7 5H5v15h14V5h-2M9 12h6M9 16h4" /></>,
     deals: <><path d="M4 7h16M4 12h10M4 17h6" /></>,
     capture: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>,

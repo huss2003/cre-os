@@ -126,5 +126,5 @@ async function Body({ params, searchParams }: Props) {
 }
 
 export default function Page(props: Props) {
-  return <Suspense fallback={<Loading />}><Body {...props} /></Suspense>;
+  return <Suspense fallback={<Loading variant="detail" />}><Body {...props} /></Suspense>;
 }

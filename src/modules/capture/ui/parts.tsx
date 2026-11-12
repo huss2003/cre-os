@@ -22,7 +22,8 @@ const STATE: Record<string, "neutral" | "brand" | "ok" | "warn" | "bad"> = {
   proposed: "warn", approved: "brand", clarify: "warn", applied: "ok", rejected: "neutral", reversed: "neutral", conflict: "bad", expired: "neutral",
 };
 export function StateBadge({ state }: { state: string }) {
-  return <Badge tone={STATE[state] ?? "neutral"}>{state}</Badge>;
+  const label: Record<string, string> = { proposed: "Awaiting review", clarify: "Needs clarification", conflict: "Conflict" };
+  return <Badge tone={STATE[state] ?? "neutral"}>{label[state] ?? (state ? state.charAt(0).toUpperCase() + state.slice(1).replace(/_/g, " ") : "—")}</Badge>;
 }
 
 export function show(v: unknown): string {

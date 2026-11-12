@@ -3,6 +3,7 @@ import type { Db } from "@/lib/supabase/server";
 import { runWorkflow } from "../engine/runner";
 import { scheduleMeetingPreps } from "../schedule/meetings";
 import { RECORD_CHANGED } from "../reassess/records";
+import { notifyLeaseOwner, notifyTxOwner, retryLeaseHandoff } from "./tx-lease";
 
 type Row = Record<string, any>;
 export interface ConsumerResult { status: "done" | "skipped" | "routed"; detail: string; runId?: string | null; routedModule?: string; routedKind?: string }
@@ -44,8 +45,10 @@ const recordChanged = (entity: string): Consumer => async (db, ws, e) => {
  * Each (event, consumer) pair runs once: event_processing_log is unique on it.
  */
 export const CONSUMERS: Record<string, Record<string, Consumer>> = {
-  "commercial.quote_received": { reassess: startFor("reassess.quote", (e) => ({ quoteId: e.subject_id, causeType: "quote", causeId: e.subject_id })) },
-  "commercial.requirement_changed": { reassess: startFor("reassess.requirement", (e) => ({ requirementId: e.subject_id, changed: e.payload?.changed ?? {}, causeType: "requirement", causeId: e.subject_id })) },
+  "commercial.quote_received": { reassess: startFor("reassess.quote", (e) => ({ quoteId: e.subject_id, causeType: "quote", causeId: e.subject_id })),
+    transactions: async (db, ws, e) => (await import("@/modules/transactions/integrations")).flagTransactionsForQuote(db as never, ws, e as never) },
+  "commercial.requirement_changed": { reassess: startFor("reassess.requirement", (e) => ({ requirementId: e.subject_id, changed: e.payload?.changed ?? {}, causeType: "requirement", causeId: e.subject_id })),
+    transactions: async (db, ws, e) => (await import("@/modules/transactions/integrations")).flagTransactionsForRequirement(db as never, ws, e as never) },
   "meeting.cancelled": { reassess: startFor("reassess.meeting_cancelled", (e) => ({ meetingId: e.subject_id })), prep_schedule: meetingPreps },
   "meeting.rescheduled": { brief: handledBy("meetings (reschedule moves remind_at; autobrief regenerates T-60)"), prep_schedule: meetingPreps },
   "meeting.scheduled": { brief: handledBy("meetings.autobrief / meetings.remind schedulers"), prep_schedule: meetingPreps },
@@ -59,6 +62,16 @@ export const CONSUMERS: Record<string, Record<string, Consumer>> = {
   "contact.info_added": { dependants: recordChanged("person") },
   "lease.created": { dependants: recordChanged("lease"), renewal: handledBy("workflows.lease_chain (renewal window → requirement → comparison)", { module: "workflows", kind: "lease_chain" }) },
   "lease.changed": { dependants: recordChanged("lease"), renewal: handledBy("workflows.lease_chain (renewal window → requirement → comparison)", { module: "workflows", kind: "lease_chain" }) },
+  // Module 16 (transaction.*) — notify owner (Today / inbox), re-score client + deal health, Module 15 hand-off retry
+  ...Object.fromEntries(["transaction.offer_received", "transaction.counteroffer_created", "transaction.offer_expiring", "transaction.issue_overdue", "transaction.approval_pending",
+    "transaction.document_version_changed", "transaction.material_term_changed", "transaction.possession_approaching", "transaction.handover_incomplete", "transaction.stage_changed"]
+    .map((t) => [t, { notify: notifyTxOwner, ...(/material_term|approval_pending|issue_overdue|stage_changed/.test(t) ? { dependants: recordChanged("transaction") } : {}) }])),
+  "transaction.executed": { notify: notifyTxOwner, dependants: recordChanged("transaction"), lease_handoff: retryLeaseHandoff },
+  // Module 15 lifecycle events
+  "lease.executed_received": { notify: notifyLeaseOwner, dependants: recordChanged("lease") },
+  "lease.renewal_agreed": { notify: notifyLeaseOwner, dependants: recordChanged("lease") },
+  "lease.termination_notice_recorded": { notify: notifyLeaseOwner, dependants: recordChanged("lease") },
+  "lease.opportunity_identified": { notify: notifyLeaseOwner },
   "integration.failed": { health: startFor("reassess.integration_failed", (e) => ({ source: e.payload?.source ?? e.subject_type, error: e.payload?.error ?? e.payload?.status ?? "unavailable", subjectType: e.subject_type, subjectId: e.subject_id, important: e.payload?.important === true })) },
   "integration.recovered": { health: startFor("reassess.integration_recovered", (e) => ({ source: e.payload?.source ?? e.subject_type })) },
 };

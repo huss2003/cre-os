@@ -223,7 +223,7 @@ export async function discoverMarket(db: Db, ws: string, opts: { actorUserId?: s
     error: null });
   // Deep dive on that one company.
   const { assessCompany } = await import("./assess");
-  const deep = await assessCompany(db, ws, { name: pick.name, hints: pick.items.map((i) => `${i.summary} (${i.source_url})`) }, { actorUserId: opts.actorUserId, ai: opts.assessAi ?? opts.ai });
+  const deep = await assessCompany(db, ws, { name: pick.name, hints: pick.items.map((i) => `${i.summary} (${i.source_url}${(i as { published_on?: string | null }).published_on ? `, ${(i as { published_on?: string | null }).published_on}` : ""})`) }, { actorUserId: opts.actorUserId, ai: opts.assessAi ?? opts.ai });
   // One signal for the prospect, carrying every cited source.
   const today = new Date().toISOString().slice(0, 10);
   const top = pick.items[0];

@@ -331,6 +331,22 @@ export async function dealHealth(db: Db, ws: string, o: Row, interactions: Row[]
   const pendingApprovals = props.map((p) => `Pending approval since ${String(p.created_at).slice(0, 10)}: ${p.reason ?? "change awaiting review"}`);
   const dueIn = days(o.next_action_due);
   const overdue = o.next_action && dueIn !== null && dueIn < 0 ? [`Next action "${o.next_action}" overdue by ${-dueIn} days (due ${o.next_action_due})`] : [];
+  // Module 16: when a transaction exists for this deal, its live issues / approvals are the deal's blockers.
+  const txs = await rows(db.from("tx_transaction").select("id, code").eq("workspace_id", ws).eq("opportunity_id", o.id).eq("status", "active").is("archived_at", null).limit(5));
+  if (txs.length) {
+    const ids = txs.map((t) => t.id);
+    const code = new Map(txs.map((t) => [t.id, t.code]));
+    const [issues, appr] = await Promise.all([
+      rows(db.from("tx_issue").select("transaction_id, title, status, due_date, blocking").eq("workspace_id", ws).in("transaction_id", ids).is("archived_at", null).not("status", "in", "(resolved,closed)").limit(100)),
+      rows(db.from("tx_approval").select("transaction_id, category, version_label, deadline").eq("workspace_id", ws).in("transaction_id", ids).is("invalidated_at", null).in("status", ["pending", "under_review", "changes_requested"]).limit(50)),
+    ]);
+    const today = new Date().toISOString().slice(0, 10);
+    for (const i of issues) {
+      if (i.blocking) blockers.push(`Transaction ${code.get(i.transaction_id)} blocker: ${i.title}`);
+      else if (i.due_date && i.due_date < today) overdue.push(`Transaction ${code.get(i.transaction_id)} issue overdue: ${i.title} (due ${i.due_date})`);
+    }
+    for (const a of appr) pendingApprovals.push(`Transaction ${code.get(a.transaction_id)} ${String(a.category).replace(/_/g, " ")} approval pending: ${a.version_label}${a.deadline ? ` (by ${a.deadline})` : ""}`);
+  }
   const last = interactions.map((i) => i.occurred_at).filter(Boolean).sort().pop();
   const since = ago(last);
   const inStage = ago(o.stage_entered_at);

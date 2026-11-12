@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui";
 import { hasRole, requirePageContext } from "@/lib/auth/context";
 import { fmt } from "@/lib/util/time";
 import { listConflicts } from "@/modules/changes/steward";
@@ -61,5 +61,5 @@ async function Body({ searchParams }: Props) {
 }
 
 export default function Page(props: Props) {
-  return <Suspense fallback={<div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>}><Body {...props} /></Suspense>;
+  return <Suspense fallback={<Skeleton variant="list" />}><Body {...props} /></Suspense>;
 }

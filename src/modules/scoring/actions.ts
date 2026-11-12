@@ -103,7 +103,7 @@ export async function explainAction(model: string, id: string, resultId: string,
     const { explainScore } = await import("./ai");
     const r = await explainScore(ctx.db, ctx.workspaceId, resultId);
     revalidatePath(`/scoring/${model}/${id}`);
-    return r.mocked ? { ok: true, message: "AI is not connected, so a basic summary from the missing fields was written." } : { ok: true, message: "AI summary added." };
+    return r.source === "code" ? { ok: true, message: "Summary written from the score factors." } : r.mocked ? { ok: true, message: "AI is not connected, so a basic summary from the missing fields was written." } : { ok: true, message: "AI summary added." };
   } catch (e) { return err(e); }
 }
 

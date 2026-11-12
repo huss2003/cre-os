@@ -27,10 +27,17 @@ describe("morning brief — db", () => {
     // clean only our own user's brief rows for this date so the test is repeatable
     await admin.from("assistant_morning_brief").delete().eq("workspace_id", WS1).eq("owner_user_id", USERS.colleague.id).eq("brief_date", "2026-11-11");
     const own = { workspace_id: WS1, owner_user_id: USERS.colleague.id };
+    // remove fixtures left by earlier runs of THIS test (sections are capped at 30 items, so leftovers crowd ours out)
+    await admin.from("task").delete().eq("workspace_id", WS1).eq("owner_user_id", USERS.colleague.id).like("title", "Overdue mb-%");
+    await admin.from("lease").delete().eq("workspace_id", WS1).eq("owner_user_id", USERS.colleague.id).like("tenant_name_raw", "Tenant mb-%");
     await admin.from("task").insert({ ...own, title: `Overdue ${t}`, due_at: "2026-11-09T10:00:00Z", status: "open", assigned_user_id: USERS.colleague.id, source: "manual" });
     await admin.from("lease").insert({ ...own, tenant_name_raw: `Tenant ${t}`, contractual_expiry: "2027-11-11", status: "active" });
   });
-  afterAll(async () => { if (jobKeys.length) await admin.from("job").delete().in("dedupe_key", jobKeys); });
+  afterAll(async () => {
+    if (jobKeys.length) await admin.from("job").delete().in("dedupe_key", jobKeys);
+    await admin.from("task").delete().eq("workspace_id", WS1).eq("title", `Overdue ${t}`);
+    await admin.from("lease").delete().eq("workspace_id", WS1).eq("tenant_name_raw", `Tenant ${t}`);
+  });
 
   it("assembles deterministic sections", async () => {
     const b = await assembleMorningBrief(c, NOW);

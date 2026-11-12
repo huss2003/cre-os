@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Db } from "@/lib/supabase/server";
 import { callStructured } from "@/lib/ai/gateway";
+import { getAiMode, runWithPolicy, type AiMode } from "@/lib/ai/policy";
 import { assertNotSuppressed, createDraft, discardDraft, setDraftPaused, SuppressedRecipientError, type DraftChannel, type DraftRow } from "@/lib/services/drafts";
 import { checkCollision, collisionsDirect, currentOrgForPerson, recordTouch, touchChannelForDraft, type CollisionReport } from "./touches";
 
@@ -108,6 +109,12 @@ export function mockOutreachDraft(p: { channel: DraftChannel; step: number; pers
       body: `Hi ${p.firstName},\n\nI won't keep following up. If useful, I can send ${prop}.\nA simple yes/no is perfectly fine.\n\nBest regards`,
     };
   }
+  if (p.step === 2) {
+    return {
+      subject: `Following up${org}`,
+      body: `Hi ${p.firstName},\n\nA quick follow-up on my earlier note. For teams like yours the useful starting point is usually ${angle}. I can send ${prop}.\n\nWould that be helpful, or is there a better person to speak to?\n\nBest regards`,
+    };
+  }
   return {
     subject: `Pune office planning${org}`,
     body: `Hi ${p.firstName},\n\nI advise occupiers on office space in Pune. I can share ${prop}.\n\nWould a 15-minute call next week be useful?\n\nBest regards`,
@@ -131,22 +138,24 @@ async function recipientFor(db: Db, workspaceId: string, personId: string, chann
 
 export async function generateStepDraft(db: Db, workspaceId: string, args: {
   enrollment: { id: string; person_id: string; org_id: string | null; opportunity_id: string | null; value_proposition: string | null };
-  step: SequenceStep; persona: string | null; ownerUserId: string | null; createdByKind: "user" | "job";
+  step: SequenceStep; persona: string | null; ownerUserId: string | null; createdByKind: "user" | "job"; mode?: AiMode;
 }): Promise<DraftRow> {
   const { enrollment, step } = args;
   const { data: person } = await db.from("person").select("full_name").eq("workspace_id", workspaceId).eq("id", enrollment.person_id).single();
   const org = enrollment.org_id ? (await db.from("organisation").select("display_name").eq("workspace_id", workspaceId).eq("id", enrollment.org_id).maybeSingle()).data : null;
   const firstName = String(person?.full_name ?? "there").split(/\s+/)[0];
   const mockArgs = { channel: step.channel, step: step.step, persona: args.persona, firstName, orgName: org?.display_name ?? null, proposition: enrollment.value_proposition, purpose: step.purpose };
-  const res = await callStructured({
+  const code = () => mockOutreachDraft(mockArgs);
+  const pol = await runWithPolicy<{ subject: string | null; body: string }>({ mode: args.mode ?? await getAiMode(db, workspaceId, "integrations.outreach_draft"), code, ai: async () => (await callStructured({
     workspaceId, workflow: "integrations.outreach_draft", tier: "luna",
     system: "You draft short, individual, persona-specific B2B outreach for a commercial real estate adviser in Pune. " +
       "One useful proposition, one clear ask. No invented facts, numbers, names or claims. Plain text. The user sends manually.",
     input: JSON.stringify({ channel: step.channel, step: step.step, of_steps: 3, purpose: step.purpose, persona: args.persona, recipient_first_name: firstName,
       organisation: org?.display_name ?? null, approved_proposition: enrollment.value_proposition }),
     schema: DraftSchema, schemaName: "outreach_draft", maxOutputTokens: 600,
-    mock: () => mockOutreachDraft(mockArgs),
-  });
+    mock: code,
+  })).data });
+  const res = { data: pol.value ?? code() };
   const draft = await createDraft(db, workspaceId, {
     channel: step.channel, recipientPersonId: enrollment.person_id, recipientDisplay: person?.full_name ?? null,
     recipientAddress: await recipientFor(db, workspaceId, enrollment.person_id, step.channel),

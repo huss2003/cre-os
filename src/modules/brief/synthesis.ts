@@ -6,6 +6,7 @@
  */
 import { z } from "zod";
 import type { BriefContent } from "./builder";
+import { runWithPolicy, type AiMode } from "@/lib/ai/policy";
 
 export const SynthesisSchema = z.object({
   headline: z.string().max(300),
@@ -15,26 +16,47 @@ export type Synthesis = z.infer<typeof SynthesisSchema>;
 
 export interface SynthesisOutcome {
   status: "ok" | "fallback_no_ai";
+  /** "code" = sentence templates over the computed sections (default, AI policy off); "ai" = model wrote it. */
+  source?: "code" | "ai";
   synthesis: Synthesis | null;
   notice: string | null;
   model: string | null;
   mocked: boolean;
 }
 
-/** Deterministic mock (also used to keep the feature testable without a key). */
-export function mockSynthesis(c: BriefContent): Synthesis {
-  const parts: string[] = [];
-  if (c.actions[0]) parts.push(`Start with: ${c.actions[0].title}`);
-  if (c.deadlines.items.length) parts.push(`${c.deadlines.items.length} expiry/notice event(s) in 90 days`);
-  if (c.overdue.items.length) parts.push(`${c.overdue.items.length} overdue`);
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Deterministic synthesis: sentence templates over counts and top items (AI policy "off" path; also the mock).
+ * Only copies numbers/dates already computed by the builder (S5).
+ */
+export function codeSynthesis(c: BriefContent): Synthesis {
   const meetings = c.meetings.clusters.reduce((n, cl) => n + cl.meetings.length, 0);
-  if (meetings) parts.push(`${meetings} meeting(s) across ${c.meetings.clusters.length} area(s)`);
-  if (c.staleSections.length) parts.push(`stale: ${c.staleSections.join(", ")}`);
-  return {
-    headline: parts.length ? parts.join(" · ") : c.mode === "light" ? "Light review day — nothing urgent." : "No urgent items — work the target list.",
-    focus: c.actions.map((a) => a.title).slice(0, 3),
-  };
+  const firstMeeting = c.meetings.clusters.flatMap((cl) => cl.meetings)[0];
+  const nextDeadline = c.deadlines.items[0];
+  const clauses: string[] = [];
+  if (c.actions[0]) clauses.push(`start with ${c.actions[0].title}`);
+  if (meetings) clauses.push(`${plural(meetings, "meeting")}${c.meetings.clusters.length > 1 ? ` across ${c.meetings.clusters.length} areas` : ""}`);
+  if (c.overdue.items.length) clauses.push(`${plural(c.overdue.items.length, "overdue task")} to clear`);
+  if (nextDeadline) clauses.push(`${plural(c.deadlines.items.length, "lease event")} in the next 90 days (nearest: ${nextDeadline.tenant ?? "a tenant"}, ${nextDeadline.kind.replace(/_/g, " ")} in ${nextDeadline.days} days)`);
+  let headline: string;
+  if (!clauses.length) headline = c.mode === "light" ? "Light review day — nothing urgent." : "No urgent items — work the target list.";
+  else {
+    const [first, ...rest] = clauses;
+    const lead = first.charAt(0).toUpperCase() + first.slice(1);
+    headline = rest.length ? `${lead}; ${rest.length > 1 ? rest.slice(0, -1).join(", ") + " and " + rest[rest.length - 1] : rest[0]}.` : `${lead}.`;
+  }
+  if (c.staleSections.length) headline += ` Check stale sources: ${c.staleSections.join(", ")}.`;
+  headline = headline.slice(0, 300);
+  const focus: string[] = c.actions.slice(0, 3).map((a) => (a.why ? `${a.title} — ${a.why}` : a.title).slice(0, 200));
+  if (focus.length < 3 && firstMeeting?.title) focus.push(`Prepare for ${firstMeeting.title}`.slice(0, 200));
+  const pending = c.approvals.changes + c.approvals.drafts;
+  if (focus.length < 3 && pending > 0 && !c.actions.some((a) => a.kind === "approvals")) focus.push(`Review ${plural(pending, "pending approval")}`);
+  return { headline, focus: focus.slice(0, 3) };
 }
+
+/** Back-compat alias (tests and the gateway mock use it). */
+export const mockSynthesis = codeSynthesis;
 
 export type StructuredCaller = (call: {
   workspaceId: string; workflow: string; system: string; input: string; evidence?: string;
@@ -59,21 +81,30 @@ export function synthesisPrompt(c: BriefContent): { input: string; evidence: str
   };
 }
 
-export async function synthesise(c: BriefContent, workspaceId: string, call: StructuredCaller): Promise<SynthesisOutcome> {
+export async function synthesise(c: BriefContent, workspaceId: string, call: StructuredCaller, mode: AiMode = "off"): Promise<SynthesisOutcome> {
   const p = synthesisPrompt(c);
-  try {
-    const res = await call({
-      workspaceId, workflow: "brief.synthesis", system: "You summarise a deterministic daily brief. You never add facts.",
-      input: p.input, evidence: p.evidence || undefined, schema: SynthesisSchema, schemaName: "brief_synthesis", maxOutputTokens: 400,
-      mock: () => mockSynthesis(c),
-    });
-    return { status: "ok", synthesis: res.data, notice: null, model: res.model, mocked: res.mocked };
-  } catch (e) {
-    const reason = (e as { reason?: string }).reason ?? "provider_error";
-    const why: Record<string, string> = {
-      no_api_key: "AI not configured", paused: "AI paused by the workspace kill switch", budget_exceeded: "monthly AI budget reached", provider_error: "AI provider error",
-      watchdog: "generated by the health watchdog without waiting for AI",
-    };
-    return { status: "fallback_no_ai", synthesis: null, notice: `AI synthesis missing (${why[reason] ?? reason}) — deterministic brief shown in full.`, model: null, mocked: false };
-  }
+  let model: string | null = null;
+  let mocked = false;
+  const out = await runWithPolicy<Synthesis>({
+    mode,
+    code: () => codeSynthesis(c),
+    ai: async () => {
+      const res = await call({
+        workspaceId, workflow: "brief.synthesis", system: "You summarise a deterministic daily brief. You never add facts.",
+        input: p.input, evidence: p.evidence || undefined, schema: SynthesisSchema, schemaName: "brief_synthesis", maxOutputTokens: 400,
+        mock: () => codeSynthesis(c),
+      });
+      model = res.model; mocked = res.mocked;
+      return res.data;
+    },
+  });
+  if (out.source === "ai") return { status: "ok", source: "ai", synthesis: out.value, notice: null, model, mocked };
+  if (mode === "off" || !out.aiError) return { status: "ok", source: "code", synthesis: out.value, notice: null, model: null, mocked: false };
+  // AI was asked for (on/backup) and failed: keep the explicit notice, plus the code summary.
+  const reason = (out.aiError as { reason?: string }).reason ?? "provider_error";
+  const why: Record<string, string> = {
+    no_api_key: "AI not configured", paused: "AI paused by the workspace kill switch", budget_exceeded: "monthly AI budget reached", provider_error: "AI provider error",
+    watchdog: "generated by the health watchdog without waiting for AI", ai_disabled: "AI turned off for this feature",
+  };
+  return { status: "fallback_no_ai", source: "code", synthesis: out.value, notice: `AI synthesis missing (${why[reason] ?? reason}) — deterministic brief shown in full.`, model: null, mocked: false };
 }

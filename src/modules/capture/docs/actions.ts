@@ -8,7 +8,7 @@ import { DOC_TYPES, type DocType } from "./detect";
 import { intakeFromStorage, updateAndReprocess, type DocLinks } from "./service";
 import { requestMoreInfo, retryJob } from "./review";
 
-const LINK_KEYS = ["organisation_id", "person_id", "asset_id", "requirement_id", "meeting_prep_id"] as const;
+const LINK_KEYS = ["organisation_id", "person_id", "asset_id", "requirement_id", "meeting_prep_id", "lease_id", "transaction_id"] as const;
 const str = (f: FormData, k: string) => { const v = f.get(k); return typeof v === "string" && v.trim() ? v.trim() : null; };
 function linksFrom(form: FormData): DocLinks { const l: DocLinks = {}; for (const k of LINK_KEYS) { const v = str(form, k); if (v) l[k] = v; } return l; }
 const typeFrom = (form: FormData): DocType | null => { const t = str(form, "doc_type"); return t && (DOC_TYPES as readonly string[]).includes(t) ? (t as DocType) : null; };

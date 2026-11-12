@@ -142,6 +142,6 @@ describe("intelligence memory (§17)", () => {
     expect(r.current.find((f) => f.category === "requirement.occupation_date")!.confidenceClass).toBe("estimated");
     expect(r.current.find((f) => f.category === "requirement.budget")!.confidenceClass).toBe("unknown");
     const s = await summariseContext(ctx, "requirement", ["Area 15000 SF (confirmed)."], ["Budget"]);
-    expect(s.aiGenerated).toBe(true); expect(s.text).toContain("15000");
+    expect(s.aiGenerated).toBe(false); expect(s.source).toBe("code"); expect(s.text).toContain("15000"); expect(s.text).toMatch(/Still unknown: Budget/);
   });
 });

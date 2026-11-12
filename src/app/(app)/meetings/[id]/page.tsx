@@ -75,7 +75,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <Gauge score={score} />
         <div className="min-w-0">
           <p className="flex items-center text-sm font-semibold">Readiness<HelpFor k="Meeting readiness" /></p>
-          <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">{p.status.replace(/_/g, " ")}{b ? ` · v${p.brief_version}${p.reviewed_at ? " · reviewed" : ""}` : ""}{b && String(p.brief_model ?? "").startsWith("mock:") ? " · rule-based wording (AI off)" : ""}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">{p.status.replace(/_/g, " ")}{b ? ` · v${p.brief_version}${p.reviewed_at ? " · reviewed" : ""}` : ""}{b && String(p.brief_model ?? "").startsWith("mock:") ? " · rule-based wording (AI off)" : b && p.brief_model === "rules" ? " · built from your records" : ""}</p>
         </div>
       </div>
       {rd.critical?.length ? <div className="mt-4"><Kicker>Critical</Kicker><ul className="mt-1.5 space-y-1 text-sm">{(rd.critical as string[]).map((c, i) => <li key={i} className="flex gap-2"><Dot tone="bad" />{c}</li>)}</ul></div> : null}

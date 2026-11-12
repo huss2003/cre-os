@@ -206,7 +206,7 @@ export function buildLeaseEvents(rows: any[], today: string): TodaySection {
         badges: [{ label: deadline ? human(e.event_type) : `≤ ${w}`, tone: deadline ? "bad" : days <= 92 ? "warn" : "neutral" },
           { label: e.confirmed ? `${human(e.date_basis)} · confirmed` : `${human(e.date_basis)} · unconfirmed`, tone: e.confirmed ? "ok" : "neutral" },
           ...(e.needs_review ? [{ label: "needs review", tone: "warn" as Tone }] : [])],
-        href: "/leases", actionLabel: deadline ? "Plan notice" : "Open lease radar",
+        href: "/leases", actionLabel: deadline ? "Plan notice" : "Open Leases",
         urgency: deadline && days <= 30 ? 100 - days : deadline && days <= 90 ? 55 : !deadline && days <= 92 ? 45 : 0,
         reason: `${tenant}: ${human(e.event_type)} on ${e.event_date} (${days} days, ${human(e.date_basis)}${e.confirmed ? "" : ", unconfirmed"}).`,
       };

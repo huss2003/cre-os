@@ -41,7 +41,7 @@ const generateMeetingBrief = defineTool({
       ].filter((s) => s.bullets.length);
       const missing = asList((p.readiness_detail as Row)?.gaps ?? (p.readiness_detail as Row)?.critical ?? []);
       return {
-        ok: true, summary: `Brief v${r.version} ready (readiness ${r.readiness})${r.mocked ? " — rule-based wording (mock AI)" : ""}`, missing,
+        ok: true, summary: `Brief v${r.version} ready (readiness: ${String(r.readiness ?? "unknown").replace(/_/g, " ")})${r.mocked ? " — rule-based wording (mock AI)" : ""}`, missing,
         entities: [ref("meeting", prep.id, ov.title ?? "Meeting", HREF.meeting(prep.id))],
         data: { prepId: prep.id, version: r.version, readiness: r.readiness, mocked: r.mocked, title: ov.title, start: ov.start, company: ov.company, href: HREF.meeting(prep.id) },
         blocks: [{ kind: "brief", title: `Meeting brief — ${ov.title ?? ""}`.trim(), sections, href: HREF.meeting(prep.id) }],

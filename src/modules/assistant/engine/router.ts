@@ -4,7 +4,7 @@ export type Intent =
   | "company_summary" | "meeting_prep" | "compare_properties" | "leases_expiring" | "rejected_options" | "deal_review"
   | "priority_accounts" | "commitments" | "send_proposal" | "memory_correction" | "research" | "general"
   | "research_why" | "decision_makers" | "history" | "outreach_draft" | "requirement_correction" | "automation"
-  | "requirement_change" | "similar_requirements" | "what_changed";
+  | "requirement_change" | "similar_requirements" | "what_changed" | "available_space" | "transactions" | "intro_paths";
 
 /** Cheap keyword classifier (no LLM call). Order matters: the more specific intents first. */
 const RULES: [Intent, RegExp][] = [
@@ -25,11 +25,15 @@ const RULES: [Intent, RegExp][] = [
   ["outreach_draft", /\b(draft|write|prepare)\b.*\b(follow[- ]?up|e-?mail|message|note to|outreach|reply|intro)\b/i],
   ["research_why", /\bwhy\b.*\b(identif\w*|opportunit\w*|flag\w*|relevant|signal\w*)\b/i],
   ["decision_makers", /\b(important people|decision.?makers?|stakeholders?|key (people|contacts)|who (are|should|do)\b.*\b(speak|talk|meet|contact|approach))\b/i],
+  // Module 16 / 14 / network questions (master spec ASK examples)
+  ["transactions", /\b(blocking|blockers?|stuck)\b.*\btransactions?\b|\btransactions?\b.*\b(blocking|blockers?|pending|status|next)\b|\bactive transactions?\b/i],
+  ["intro_paths", /\b(introduc\w*|warm intro|intro path)\b/i],
+  ["available_space", /\b(available|vacant)\b.*\b(offices?|space|sf|sq\.? ?ft|floors?)\b/i],
   ["compare_properties", /\bcompar(e|ison)\b|\b(vs\.?|versus)\b|\bfinancially (better|best|cheaper)\b|\b(cheapest|cheaper|better) (option|property|building|deal)\b/i],
   ["leases_expiring", /\blease[s]?\b.*\b(expir|end|renew)|\bexpir\w*\b.*\blease/i],
   ["rejected_options", /\breject(ed|ions?)?\b|\bturned down\b|\bdeclined\b/i],
   ["commitments", /\b(commitments?|promise[sd]?|follow[- ]?ups?|owe)\b/i],
-  ["priority_accounts", /\b(priorit\w*|focus on|top accounts?|which accounts?|rank)\b/i],
+  ["priority_accounts", /\b(priorit\w*|focus on|top accounts?|which accounts?|rank)\b|\bwhich (companies|clients|accounts)\b.*\b(approach|contact|call|target)\b/i],
   ["research", /\b(metro|infrastructure|news|research|web|search online|latest|benefit from|near(by)?|distance)\b/i],
   ["company_summary", /\b(everything|tell me about|summar\w*|overview|profile|who is|what do we know)\b/i],
 ];

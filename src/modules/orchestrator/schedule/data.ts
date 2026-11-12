@@ -103,3 +103,29 @@ export async function countRows(c: LoadCtx, table: string, build: (q: any) => an
   const rows = must(await build(c.db.from(table).select(`*`).eq("workspace_id", c.workspaceId)).limit(500)) as any[];
   return filt(c, rows, type);
 }
+
+/**
+ * Module 16 blockers for the daily plan (W13 step 7): active transactions with blocking / overdue issues, pending
+ * approvals and deposits due. Direct tx_* reads with explicit workspace filter (works with the job's admin client).
+ */
+export async function loadTransactionBlockers(c: LoadCtx, today: string): Promise<{ id: string; name: string; reason: string; href: string; due: string | null }[]> {
+  const txs = must(await c.db.from("tx_transaction").select("id, code, name, owner_user_id").eq("workspace_id", c.workspaceId).eq("status", "active").is("archived_at", null).limit(200)) as any[];
+  const mine = txs.filter((t) => !c.userId || t.owner_user_id === c.userId);
+  if (!mine.length) return [];
+  const ids = mine.map((t) => t.id);
+  const [issues, appr, deps] = await Promise.all([
+    c.db.from("tx_issue").select("transaction_id, title, status, due_date, blocking").eq("workspace_id", c.workspaceId).in("transaction_id", ids).is("archived_at", null).not("status", "in", "(resolved,closed)").limit(500),
+    c.db.from("tx_approval").select("transaction_id, category, version_label, deadline").eq("workspace_id", c.workspaceId).in("transaction_id", ids).is("invalidated_at", null).in("status", ["pending", "under_review", "changes_requested"]).limit(200),
+    c.db.from("tx_deposit").select("transaction_id, deposit_type, due_date, paid_on").eq("workspace_id", c.workspaceId).in("transaction_id", ids).is("archived_at", null).is("paid_on", null).not("due_date", "is", null).lte("due_date", today).limit(200),
+  ]);
+  const out: { id: string; name: string; reason: string; href: string; due: string | null }[] = [];
+  for (const t of mine) {
+    const r: string[] = []; let due: string | null = null;
+    for (const i of (issues.data ?? []) as any[]) if (i.transaction_id === t.id && (i.blocking || (i.due_date && i.due_date < today))) { r.push(`${i.blocking ? "Blocker" : "Overdue issue"}: ${i.title}`); due ??= i.due_date ?? null; }
+    for (const a of (appr.data ?? []) as any[]) if (a.transaction_id === t.id) { r.push(`Approval pending: ${String(a.category).replace(/_/g, " ")} — ${a.version_label}`); due ??= a.deadline ?? null; }
+    for (const d of (deps.data ?? []) as any[]) if (d.transaction_id === t.id) { r.push(`Deposit due ${d.due_date} (${d.deposit_type})`); due ??= d.due_date; }
+    if (r.length) out.push({ id: t.id, name: `${t.code} — ${t.name ?? "Transaction"}`, reason: r.join("; "), href: `/transactions/${t.id}`, due });
+  }
+  if (issues.error || appr.error) throw new Error((issues.error ?? appr.error)!.message);
+  return out;
+}

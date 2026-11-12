@@ -20,11 +20,13 @@ export interface DailyInputs {
   commitments: SectionOut<{ id: string; title: string; due: string; href: string; kind: string }>;
   deals: SectionOut<{ id: string; name: string; stage: string; reason: string; href: string; due: string | null }>;
   approvals: { changes: number; drafts: number; oldestAt: string | null } | null;
+  /** Module 16 blockers (optional: older callers omit it). */
+  transactions?: SectionOut<{ id: string; name: string; reason: string; href: string; due: string | null }>;
 }
 
 export const DAILY_SECTIONS = [
   "todays_meetings", "meetings_needing_prep", "priority_accounts", "new_signals", "lease_alerts",
-  "followups_due_today", "overdue_commitments", "deals_attention", "pending_approvals", "recommended_actions",
+  "followups_due_today", "overdue_commitments", "deals_attention", "transaction_blockers", "pending_approvals", "recommended_actions",
 ] as const;
 
 const ok = <T>(items: T[], note: string | null = null): SectionOut<T> => ({ state: "ok", items, note });
@@ -52,6 +54,7 @@ export function buildDailySections(i: DailyInputs) {
     followups_due_today: i.tasks.state === "ok" ? ok(dueToday.map((t) => ({ id: t.id, title: t.title, due: t.dueAt, href: "/tasks" }))) : i.tasks,
     overdue_commitments: commitments,
     deals_attention: i.deals,
+    transaction_blockers: i.transactions ?? ok([] as { id: string; name: string; reason: string; href: string; due: string | null }[]),
     pending_approvals: i.approvals ? ok([{ changes: i.approvals.changes, drafts: i.approvals.drafts, oldestAt: i.approvals.oldestAt, href: "/approvals" }]) : na("Approvals could not be loaded"),
     recommended_actions: ok([] as Rec[]),
   };
@@ -65,6 +68,7 @@ export function recommend(s: Omit<DailySections, "recommended_actions">, max = 7
   const r: Rec[] = [];
   for (const c of (s.overdue_commitments.items as any[]).slice(0, 3)) r.push({ title: c.title, why: `Overdue commitment (due ${c.due})`, href: c.href, ref: `commitment:${c.id}` });
   for (const m of (s.meetings_needing_prep.items as any[]).slice(0, 2)) r.push({ title: `Prepare for ${m.title ?? "meeting"}`, why: m.missing.length ? `Missing: ${m.missing.slice(0, 2).join("; ")}` : "No current brief", href: m.href, ref: `meeting:${m.id}` });
+  for (const t of (s.transaction_blockers.items as any[]).slice(0, 2)) r.push({ title: `Unblock ${t.name}`, why: t.reason, href: t.href, ref: `tx:${t.id}` });
   for (const d of (s.deals_attention.items as any[]).slice(0, 2)) r.push({ title: `Move ${d.name} forward`, why: d.reason, href: d.href, ref: `deal:${d.id}` });
   const ap = (s.pending_approvals.items as any[])[0];
   if (ap && ap.changes + ap.drafts > 0) r.push({ title: `Review ${ap.changes + ap.drafts} pending approval${ap.changes + ap.drafts === 1 ? "" : "s"}`, why: "Proposed changes and drafts wait for you", href: "/approvals", ref: "approvals" });

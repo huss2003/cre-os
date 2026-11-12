@@ -55,18 +55,21 @@ export async function exportTables(admin: Admin): Promise<string[]> {
 export const EXPORT_PAGE_ROWS = 5000;
 
 /** Every row of one workspace table, ordered by id, fetched in keyset pages. */
-export async function fetchTableRows(admin: Admin, workspaceId: string, table: string): Promise<Row[]> {
+/** All rows of one workspace table (keyset-paged). `maxRows` stops early — for restore samples, which only use a few hundred rows. */
+export async function fetchTableRows(admin: Admin, workspaceId: string, table: string, opts: { maxRows?: number } = {}): Promise<Row[]> {
   const out: Row[] = [];
   let after: string | null = null;
   for (;;) {
+    const want = opts.maxRows === undefined ? EXPORT_PAGE_ROWS : Math.min(EXPORT_PAGE_ROWS, opts.maxRows - out.length);
     const { data, error } = await admin.schema("mudar_app")
-      .rpc("export_table", { p_workspace: workspaceId, p_table: table, p_after: after, p_limit: EXPORT_PAGE_ROWS });
+      .rpc("export_table", { p_workspace: workspaceId, p_table: table, p_after: after, p_limit: want });
     if (error) throw new Error(`export ${table}: ${error.message}`);
     const page = (data ?? []) as Row[];
     out.push(...page);
     const last = page[page.length - 1];
     // tables without an id column come back whole (no paging)
-    if (page.length < EXPORT_PAGE_ROWS || !last || last.id == null) return out;
+    if (page.length < want || !last || last.id == null) return opts.maxRows === undefined ? out : out.slice(0, opts.maxRows);
+    if (opts.maxRows !== undefined && out.length >= opts.maxRows) return out.slice(0, opts.maxRows);
     after = String(last.id);
   }
 }

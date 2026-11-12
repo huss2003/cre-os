@@ -48,12 +48,23 @@ export async function todayView(db: Db, ws: string, now = new Date()) {
 }
 /** Completed meetings with open tasks created by applyOutcome (idempotency key meeting:<prepId>:...). */
 export async function pendingFollowups(db: Db, ws: string, now = new Date()) {
-  const { data: tasks } = await db.from("task").select("id, title, due_at, assigned_user_id, idempotency_key").eq("workspace_id", ws).eq("status", "open").eq("source", "meeting").like("idempotency_key", "meeting:%").order("due_at").limit(300);
+  // Page through every open meeting task (one response is capped at 1,000 rows; a single .limit(300) hid meetings).
+  const tasks: Row[] = [];
+  for (let from = 0; from < 10_000; from += 1000) {
+    const { data } = await db.from("task").select("id, title, due_at, assigned_user_id, idempotency_key").eq("workspace_id", ws).eq("status", "open").eq("source", "meeting").like("idempotency_key", "meeting:%").order("due_at").order("id").range(from, from + 999);
+    tasks.push(...((data ?? []) as Row[]));
+    if ((data ?? []).length < 1000) break;
+  }
   const byPrep = new Map<string, Row[]>();
-  for (const t of (tasks ?? []) as Row[]) { const id = String(t.idempotency_key).split(":")[1]; if (!byPrep.has(id)) byPrep.set(id, []); byPrep.get(id)!.push(t); }
+  for (const t of tasks) { const id = String(t.idempotency_key).split(":")[1]; if (!byPrep.has(id)) byPrep.set(id, []); byPrep.get(id)!.push(t); }
   if (!byPrep.size) return [];
-  const { data: preps } = await db.from("meeting_prep").select("id, status, meeting:meeting_visit_id(title, start_at), org:org_id(display_name)").eq("workspace_id", ws).in("id", [...byPrep.keys()]).eq("status", "completed");
-  return ((preps ?? []) as Row[]).map((p) => ({
+  const keys = [...byPrep.keys()].filter((k) => /^[0-9a-f-]{36}$/i.test(k));
+  const preps: Row[] = [];
+  for (let i = 0; i < keys.length; i += 100) { // ~100 ids per request keeps the URL short
+    const { data } = await db.from("meeting_prep").select("id, status, meeting:meeting_visit_id(title, start_at), org:org_id(display_name)").eq("workspace_id", ws).in("id", keys.slice(i, i + 100)).eq("status", "completed");
+    preps.push(...((data ?? []) as Row[]));
+  }
+  return preps.map((p) => ({
     id: p.id as string, title: p.meeting?.title ?? "Meeting", date: (p.meeting?.start_at ?? "").slice(0, 10), org: p.org?.display_name ?? null,
     tasks: byPrep.get(p.id)!.map((t) => ({ id: t.id as string, title: t.title as string, due: t.due_at as string | null, overdue: !!t.due_at && Date.parse(t.due_at) < +now })),
   })).sort((a, b) => Number(b.tasks.some((t) => t.overdue)) - Number(a.tasks.some((t) => t.overdue)) || a.date.localeCompare(b.date));

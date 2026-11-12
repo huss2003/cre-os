@@ -348,5 +348,5 @@ async function Body({ params, searchParams }: { params: Params; searchParams: SP
 }
 
 export default function Page({ params, searchParams }: { params: Params; searchParams: SP }) {
-  return <Suspense fallback={<Loading />}><Body params={params} searchParams={searchParams} /></Suspense>;
+  return <Suspense fallback={<Loading variant="detail" />}><Body params={params} searchParams={searchParams} /></Suspense>;
 }

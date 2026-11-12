@@ -50,6 +50,26 @@ export async function savePermissions(db: Db, ws: string, p: Partial<InputPermis
   return next;
 }
 
+/** Same rule as the document detector for images: an email or phone in a short text is a business card. */
+export function looksLikeCard(t: string): boolean {
+  const words = t.split(/\s+/).filter(Boolean).length;
+  return words <= 80 && (/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+/.test(t) || /(\+?\d[\d\s().-]{8,}\d)/.test(t));
+}
+
+/** Person proposal for a card read from a photo capture (S4): skipped when an email/phone on the card already belongs to a person. */
+async function proposeCardPerson(admin: Db, ws: string, userId: string, c: CaptureRow, card: ReturnType<typeof parseBusinessCard>): Promise<string | null> {
+  if (!card.name) return null;
+  for (const v of [...card.emails, ...card.phones.map((p) => p.value)]) {
+    const { data } = await admin.from("contact_method").select("person_id").eq("workspace_id", ws).ilike("value", v).is("archived_at", null).limit(1);
+    if (data?.length) return null;
+  }
+  const lines = [card.title, card.company, ...card.emails, ...card.phones.map((p) => p.value)].filter(Boolean).join(", ");
+  const cp = await proposeChange(admin, ws, { targetType: "person", operation: "create", patch: [{ op: "add", path: "/full_name", value: card.name }],
+    reason: `New person "${card.name}" from a business card photo (OCR text is evidence; check spelling)${lines ? `: ${lines}` : ""}`.slice(0, 2000),
+    proposedByKind: "job", ownerUserId: userId, actorUserId: userId, evidenceIds: [c.id], captureId: c.id, idempotencyKey: `capture:${c.id}:card_person`, classification: c.classification });
+  return cp.id;
+}
+
 function sourceTypeOf(c: CaptureRow, doc: Row | null): SourceType {
   if (doc) {
     if (doc.detected_type === "audio") return "recording";
@@ -181,9 +201,13 @@ export async function runInputEngine(admin: Db, ws: string, captureId: string): 
   const perms = await loadPermissions(admin, ws);
   const docId = c.idempotency_key?.startsWith("capture_doc:") ? c.idempotency_key.slice("capture_doc:".length) : null;
   const { data: doc } = docId ? await admin.from("capture_document").select("id, detected_type, file_name, links, detection").eq("workspace_id", ws).eq("id", docId).maybeSingle() : { data: null };
-  const sourceType = sourceTypeOf(c, doc as Row | null);
   const text = c.transcript ?? c.raw_text ?? "";
   const ext = c.extraction as WithEngine | null;
+  // a photo capture whose OCR text reads like a business card (email/phone, short) is handled as a card
+  const ocr = !doc && (c.kind === "image" || c.kind === "mixed") ? ext?.meta.ocr : null;
+  const ocrText = ocr?.length ? text.slice(ocr.offset, ocr.offset + ocr.length) : "";
+  const card = ocrText && looksLikeCard(ocrText) ? parseBusinessCard(ocrText) : null;
+  const sourceType: SourceType = card ? "business_card" : sourceTypeOf(c, doc as Row | null);
   const srcHash = sourceHash(text || `capture:${c.id}`);
   const events: string[] = [];
 
@@ -263,10 +287,12 @@ export async function runInputEngine(admin: Db, ws: string, captureId: string): 
     }
     return d;
   });
+  if (card) drafts.push(...cardObservations(card, { prefix: `cap:${c.id}`, text, fileName: c.storage_paths[0]?.split("/").pop() ?? null, sourceType: "business_card" }));
   const pctx: PersistCtx = { db: admin, ws, userId, service: true, classification: c.classification, captureId: c.id, documentId: docId, sourceHash: srcHash, observedAt: c.source_at };
   const saved = await persist(pctx, drafts);
   const canon = await canonicalConflicts(pctx, saved.byKey, drafts, tz);
   const conflicts = [...saved.conflicts.filter((x) => !canon.some((y) => y.observation_id === x.observation_id)), ...canon];
+  if (card && pIdx < 0) { try { await proposeCardPerson(admin, ws, userId, c, card); } catch { /* proposal is best effort; the card fields are saved */ } }
 
   // ---- requirement proposal (only with a HIGH-confidence company and no open requirement; same key as the review pipeline)
   // company named in the note => its tier; company inferred from a HIGH-confidence person's single current employer => high

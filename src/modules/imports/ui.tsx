@@ -1,5 +1,5 @@
 /* Small presentational helpers for the /imports pages (server-safe, no client JS). */
-import { Badge } from "@/components/ui";
+import { Badge, Skeleton } from "@/components/ui";
 
 const STATUS: Record<string, ["neutral" | "brand" | "ok" | "warn" | "bad" | "accent", string]> = {
   registered: ["neutral", "Queued"],
@@ -37,8 +37,8 @@ export function SeverityBadge({ severity }: { severity: string }) {
 
 export const n = (v: unknown) => (v === null || v === undefined ? "—" : new Intl.NumberFormat("en-IN").format(Number(v)));
 
-export function Loading() {
-  return <div className="animate-pulse rounded-xl border border-line bg-surface p-6 text-sm text-ink-soft">Loading…</div>;
+export function Loading({ variant = "list" }: { variant?: "list" | "detail" | "cards" }) {
+  return <Skeleton variant={variant} />;
 }
 
 export interface Counts {

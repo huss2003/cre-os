@@ -207,3 +207,6 @@ Known gaps (deals-B)
 - Page CSV upload is limited by the default Server Action body size (1 MB); the API accepts 2 MB.
 - Credit notes / negative amounts in finance exports are flagged as exceptions, not netted.
 - Closing alerts run once a day; changing a due date creates a new alert/task (old tasks are not auto-closed).
+
+## Property supply (Module 14)
+See `src/modules/deals/supply/README.md` and `docs/property-supply/CONTRACT.md`. match-v1 now honours `availability.supply_status`, snapshot CAM (`cam_psf_month`) and flags historical asking rent (`pricing_historical`).

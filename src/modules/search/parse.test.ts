@@ -56,3 +56,30 @@ describe("filter helpers", () => {
     expect(filterFromForm((k) => v[k])).toEqual({ areaMinSf: 15000, areaMaxSf: 40000, areaBasis: "chargeable", places: ["Kharadi"], eventWindow: { kind: "within_months", months: 6 }, knownContact: true, hasOpenOpportunity: false });
   });
 });
+
+describe("search.nl_filter code parser — broker phrasing", () => {
+  const P = [{ name: "Baner" }, { name: "Kharadi", aliases: ["EON"] }, { name: "Hinjewadi" }];
+  const T = "2026-11-11";
+  it("'Baner 20k sf' → place + ±20% area band", () => {
+    const r = parseAccountQuery("Baner 20k sf", P, T);
+    expect(r.filter).toMatchObject({ places: ["Baner"], areaMinSf: 16000, areaMaxSf: 24000 });
+  });
+  it("GCC occupiers in Kharadi expiring Q2 2027", () => {
+    const r = parseAccountQuery("GCC occupiers in EON expiring Q2 2027", P, T);
+    expect(r.filter.sectors).toContain("GCC");
+    expect(r.filter.places).toEqual(["Kharadi"]);
+    expect(r.filter.eventTypes).toEqual(["expiry"]);
+    expect(r.filter.eventWindow).toEqual({ kind: "between", from: "2027-04-01", to: "2027-06-30" });
+  });
+  it("GCC set-up plan → gcc signal, FY window, headcount reported not guessed", () => {
+    const r = parseAccountQuery("companies with GCC setup plans, 500 seats, lease expiry FY28", P, T);
+    expect(r.filter.signalKinds).toEqual(["gcc"]);
+    expect(r.filter.eventWindow).toEqual({ kind: "between", from: "2027-04-01", to: "2028-03-31" });
+    expect(r.notFiltered?.[0]).toMatch(/500 seats/);
+    expect(r.filter.areaMinSf).toBeUndefined();
+  });
+  it("hiring fintech, A grade, renewals by March 2027", () => {
+    const r = parseAccountQuery("hiring fintech firms in A grade buildings in Hinjewadi with renewals by March 2027", P, T);
+    expect(r.filter).toMatchObject({ signalKinds: ["hiring"], sectors: ["BFSI"], grades: ["A"], places: ["Hinjewadi"], eventTypes: ["expiry"], eventWindow: { kind: "between", from: T, to: "2027-03-31" } });
+  });
+});

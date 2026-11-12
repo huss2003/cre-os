@@ -139,7 +139,7 @@ export function templateDraft(i: { channel: Channel; scenario: Scenario; first: 
     case "linkedin": body = `Hi ${i.first} — ${why} I advise companies on office space in Pune and would value connecting.`; break;
     case "introduction":
       body = `Hi ${i.via ?? "there"}, could you introduce me to ${i.first} at ${i.company}? ${why} I'd like to understand their plans and see if I can help with ${focus}. Only if you're comfortable — happy to send a short note you can forward.`;
-      forwardable = `${i.sender} advises companies on office space in Pune. ${why} He'd welcome a short call with ${i.first} to understand ${i.company}'s plans.`; break;
+      forwardable = `${i.sender} advises companies on office space in Pune. ${why} They would welcome a short call with ${i.first} to understand ${i.company}'s plans.`; break;
     case "meeting_followup": {
       // Filled only from the meeting's own facts (summary, commitments, next step) — no placeholders, nothing invented.
       const of = (t: string) => (i.facts ?? []).filter((f) => f.source_type === t).map((f) => f.text.trim()).filter(Boolean);
@@ -154,6 +154,10 @@ export function templateDraft(i: { channel: Channel; scenario: Scenario; first: 
     }
     case "call": body = `${opener} ${why} ${ask}`; break;
     default: subject = `${i.company}: ${sc.label.toLowerCase()} in Pune`; body = `${opener}\n\n${why} Given your focus on ${focus}, I thought it may be useful to compare options early rather than when timelines are tight.\n\n${ask}\n\nRegards,\n${i.sender}`;
+  }
+  if (i.lang === "hinglish" && i.channel !== "meeting_followup") {
+    body = body.replace(/^Hi ([^,.\s]+)[,.]?/, "Hi $1,").replace(/Would a 15-minute call next week be useful[^?]*\?/, "Kya next week 15 minute ki ek call ho sakti hai?")
+      .replace(/would a short call this week work\?/, "is week ek short call ho sakti hai kya?").replace(/Happy to share a quick view on options/, "Options par ek quick view share kar sakta hoon");
   }
   const call_script = i.channel === "call" ? { opener, reason: why, questions: q, objections: [
     { objection: "We're not looking right now.", reply: "Understood — is there a lease date or headcount change coming up that would be worth planning for?" },
@@ -298,3 +302,23 @@ export function availabilityLabel(a: { status: string; as_of: string; fact_statu
 }
 
 export { recipientError } from "@/lib/services/drafts";
+
+/**
+ * Guarantee a code-built draft has no "[placeholder]" left: the sender placeholder becomes the configured name or the
+ * sign-off is dropped; any other bracketed gap is removed with its sentence (nothing is invented to fill it — S6).
+ */
+export function noPlaceholders<T extends { subject: string | null; body: string; forwardable?: string | null; opening_alternatives?: string[]; cta_alternatives?: string[] }>(d: T, sender: string): T {
+  const realSender = sender && !/^\[.*\]$/.test(sender.trim()) ? sender.trim() : "";
+  const fix = (s: string) => {
+    let x = s.replace(/\[Your name\]/gi, realSender);
+    // drop whole sentences that still hold a bracketed gap
+    x = x.split(/(?<=[.?!])\s+/).filter((sen) => !/\[[^\]]{1,40}\]/.test(sen)).join(" ").replace(/ {2,}/g, " ");
+    return x.replace(/I'm , /, "I'm ").replace(/, ,/g, ",").replace(/\s+\./g, ".").trim();
+  };
+  const keepLines = (s: string) => {
+    const t = realSender ? s : s.replace(/\n(Regards|Best|Thanks),?\n\s*\[Your name\]\s*$/i, "\n$1");
+    return t.split("\n").map(fix).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  };
+  return { ...d, subject: d.subject ? fix(d.subject) : d.subject, body: keepLines(d.body), forwardable: d.forwardable ? fix(d.forwardable) : d.forwardable ?? null,
+    opening_alternatives: (d.opening_alternatives ?? []).map(fix), cta_alternatives: (d.cta_alternatives ?? []).map(fix) };
+}

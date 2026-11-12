@@ -1,0 +1,58 @@
+{
+  "durationMs": 60688,
+  "steps": [
+    {
+      "caption": "Open the Lumen Harbour Tech lease from Leases. Its executed deed is already attached.",
+      "ms": 3607
+    },
+    {
+      "caption": "The note at the top: extracted clauses are shown word for word with page numbers. They are summaries, not legal advice.",
+      "ms": 15114
+    },
+    {
+      "caption": "Important dates: execution, commencement, lock-in, escalations, break option, notice deadlines and expiry.",
+      "ms": 18296
+    },
+    {
+      "caption": "Confirmed contractual deadline: someone checked it against the signed deed. Commencement and expiry are confirmed here.",
+      "ms": 21495
+    },
+    {
+      "caption": "Lock-in completion: Calculated — not verified. It shows the method — 36 months from 1 Jan 2024, minus one day.",
+      "ms": 24675
+    },
+    {
+      "caption": "And the exact clause it came from, with the document and page number.",
+      "ms": 27840
+    },
+    {
+      "caption": "A warning: lock-in completion alone does not allow termination — the notice clause still applies.",
+      "ms": 31047
+    },
+    {
+      "caption": "Checked it against the deed? Add a review note and press Confirm after review.",
+      "ms": 34253
+    },
+    {
+      "caption": "It is now a Confirmed contractual deadline, with today's date and your note.",
+      "ms": 41152
+    },
+    {
+      "caption": "Break option says Needs review: its conditions (a break fee) must be checked, so you must pick the date yourself.",
+      "ms": 44403
+    },
+    {
+      "caption": "Reject removes a wrong date; Add or calculate a date lets you enter one by hand or calculate it from a clause.",
+      "ms": 47715
+    },
+    {
+      "caption": "Reminders are created only from confirmed dates — here, ahead of the lock-in completion. They appear in the app; nothing is sent outside.",
+      "ms": 50884
+    },
+    {
+      "caption": "The activity timeline records who confirmed what, and when.",
+      "ms": 54180
+    }
+  ],
+  "bytes": 975721
+}

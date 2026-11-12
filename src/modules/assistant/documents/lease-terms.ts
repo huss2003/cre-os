@@ -1,5 +1,6 @@
 import Decimal from "decimal.js";
 import { z } from "zod";
+import { runWithPolicy, type AiMode } from "@/lib/ai/policy";
 
 /**
  * Lease / LOI / term-sheet term extraction — the deterministic half. The model (or the mock heuristic) only points at
@@ -121,7 +122,7 @@ export function parseInr(s: string): string | null {
 }
 export function rentUnit(s: string): Extract<Normalised, { kind: "money" }>["unit"] {
   const l = s.toLowerCase();
-  const perSf = /(per|\/)\s*(sq\.?\s*ft|sft|square\s*f(oo|ee)t)|\bpsf\b/.test(l);
+  const perSf = /(per|\/)\s*(sq\.?\s*ft|sft|sf\b|square\s*f(oo|ee)t)|\bpsf\b/.test(l);
   const month = /per\s*month|\/\s*month|monthly|p\.?\s*m\.?\b/.test(l);
   const annum = /per\s*(annum|year)|annual|p\.?\s*a\.?\b/.test(l);
   if (perSf && month) return "per_sf_per_month";
@@ -131,7 +132,7 @@ export function rentUnit(s: string): Extract<Normalised, { kind: "money" }>["uni
   return "unknown";
 }
 export function parseArea(s: string): Extract<Normalised, { kind: "area" }> | null {
-  const m = s.match(/([\d,]+(?:\.\d+)?)\s*(sq\.?\s*ft\.?|sft|square\s*f(?:ee|oo)t|sq\.?\s*m(?:trs?|eters?|etres?)?\.?|square\s*met(?:er|re)s?)/i);
+  const m = s.match(/([\d,]+(?:\.\d+)?)\s*(sq\.?\s*ft\.?|sft|sf\b|square\s*f(?:ee|oo)t|sq\.?\s*m(?:trs?|eters?|etres?)?\.?|square\s*met(?:er|re)s?)/i);
   if (!m) return null;
   const sqm = /sq\.?\s*m|square\s*met/i.test(m[2]) && !/ft|feet|foot/i.test(m[2]);
   const v = num(m[1]);
@@ -158,8 +159,9 @@ export function normaliseField(field: LeaseField, s: string): Normalised {
     case "escalation": return parsePercent(s);
     case "deposit": {
       const mm = s.match(/\(?(\d+)\)?\s*months?'?\s*(?:of\s*)?(?:rent|deposit|security)/i) ?? s.match(/(?:equivalent to|equal to)\s*\w*\s*\(?(\d+)\)?\s*months?/i);
+      const mm2 = mm ?? (/deposit|IFRSD/i.test(s) ? s.match(/\(?(\d+)\)?\s*months?\b/i) : null);
       const amt = parseInr(s);
-      return mm || amt ? { kind: "deposit", months: mm ? +mm[1] : null, amount: amt } : null;
+      return mm2 || amt ? { kind: "deposit", months: mm2 ? +mm2[1] : null, amount: amt } : null;
     }
     case "parking": { const m = s.match(/\(?(\d+)\)?\s*(?:\w+\s+){0,2}(?:car\s*)?(?:parking|slots?|bays?|spaces?)/i); return m ? { kind: "count", count: +m[1] } : null; }
     default: return null;
@@ -183,7 +185,7 @@ export function displayNormalised(n: Normalised): string | null {
 const CUES: Record<LeaseField, RegExp> = {
   parties: /\bbetween\b.*\band\b|\blessor\b.*\blessee\b|\blandlord\b.*\btenant\b/i,
   premises: /\bpremises\b|\bunit\b.*\bfloor\b|\bfloor\b.*\btower\b/i,
-  area: /\d[\d,]*\s*(sq\.?\s*ft|sft|square\s*feet|sq\.?\s*m)/i,
+  area: /\d[\d,]*\s*(sq\.?\s*ft|sft|sf\b|square\s*feet|sq\.?\s*m)/i,
   rent: /\brent\b.*(₹|rs\.?|inr)|\b(₹|rs\.?|inr)\b.*\brent\b/i,
   escalation: /escalat|increase.*\d+\s*%|\d+\s*%.*increase/i,
   lock_in: /lock[\s-]*in/i,
@@ -204,13 +206,18 @@ const SENTENCE = /(?<=(?<!\b(?:sq|rs|no|nos|pvt|ltd|ft|st|approx|viz|e\.g|i\.e|m
 export function heuristicTerms(pages: string[]): ModelTerms {
   const out: ModelTerms["fields"] = [];
   for (const f of LEASE_FIELDS) {
-    let hit: { page: number; s: string } | null = null;
-    for (let p = 0; p < pages.length && !hit; p++) {
+    // Prefer the first cue sentence whose value code can parse (e.g. a rent line with an amount over a rent heading).
+    let hit: { page: number; s: string; parsed: boolean } | null = null;
+    for (let p = 0; p < pages.length && !hit?.parsed; p++) {
       const sentences = pages[p].split(SENTENCE).map((x) => x.trim()).filter(Boolean);
-      const s = sentences.find((x) => CUES[f].test(x));
-      if (s) hit = { page: p + 1, s };
+      for (const x of sentences) {
+        if (!CUES[f].test(x)) continue;
+        const parsed = !!normaliseField(f, clipWords(x));
+        if (!hit || (parsed && !hit.parsed)) hit = { page: p + 1, s: x, parsed };
+        if (parsed) break;
+      }
     }
-    if (hit) { const snip = clipWords(hit.s); out.push({ field: f, value: snip, page: hit.page, snippet: snip, confidence: 0.4 }); }
+    if (hit) { const snip = clipWords(hit.s); out.push({ field: f, value: snip, page: hit.page, snippet: snip, confidence: hit.parsed ? 0.7 : 0.4 }); }
   }
   return { fields: out };
 }
@@ -244,4 +251,31 @@ export function leasePatchFromTerms(terms: ExtractedTerm[]): { column: string; v
   for (const [f, col] of [["start_date", "start_date"], ["expiry_date", "contractual_expiry"]] as const) { const n = get(f)?.normalised; if (n?.kind === "date") out.push({ column: col, value: n.iso, field: f }); }
   for (const [f, col] of [["term", "tenure_months_raw"], ["lock_in", "lockin_months_raw"]] as const) { const n = get(f)?.normalised; if (n?.kind === "months") out.push({ column: col, value: n.months, field: f }); }
   return out;
+}
+
+// ------------------------------------------------------------------------------------------------ code first, AI as backup
+/** Fields that must be found (verified + parsed) before code alone is trusted; otherwise AI may help (mode permitting). */
+export const LEASE_REQUIRED: LeaseField[] = ["rent", "area"];
+export function leaseTermsAccept(terms: ExtractedTerm[]): boolean {
+  return LEASE_REQUIRED.every((f) => terms.some((t) => t.field === f && t.verified && !!t.normalised));
+}
+/** AI result for fields it verified; code's verified term kept where the AI missed one. */
+export function mergeTerms(primary: ExtractedTerm[], fallback: ExtractedTerm[]): ExtractedTerm[] {
+  return LEASE_FIELDS.map((f) => {
+    const a = primary.find((t) => t.field === f); const b = fallback.find((t) => t.field === f);
+    return a?.verified ? a : b?.verified ? b : a ?? b ?? { field: f, raw: null, page: null, snippet: null, confidence: 0, verified: false, flag: null, normalised: null };
+  });
+}
+export interface LeaseRun { terms: ExtractedTerm[]; model: string; mocked: boolean; source: "code" | "ai" | "none" }
+/**
+ * Policy runner (docs/ai-policy.md): off → patterns only; backup → patterns, AI only when rent/area are missing;
+ * on → AI first, patterns when AI is unavailable. Every term (AI or code) is verified against the page text.
+ */
+export async function codeFirstLeaseTerms(pages: string[], mode: AiMode, ai: () => Promise<{ data: ModelTerms; model: string; mocked: boolean }>): Promise<LeaseRun> {
+  const code = (): LeaseRun => ({ terms: finaliseTerms(heuristicTerms(pages), pages), model: "rules", mocked: true, source: "code" });
+  const out = await runWithPolicy<LeaseRun>({
+    mode, code, accept: (r) => leaseTermsAccept(r.terms),
+    ai: async () => { const r = await ai(); return { terms: mergeTerms(finaliseTerms(r.data, pages), code().terms), model: r.model, mocked: r.mocked, source: "ai" }; },
+  });
+  return out.value ?? { ...code(), source: "none" };
 }
